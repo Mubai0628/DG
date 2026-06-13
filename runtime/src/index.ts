@@ -39,3 +39,4 @@ export * from "./conversation/index.js";
 export * from "./context/index.js";
 export * from "./deepseek/index.js";
 export * from "./events/index.js";
+export * from "./workspace/index.js";
