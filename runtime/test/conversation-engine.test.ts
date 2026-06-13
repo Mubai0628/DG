@@ -236,12 +236,14 @@ describe("ConversationEngine invariants", () => {
       model: "deepseek-v4-pro",
       messages: [{ role: "user", content: "think" }],
       thinking: { type: "enabled", reasoning_effort: "high" },
+      tool_choice: "required",
       temperature: 0.5,
       top_p: 0.9
     });
 
     expect(request.temperature).toBeUndefined();
     expect(request.top_p).toBeUndefined();
+    expect(request.tool_choice).toBeUndefined();
   });
 
   it("emits cache.boundary.changed when thinking mode changes", async () => {

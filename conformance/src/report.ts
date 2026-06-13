@@ -16,9 +16,11 @@ export function summarizeResults(
     (result) => result.status === "FAIL"
   )
     ? "FAIL"
-    : results.every((result) => result.status === "SKIPPED")
-      ? "SKIPPED"
-      : "PASS";
+    : results.some((result) => result.status === "INCONCLUSIVE")
+      ? "INCONCLUSIVE"
+      : results.every((result) => result.status === "SKIPPED")
+        ? "SKIPPED"
+        : "PASS";
 
   return redactForReport({ mode, status, results }) as ConformanceSummary;
 }

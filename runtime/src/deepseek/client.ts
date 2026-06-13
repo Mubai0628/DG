@@ -138,6 +138,7 @@ export function sanitizeDeepSeekChatRequest(
   const sanitized = { ...request, messages: [...request.messages] };
   delete sanitized.temperature;
   delete sanitized.top_p;
+  delete sanitized.tool_choice;
 
   return sanitized;
 }

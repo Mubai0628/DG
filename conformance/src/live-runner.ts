@@ -3,7 +3,9 @@ import { fileURLToPath } from "node:url";
 
 import {
   ConversationEngine,
+  DeepSeekClientError,
   HttpDeepSeekClient,
+  type DeepSeekClient,
   type DeepSeekChatResponse
 } from "@deepseek-workbench/runtime";
 
@@ -15,8 +17,11 @@ import {
 } from "./report.js";
 import {
   type ConformanceCaseResult,
-  type ConformanceSummary
+  type ConformanceSummary,
+  type LiveFailureCategory,
+  type LiveToolRoundtripDiagnostics
 } from "./types.js";
+import { sanitizeDiagnosticMessage } from "./redaction.js";
 
 type LiveEnv = {
   DEEPSEEK_CONFORMANCE_LIVE?: string | undefined;
@@ -68,7 +73,7 @@ export async function runLiveConformance(
           summarizeResponse(caseId, await proThinkingProbe(client), startedAt)
         );
       } else if (caseId === "CASE-LIVE-003") {
-        results.push(await thinkingToolRoundtripProbe(client, startedAt));
+        results.push(await runLiveThinkingToolRoundtripCase(client, startedAt));
       } else if (caseId === "CASE-LIVE-004") {
         results.push(
           summarizeResponse(caseId, await cacheProbe(client), startedAt)
@@ -123,11 +128,13 @@ async function proThinkingProbe(
   });
 }
 
-async function thinkingToolRoundtripProbe(
-  client: HttpDeepSeekClient,
-  startedAt: number
+export async function runLiveThinkingToolRoundtripCase(
+  client: DeepSeekClient,
+  startedAt = Date.now()
 ): Promise<ConformanceCaseResult> {
   const toolCallName = "get_constant_value";
+  const toolChoiceFirstRequest = "omitted";
+  const toolChoiceContinuation = "omitted";
   const engine = new ConversationEngine({
     client,
     model: "deepseek-v4-pro",
@@ -137,26 +144,44 @@ async function thinkingToolRoundtripProbe(
         type: "function",
         function: {
           name: toolCallName,
-          description: "Return a harmless constant.",
+          description:
+            "Return a harmless constant. This has no external side effects.",
           parameters: {
             type: "object",
-            properties: {}
+            properties: {
+              key: {
+                type: "string",
+                enum: ["constant"],
+                description: "Always use constant."
+              }
+            },
+            required: ["key"],
+            additionalProperties: false
           }
         }
       }
     ]
   });
 
-  const output = await engine.sendUserMessage(
-    "Call the provided function once.",
-    {
-      tool_choice: {
-        type: "function",
-        function: { name: toolCallName }
-      }
-    }
-  );
+  let output;
+  try {
+    output = await engine.sendUserMessage(
+      "You must call the provided get_constant_value tool once before answering. Use key=constant. After receiving the tool result, answer with the word DONE."
+    );
+  } catch (error) {
+    return failLiveToolRoundtrip(error, {
+      failureCategory: classifyInitialToolRequestFailure(error),
+      toolChoiceFirstRequest,
+      toolChoiceContinuation,
+      thinkingEnabled: true,
+      toolChoicePresentFirstRequest: false,
+      toolChoicePresentContinuation: false,
+      toolChoiceWasStrippedForThinking: false
+    });
+  }
+
   const pending = output.pendingToolCalls[0];
+  const toolCallCount = output.assistantTurn.toolCalls?.length ?? 0;
 
   if (pending === undefined) {
     return {
@@ -164,25 +189,231 @@ async function thinkingToolRoundtripProbe(
       status: "INCONCLUSIVE",
       model: "deepseek-v4-pro",
       responseHasToolCalls: false,
+      responseHasReasoningContent:
+        output.assistantTurn.reasoningContent !== undefined &&
+        output.assistantTurn.reasoningContent !== null,
       latencyMs: Date.now() - startedAt,
+      failureCategory: "NO_TOOL_CALL_INCONCLUSIVE",
+      toolCallCount,
+      pendingToolCallCount: 0,
+      toolChoiceFirstRequest,
+      toolChoiceContinuation,
+      thinkingEnabled: true,
+      toolChoicePresentFirstRequest: false,
+      toolChoicePresentContinuation: false,
+      toolChoiceWasStrippedForThinking: false,
       note: "Model did not call the harmless tool."
     };
   }
 
   engine.submitToolResult({ toolCallId: pending.id, content: "constant" });
-  const final = await engine.continueAfterToolResults();
+  const continuation = engine.assembleRequest({
+    thinking: { type: "enabled", reasoning_effort: "high" }
+  });
+  const assistantToolCallContentWasNull = engine
+    .getState()
+    .turns.some(
+      (turn) =>
+        turn.role === "assistant" &&
+        (turn.toolCalls?.length ?? 0) > 0 &&
+        turn.content === null
+    );
+  const continuationDiagnostics = inspectContinuationRequest(
+    continuation,
+    assistantToolCallContentWasNull
+  );
+
+  try {
+    const final = await engine.continueAfterToolResults({
+      thinking: { type: "enabled", reasoning_effort: "high" }
+    });
+
+    const finalToolCallCount = final.assistantTurn.toolCalls?.length ?? 0;
+    if (finalToolCallCount > 0) {
+      return {
+        caseId: "CASE-LIVE-003",
+        status: "PASS",
+        model: "deepseek-v4-pro",
+        responseHasToolCalls: true,
+        responseHasReasoningContent:
+          final.assistantTurn.reasoningContent !== undefined &&
+          final.assistantTurn.reasoningContent !== null,
+        usageSummary: final.usage,
+        latencyMs: Date.now() - startedAt,
+        toolCallCount: finalToolCallCount,
+        pendingToolCallCount: final.pendingToolCalls.length,
+        toolChoiceFirstRequest,
+        toolChoiceContinuation,
+        ...continuationDiagnostics,
+        note: "Continuation succeeded and returned additional tool calls; reasoning roundtrip did not 400."
+      };
+    }
+
+    return {
+      caseId: "CASE-LIVE-003",
+      status: "PASS",
+      model: "deepseek-v4-pro",
+      responseHasToolCalls: true,
+      responseHasReasoningContent:
+        final.assistantTurn.reasoningContent !== undefined &&
+        final.assistantTurn.reasoningContent !== null,
+      usageSummary: final.usage,
+      latencyMs: Date.now() - startedAt,
+      toolCallCount,
+      pendingToolCallCount: final.pendingToolCalls.length,
+      toolChoiceFirstRequest,
+      toolChoiceContinuation,
+      ...continuationDiagnostics
+    };
+  } catch (error) {
+    return failLiveToolRoundtrip(error, {
+      failureCategory: classifyContinuationFailure(error),
+      toolCallCount,
+      pendingToolCallCount: output.pendingToolCalls.length,
+      continuationHttpStatus:
+        error instanceof DeepSeekClientError ? error.status : undefined,
+      toolChoiceFirstRequest,
+      toolChoiceContinuation,
+      ...continuationDiagnostics
+    });
+  }
+}
+
+function inspectContinuationRequest(
+  continuation: ReturnType<ConversationEngine["assembleRequest"]>,
+  assistantToolCallContentWasNull: boolean
+): LiveToolRoundtripDiagnostics {
+  const continuationIncludesReasoningContent =
+    continuation.request.messages.some(
+      (message) =>
+        message.role === "assistant" &&
+        message.reasoning_content !== undefined &&
+        message.reasoning_content !== null
+    );
+  const continuationIncludesAssistantToolCalls =
+    continuation.request.messages.some(
+      (message) =>
+        message.role === "assistant" && (message.tool_calls?.length ?? 0) > 0
+    );
+  const continuationIncludesToolMessage = continuation.request.messages.some(
+    (message) => message.role === "tool" && message.tool_call_id.length > 0
+  );
+  const assistantToolCallContentNormalized =
+    assistantToolCallContentWasNull &&
+    continuation.request.messages.some(
+      (message) =>
+        message.role === "assistant" &&
+        (message.tool_calls?.length ?? 0) > 0 &&
+        message.content === ""
+    );
 
   return {
-    caseId: "CASE-LIVE-003",
-    status: "PASS",
-    model: "deepseek-v4-pro",
-    responseHasToolCalls: true,
-    responseHasReasoningContent:
-      final.assistantTurn.reasoningContent !== undefined &&
-      final.assistantTurn.reasoningContent !== null,
-    usageSummary: final.usage,
-    latencyMs: Date.now() - startedAt
+    continuationRequestMessageCount: continuation.request.messages.length,
+    continuationIncludesToolRoundReasoning:
+      continuationIncludesReasoningContent,
+    continuationIncludesReasoningContent,
+    continuationIncludesAssistantToolCalls,
+    continuationIncludesToolMessages: continuationIncludesToolMessage,
+    continuationIncludesToolMessage,
+    thinkingEnabled: continuation.request.thinking?.type === "enabled",
+    toolChoicePresentFirstRequest: false,
+    toolChoicePresentContinuation:
+      continuation.request.tool_choice !== undefined,
+    toolChoiceWasStrippedForThinking: false,
+    assistantToolCallContentWasNull,
+    assistantToolCallContentNormalized
   };
+}
+
+function failLiveToolRoundtrip(
+  error: unknown,
+  diagnostics: LiveToolRoundtripDiagnostics
+): ConformanceCaseResult {
+  return {
+    caseId: "CASE-LIVE-003",
+    status: "FAIL",
+    model: "deepseek-v4-pro",
+    errorKind:
+      error instanceof DeepSeekClientError
+        ? error.kind
+        : error instanceof Error
+          ? error.name
+          : "unknown",
+    httpStatus: error instanceof DeepSeekClientError ? error.status : undefined,
+    sanitizedErrorMessage:
+      error instanceof Error
+        ? sanitizeDiagnosticMessage(error.message)
+        : "Unknown live failure",
+    liveFailureCategory: diagnostics.failureCategory,
+    ...diagnostics,
+    note: "Live thinking+tool roundtrip failed with redacted diagnostics."
+  };
+}
+
+function classifyInitialToolRequestFailure(
+  error: unknown
+): LiveFailureCategory {
+  if (isToolChoiceUnsupportedInThinking(error)) {
+    return "TOOL_CHOICE_UNSUPPORTED_IN_THINKING";
+  }
+  if (error instanceof DeepSeekClientError) {
+    if (
+      error.kind === "rate_limited" ||
+      error.kind === "overloaded" ||
+      error.kind === "network_error" ||
+      error.kind === "timeout"
+    ) {
+      return "NETWORK_OR_RATE_LIMIT";
+    }
+    if (error.status === 400 || error.status === 422) {
+      return "STRICT_SCHEMA_OR_BETA_ERROR";
+    }
+  }
+
+  return "UNKNOWN_LIVE_FAILURE";
+}
+
+function classifyContinuationFailure(error: unknown): LiveFailureCategory {
+  if (isToolChoiceUnsupportedInThinking(error)) {
+    return "TOOL_CHOICE_UNSUPPORTED_IN_THINKING";
+  }
+  if (error instanceof DeepSeekClientError) {
+    if (error.status === 400) {
+      return "API_400_REASONING_ROUNDTRIP";
+    }
+    if (error.status === 422) {
+      return "INVALID_TOOL_MESSAGE_SHAPE";
+    }
+    if (
+      error.kind === "rate_limited" ||
+      error.kind === "overloaded" ||
+      error.kind === "network_error" ||
+      error.kind === "timeout"
+    ) {
+      return "NETWORK_OR_RATE_LIMIT";
+    }
+  }
+
+  return "UNKNOWN_LIVE_FAILURE";
+}
+
+function isToolChoiceUnsupportedInThinking(error: unknown): boolean {
+  if (!(error instanceof DeepSeekClientError) || error.status !== 400) {
+    return false;
+  }
+
+  const message = sanitizeDiagnosticMessage(error.message).toLowerCase();
+  const mentionsToolChoice =
+    message.includes("tool_choice") || message.includes("tool choice");
+  const mentionsUnsupported =
+    message.includes("invalid") ||
+    message.includes("unsupported") ||
+    message.includes("not allowed") ||
+    message.includes("not support") ||
+    message.includes("reject") ||
+    message.includes("disallow");
+
+  return mentionsToolChoice && mentionsUnsupported;
 }
 
 async function cacheProbe(

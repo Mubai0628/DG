@@ -25,13 +25,15 @@ export class MessageAssembler {
             content: turn.content ?? ""
           };
         case "assistant": {
+          const toolCalls = turn.toolCalls ?? [];
+          const hasToolCalls = toolCalls.length > 0;
           const message: DeepSeekAssistantMessage = {
             role: "assistant",
-            content: turn.content
+            content: hasToolCalls ? (turn.content ?? "") : turn.content
           };
 
-          if (turn.toolCalls !== undefined && turn.toolCalls.length > 0) {
-            message.tool_calls = turn.toolCalls;
+          if (hasToolCalls) {
+            message.tool_calls = toolCalls;
           }
 
           if (turn.includeReasoningInNextRequest) {

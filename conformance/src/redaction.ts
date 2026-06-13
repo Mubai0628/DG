@@ -41,3 +41,7 @@ export function redactForReport(value: unknown): unknown {
 
   return value;
 }
+
+export function sanitizeDiagnosticMessage(message: string): string {
+  return redactForReport(message) as string;
+}
