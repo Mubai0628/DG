@@ -10,6 +10,7 @@ deepseek_workbench_v0_2_1_codex_pack/
 *.local
 
 workspace/drafts/*.csv
+conformance/results/
 
 Thumbs.db
 .DS_Store

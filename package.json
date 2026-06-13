@@ -7,9 +7,10 @@
   "description": "Local-first, DeepSeek-native desktop agent workbench skeleton.",
   "scripts": {
     "lint": "eslint . && prettier --check .",
-    "typecheck": "pnpm --filter @deepseek-workbench/runtime typecheck",
-    "test": "vitest run",
-    "test:conformance:dry": "node scripts/conformance-dry-stub.mjs",
+    "typecheck": "pnpm --filter @deepseek-workbench/runtime build && pnpm --filter @deepseek-workbench/runtime typecheck && pnpm --filter @deepseek-workbench/conformance typecheck",
+    "test": "vitest run runtime/test",
+    "test:conformance:dry": "pnpm --filter @deepseek-workbench/runtime build && vitest run conformance/test/conformance-dry.test.ts",
+    "test:conformance:live": "pnpm --filter @deepseek-workbench/runtime build && pnpm --filter @deepseek-workbench/conformance build && node conformance/dist/live-runner.js",
     "replay": "pnpm --filter @deepseek-workbench/runtime build && node scripts/replay.mjs"
   },
   "devDependencies": {

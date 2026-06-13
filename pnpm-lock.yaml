@@ -30,6 +30,12 @@ importers:
         specifier: 4.1.8
         version: 4.1.8(@types/node@24.13.2)(vite@8.0.16(@types/node@24.13.2))
 
+  conformance:
+    dependencies:
+      '@deepseek-workbench/runtime':
+        specifier: workspace:*
+        version: link:../runtime
+
   runtime: {}
 
 packages:

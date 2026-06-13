@@ -1,0 +1,14 @@
+{
+  "name": "@deepseek-workbench/conformance",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "DeepSeek Workbench conformance harness.",
+  "dependencies": {
+    "@deepseek-workbench/runtime": "workspace:*"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  }
+}

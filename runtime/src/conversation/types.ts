@@ -6,7 +6,8 @@ import {
   type DeepSeekToolCall,
   type DeepSeekToolDefinition,
   type DeepSeekMessage,
-  type DeepSeekResponseFormat
+  type DeepSeekResponseFormat,
+  type DeepSeekToolChoice
 } from "../deepseek/index.js";
 import { type EventStore, type UsageSummary } from "../events/index.js";
 
@@ -56,6 +57,7 @@ export type ConversationRequestOptions = {
   model?: DeepSeekModelId;
   thinking?: DeepSeekThinkingConfig;
   tools?: DeepSeekToolDefinition[];
+  tool_choice?: DeepSeekToolChoice;
   response_format?: DeepSeekResponseFormat;
   temperature?: number;
   top_p?: number;

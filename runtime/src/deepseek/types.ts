@@ -64,11 +64,23 @@ export type DeepSeekResponseFormat = {
   type: "text" | "json_object";
 };
 
+export type DeepSeekToolChoice =
+  | "auto"
+  | "none"
+  | "required"
+  | {
+      type: "function";
+      function: {
+        name: string;
+      };
+    };
+
 export type DeepSeekChatRequest = {
   model: DeepSeekModelId;
   messages: DeepSeekMessage[];
   thinking?: DeepSeekThinkingConfig;
   tools?: DeepSeekToolDefinition[];
+  tool_choice?: DeepSeekToolChoice;
   response_format?: DeepSeekResponseFormat;
   temperature?: number;
   top_p?: number;

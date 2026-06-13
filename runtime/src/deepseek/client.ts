@@ -8,6 +8,7 @@ import {
 const reasoningEfforts = new Set(["high", "max"]);
 const thinkingTypes = new Set(["enabled", "disabled"]);
 const responseFormatTypes = new Set(["text", "json_object"]);
+const toolChoiceStrings = new Set(["auto", "none", "required"]);
 
 export type ParsedToolArguments =
   | { ok: true; value: unknown }
@@ -101,6 +102,25 @@ export function validateDeepSeekChatRequest(
       throw new DeepSeekClientError(
         "invalid_request",
         "Tools must use type=function"
+      );
+    }
+  }
+
+  if (request.tool_choice !== undefined) {
+    if (typeof request.tool_choice === "string") {
+      if (!toolChoiceStrings.has(request.tool_choice)) {
+        throw new DeepSeekClientError(
+          "invalid_request",
+          "tool_choice must be auto, none, required, or a function choice"
+        );
+      }
+    } else if (
+      request.tool_choice.type !== "function" ||
+      request.tool_choice.function.name.length === 0
+    ) {
+      throw new DeepSeekClientError(
+        "invalid_request",
+        "tool_choice function requires a name"
       );
     }
   }

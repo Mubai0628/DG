@@ -136,6 +136,9 @@ export class ConversationEngine {
       ...(shape.tools !== undefined && shape.tools.length > 0
         ? { tools: shape.tools }
         : {}),
+      ...(options.tool_choice !== undefined
+        ? { tool_choice: options.tool_choice }
+        : {}),
       ...(options.response_format !== undefined
         ? { response_format: options.response_format }
         : {}),
