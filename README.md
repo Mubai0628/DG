@@ -30,7 +30,7 @@ v0.1.0 does not:
 
 ## Current implementation status
 
-The repository includes the v0.1.0 monorepo skeleton, a TypeScript runtime package, an event store interface, in-memory event storage for tests, JSONL event storage for local persistence, and a deterministic replay demo.
+The repository includes the v0.1.0 monorepo skeleton, a TypeScript runtime package, an event store interface, in-memory event storage for tests, JSONL event storage for local persistence, a deterministic replay demo, and a small DeepSeek client adapter with a fake client for default tests.
 
 `pnpm run replay -- --demo` builds the runtime and replays deterministic demo events. SQLite storage is not implemented yet; the current persistent event store is JSONL so the interface can remain simple until SQLite is added.
 

@@ -1,7 +1,7 @@
 export const projectName = "deepseek-workbench";
 export const releaseScope = "v0.1.0";
-export const currentTaskId = "DW-P0A-002";
-export const nextTaskId = "DW-P0A-003";
+export const currentTaskId = "DW-P0A-003";
+export const nextTaskId = "DW-P0A-004";
 
 export type RuntimeSkeletonStatus = {
   projectName: typeof projectName;
@@ -22,10 +22,11 @@ export function getRuntimeSkeletonStatus(): RuntimeSkeletonStatus {
       "workspace skeleton",
       "runtime package",
       "event store",
-      "replay demo"
+      "replay demo",
+      "DeepSeek client adapter",
+      "fake DeepSeek client"
     ],
     disabledUntilLaterTasks: [
-      "real DeepSeek API calls",
       "ConversationEngine",
       "browser extension permissions",
       "desktop control"
@@ -33,4 +34,5 @@ export function getRuntimeSkeletonStatus(): RuntimeSkeletonStatus {
   };
 }
 
+export * from "./deepseek/index.js";
 export * from "./events/index.js";
