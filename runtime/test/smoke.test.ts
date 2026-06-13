@@ -14,9 +14,12 @@ describe("runtime skeleton", () => {
 
     expect(projectName).toBe("deepseek-workbench");
     expect(releaseScope).toBe("v0.1.0");
-    expect(currentTaskId).toBe("DW-P0A-003");
-    expect(nextTaskId).toBe("DW-P0A-004");
+    expect(currentTaskId).toBe("DW-P0A-004");
+    expect(nextTaskId).toBe("DW-P0A-005");
     expect(status.implementedCapabilities).toContain("fake DeepSeek client");
+    expect(status.implementedCapabilities).toContain(
+      "ConversationEngine invariants"
+    );
     expect(status.disabledUntilLaterTasks).toContain("desktop control");
   });
 });

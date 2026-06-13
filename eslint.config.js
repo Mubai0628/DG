@@ -11,6 +11,7 @@ export default [
     ignores: [
       "node_modules/**",
       "dist/**",
+      "**/dist/**",
       "coverage/**",
       "deepseek_workbench_v0_2_1_codex_pack/**"
     ]
