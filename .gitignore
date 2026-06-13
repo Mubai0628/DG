@@ -1,0 +1,15 @@
+node_modules/
+dist/
+coverage/
+.turbo/
+.vite/
+deepseek_workbench_v0_2_1_codex_pack/
+
+.env
+.env.*
+*.local
+
+workspace/drafts/*.csv
+
+Thumbs.db
+.DS_Store

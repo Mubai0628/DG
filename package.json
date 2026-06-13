@@ -1,0 +1,23 @@
+{
+  "name": "deepseek-workbench",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "packageManager": "pnpm@11.6.0",
+  "description": "Local-first, DeepSeek-native desktop agent workbench skeleton.",
+  "scripts": {
+    "lint": "eslint . && prettier --check .",
+    "typecheck": "pnpm --filter @deepseek-workbench/runtime typecheck",
+    "test": "vitest run",
+    "test:conformance:dry": "node scripts/conformance-dry-stub.mjs",
+    "replay": "node scripts/replay-stub.mjs"
+  },
+  "devDependencies": {
+    "@eslint/js": "10.0.1",
+    "eslint": "10.5.0",
+    "prettier": "3.8.4",
+    "typescript": "6.0.3",
+    "typescript-eslint": "8.61.0",
+    "vitest": "4.1.8"
+  }
+}
