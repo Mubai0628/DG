@@ -14,8 +14,8 @@ describe("runtime skeleton", () => {
 
     expect(projectName).toBe("deepseek-workbench");
     expect(releaseScope).toBe("v0.1.0");
-    expect(currentTaskId).toBe("DW-P0A-001");
-    expect(nextTaskId).toBe("DW-P0A-002");
+    expect(currentTaskId).toBe("DW-P0A-002");
+    expect(nextTaskId).toBe("DW-P0A-003");
     expect(status.disabledUntilLaterTasks).toContain("real DeepSeek API calls");
     expect(status.disabledUntilLaterTasks).toContain("desktop control");
   });

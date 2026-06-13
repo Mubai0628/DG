@@ -10,10 +10,11 @@
     "typecheck": "pnpm --filter @deepseek-workbench/runtime typecheck",
     "test": "vitest run",
     "test:conformance:dry": "node scripts/conformance-dry-stub.mjs",
-    "replay": "node scripts/replay-stub.mjs"
+    "replay": "pnpm --filter @deepseek-workbench/runtime build && node scripts/replay.mjs"
   },
   "devDependencies": {
     "@eslint/js": "10.0.1",
+    "@types/node": "24.13.2",
     "eslint": "10.5.0",
     "prettier": "3.8.4",
     "typescript": "6.0.3",

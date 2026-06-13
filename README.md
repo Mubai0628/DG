@@ -28,11 +28,11 @@ v0.1.0 does not:
 - Call the real DeepSeek API in default tests.
 - Store raw prompt or raw DOM logs by default.
 
-## Current task status
+## Current implementation status
 
-DW-P0A-001 initializes the repository skeleton only. It does not implement ConversationEngine, Browser Extension, Memory, Tool Broker, Event Store, or real ReplayEngine logic.
+The repository includes the v0.1.0 monorepo skeleton, a TypeScript runtime package, an event store interface, in-memory event storage for tests, JSONL event storage for local persistence, and a deterministic replay demo.
 
-`pnpm run replay -- --demo` currently prints a clear TODO/stub message and exits 0. DW-P0A-002 will implement Event Store + Replay.
+`pnpm run replay -- --demo` builds the runtime and replays deterministic demo events. SQLite storage is not implemented yet; the current persistent event store is JSONL so the interface can remain simple until SQLite is added.
 
 ## Development
 

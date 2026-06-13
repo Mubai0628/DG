@@ -5,9 +5,10 @@
   "type": "module",
   "description": "Runtime package skeleton for DeepSeek Workbench.",
   "exports": {
-    ".": "./src/index.ts"
+    ".": "./dist/index.js"
   },
   "scripts": {
+    "build": "tsc -p tsconfig.build.json",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "vitest run"
   }
