@@ -1,0 +1,68 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  dry-offline-gate:
+    name: Dry offline gate
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Use Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+
+      - name: Enable pnpm
+        run: |
+          corepack enable
+          corepack prepare pnpm@11.6.0 --activate
+
+      - name: Install
+        run: pnpm install --frozen-lockfile
+
+      - name: Lint
+        run: pnpm lint
+
+      - name: Typecheck
+        run: pnpm typecheck
+
+      - name: Runtime tests
+        run: pnpm test
+
+      - name: Dry conformance
+        run: pnpm test:conformance:dry
+
+      - name: Live conformance skip check
+        run: pnpm test:conformance:live
+
+      - name: Browser extension build
+        run: pnpm --filter @deepseek-workbench/browser-extension build
+
+      - name: Browser extension tests
+        run: pnpm --filter @deepseek-workbench/browser-extension test
+
+      - name: Web table eval
+        run: pnpm eval:web-table-to-csv
+
+      - name: v0.1 slice verify
+        run: pnpm verify:v0.1-slice
+
+      - name: Replay demo
+        run: pnpm run replay -- --demo
+
+      - name: CLI help
+        run: pnpm run web-table-to-csv -- --help
+
+      - name: Boundary check
+        run: pnpm check:boundaries
+
+      - name: Secret check
+        run: pnpm check:secrets

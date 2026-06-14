@@ -46,7 +46,7 @@ describe("web table to CSV eval harness", () => {
       reportPath
     ]);
 
-    expect(result.exitCode).toBe(0);
+    expect(result.exitCode, result.stderr || result.stdout).toBe(0);
     expect(result.stdout).toContain("Web table to CSV eval");
     expect(result.stdout).toContain("status: PASS");
     expect(result.stdout).not.toContain("Alpha,North,10");

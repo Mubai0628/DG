@@ -1,5 +1,6 @@
 # app
 
-Reserved for the future desktop shell and UI.
+Reserved for a future desktop shell and UI.
 
-DW-P0A-001 intentionally does not add Tauri, Electron, Playwright, CDP, desktop automation, or app control. The v0.1.0 release scope does not control arbitrary desktop apps and does not execute real mouse clicks.
+The v0.1.0 release has no desktop app surface. The current supported workflow is
+the local web-table-to-CSV runner described in the root README.

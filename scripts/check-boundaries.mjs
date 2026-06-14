@@ -1,0 +1,358 @@
+import { readdir, readFile, stat } from "node:fs/promises";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
+
+const repoRoot = path.resolve(
+  path.dirname(fileURLToPath(import.meta.url)),
+  ".."
+);
+
+const ignoredDirectoryNames = new Set([
+  ".git",
+  ".tmp",
+  "node_modules",
+  "dist",
+  "coverage",
+  ".turbo",
+  ".vite",
+  "deepseek_workbench_v0_2_1_codex_pack",
+  "results",
+  "reports"
+]);
+
+const ignoredFiles = new Set(["pnpm-lock.yaml"]);
+
+const textExtensions = new Set([
+  ".js",
+  ".mjs",
+  ".cjs",
+  ".ts",
+  ".tsx",
+  ".json",
+  ".md",
+  ".yml",
+  ".yaml",
+  ".html",
+  ".txt"
+]);
+
+const forbiddenDependencyNames = [
+  "playwright",
+  "puppeteer",
+  "jsdom",
+  "electron",
+  "robotjs",
+  "nut-js",
+  "chrome-remote-interface",
+  "@modelcontextprotocol"
+];
+
+const boundaryPatterns = [
+  { id: "playwright_reference", pattern: /\bplaywright\b/i },
+  { id: "puppeteer_reference", pattern: /\bpuppeteer\b/i },
+  { id: "jsdom_reference", pattern: /\bjsdom\b/i },
+  { id: "electron_reference", pattern: /\belectron\b/i },
+  { id: "robotjs_reference", pattern: /\brobotjs\b/i },
+  { id: "nut_js_reference", pattern: /\bnut-js\b/i },
+  { id: "chrome_debugger_reference", pattern: /\bchrome\.debugger\b/ },
+  { id: "native_messaging_reference", pattern: /\bnativeMessaging\b/ },
+  { id: "chrome_cookies_reference", pattern: /\bchrome\.cookies\b/ },
+  { id: "chrome_storage_reference", pattern: /\bchrome\.storage\b/ },
+  { id: "document_cookie_reference", pattern: /\bdocument\.cookie\b/ },
+  { id: "local_storage_reference", pattern: /\blocalStorage\b/ },
+  { id: "session_storage_reference", pattern: /\bsessionStorage\b/ },
+  { id: "inner_html_reference", pattern: /\binnerHTML\b/ },
+  { id: "outer_html_reference", pattern: /\bouterHTML\b/ },
+  { id: "raw_prompt_reference", pattern: /\brawPrompt\b/ },
+  { id: "raw_dom_reference", pattern: /\brawDom\b/ },
+  { id: "raw_screenshot_reference", pattern: /\brawScreenshot\b/ },
+  { id: "clipboard_reference", pattern: /\bclipboard\b/i },
+  { id: "network_fetch_reference", pattern: /\bfetch\s*\(/ },
+  { id: "xml_http_request_reference", pattern: /\bXMLHttpRequest\b/ },
+  {
+    id: "query_selector_all_reference",
+    pattern: /\bdocument\.querySelectorAll\b/
+  },
+  {
+    id: "get_elements_by_tag_name_reference",
+    pattern: /\bgetElementsByTagName\b/
+  }
+];
+
+const secretPatterns = [
+  { id: "sk_like_key", pattern: /\bsk-[A-Za-z0-9_-]{16,}\b/ },
+  { id: "bearer_token", pattern: /\bBearer\s+[A-Za-z0-9._-]{16,}\b/ },
+  { id: "api_key_console", pattern: /\bapiKey\b.*\bconsole\b/i },
+  { id: "authorization_console", pattern: /\bAuthorization\b.*\bconsole\b/i },
+  {
+    id: "deepseek_env_reference",
+    pattern: /\bprocess\.env\.DEEPSEEK_API_KEY\b|\bDEEPSEEK_API_KEY\b/
+  },
+  {
+    id: "openai_env_reference",
+    pattern: /\bprocess\.env\.OPENAI_API_KEY\b|\bOPENAI_API_KEY\b/
+  }
+];
+
+export async function runBoundaryCheck(options = {}) {
+  const root = path.resolve(options.root ?? repoRoot);
+  const files = await listTextFiles(root);
+  const findings = [];
+
+  for (const packageFile of files.filter(
+    (file) => path.basename(file) === "package.json"
+  )) {
+    findings.push(...(await checkPackageDependencies(root, packageFile)));
+  }
+
+  for (const file of files) {
+    if (ignoredFiles.has(path.basename(file))) {
+      continue;
+    }
+    const text = await readFile(file, "utf8");
+    findings.push(
+      ...checkTextPatterns(
+        root,
+        file,
+        text,
+        boundaryPatterns,
+        isAllowedBoundaryHit
+      )
+    );
+  }
+
+  return finishCheck("Boundary check", findings, options);
+}
+
+export async function runSecretCheck(options = {}) {
+  const root = path.resolve(options.root ?? repoRoot);
+  const files = await listTextFiles(root);
+  const findings = [];
+
+  for (const file of files) {
+    if (ignoredFiles.has(path.basename(file))) {
+      continue;
+    }
+    const text = await readFile(file, "utf8");
+    findings.push(
+      ...checkTextPatterns(root, file, text, secretPatterns, isAllowedSecretHit)
+    );
+  }
+
+  return finishCheck("Secret check", findings, options);
+}
+
+async function checkPackageDependencies(root, packageFile) {
+  const rel = toPosix(path.relative(root, packageFile));
+  const packageJson = JSON.parse(await readFile(packageFile, "utf8"));
+  const dependencyGroups = [
+    "dependencies",
+    "devDependencies",
+    "optionalDependencies",
+    "peerDependencies"
+  ];
+  const findings = [];
+
+  for (const group of dependencyGroups) {
+    const dependencies = packageJson[group] ?? {};
+    for (const name of Object.keys(dependencies)) {
+      const normalized = name.toLowerCase();
+      if (
+        forbiddenDependencyNames.some(
+          (forbidden) =>
+            normalized === forbidden || normalized.includes(forbidden)
+        )
+      ) {
+        findings.push({
+          file: rel,
+          line: 1,
+          ruleId: "forbidden_dependency",
+          detail: `${group}:${name}`
+        });
+      }
+    }
+  }
+
+  return findings;
+}
+
+function checkTextPatterns(root, file, text, patterns, allowHit) {
+  const rel = toPosix(path.relative(root, file));
+  const findings = [];
+  const lines = text.split(/\r?\n/);
+
+  for (let index = 0; index < lines.length; index += 1) {
+    const line = lines[index];
+    for (const rule of patterns) {
+      if (rule.pattern.test(line) && !allowHit(rel, line, rule.id)) {
+        findings.push({
+          file: rel,
+          line: index + 1,
+          ruleId: rule.id
+        });
+      }
+    }
+  }
+
+  return findings;
+}
+
+function isAllowedBoundaryHit(file, line, ruleId) {
+  if (isBoundaryDoc(file)) {
+    return true;
+  }
+  if (isTestFile(file)) {
+    return true;
+  }
+  if (file.startsWith("evals/web-table-to-csv/cases/")) {
+    return true;
+  }
+  if (file === "evals/web-table-to-csv/leak-scanner.mjs") {
+    return true;
+  }
+  if (file === "scripts/check-boundaries.mjs") {
+    return true;
+  }
+  if (file.startsWith("runtime/src/web/")) {
+    return true;
+  }
+  if (file === "browser-extension/src/payload.ts") {
+    return true;
+  }
+  if (file === "browser-extension/src/capture-visible-tables.ts") {
+    return (
+      ruleId === "query_selector_all_reference" ||
+      ruleId === "get_elements_by_tag_name_reference" ||
+      line.includes("cookiesAccessed") ||
+      line.includes("rawDomIncluded")
+    );
+  }
+  return false;
+}
+
+function isAllowedSecretHit(file) {
+  if (isBoundaryDoc(file)) {
+    return true;
+  }
+  if (isTestFile(file)) {
+    return true;
+  }
+  if (file === "scripts/check-boundaries.mjs") {
+    return true;
+  }
+  if (file === "conformance/src/live-runner.ts") {
+    return true;
+  }
+  if (file === "conformance/README.md") {
+    return true;
+  }
+  return false;
+}
+
+function isBoundaryDoc(file) {
+  return (
+    file === "README.md" ||
+    file === "SECURITY.md" ||
+    file === "CONTRIBUTING.md" ||
+    file.endsWith("/README.md") ||
+    file.startsWith("docs/") ||
+    file === "conformance/README.md" ||
+    file === "evals/web-table-to-csv/README.md"
+  );
+}
+
+function isTestFile(file) {
+  return file.includes("/test/") || file.includes(".test.");
+}
+
+async function listTextFiles(root) {
+  const files = [];
+  await walk(root, files);
+  return files;
+}
+
+async function walk(directory, files) {
+  let entries;
+  try {
+    entries = await readdir(directory, { withFileTypes: true });
+  } catch {
+    return;
+  }
+
+  for (const entry of entries) {
+    const absolutePath = path.join(directory, entry.name);
+    if (entry.isDirectory()) {
+      if (!ignoredDirectoryNames.has(entry.name)) {
+        await walk(absolutePath, files);
+      }
+      continue;
+    }
+
+    if (!entry.isFile()) {
+      continue;
+    }
+    if (
+      ignoredFiles.has(entry.name) ||
+      !textExtensions.has(path.extname(entry.name))
+    ) {
+      continue;
+    }
+
+    const fileStat = await stat(absolutePath);
+    if (fileStat.size <= 1_000_000) {
+      files.push(absolutePath);
+    }
+  }
+}
+
+function finishCheck(label, findings, options) {
+  const result = {
+    ok: findings.length === 0,
+    findings
+  };
+
+  if (!options.silent) {
+    console.log(label);
+    console.log(`status: ${result.ok ? "PASS" : "FAIL"}`);
+    console.log(`findings: ${findings.length}`);
+    for (const finding of findings.slice(0, 20)) {
+      console.log(
+        `${finding.file}:${finding.line} ${finding.ruleId}${
+          finding.detail ? ` ${finding.detail}` : ""
+        }`
+      );
+    }
+  }
+
+  return result;
+}
+
+function toPosix(value) {
+  return value.split(path.sep).join("/");
+}
+
+async function main() {
+  const mode = process.argv[2] ?? "boundaries";
+  const result =
+    mode === "secrets"
+      ? await runSecretCheck()
+      : mode === "boundaries"
+        ? await runBoundaryCheck()
+        : null;
+
+  if (result === null) {
+    console.error(
+      "Usage: node scripts/check-boundaries.mjs boundaries|secrets"
+    );
+    process.exitCode = 2;
+    return;
+  }
+
+  if (!result.ok) {
+    process.exitCode = 1;
+  }
+}
+
+if (process.argv[1] === fileURLToPath(import.meta.url)) {
+  await main();
+}

@@ -14,7 +14,10 @@
     "replay": "pnpm --filter @deepseek-workbench/runtime build && node scripts/replay.mjs",
     "web-table-to-csv": "pnpm --filter @deepseek-workbench/runtime build && node scripts/web-table-to-csv.mjs",
     "eval:web-table-to-csv": "pnpm --filter @deepseek-workbench/runtime build && node scripts/eval-web-table-to-csv.mjs",
-    "verify:v0.1-slice": "pnpm test -- web-table-to-csv-flow && pnpm test -- web-table-extractor && pnpm test -- tool-broker && pnpm test:conformance:dry && pnpm eval:web-table-to-csv && pnpm run web-table-to-csv -- --help"
+    "verify:v0.1-slice": "vitest run runtime/test/web-table-to-csv-flow.test.ts runtime/test/web-table-extractor.test.ts runtime/test/tool-broker.test.ts && pnpm test:conformance:dry && pnpm eval:web-table-to-csv && pnpm run web-table-to-csv -- --help",
+    "check:boundaries": "node scripts/check-boundaries.mjs boundaries",
+    "check:secrets": "node scripts/check-boundaries.mjs secrets",
+    "verify:ci": "pnpm lint && pnpm typecheck && pnpm test && pnpm test:conformance:dry && pnpm test:conformance:live && pnpm verify:v0.1-slice && pnpm check:boundaries && pnpm check:secrets"
   },
   "devDependencies": {
     "@eslint/js": "10.0.1",
