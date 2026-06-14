@@ -1,0 +1,12 @@
+{
+  "name": "@deepseek-workbench/browser-extension",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Chromium MV3 activeTab visible table capture extension for DeepSeek Workbench.",
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json && node scripts/copy-static.mjs",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run test"
+  }
+}

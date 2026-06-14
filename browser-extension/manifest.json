@@ -1,0 +1,10 @@
+{
+  "manifest_version": 3,
+  "name": "DeepSeek Workbench Table Capture",
+  "version": "0.1.0",
+  "description": "User-triggered visible table capture for local DeepSeek Workbench workflows.",
+  "action": {
+    "default_popup": "popup.html"
+  },
+  "permissions": ["activeTab", "scripting"]
+}

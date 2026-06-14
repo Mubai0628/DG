@@ -1,5 +1,6 @@
 packages:
   - runtime
   - conformance
+  - browser-extension
 minimumReleaseAgeExclude:
   - eslint@10.5.0
