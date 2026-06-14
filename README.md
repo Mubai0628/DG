@@ -140,6 +140,10 @@ More detail:
 - [v0.1 threat model](docs/threat-model-v0.1.md)
 - [v0.1 release checklist](docs/release-checklist-v0.1.md)
 
+## License
+
+Apache-2.0. See [LICENSE](LICENSE).
+
 ## Development commands
 
 ```bash

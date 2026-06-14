@@ -2,6 +2,7 @@
   "name": "deepseek-workbench",
   "version": "0.1.0",
   "private": true,
+  "license": "Apache-2.0",
   "type": "module",
   "packageManager": "pnpm@11.6.0",
   "description": "Local-first, DeepSeek-native desktop agent workbench skeleton.",

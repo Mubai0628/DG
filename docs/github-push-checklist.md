@@ -39,23 +39,22 @@ Use this checklist before pushing the release candidate to GitHub.
 
 ## GitHub setup
 
-1. Choose a license before public release.
-2. Add a `LICENSE` file and package license metadata.
-3. Create the GitHub repository.
-4. Add the remote:
+1. Confirm `LICENSE` exists and package metadata uses Apache-2.0.
+2. Create the GitHub repository.
+3. Add the remote:
 
    ```bash
    git remote add origin <github-repo-url>
    ```
 
-5. Push the branch:
+4. Push the branch:
 
    ```bash
    git push -u origin <branch-name>
    ```
 
-6. Confirm GitHub Actions are green.
-7. Set repository About text, topics, and license.
+5. Confirm GitHub Actions are green.
+6. Set repository About text, topics, and license.
 
 ## Do not push
 
@@ -66,8 +65,3 @@ Use this checklist before pushing the release candidate to GitHub.
 - `.tmp/` or eval generated reports.
 - Private browser payloads, raw DOM, screenshots, clipboard data, or draft CSVs
   from private pages.
-
-## Current blocker
-
-BLOCKER: the repository currently has no `LICENSE` file and no package license
-field. Choose a license before public GitHub release.

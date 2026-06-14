@@ -2,6 +2,7 @@
   "name": "@deepseek-workbench/browser-extension",
   "version": "0.1.0",
   "private": true,
+  "license": "Apache-2.0",
   "type": "module",
   "description": "Chromium MV3 activeTab visible table capture extension for DeepSeek Workbench.",
   "scripts": {

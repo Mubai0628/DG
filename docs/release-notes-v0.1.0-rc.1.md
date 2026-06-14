@@ -41,8 +41,10 @@ This release candidate prepares the first public, local-first
   harmless.
 - Live DeepSeek conformance is a manual diagnostic and is not committed as a
   release artifact.
-- BLOCKER before final open-source release: choose a project license and add a
-  `LICENSE` file plus package metadata.
+
+## License
+
+Apache-2.0.
 
 ## Manual smoke checklist
 

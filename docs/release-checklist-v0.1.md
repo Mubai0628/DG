@@ -49,13 +49,8 @@ Use this checklist before tagging an open-source v0.1 release.
 - README describes the current v0.1 capability and non-goals.
 - SECURITY describes browser, file, event, and API-key boundaries.
 - CONTRIBUTING lists required gates and scope-control rules.
+- LICENSE exists and package metadata uses Apache-2.0.
 - Optional live conformance results are redacted and not committed.
-
-## Release blockers
-
-- BLOCKER: choose a project license before public release.
-- BLOCKER: add a `LICENSE` file and package license metadata before public
-  release.
 
 ## Tagging
 
