@@ -19,6 +19,7 @@ Use this checklist before tagging an open-source v0.1 release.
 - `pnpm check:boundaries`
 - `pnpm check:secrets`
 - `pnpm verify:ci`
+- `pnpm release:smoke`
 
 ## Manual smoke test
 
@@ -49,6 +50,12 @@ Use this checklist before tagging an open-source v0.1 release.
 - SECURITY describes browser, file, event, and API-key boundaries.
 - CONTRIBUTING lists required gates and scope-control rules.
 - Optional live conformance results are redacted and not committed.
+
+## Release blockers
+
+- BLOCKER: choose a project license before public release.
+- BLOCKER: add a `LICENSE` file and package license metadata before public
+  release.
 
 ## Tagging
 

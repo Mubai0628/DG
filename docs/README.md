@@ -7,6 +7,9 @@ DeepSeek Workbench documentation is organized around the current v0.1
 - [v0.1 vertical slice architecture](vertical-slice-v0.1.md)
 - [v0.1 threat model](threat-model-v0.1.md)
 - [v0.1 release checklist](release-checklist-v0.1.md)
+- [v0.1.0-rc.1 release notes](release-notes-v0.1.0-rc.1.md)
+- [Manual smoke test v0.1](manual-smoke-v0.1.md)
+- [GitHub push checklist](github-push-checklist.md)
 
 Default checks are offline and deterministic. Live DeepSeek conformance is a
 manual opt-in diagnostic and is skipped in normal CI.
