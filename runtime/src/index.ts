@@ -39,4 +39,26 @@ export * from "./conversation/index.js";
 export * from "./context/index.js";
 export * from "./deepseek/index.js";
 export * from "./events/index.js";
+export {
+  ToolBroker,
+  createToolCallRequestFromDeepSeekToolCall
+} from "./tools/tool-broker.js";
+export { ToolBrokerError } from "./tools/errors.js";
+export { decideToolPermission } from "./tools/permission-policy.js";
+export { compareToolRisk, isRiskAtMost } from "./tools/risk.js";
+export { ToolRegistry } from "./tools/tool-registry.js";
+export type {
+  ToolArgumentSummary,
+  ToolBrokerErrorKind,
+  ToolBrokerOptions,
+  ToolCallRequest,
+  ToolCallResult,
+  ToolCallSource,
+  ToolDefinitionRuntime,
+  ToolExecutionStatus,
+  ToolName,
+  ToolPermissionDecision,
+  ToolPermissionPolicy,
+  ToolRiskLevel
+} from "./tools/types.js";
 export * from "./workspace/index.js";
