@@ -52,6 +52,43 @@ pnpm test:conformance:dry
 pnpm run replay -- --demo
 ```
 
+## Manual web table to CSV runner
+
+The v0.1.0 local runner converts a sanitized BrowserDomPayload JSON file into a
+CSV draft and JSONL event log. It does not connect to the browser extension
+automatically.
+
+1. Build and load the Chromium extension:
+
+   ```bash
+   pnpm --filter @deepseek-workbench/browser-extension build
+   ```
+
+   Load `browser-extension/dist` as an unpacked extension in Chromium or Edge.
+
+2. Click the extension action on an http or https page with a visible table,
+   then click "Capture visible tables".
+
+3. Copy the sanitized JSON preview into a local file, for example
+   `tmp/table-payload.json`.
+
+4. Run the local runner:
+
+   ```bash
+   pnpm run web-table-to-csv -- --workspace ./workspace --payload ./tmp/table-payload.json
+   ```
+
+   Optional flags include `--filename <name>`, `--table-id <id>`,
+   `--event-log <path>`, and `--allow-overwrite`.
+
+5. Find the CSV draft under `workspace/drafts/` and the event log under
+   `workspace/.deepseek-workbench/events.jsonl` unless `--event-log` was set.
+
+The runner reads only the user-provided sanitized payload file. It does not use
+native messaging, browser automation, network fetches, cookies, browser storage,
+password values, raw DOM, screenshots, clipboard data, desktop actions, or the
+real DeepSeek API.
+
 ## Workspace layout
 
 ```text

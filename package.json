@@ -11,7 +11,8 @@
     "test": "vitest run runtime/test",
     "test:conformance:dry": "pnpm --filter @deepseek-workbench/runtime build && vitest run conformance/test/conformance-dry.test.ts",
     "test:conformance:live": "pnpm --filter @deepseek-workbench/runtime build && pnpm --filter @deepseek-workbench/conformance build && node conformance/dist/live-runner.js",
-    "replay": "pnpm --filter @deepseek-workbench/runtime build && node scripts/replay.mjs"
+    "replay": "pnpm --filter @deepseek-workbench/runtime build && node scripts/replay.mjs",
+    "web-table-to-csv": "pnpm --filter @deepseek-workbench/runtime build && node scripts/web-table-to-csv.mjs"
   },
   "devDependencies": {
     "@eslint/js": "10.0.1",
