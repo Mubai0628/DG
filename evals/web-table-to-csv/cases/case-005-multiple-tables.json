@@ -1,0 +1,70 @@
+{
+  "id": "CASE-WTTC-005",
+  "description": "multiple-tables",
+  "payload": {
+    "schemaVersion": 1,
+    "capturedAt": "2026-01-01T00:00:00.000Z",
+    "source": {
+      "kind": "browser_active_tab",
+      "url": "https://example.com/multiple",
+      "title": "Multiple tables",
+      "origin": "https://example.com"
+    },
+    "tables": [
+      {
+        "id": "small",
+        "rowCount": 1,
+        "columnCount": 1,
+        "rows": [
+          {
+            "cells": [{ "text": "Tiny", "header": true }]
+          }
+        ]
+      },
+      {
+        "id": "large",
+        "rowCount": 3,
+        "columnCount": 2,
+        "rows": [
+          {
+            "cells": [
+              { "text": "Name", "header": true },
+              { "text": "Score", "header": true }
+            ]
+          },
+          {
+            "cells": [
+              { "text": "Alpha", "header": false },
+              { "text": "100", "header": false }
+            ]
+          },
+          {
+            "cells": [
+              { "text": "Beta", "header": false },
+              { "text": "200", "header": false }
+            ]
+          }
+        ]
+      }
+    ],
+    "redaction": {
+      "passwordValuesDropped": true,
+      "inputValuesDropped": true,
+      "storageAccessed": false,
+      "cookiesAccessed": false,
+      "rawDomIncluded": false
+    }
+  },
+  "options": {
+    "filename": "case-005.csv"
+  },
+  "expected": {
+    "status": "pass",
+    "draftWritten": true,
+    "rowCount": 3,
+    "columnCount": 2,
+    "selectedTableId": "large",
+    "mustContainInCsv": ["Alpha,100"],
+    "mustNotContainInEvents": ["Alpha,100"]
+  }
+}

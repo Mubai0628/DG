@@ -1,0 +1,49 @@
+{
+  "id": "CASE-WTTC-007",
+  "description": "raw-dom-rejected",
+  "payload": {
+    "schemaVersion": 1,
+    "capturedAt": "2026-01-01T00:00:00.000Z",
+    "source": {
+      "kind": "browser_active_tab",
+      "url": "https://example.com/raw-dom",
+      "title": "Raw DOM",
+      "origin": "https://example.com"
+    },
+    "tables": [
+      {
+        "id": "raw",
+        "rawDom": "<table><tr><td>secret raw dom</td></tr></table>",
+        "rowCount": 1,
+        "columnCount": 1,
+        "rows": [
+          {
+            "cells": [
+              {
+                "text": "safe text",
+                "header": false,
+                "innerHTML": "<span>unsafe</span>",
+                "outerHTML": "<td>unsafe</td>"
+              }
+            ]
+          }
+        ]
+      }
+    ],
+    "redaction": {
+      "passwordValuesDropped": true,
+      "inputValuesDropped": true,
+      "storageAccessed": false,
+      "cookiesAccessed": false,
+      "rawDomIncluded": false
+    }
+  },
+  "options": {
+    "filename": "case-007.csv"
+  },
+  "expected": {
+    "status": "reject",
+    "draftWritten": false,
+    "mustNotContainInEvents": ["secret raw dom", "<span>unsafe</span>"]
+  }
+}

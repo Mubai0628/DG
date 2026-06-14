@@ -1,0 +1,41 @@
+{
+  "id": "CASE-WTTC-008",
+  "description": "too-large-or-invalid-payload",
+  "payload": {
+    "schemaVersion": 2,
+    "capturedAt": "2026-01-01T00:00:00.000Z",
+    "source": {
+      "kind": "browser_active_tab",
+      "url": "https://example.com/invalid",
+      "title": "Invalid schema",
+      "origin": "https://example.com"
+    },
+    "tables": [
+      {
+        "id": "invalid",
+        "rowCount": 1,
+        "columnCount": 1,
+        "rows": [
+          {
+            "cells": [{ "text": "invalid", "header": false }]
+          }
+        ]
+      }
+    ],
+    "redaction": {
+      "passwordValuesDropped": true,
+      "inputValuesDropped": true,
+      "storageAccessed": false,
+      "cookiesAccessed": false,
+      "rawDomIncluded": false
+    }
+  },
+  "options": {
+    "filename": "case-008.csv"
+  },
+  "expected": {
+    "status": "reject",
+    "draftWritten": false,
+    "mustNotContainInEvents": ["invalid"]
+  }
+}

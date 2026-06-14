@@ -1,0 +1,63 @@
+{
+  "id": "CASE-WTTC-002",
+  "description": "unicode-and-quotes",
+  "payload": {
+    "schemaVersion": 1,
+    "capturedAt": "2026-01-01T00:00:00.000Z",
+    "source": {
+      "kind": "browser_active_tab",
+      "url": "https://example.com/unicode",
+      "title": "Unicode table",
+      "origin": "https://example.com"
+    },
+    "tables": [
+      {
+        "id": "unicode",
+        "rowCount": 3,
+        "columnCount": 3,
+        "rows": [
+          {
+            "cells": [
+              { "text": "城市", "header": true },
+              { "text": "Note", "header": true },
+              { "text": "Lines", "header": true }
+            ]
+          },
+          {
+            "cells": [
+              { "text": "北京", "header": false },
+              { "text": "hello, \"world\"", "header": false },
+              { "text": "line one\nline two", "header": false }
+            ]
+          },
+          {
+            "cells": [
+              { "text": "上海", "header": false },
+              { "text": "plain", "header": false },
+              { "text": "done", "header": false }
+            ]
+          }
+        ]
+      }
+    ],
+    "redaction": {
+      "passwordValuesDropped": true,
+      "inputValuesDropped": true,
+      "storageAccessed": false,
+      "cookiesAccessed": false,
+      "rawDomIncluded": false
+    }
+  },
+  "options": {
+    "filename": "case-002.csv"
+  },
+  "expected": {
+    "status": "pass",
+    "draftWritten": true,
+    "rowCount": 3,
+    "columnCount": 3,
+    "selectedTableId": "unicode",
+    "mustContainInCsv": ["北京", "\"hello, \"\"world\"\"\""],
+    "mustNotContainInEvents": ["hello, \"world\"", "line one line two"]
+  }
+}

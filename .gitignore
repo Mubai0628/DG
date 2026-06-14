@@ -3,6 +3,7 @@ dist/
 coverage/
 .turbo/
 .vite/
+.tmp/
 deepseek_workbench_v0_2_1_codex_pack/
 
 .env
@@ -12,6 +13,7 @@ deepseek_workbench_v0_2_1_codex_pack/
 workspace/drafts/*.csv
 conformance/results/
 browser-extension/dist/
+evals/reports/
 
 Thumbs.db
 .DS_Store

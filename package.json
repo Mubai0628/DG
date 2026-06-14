@@ -12,7 +12,9 @@
     "test:conformance:dry": "pnpm --filter @deepseek-workbench/runtime build && vitest run conformance/test/conformance-dry.test.ts",
     "test:conformance:live": "pnpm --filter @deepseek-workbench/runtime build && pnpm --filter @deepseek-workbench/conformance build && node conformance/dist/live-runner.js",
     "replay": "pnpm --filter @deepseek-workbench/runtime build && node scripts/replay.mjs",
-    "web-table-to-csv": "pnpm --filter @deepseek-workbench/runtime build && node scripts/web-table-to-csv.mjs"
+    "web-table-to-csv": "pnpm --filter @deepseek-workbench/runtime build && node scripts/web-table-to-csv.mjs",
+    "eval:web-table-to-csv": "pnpm --filter @deepseek-workbench/runtime build && node scripts/eval-web-table-to-csv.mjs",
+    "verify:v0.1-slice": "pnpm test -- web-table-to-csv-flow && pnpm test -- web-table-extractor && pnpm test -- tool-broker && pnpm test:conformance:dry && pnpm eval:web-table-to-csv && pnpm run web-table-to-csv -- --help"
   },
   "devDependencies": {
     "@eslint/js": "10.0.1",

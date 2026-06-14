@@ -1,0 +1,59 @@
+{
+  "id": "CASE-WTTC-003",
+  "description": "formula-injection",
+  "payload": {
+    "schemaVersion": 1,
+    "capturedAt": "2026-01-01T00:00:00.000Z",
+    "source": {
+      "kind": "browser_active_tab",
+      "url": "https://example.com/formulas",
+      "title": "Formula table",
+      "origin": "https://example.com"
+    },
+    "tables": [
+      {
+        "id": "formula",
+        "rowCount": 2,
+        "columnCount": 4,
+        "rows": [
+          {
+            "cells": [
+              { "text": "A", "header": true },
+              { "text": "B", "header": true },
+              { "text": "C", "header": true },
+              { "text": "D", "header": true }
+            ]
+          },
+          {
+            "cells": [
+              { "text": "=SUM(A1:A2)", "header": false },
+              { "text": "+1", "header": false },
+              { "text": "-2", "header": false },
+              { "text": "@cmd", "header": false }
+            ]
+          }
+        ]
+      }
+    ],
+    "redaction": {
+      "passwordValuesDropped": true,
+      "inputValuesDropped": true,
+      "storageAccessed": false,
+      "cookiesAccessed": false,
+      "rawDomIncluded": false
+    }
+  },
+  "options": {
+    "filename": "case-003.csv"
+  },
+  "expected": {
+    "status": "pass",
+    "draftWritten": true,
+    "rowCount": 2,
+    "columnCount": 4,
+    "formulaEscapedMin": 4,
+    "selectedTableId": "formula",
+    "mustContainInCsv": ["'=SUM(A1:A2)", "'+1", "'-2", "'@cmd"],
+    "mustNotContainInEvents": ["=SUM(A1:A2)", "+1,-2,@cmd"]
+  }
+}

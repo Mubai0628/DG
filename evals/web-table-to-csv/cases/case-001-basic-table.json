@@ -1,0 +1,64 @@
+{
+  "id": "CASE-WTTC-001",
+  "description": "basic-table",
+  "payload": {
+    "schemaVersion": 1,
+    "capturedAt": "2026-01-01T00:00:00.000Z",
+    "source": {
+      "kind": "browser_active_tab",
+      "url": "https://example.com/basic",
+      "title": "Basic table",
+      "origin": "https://example.com"
+    },
+    "tables": [
+      {
+        "id": "basic",
+        "caption": "Basic table",
+        "rowCount": 3,
+        "columnCount": 3,
+        "rows": [
+          {
+            "cells": [
+              { "text": "Name", "header": true },
+              { "text": "Region", "header": true },
+              { "text": "Value", "header": true }
+            ]
+          },
+          {
+            "cells": [
+              { "text": "Alpha", "header": false },
+              { "text": "North", "header": false },
+              { "text": "10", "header": false }
+            ]
+          },
+          {
+            "cells": [
+              { "text": "Beta", "header": false },
+              { "text": "South", "header": false },
+              { "text": "20", "header": false }
+            ]
+          }
+        ]
+      }
+    ],
+    "redaction": {
+      "passwordValuesDropped": true,
+      "inputValuesDropped": true,
+      "storageAccessed": false,
+      "cookiesAccessed": false,
+      "rawDomIncluded": false
+    }
+  },
+  "options": {
+    "filename": "case-001.csv"
+  },
+  "expected": {
+    "status": "pass",
+    "draftWritten": true,
+    "rowCount": 3,
+    "columnCount": 3,
+    "selectedTableId": "basic",
+    "mustContainInCsv": ["Alpha,North,10"],
+    "mustNotContainInEvents": ["Alpha,North,10"]
+  }
+}

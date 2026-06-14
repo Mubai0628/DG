@@ -1,0 +1,54 @@
+{
+  "id": "CASE-WTTC-006",
+  "description": "full-url-query-redaction",
+  "payload": {
+    "schemaVersion": 1,
+    "capturedAt": "2026-01-01T00:00:00.000Z",
+    "source": {
+      "kind": "browser_active_tab",
+      "url": "https://example.com/query-table?token=abc123&secret=hidden#frag",
+      "title": "Query table",
+      "origin": "https://example.com"
+    },
+    "tables": [
+      {
+        "id": "query",
+        "rowCount": 2,
+        "columnCount": 2,
+        "rows": [
+          {
+            "cells": [
+              { "text": "Name", "header": true },
+              { "text": "Value", "header": true }
+            ]
+          },
+          {
+            "cells": [
+              { "text": "Visible", "header": false },
+              { "text": "1", "header": false }
+            ]
+          }
+        ]
+      }
+    ],
+    "redaction": {
+      "passwordValuesDropped": true,
+      "inputValuesDropped": true,
+      "storageAccessed": false,
+      "cookiesAccessed": false,
+      "rawDomIncluded": false
+    }
+  },
+  "options": {
+    "filename": "case-006.csv"
+  },
+  "expected": {
+    "status": "pass",
+    "draftWritten": true,
+    "rowCount": 2,
+    "columnCount": 2,
+    "selectedTableId": "query",
+    "mustContainInCsv": ["Visible,1"],
+    "mustNotContainInEvents": ["token=abc123", "secret=hidden", "#frag"]
+  }
+}
