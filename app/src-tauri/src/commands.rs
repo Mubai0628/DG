@@ -10,6 +10,7 @@ use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 const MAX_PAYLOAD_BYTES: usize = 2_000_000;
 const MAX_RUNNER_STDOUT_BYTES: usize = 65_536;
 const RUNNER_TIMEOUT: Duration = Duration::from_secs(60);
+const PREFLIGHT_TIMEOUT: Duration = Duration::from_secs(5);
 
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -18,6 +19,28 @@ pub struct DesktopFlowResult {
     extraction: ExtractionSummary,
     events: EventSummary,
     replay_summary: ReplaySummary,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone, Copy, PartialEq, Eq)]
+#[serde(rename_all = "lowercase")]
+pub enum RunnerMode {
+    Dev,
+    Packaged,
+    Unknown,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct RunnerPreflightSummary {
+    ok: bool,
+    mode: RunnerMode,
+    runner_found: bool,
+    node_available: bool,
+    workspace_valid: Option<bool>,
+    payload_limit_bytes: usize,
+    warnings: Vec<String>,
+    error_code: Option<String>,
+    safe_message: Option<String>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -59,12 +82,24 @@ pub fn get_app_version() -> String {
 }
 
 #[tauri::command]
+pub fn check_runner_preflight(workspace_root: Option<String>) -> RunnerPreflightSummary {
+    run_runner_preflight(workspace_root.as_deref(), runner_mode())
+}
+
+#[tauri::command]
 pub fn run_web_table_to_csv_flow(
     workspace_root: String,
     payload_json: String,
     filename: Option<String>,
     allow_overwrite: Option<bool>,
 ) -> Result<DesktopFlowResult, String> {
+    let preflight = run_runner_preflight(Some(&workspace_root), runner_mode());
+    if !preflight.ok {
+        return Err(preflight
+            .safe_message
+            .unwrap_or_else(|| "Runner preflight failed".to_string()));
+    }
+
     let workspace_root = validate_workspace_root(&workspace_root)?;
     validate_payload_size(&payload_json)?;
     if let Some(name) = filename.as_deref() {
@@ -110,6 +145,83 @@ pub fn run_web_table_to_csv_flow(
 
     let _ = fs::remove_file(payload_path);
     result
+}
+
+fn run_runner_preflight(workspace_root: Option<&str>, mode: RunnerMode) -> RunnerPreflightSummary {
+    let mut warnings = Vec::new();
+    let mut error_code: Option<String> = None;
+    let mut safe_message: Option<String> = None;
+
+    let workspace_valid = workspace_root.map(|root| validate_workspace_root(root).is_ok());
+    if workspace_valid == Some(false) {
+        error_code = Some("INVALID_WORKSPACE".to_string());
+        safe_message = Some("Workspace root must exist and be a directory".to_string());
+    }
+
+    let repo_root = repo_root();
+    let runner_found = repo_root
+        .as_deref()
+        .ok()
+        .and_then(|root| app_runner_path(root).ok())
+        .is_some();
+    if !runner_found && error_code.is_none() {
+        error_code = Some("RUNNER_NOT_FOUND".to_string());
+        safe_message = Some("Desktop runner could not be found".to_string());
+    }
+
+    let node_available = repo_root
+        .as_deref()
+        .ok()
+        .is_some_and(|root| check_node_available(root));
+    if !node_available && error_code.is_none() {
+        error_code = Some("NODE_RUNTIME_NOT_FOUND".to_string());
+        safe_message = Some("Node runtime was not found for the desktop runner".to_string());
+    }
+
+    if mode == RunnerMode::Packaged {
+        warnings.push("Packaged mode does not yet bundle the Node sidecar runner".to_string());
+        if error_code.is_none() {
+            error_code = Some("PACKAGED_MODE_REQUIRES_NODE_AND_SOURCE_TREE".to_string());
+            safe_message =
+                Some("Packaged mode requires Node and the source-tree runner in v0.1".to_string());
+        }
+    } else if mode == RunnerMode::Unknown {
+        warnings.push("Runner mode could not be determined".to_string());
+        if error_code.is_none() {
+            error_code = Some("UNKNOWN_RUNNER_MODE".to_string());
+            safe_message = Some("Runner mode could not be determined".to_string());
+        }
+    }
+
+    RunnerPreflightSummary {
+        ok: error_code.is_none(),
+        mode,
+        runner_found,
+        node_available,
+        workspace_valid,
+        payload_limit_bytes: MAX_PAYLOAD_BYTES,
+        warnings,
+        error_code,
+        safe_message,
+    }
+}
+
+fn runner_mode() -> RunnerMode {
+    if cfg!(debug_assertions) {
+        RunnerMode::Dev
+    } else {
+        RunnerMode::Packaged
+    }
+}
+
+fn check_node_available(repo_root: &Path) -> bool {
+    run_fixed_command_with_timeout(
+        node_command(),
+        &["--version".to_string()],
+        repo_root,
+        PREFLIGHT_TIMEOUT,
+    )
+    .is_ok()
 }
 
 fn validate_workspace_root(workspace_root: &str) -> Result<PathBuf, String> {
@@ -380,5 +492,46 @@ mod tests {
                 .expect_err("timeout should fail safely");
 
         assert_eq!(error, "Desktop flow timed out");
+    }
+
+    #[test]
+    fn preflight_passes_in_dev_source_tree_mode() {
+        let root = repo_root().expect("repo root");
+        let summary = run_runner_preflight(Some(root.to_string_lossy().as_ref()), RunnerMode::Dev);
+
+        assert!(summary.ok);
+        assert_eq!(summary.mode, RunnerMode::Dev);
+        assert!(summary.runner_found);
+        assert!(summary.node_available);
+        assert_eq!(summary.workspace_valid, Some(true));
+        assert_eq!(summary.payload_limit_bytes, MAX_PAYLOAD_BYTES);
+    }
+
+    #[test]
+    fn preflight_reports_missing_workspace_safely() {
+        let root = repo_root().expect("repo root");
+        let missing = root.join(".tmp").join("missing-preflight-workspace");
+        let summary =
+            run_runner_preflight(Some(missing.to_string_lossy().as_ref()), RunnerMode::Dev);
+
+        assert!(!summary.ok);
+        assert_eq!(summary.error_code.as_deref(), Some("INVALID_WORKSPACE"));
+        assert_eq!(summary.workspace_valid, Some(false));
+        assert!(!summary.safe_message.unwrap_or_default().contains("sk-"));
+    }
+
+    #[test]
+    fn packaged_mode_is_not_reported_as_supported() {
+        let root = repo_root().expect("repo root");
+        let summary =
+            run_runner_preflight(Some(root.to_string_lossy().as_ref()), RunnerMode::Packaged);
+
+        assert!(!summary.ok);
+        assert_eq!(summary.mode, RunnerMode::Packaged);
+        assert_eq!(
+            summary.error_code.as_deref(),
+            Some("PACKAGED_MODE_REQUIRES_NODE_AND_SOURCE_TREE")
+        );
+        assert!(!summary.warnings.is_empty());
     }
 }

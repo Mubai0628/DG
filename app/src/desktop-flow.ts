@@ -2,7 +2,8 @@ import {
   safeErrorMessage,
   validateDesktopFlowInput,
   type DesktopFlowInput,
-  type DesktopFlowResult
+  type DesktopFlowResult,
+  type RunnerPreflightSummary
 } from "./safety.js";
 
 export type TauriInvoke = <T>(
@@ -12,6 +13,7 @@ export type TauriInvoke = <T>(
 
 export const allowedDesktopCommands = [
   "get_app_version",
+  "check_runner_preflight",
   "run_web_table_to_csv_flow"
 ] as const;
 
@@ -32,9 +34,32 @@ export async function runDesktopWebTableToCsvFlow(
     throw new Error(validation.errorMessage);
   }
 
+  const preflight = await checkDesktopRunnerPreflight(
+    input.workspaceRoot,
+    invokeImpl
+  );
+  if (!preflight.ok) {
+    throw new Error(preflight.safeMessage ?? "Runner preflight failed");
+  }
+
   return invokeAllowedCommand<DesktopFlowResult>(
     "run_web_table_to_csv_flow",
     validation.request,
+    invokeImpl
+  );
+}
+
+export async function checkDesktopRunnerPreflight(
+  workspaceRoot?: string,
+  invokeImpl?: TauriInvoke
+): Promise<RunnerPreflightSummary> {
+  return invokeAllowedCommand<RunnerPreflightSummary>(
+    "check_runner_preflight",
+    workspaceRoot?.trim()
+      ? {
+          workspaceRoot
+        }
+      : {},
     invokeImpl
   );
 }

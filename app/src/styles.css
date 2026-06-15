@@ -176,6 +176,15 @@ textarea {
   padding: 12px;
 }
 
+.statusBox {
+  background: #eff8f3;
+  border: 1px solid #b9d5c8;
+  border-radius: 6px;
+  color: #183b2f;
+  margin-top: 14px;
+  padding: 12px;
+}
+
 .docLinks {
   border-top: 1px solid #edf1ef;
   display: flex;

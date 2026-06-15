@@ -36,6 +36,20 @@ export type DesktopFlowResult = {
   };
 };
 
+export type RunnerMode = "dev" | "packaged" | "unknown";
+
+export type RunnerPreflightSummary = {
+  ok: boolean;
+  mode: RunnerMode;
+  runnerFound: boolean;
+  nodeAvailable: boolean;
+  workspaceValid?: boolean;
+  payloadLimitBytes: number;
+  warnings: string[];
+  errorCode?: string;
+  safeMessage?: string;
+};
+
 export type ResultPanelModel = {
   draftRelativePath: string;
   draftAbsolutePath: string;
@@ -140,6 +154,24 @@ export function buildResultPanelModel(
     replayDraftCount: result.replaySummary.draftCount,
     eventLogPath: result.events.eventLogPath
   };
+}
+
+export function runnerPreflightMessage(
+  preflight: RunnerPreflightSummary | undefined
+): string {
+  if (preflight === undefined) {
+    return "Runner preflight has not run";
+  }
+  if (preflight.ok) {
+    return `Runner ready (${preflight.mode})`;
+  }
+  return preflight.safeMessage ?? "Runner preflight failed";
+}
+
+export function canRunWithPreflight(
+  preflight: RunnerPreflightSummary
+): boolean {
+  return preflight.ok;
 }
 
 export function defaultDraftFilename(): string {

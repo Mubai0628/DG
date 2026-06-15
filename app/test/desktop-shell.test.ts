@@ -6,6 +6,7 @@ import path from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 
 import {
+  checkDesktopRunnerPreflight,
   invokeAllowedCommand,
   isAllowedDesktopCommand,
   runDesktopWebTableToCsvFlow,
@@ -13,12 +14,15 @@ import {
 } from "../src/desktop-flow.js";
 import {
   buildResultPanelModel,
+  canRunWithPreflight,
   maxPayloadTextBytes,
   parsePayloadJson,
+  runnerPreflightMessage,
   safeErrorMessage,
   validatePayloadTextSize,
   validateDesktopFlowInput,
-  type DesktopFlowResult
+  type DesktopFlowResult,
+  type RunnerPreflightSummary
 } from "../src/safety.js";
 import {
   runWebTableToCsvFlow,
@@ -39,6 +43,7 @@ const appPackagePath = path.join(appRoot, "package.json");
 const tauriConfigPath = path.join(appRoot, "src-tauri", "tauri.conf.json");
 const viteConfigPath = path.join(appRoot, "vite.config.ts");
 const appScriptRunnerPath = path.join(appRoot, "scripts", "run-flow.mjs");
+const appPreflightScriptPath = path.join(appRoot, "scripts", "preflight.mjs");
 const tempRoots: string[] = [];
 
 afterEach(async () => {
@@ -86,6 +91,20 @@ function fixedResult(workspaceRoot: string): DesktopFlowResult {
     replaySummary: {
       draftCount: 1
     }
+  };
+}
+
+function fixedPreflight(
+  overrides: Partial<RunnerPreflightSummary> = {}
+): RunnerPreflightSummary {
+  return {
+    ok: true,
+    mode: "dev",
+    runnerFound: true,
+    nodeAvailable: true,
+    payloadLimitBytes: maxPayloadTextBytes,
+    warnings: [],
+    ...overrides
   };
 }
 
@@ -216,7 +235,72 @@ describe("desktop command wrapper", () => {
     await expect(invokeAllowedCommand("unknown_command", {})).rejects.toThrow(
       "not allowed"
     );
+    expect(isAllowedDesktopCommand("check_runner_preflight")).toBe(true);
     expect(isAllowedDesktopCommand("run_web_table_to_csv_flow")).toBe(true);
+  });
+
+  it("reads runner preflight through the fixed command", async () => {
+    const invoke: TauriInvoke = async (command, args) => {
+      expect(command).toBe("check_runner_preflight");
+      expect(args).toMatchObject({ workspaceRoot: "D:\\workspace" });
+      return fixedPreflight({ workspaceValid: true }) as never;
+    };
+
+    const preflight = await checkDesktopRunnerPreflight(
+      "D:\\workspace",
+      invoke
+    );
+
+    expect(preflight.ok).toBe(true);
+    expect(runnerPreflightMessage(preflight)).toContain("Runner ready");
+    expect(canRunWithPreflight(preflight)).toBe(true);
+  });
+
+  it("reports node-missing preflight as a safe error", async () => {
+    const secret = "sk-test1234567890abcdef";
+    const invoke: TauriInvoke = async () =>
+      fixedPreflight({
+        ok: false,
+        nodeAvailable: false,
+        errorCode: "NODE_RUNTIME_NOT_FOUND",
+        safeMessage: `Node runtime was not found ${secret}`
+      }) as never;
+
+    const preflight = await checkDesktopRunnerPreflight(undefined, invoke);
+
+    expect(preflight.ok).toBe(false);
+    expect(preflight.errorCode).toBe("NODE_RUNTIME_NOT_FOUND");
+    expect(safeErrorMessage(preflight.safeMessage)).not.toContain(secret);
+  });
+
+  it("reports runner-missing preflight as a safe error", async () => {
+    const invoke: TauriInvoke = async () =>
+      fixedPreflight({
+        ok: false,
+        runnerFound: false,
+        errorCode: "RUNNER_NOT_FOUND",
+        safeMessage: "Desktop runner could not be found"
+      }) as never;
+
+    const preflight = await checkDesktopRunnerPreflight(undefined, invoke);
+
+    expect(preflight.ok).toBe(false);
+    expect(preflight.runnerFound).toBe(false);
+    expect(runnerPreflightMessage(preflight)).toBe(
+      "Desktop runner could not be found"
+    );
+  });
+
+  it("does not treat packaged mode as supported without a bundled runner", () => {
+    const preflight = fixedPreflight({
+      ok: false,
+      mode: "packaged",
+      errorCode: "PACKAGED_MODE_REQUIRES_NODE_AND_SOURCE_TREE",
+      safeMessage: "Packaged mode requires Node and the source-tree runner"
+    });
+
+    expect(canRunWithPreflight(preflight)).toBe(false);
+    expect(runnerPreflightMessage(preflight)).toContain("Packaged mode");
   });
 
   it("invokes the fixed flow command without exposing env key values", async () => {
@@ -230,6 +314,9 @@ describe("desktop command wrapper", () => {
       [];
     const invoke: TauriInvoke = async (command, args) => {
       calls.push(args === undefined ? { command } : { command, args });
+      if (command === "check_runner_preflight") {
+        return fixedPreflight({ workspaceValid: true }) as never;
+      }
       return fixedResult(workspaceRoot) as never;
     };
 
@@ -243,11 +330,39 @@ describe("desktop command wrapper", () => {
     );
 
     expect(result.draft.relativePath).toBe("drafts/table.csv");
-    expect(calls).toHaveLength(1);
-    expect(calls[0]?.command).toBe("run_web_table_to_csv_flow");
+    expect(calls).toHaveLength(2);
+    expect(calls[0]?.command).toBe("check_runner_preflight");
+    expect(calls[1]?.command).toBe("run_web_table_to_csv_flow");
     expect(JSON.stringify(calls)).not.toContain(secret);
 
     delete process.env[keyName];
+  });
+
+  it("blocks conversion when preflight fails", async () => {
+    const workspaceRoot = await createTempWorkspace();
+    const payload = await readFixture();
+    const calls: string[] = [];
+    const invoke: TauriInvoke = async (command) => {
+      calls.push(command);
+      return fixedPreflight({
+        ok: false,
+        runnerFound: false,
+        errorCode: "RUNNER_NOT_FOUND",
+        safeMessage: "Desktop runner could not be found"
+      }) as never;
+    };
+
+    await expect(
+      runDesktopWebTableToCsvFlow(
+        {
+          workspaceRoot,
+          payloadText: JSON.stringify(payload),
+          filename: "table.csv"
+        },
+        invoke
+      )
+    ).rejects.toThrow("Desktop runner could not be found");
+    expect(calls).toEqual(["check_runner_preflight"]);
   });
 });
 
@@ -323,6 +438,16 @@ describe("desktop runner sidecar safety", () => {
       (summary.replaySummary as Record<string, unknown>).tasks
     ).toBeUndefined();
   });
+
+  it("runs the offline app preflight script", async () => {
+    const result = await runNodeScript([appPreflightScriptPath]);
+
+    expect(result.code).toBe(0);
+    expect(result.stdout).toContain("Desktop runner preflight");
+    expect(result.stdout).toContain("status: PASS");
+    expect(result.stdout).not.toContain("csvContent");
+    expect(result.stderr).toBe("");
+  });
 });
 
 describe("desktop flow integration", () => {
@@ -349,6 +474,7 @@ describe("desktop source boundaries", () => {
       "src/App.tsx",
       "src/desktop-flow.ts",
       "src/safety.ts",
+      "scripts/preflight.mjs",
       "scripts/run-flow.mjs",
       "src-tauri/src/main.rs",
       "src-tauri/src/commands.rs",

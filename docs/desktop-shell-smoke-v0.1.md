@@ -76,12 +76,15 @@ safe fixture. It does not open the GUI.
 For the manual-smoke preflight gate, run:
 
 ```bash
+pnpm app:preflight
 pnpm app:manual-smoke:check
 ```
 
-This checks that the bundled payload fixture and desktop smoke docs exist, then
-runs the fixed local runner against a temporary workspace. It does not open the
-GUI and does not call DeepSeek.
+`pnpm app:preflight` checks the fixed runner, Node runtime, fixture conversion,
+and safe invalid-payload failure path. `pnpm app:manual-smoke:check` checks that
+the bundled payload fixture and desktop smoke docs exist, then runs the fixed
+local runner against a temporary workspace. Neither command opens the GUI or
+calls DeepSeek.
 
 ## Runner Safety
 
@@ -99,6 +102,9 @@ keeps output under `<workspace>/drafts/`.
 To see a safe invalid-payload error, paste malformed JSON and click **Convert**.
 To see the size-limit path, select or paste a payload larger than 2 MB. Timeout
 handling is covered by the automated app tests rather than a manual GUI step.
+
+For packaged/release build readiness and current standalone limitations, see
+`docs/desktop-packaging-v0.1.md`.
 
 ## Current Limitations
 

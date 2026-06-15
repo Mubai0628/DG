@@ -14,6 +14,7 @@
     "app:build": "pnpm --filter @deepseek-workbench/app tauri:build",
     "app:typecheck": "pnpm --filter @deepseek-workbench/app typecheck",
     "app:test": "pnpm --filter @deepseek-workbench/runtime build && pnpm --filter @deepseek-workbench/app test",
+    "app:preflight": "pnpm --filter @deepseek-workbench/runtime build && pnpm --filter @deepseek-workbench/app preflight",
     "app:smoke": "pnpm --filter @deepseek-workbench/runtime build && pnpm --filter @deepseek-workbench/app smoke",
     "app:manual-smoke:check": "pnpm app:smoke && pnpm --filter @deepseek-workbench/runtime build && pnpm --filter @deepseek-workbench/app manual-smoke:check",
     "test:conformance:dry": "pnpm --filter @deepseek-workbench/runtime build && vitest run conformance/test/conformance-dry.test.ts",

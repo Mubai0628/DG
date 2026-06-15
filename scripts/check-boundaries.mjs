@@ -250,6 +250,9 @@ function isAllowedBoundaryHit(file, line, ruleId) {
   if (file === "app/scripts/manual-smoke-check.mjs") {
     return true;
   }
+  if (file === "app/scripts/preflight.mjs") {
+    return true;
+  }
   if (file === "app/src-tauri/src/commands.rs") {
     return (
       ruleId === "std_process_command_reference" ||
@@ -300,6 +303,9 @@ function isAllowedSecretHit(file) {
     return true;
   }
   if (file === "app/scripts/manual-smoke-check.mjs") {
+    return true;
+  }
+  if (file === "app/scripts/preflight.mjs") {
     return true;
   }
   if (file === "app/src-tauri/src/commands.rs") {

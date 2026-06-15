@@ -24,6 +24,7 @@ Development:
 
 ```bash
 pnpm app:dev
+pnpm app:preflight
 pnpm app:smoke
 pnpm app:manual-smoke:check
 ```
@@ -32,6 +33,9 @@ pnpm app:manual-smoke:check
 `pnpm --filter @deepseek-workbench/app dev` starts the Vite dev server on
 `http://localhost:5179` with `strictPort` enabled. If that port is occupied,
 close the existing process before retrying.
+
+`pnpm app:preflight` checks the fixed runner, Node runtime, fixture conversion,
+and safe invalid-payload failure path without opening the GUI.
 
 `pnpm app:manual-smoke:check` runs the offline manual-smoke preflight without
 opening the GUI. It verifies the safe fixture and docs exist, then exercises the

@@ -12,7 +12,8 @@
     "tauri:build": "tauri build",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "vitest run test && cargo test --manifest-path src-tauri/Cargo.toml",
-    "smoke": "pnpm typecheck && pnpm test && node scripts/smoke.mjs",
+    "preflight": "node scripts/preflight.mjs",
+    "smoke": "pnpm typecheck && pnpm test && pnpm preflight && node scripts/smoke.mjs",
     "manual-smoke:check": "node scripts/manual-smoke-check.mjs"
   },
   "dependencies": {

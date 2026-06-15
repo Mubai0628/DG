@@ -1,16 +1,25 @@
-import { useMemo, useState, type ChangeEvent, type JSX } from "react";
+import {
+  useEffect,
+  useMemo,
+  useState,
+  type ChangeEvent,
+  type JSX
+} from "react";
 
 import {
+  checkDesktopRunnerPreflight,
   getDesktopAppVersion,
   runDesktopWebTableToCsvFlow
 } from "./desktop-flow.js";
 import {
   buildResultPanelModel,
+  runnerPreflightMessage,
   defaultDraftFilename,
   validatePayloadTextSize,
   safeErrorMessage,
   type DesktopFlowResult,
-  type ResultPanelModel
+  type ResultPanelModel,
+  type RunnerPreflightSummary
 } from "./safety.js";
 
 type RunStatus = "idle" | "running" | "done" | "error";
@@ -23,6 +32,9 @@ export function App(): JSX.Element {
   const [result, setResult] = useState<DesktopFlowResult | undefined>();
   const [error, setError] = useState<string | undefined>();
   const [version, setVersion] = useState<string>("0.1.0");
+  const [preflight, setPreflight] = useState<
+    RunnerPreflightSummary | undefined
+  >();
 
   const panel = useMemo<ResultPanelModel | undefined>(
     () => (result === undefined ? undefined : buildResultPanelModel(result)),
@@ -34,6 +46,11 @@ export function App(): JSX.Element {
     setResult(undefined);
     setError(undefined);
     try {
+      const nextPreflight = await checkDesktopRunnerPreflight(workspaceRoot);
+      setPreflight(nextPreflight);
+      if (!nextPreflight.ok) {
+        throw new Error(runnerPreflightMessage(nextPreflight));
+      }
       const flowResult = await runDesktopWebTableToCsvFlow({
         workspaceRoot,
         payloadText,
@@ -73,6 +90,33 @@ export function App(): JSX.Element {
       setVersion("0.1.0");
     }
   }
+
+  useEffect(() => {
+    let cancelled = false;
+    checkDesktopRunnerPreflight()
+      .then((nextPreflight) => {
+        if (!cancelled) {
+          setPreflight(nextPreflight);
+        }
+      })
+      .catch((caught) => {
+        if (!cancelled) {
+          setPreflight({
+            ok: false,
+            mode: "unknown",
+            runnerFound: false,
+            nodeAvailable: false,
+            payloadLimitBytes: 2_000_000,
+            warnings: [],
+            errorCode: "PREFLIGHT_FAILED",
+            safeMessage: safeErrorMessage(caught)
+          });
+        }
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   return (
     <main className="shell" onMouseEnter={refreshVersion}>
@@ -142,6 +186,23 @@ export function App(): JSX.Element {
           {panel === undefined && status !== "error" ? (
             <p className="empty">Run a local conversion to see the summary.</p>
           ) : null}
+
+          <div
+            className={
+              preflight === undefined || preflight.ok ? "statusBox" : "errorBox"
+            }
+          >
+            <strong>Runner preflight</strong>
+            <p>{runnerPreflightMessage(preflight)}</p>
+            {preflight !== undefined ? (
+              <p className="muted">
+                mode {preflight.mode} · runner{" "}
+                {preflight.runnerFound ? "found" : "missing"} · node{" "}
+                {preflight.nodeAvailable ? "available" : "missing"} · payload
+                limit {preflight.payloadLimitBytes} bytes
+              </p>
+            ) : null}
+          </div>
 
           {panel !== undefined ? (
             <dl className="summaryGrid">
