@@ -6,8 +6,10 @@
   "type": "module",
   "description": "Tauri desktop shell for local DeepSeek Workbench flows.",
   "scripts": {
-    "dev": "tauri dev",
-    "build": "vite build",
+    "dev": "vite --host 127.0.0.1 --port 5179 --strictPort",
+    "tauri:dev": "tauri dev",
+    "build": "tsc -p tsconfig.json && vite build",
+    "tauri:build": "tauri build",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "vitest run test",
     "smoke": "pnpm typecheck && pnpm test && node scripts/smoke.mjs"

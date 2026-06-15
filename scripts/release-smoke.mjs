@@ -2,6 +2,7 @@ import { spawn } from "node:child_process";
 
 const commands = [
   ["pnpm", ["verify:ci"]],
+  ["pnpm", ["app:smoke"]],
   ["pnpm", ["--filter", "@deepseek-workbench/browser-extension", "build"]],
   ["pnpm", ["eval:web-table-to-csv"]],
   ["pnpm", ["run", "web-table-to-csv", "--", "--help"]]

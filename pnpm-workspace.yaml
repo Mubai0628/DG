@@ -2,5 +2,10 @@ packages:
   - runtime
   - conformance
   - browser-extension
+  - app
+allowBuilds:
+  esbuild: true
 minimumReleaseAgeExclude:
   - eslint@10.5.0
+onlyBuiltDependencies:
+  - esbuild

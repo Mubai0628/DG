@@ -31,6 +31,10 @@ const fixturePath = path.join(
   "fixtures",
   "web-table-sample-payload.json"
 );
+const rootPackagePath = path.join(repoRoot, "package.json");
+const appPackagePath = path.join(appRoot, "package.json");
+const tauriConfigPath = path.join(appRoot, "src-tauri", "tauri.conf.json");
+const viteConfigPath = path.join(appRoot, "vite.config.ts");
 const tempRoots: string[] = [];
 
 afterEach(async () => {
@@ -236,3 +240,54 @@ describe("desktop source boundaries", () => {
     expect(combined).toContain('join("run-flow.mjs")');
   });
 });
+
+describe("desktop dev scripts", () => {
+  it("keeps frontend dev separate from Tauri dev", async () => {
+    const appPackage = JSON.parse(
+      await readFile(appPackagePath, "utf8")
+    ) as PackageJson;
+    const rootPackage = JSON.parse(
+      await readFile(rootPackagePath, "utf8")
+    ) as PackageJson;
+
+    expect(appPackage.scripts.dev).toContain("vite");
+    expect(appPackage.scripts.dev).toContain("--port 5179");
+    expect(appPackage.scripts.dev).toContain("--strictPort");
+    expect(appPackage.scripts.dev).not.toContain("tauri dev");
+    expect(appPackage.scripts["tauri:dev"]).toBe("tauri dev");
+    expect(rootPackage.scripts["app:dev"]).toContain("tauri:dev");
+    expect(rootPackage.scripts["app:dev"]).not.toMatch(/\bapp dev\b/);
+  });
+
+  it("keeps Tauri before commands pointed at frontend scripts", async () => {
+    const tauriConfig = JSON.parse(
+      await readFile(tauriConfigPath, "utf8")
+    ) as TauriConfig;
+
+    expect(tauriConfig.build.devUrl).toBe("http://localhost:5179");
+    expect(tauriConfig.build.beforeDevCommand).toBe("pnpm dev");
+    expect(tauriConfig.build.beforeBuildCommand).toBe("pnpm build");
+    expect(tauriConfig.build.beforeDevCommand).not.toContain("tauri");
+    expect(tauriConfig.build.beforeBuildCommand).not.toContain("tauri");
+  });
+
+  it("uses the same strict local port in Vite and Tauri config", async () => {
+    const viteConfig = await readFile(viteConfigPath, "utf8");
+
+    expect(viteConfig).toContain('host: "127.0.0.1"');
+    expect(viteConfig).toContain("port: 5179");
+    expect(viteConfig).toContain("strictPort: true");
+  });
+});
+
+type PackageJson = {
+  scripts: Record<string, string>;
+};
+
+type TauriConfig = {
+  build: {
+    beforeDevCommand: string;
+    beforeBuildCommand: string;
+    devUrl: string;
+  };
+};

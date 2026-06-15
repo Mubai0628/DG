@@ -19,6 +19,19 @@ pnpm install
 pnpm app:dev
 ```
 
+`pnpm app:dev` starts the Tauri desktop shell. The shell starts the frontend dev
+server on `http://localhost:5179` with a strict port. If the port is already in
+use, close the existing process before retrying.
+
+For frontend-only debugging, run:
+
+```bash
+pnpm --filter @deepseek-workbench/app dev
+```
+
+This starts only the Vite dev server on port `5179`; it does not open the Tauri
+desktop shell.
+
 In the desktop window:
 
 1. Enter the workspace root path.

@@ -1,5 +1,8 @@
 node_modules
 dist
+app/dist
+app/src-tauri/gen
+app/src-tauri/target
 coverage
 deepseek_workbench_v0_2_1_codex_pack
 pnpm-lock.yaml

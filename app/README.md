@@ -26,3 +26,8 @@ Development:
 pnpm app:dev
 pnpm app:smoke
 ```
+
+`pnpm app:dev` starts the Tauri desktop shell. For frontend-only debugging,
+`pnpm --filter @deepseek-workbench/app dev` starts the Vite dev server on
+`http://localhost:5179` with `strictPort` enabled. If that port is occupied,
+close the existing process before retrying.

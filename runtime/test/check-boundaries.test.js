@@ -5,6 +5,7 @@ import path from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 
 import {
+  listCheckableFiles,
   runBoundaryCheck,
   runSecretCheck
 } from "../../scripts/check-boundaries.mjs";
@@ -31,6 +32,54 @@ describe("repository boundary checks", () => {
     const boundary = await runBoundaryCheck({ root: repoRoot, silent: true });
     const secrets = await runSecretCheck({ root: repoRoot, silent: true });
 
+    expect(boundary.ok).toBe(true);
+    expect(secrets.ok).toBe(true);
+  }, 20_000);
+
+  it("ignores generated artifacts while keeping normal source files checkable", async () => {
+    const root = await createTempRoot();
+    await mkdir(path.join(root, "app", "src-tauri", "target", "debug"), {
+      recursive: true
+    });
+    await mkdir(path.join(root, "app", "dist"), { recursive: true });
+    await mkdir(path.join(root, "runtime", "dist"), { recursive: true });
+    await mkdir(path.join(root, ".tmp"), { recursive: true });
+    await mkdir(path.join(root, "src"), { recursive: true });
+
+    await writeFile(
+      path.join(root, "app", "src-tauri", "target", "debug", "bad.js"),
+      "const leaked = document.cookie;\n",
+      "utf8"
+    );
+    await writeFile(
+      path.join(root, "app", "dist", "bad.js"),
+      "const bridge = 'nativeMessaging';\n",
+      "utf8"
+    );
+    await writeFile(
+      path.join(root, "runtime", "dist", "bad.js"),
+      "const token = 'sk-1234567890abcdef';\n",
+      "utf8"
+    );
+    await writeFile(
+      path.join(root, ".tmp", "bad.js"),
+      "const request = new XMLHttpRequest();\n",
+      "utf8"
+    );
+    await writeFile(
+      path.join(root, "src", "safe.js"),
+      "const ok = true;\n",
+      "utf8"
+    );
+
+    const files = await listCheckableFiles(root);
+    const relativeFiles = files.map((file) =>
+      path.relative(root, file).split(path.sep).join("/")
+    );
+    const boundary = await runBoundaryCheck({ root, silent: true });
+    const secrets = await runSecretCheck({ root, silent: true });
+
+    expect(relativeFiles).toEqual(["src/safe.js"]);
     expect(boundary.ok).toBe(true);
     expect(secrets.ok).toBe(true);
   });

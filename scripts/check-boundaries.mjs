@@ -1,11 +1,15 @@
+import { execFile } from "node:child_process";
 import { readdir, readFile, stat } from "node:fs/promises";
 import path from "node:path";
+import { promisify } from "node:util";
 import { fileURLToPath } from "node:url";
 
 const repoRoot = path.resolve(
   path.dirname(fileURLToPath(import.meta.url)),
   ".."
 );
+const execFileAsync = promisify(execFile);
+const maxTextFileBytes = 1_000_000;
 
 const ignoredDirectoryNames = new Set([
   ".git",
@@ -16,10 +20,23 @@ const ignoredDirectoryNames = new Set([
   ".turbo",
   ".vite",
   "gen",
+  "target",
   "deepseek_workbench_v0_2_1_codex_pack",
   "results",
   "reports"
 ]);
+
+const ignoredRelativePathPrefixes = [
+  ".tmp/",
+  "app/dist/",
+  "app/src-tauri/gen/",
+  "app/src-tauri/target/",
+  "browser-extension/dist/",
+  "conformance/results/",
+  "evals/reports/",
+  "runtime/dist/",
+  "deepseek_workbench_v0_2_1_codex_pack/"
+];
 
 const ignoredFiles = new Set(["pnpm-lock.yaml"]);
 
@@ -31,6 +48,8 @@ const textExtensions = new Set([
   ".tsx",
   ".json",
   ".md",
+  ".rs",
+  ".toml",
   ".yml",
   ".yaml",
   ".html",
@@ -297,13 +316,88 @@ function isTestFile(file) {
   return file.includes("/test/") || file.includes(".test.");
 }
 
-async function listTextFiles(root) {
+export async function listCheckableFiles(root = repoRoot) {
+  const resolvedRoot = path.resolve(root);
+  const gitFiles = await listGitFiles(resolvedRoot);
+  if (gitFiles !== undefined) {
+    return filterCheckableFiles(resolvedRoot, gitFiles);
+  }
+
   const files = [];
-  await walk(root, files);
+  await walk(resolvedRoot, resolvedRoot, files);
   return files;
 }
 
-async function walk(directory, files) {
+async function listTextFiles(root) {
+  return listCheckableFiles(root);
+}
+
+async function listGitFiles(root) {
+  try {
+    const { stdout } = await execFileAsync(
+      "git",
+      ["ls-files", "--cached", "--others", "--exclude-standard", "-z"],
+      {
+        cwd: root,
+        encoding: "utf8",
+        maxBuffer: 20_000_000
+      }
+    );
+    return stdout
+      .split("\0")
+      .filter((value) => value.length > 0)
+      .map((relativePath) => path.resolve(root, relativePath));
+  } catch {
+    return undefined;
+  }
+}
+
+async function filterCheckableFiles(root, files) {
+  const filtered = [];
+  for (const file of files) {
+    const relativePath = toPosix(path.relative(root, file));
+    if (!isCheckableRelativePath(relativePath)) {
+      continue;
+    }
+    const fileStat = await stat(file).catch(() => undefined);
+    if (
+      fileStat !== undefined &&
+      fileStat.isFile() &&
+      fileStat.size <= maxTextFileBytes
+    ) {
+      filtered.push(file);
+    }
+  }
+  return filtered;
+}
+
+function isCheckableRelativePath(relativePath) {
+  if (
+    relativePath.length === 0 ||
+    relativePath.startsWith("../") ||
+    path.isAbsolute(relativePath)
+  ) {
+    return false;
+  }
+  if (ignoredFiles.has(path.basename(relativePath))) {
+    return false;
+  }
+  if (!textExtensions.has(path.extname(relativePath))) {
+    return false;
+  }
+  if (
+    ignoredRelativePathPrefixes.some((prefix) =>
+      relativePath.startsWith(prefix)
+    )
+  ) {
+    return false;
+  }
+  return relativePath
+    .split("/")
+    .every((segment) => !ignoredDirectoryNames.has(segment));
+}
+
+async function walk(root, directory, files) {
   let entries;
   try {
     entries = await readdir(directory, { withFileTypes: true });
@@ -315,7 +409,7 @@ async function walk(directory, files) {
     const absolutePath = path.join(directory, entry.name);
     if (entry.isDirectory()) {
       if (!ignoredDirectoryNames.has(entry.name)) {
-        await walk(absolutePath, files);
+        await walk(root, absolutePath, files);
       }
       continue;
     }
@@ -323,15 +417,13 @@ async function walk(directory, files) {
     if (!entry.isFile()) {
       continue;
     }
-    if (
-      ignoredFiles.has(entry.name) ||
-      !textExtensions.has(path.extname(entry.name))
-    ) {
+    const relativePath = toPosix(path.relative(root, absolutePath));
+    if (!isCheckableRelativePath(relativePath)) {
       continue;
     }
 
     const fileStat = await stat(absolutePath);
-    if (fileStat.size <= 1_000_000) {
+    if (fileStat.size <= maxTextFileBytes) {
       files.push(absolutePath);
     }
   }
