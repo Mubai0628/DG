@@ -117,6 +117,38 @@ describe("repository boundary checks", () => {
     );
   });
 
+  it("fails on synthetic arbitrary command and native messaging usage", async () => {
+    const root = await createTempRoot();
+    await mkdir(path.join(root, "app", "src-tauri", "src"), {
+      recursive: true
+    });
+    await writeFile(
+      path.join(root, "app", "src-tauri", "src", "commands.rs"),
+      [
+        "use std::process::Command;",
+        "fn run(command: &str) {",
+        "  let _ = Command::new(command);",
+        "}"
+      ].join("\n"),
+      "utf8"
+    );
+    await writeFile(
+      path.join(root, "app", "src-tauri", "tauri.conf.json"),
+      `${JSON.stringify({ plugins: ["nativeMessaging"] })}\n`,
+      "utf8"
+    );
+
+    const result = await runBoundaryCheck({ root, silent: true });
+
+    expect(result.ok).toBe(false);
+    expect(result.findings.map((finding) => finding.ruleId)).toContain(
+      "tauri_arbitrary_command_reference"
+    );
+    expect(result.findings.map((finding) => finding.ruleId)).toContain(
+      "native_messaging_reference"
+    );
+  });
+
   it("fails on synthetic secret-like content", async () => {
     const root = await createTempRoot();
     await mkdir(path.join(root, "src"), { recursive: true });

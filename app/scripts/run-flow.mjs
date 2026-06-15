@@ -1,16 +1,19 @@
 #!/usr/bin/env node
-import { readFile } from "node:fs/promises";
+import { readFile, realpath, stat } from "node:fs/promises";
 import path from "node:path";
+import { pathToFileURL } from "node:url";
 
 import { runWebTableToCsvFlow } from "../../runtime/dist/index.js";
 
-async function main(argv) {
-  const parsed = parseArgs(argv);
+export const maxPayloadFileBytes = 2_000_000;
+
+export async function main(argv) {
+  const parsed = await parseArgs(argv);
   if (parsed.error !== undefined) {
     throw new Error(parsed.error);
   }
 
-  const payloadText = await readFile(parsed.payloadPath, "utf8");
+  const payloadText = await readPayloadText(parsed.payloadPath);
   const payload = JSON.parse(payloadText);
   const result = await runWebTableToCsvFlow({
     workspaceRoot: parsed.workspaceRoot,
@@ -22,16 +25,26 @@ async function main(argv) {
   console.log(JSON.stringify(toDesktopSummary(result)));
 }
 
-function toDesktopSummary(result) {
-  return {
+export function toDesktopSummary(result) {
+  const summary = {
     draft: result.draft,
-    extraction: result.extraction,
+    extraction: {
+      rowCount: result.extraction.rowCount,
+      columnCount: result.extraction.columnCount,
+      warningCount: result.extraction.warningCount,
+      injectionRiskCount: result.extraction.injectionRiskCount,
+      formulaEscapedCount: result.extraction.formulaEscapedCount
+    },
     events: result.events,
-    replaySummary: result.replaySummary
+    replaySummary: {
+      draftCount: result.replaySummary.draftCount
+    }
   };
+  assertSafeSummary(summary);
+  return summary;
 }
 
-function parseArgs(argv) {
+export async function parseArgs(argv) {
   const parsed = {
     allowOverwrite: false
   };
@@ -40,11 +53,11 @@ function parseArgs(argv) {
     const arg = argv[index];
     switch (arg) {
       case "--workspace":
-        parsed.workspaceRoot = path.resolve(requireValue(argv, index, arg));
+        parsed.workspaceRoot = requireValue(argv, index, arg);
         index += 1;
         break;
       case "--payload":
-        parsed.payloadPath = path.resolve(requireValue(argv, index, arg));
+        parsed.payloadPath = requireValue(argv, index, arg);
         index += 1;
         break;
       case "--filename":
@@ -62,12 +75,16 @@ function parseArgs(argv) {
 
   if (parsed.workspaceRoot === undefined || parsed.payloadPath === undefined) {
     parsed.error = "Desktop runner requires workspace and payload paths";
+    return parsed;
   }
+
+  parsed.workspaceRoot = await canonicalDirectory(parsed.workspaceRoot);
+  parsed.payloadPath = await canonicalFile(parsed.payloadPath);
 
   return parsed;
 }
 
-function requireValue(argv, index, flag) {
+export function requireValue(argv, index, flag) {
   const value = argv[index + 1];
   if (value === undefined || value.startsWith("--")) {
     throw new Error(`${flag} requires a value`);
@@ -75,16 +92,67 @@ function requireValue(argv, index, flag) {
   return value;
 }
 
-function safeErrorMessage(error) {
+export async function readPayloadText(payloadPath) {
+  const payloadStat = await stat(payloadPath);
+  if (payloadStat.size > maxPayloadFileBytes) {
+    throw new Error("Payload file is too large");
+  }
+  return readFile(payloadPath, "utf8");
+}
+
+async function canonicalDirectory(inputPath) {
+  const resolved = await realpath(path.resolve(inputPath));
+  const entry = await stat(resolved);
+  if (!entry.isDirectory()) {
+    throw new Error("Workspace root must exist and be a directory");
+  }
+  return resolved;
+}
+
+async function canonicalFile(inputPath) {
+  const resolved = await realpath(path.resolve(inputPath));
+  const entry = await stat(resolved);
+  if (!entry.isFile()) {
+    throw new Error("Payload path must be a file");
+  }
+  return resolved;
+}
+
+export function safeErrorMessage(error) {
   const message =
     error instanceof Error ? error.message : "Desktop runner failed";
   return message
+    .replace(/\bAuthorization\s*:\s*[^\r\n]+/gi, "[redacted]")
     .replace(/\bBearer\s+[A-Za-z0-9._-]{8,}\b/gi, "[redacted]")
     .replace(/\bsk-[A-Za-z0-9_-]{8,}\b/gi, "[redacted]")
     .slice(0, 400);
 }
 
-main(process.argv.slice(2)).catch((error) => {
-  console.error(`Desktop runner failed: ${safeErrorMessage(error)}`);
-  process.exitCode = 1;
-});
+function assertSafeSummary(summary) {
+  const serialized = JSON.stringify(summary);
+  const forbiddenPatterns = [
+    /\bcsvContent\b/i,
+    /\brawCsv\b/i,
+    /\brawDom\b/i,
+    /\brawPrompt\b/i,
+    /\brawScreenshot\b/i,
+    /\bclipboard\b/i,
+    /\bAuthorization\b/i,
+    /\bBearer\s+[A-Za-z0-9._-]{8,}\b/i,
+    /\bsk-[A-Za-z0-9_-]{8,}\b/i,
+    /\?[A-Za-z0-9_-]+=/
+  ];
+  if (forbiddenPatterns.some((pattern) => pattern.test(serialized))) {
+    throw new Error("Desktop runner summary failed safety validation");
+  }
+}
+
+if (
+  process.argv[1] !== undefined &&
+  import.meta.url === pathToFileURL(process.argv[1]).href
+) {
+  main(process.argv.slice(2)).catch((error) => {
+    console.error(`Desktop runner failed: ${safeErrorMessage(error)}`);
+    process.exitCode = 1;
+  });
+}

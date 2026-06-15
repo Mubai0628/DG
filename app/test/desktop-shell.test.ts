@@ -1,4 +1,5 @@
-import { access, mkdtemp, readFile, rm } from "node:fs/promises";
+import { execFile } from "node:child_process";
+import { access, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 
@@ -12,8 +13,10 @@ import {
 } from "../src/desktop-flow.js";
 import {
   buildResultPanelModel,
+  maxPayloadTextBytes,
   parsePayloadJson,
   safeErrorMessage,
+  validatePayloadTextSize,
   validateDesktopFlowInput,
   type DesktopFlowResult
 } from "../src/safety.js";
@@ -35,6 +38,7 @@ const rootPackagePath = path.join(repoRoot, "package.json");
 const appPackagePath = path.join(appRoot, "package.json");
 const tauriConfigPath = path.join(appRoot, "src-tauri", "tauri.conf.json");
 const viteConfigPath = path.join(appRoot, "vite.config.ts");
+const appScriptRunnerPath = path.join(appRoot, "scripts", "run-flow.mjs");
 const tempRoots: string[] = [];
 
 afterEach(async () => {
@@ -65,9 +69,6 @@ function fixedResult(workspaceRoot: string): DesktopFlowResult {
       contentType: "text/csv"
     },
     extraction: {
-      sourceHost: "example.com",
-      sourcePathWithoutQuery: "/reports/table",
-      tableId: "orders",
       rowCount: 4,
       columnCount: 3,
       warningCount: 1,
@@ -83,13 +84,47 @@ function fixedResult(workspaceRoot: string): DesktopFlowResult {
       )
     },
     replaySummary: {
-      eventCount: 9,
-      draftCount: 1,
-      tasks: {
-        "task-1": "completed"
-      }
+      draftCount: 1
     }
   };
+}
+
+function runNodeScript(args: string[]): Promise<{
+  code: number | null;
+  stdout: string;
+  stderr: string;
+}> {
+  return new Promise((resolve, reject) => {
+    execFile(
+      process.execPath,
+      args,
+      {
+        cwd: repoRoot,
+        timeout: 120_000,
+        env: sanitizedTestEnv()
+      },
+      (error, stdout, stderr) => {
+        if (error !== null && "code" in error) {
+          resolve({ code: error.code as number, stdout, stderr });
+          return;
+        }
+        if (error !== null) {
+          reject(error);
+          return;
+        }
+        resolve({ code: 0, stdout, stderr });
+      }
+    );
+  });
+}
+
+function sanitizedTestEnv(): NodeJS.ProcessEnv {
+  return Object.fromEntries(
+    Object.entries(process.env).filter(
+      ([key]) =>
+        !/API_KEY|TOKEN|AUTH|SECRET|PASSWORD|CREDENTIAL|BEARER/i.test(key)
+    )
+  );
 }
 
 describe("desktop shell safety helpers", () => {
@@ -119,6 +154,23 @@ describe("desktop shell safety helpers", () => {
 
     expect(parsed.ok).toBe(false);
     expect(message).not.toContain(secret);
+  });
+
+  it("rejects oversized pasted payload text", () => {
+    const oversized = "x".repeat(maxPayloadTextBytes + 1);
+
+    expect(validatePayloadTextSize(oversized)).toBe(
+      "Payload JSON is too large"
+    );
+    expect(
+      validateDesktopFlowInput({
+        workspaceRoot: "D:\\workspace",
+        payloadText: oversized
+      })
+    ).toMatchObject({
+      ok: false,
+      errorMessage: "Payload JSON is too large"
+    });
   });
 
   it("requires a workspace path", () => {
@@ -199,6 +251,80 @@ describe("desktop command wrapper", () => {
   });
 });
 
+describe("desktop runner sidecar safety", () => {
+  it("rejects oversized payload files with a safe error", async () => {
+    const workspaceRoot = await createTempWorkspace();
+    const payloadPath = path.join(workspaceRoot, "payload.json");
+    const secret = "sk-test1234567890abcdef";
+    await writeFile(
+      payloadPath,
+      `${"x".repeat(maxPayloadTextBytes + 1)}${secret}`,
+      "utf8"
+    );
+
+    const result = await runNodeScript([
+      appScriptRunnerPath,
+      "--workspace",
+      workspaceRoot,
+      "--payload",
+      payloadPath
+    ]);
+
+    expect(result.code).toBe(1);
+    expect(result.stderr).toContain("Payload file is too large");
+    expect(result.stderr).not.toContain(secret);
+    expect(result.stdout).toBe("");
+  });
+
+  it("returns safe errors for unsupported runner arguments", async () => {
+    const workspaceRoot = await createTempWorkspace();
+    const result = await runNodeScript([
+      appScriptRunnerPath,
+      "--workspace",
+      workspaceRoot,
+      "--payload",
+      fixturePath,
+      "--unknown"
+    ]);
+
+    expect(result.code).toBe(1);
+    expect(result.stderr).toContain("Unsupported desktop runner argument");
+    expect(result.stderr).not.toContain("csvContent");
+    expect(result.stdout).toBe("");
+  });
+
+  it("prints only the safe desktop summary contract", async () => {
+    const workspaceRoot = await createTempWorkspace();
+    const result = await runNodeScript([
+      appScriptRunnerPath,
+      "--workspace",
+      workspaceRoot,
+      "--payload",
+      fixturePath,
+      "--filename",
+      "runner-contract.csv"
+    ]);
+    const summary = JSON.parse(result.stdout) as Record<string, unknown>;
+    const serialized = JSON.stringify(summary);
+
+    expect(result.code).toBe(0);
+    expect(summary).toHaveProperty("draft");
+    expect(summary).toHaveProperty("extraction");
+    expect(summary).toHaveProperty("events");
+    expect(summary).toHaveProperty("replaySummary");
+    expect(serialized).not.toContain("csvContent");
+    expect(serialized).not.toContain("rawDom");
+    expect(serialized).not.toContain("sk-test");
+    expect(serialized).not.toContain("?token=");
+    expect(
+      (summary.extraction as Record<string, unknown>).sourceHost
+    ).toBeUndefined();
+    expect(
+      (summary.replaySummary as Record<string, unknown>).tasks
+    ).toBeUndefined();
+  });
+});
+
 describe("desktop flow integration", () => {
   it("runs the runtime flow for a fixture and writes under workspace/drafts", async () => {
     const workspaceRoot = await createTempWorkspace();
@@ -223,6 +349,7 @@ describe("desktop source boundaries", () => {
       "src/App.tsx",
       "src/desktop-flow.ts",
       "src/safety.ts",
+      "scripts/run-flow.mjs",
       "src-tauri/src/main.rs",
       "src-tauri/src/commands.rs",
       "src-tauri/tauri.conf.json",
@@ -237,6 +364,13 @@ describe("desktop source boundaries", () => {
     expect(combined).not.toContain("nativeMessaging");
     expect(combined).not.toContain("@tauri-apps/plugin-shell");
     expect(combined).not.toContain("Command::new(command");
+    expect(combined).not.toContain("localStorage");
+    expect(combined).not.toContain("sessionStorage");
+    expect(combined).not.toContain("shell:allow");
+    expect(combined).toContain(".args(args)");
+    expect(combined).toContain("env_clear()");
+    expect(combined).toContain("sanitize_env_vars");
+    expect(combined).toContain("RUNNER_TIMEOUT");
     expect(combined).toContain('join("run-flow.mjs")');
   });
 });

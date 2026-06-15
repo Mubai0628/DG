@@ -7,6 +7,7 @@ import {
 import {
   buildResultPanelModel,
   defaultDraftFilename,
+  validatePayloadTextSize,
   safeErrorMessage,
   type DesktopFlowResult,
   type ResultPanelModel
@@ -53,7 +54,16 @@ export function App(): JSX.Element {
     if (file === undefined) {
       return;
     }
-    setPayloadText(await file.text());
+    const fileText = await file.text();
+    const sizeError = validatePayloadTextSize(fileText);
+    if (sizeError !== undefined) {
+      setPayloadText("");
+      setResult(undefined);
+      setError(sizeError);
+      setStatus("error");
+      return;
+    }
+    setPayloadText(fileText);
   }
 
   async function refreshVersion(): Promise<void> {

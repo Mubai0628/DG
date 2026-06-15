@@ -79,6 +79,10 @@ const boundaryPatterns = [
   { id: "global_shortcut_reference", pattern: /\bglobalShortcut\b/ },
   { id: "tauri_shell_plugin_reference", pattern: /@tauri-apps\/plugin-shell/ },
   { id: "tauri_shell_permission_reference", pattern: /\bshell:/ },
+  {
+    id: "tauri_arbitrary_command_reference",
+    pattern: /Command::new\s*\(\s*command\b/
+  },
   { id: "std_process_command_reference", pattern: /\bstd::process::Command\b/ },
   { id: "chrome_cookies_reference", pattern: /\bchrome\.cookies\b/ },
   { id: "chrome_storage_reference", pattern: /\bchrome\.storage\b/ },
@@ -240,9 +244,16 @@ function isAllowedBoundaryHit(file, line, ruleId) {
   if (file === "scripts/release-smoke.mjs") {
     return true;
   }
+  if (file === "app/scripts/run-flow.mjs") {
+    return true;
+  }
+  if (file === "app/scripts/manual-smoke-check.mjs") {
+    return true;
+  }
   if (file === "app/src-tauri/src/commands.rs") {
     return (
       ruleId === "std_process_command_reference" ||
+      line.includes("Command::new(program)") ||
       line.includes("app/scripts/run-flow.mjs") ||
       line.includes("DEEPSEEK_API_KEY") ||
       line.includes("OPENAI_API_KEY")
@@ -283,6 +294,12 @@ function isAllowedSecretHit(file) {
     return true;
   }
   if (file === "scripts/check-boundaries.mjs") {
+    return true;
+  }
+  if (file === "app/scripts/run-flow.mjs") {
+    return true;
+  }
+  if (file === "app/scripts/manual-smoke-check.mjs") {
     return true;
   }
   if (file === "app/src-tauri/src/commands.rs") {

@@ -21,9 +21,6 @@ export type DesktopFlowResult = {
     contentType: "text/csv";
   };
   extraction: {
-    sourceHost: string;
-    sourcePathWithoutQuery: string;
-    tableId: string;
     rowCount: number;
     columnCount: number;
     warningCount: number;
@@ -35,9 +32,7 @@ export type DesktopFlowResult = {
     eventLogPath: string;
   };
   replaySummary: {
-    eventCount: number;
     draftCount: number;
-    tasks: Record<string, string>;
   };
 };
 
@@ -68,9 +63,15 @@ const secretLikePatterns = [
   /\bAuthorization\s*:\s*[^\r\n]+/gi
 ];
 
+export const maxPayloadTextBytes = 2_000_000;
+
 export function parsePayloadJson(payloadText: string): ParseResult {
   if (payloadText.trim().length === 0) {
     return { ok: false, errorMessage: "Payload JSON is required" };
+  }
+  const sizeError = validatePayloadTextSize(payloadText);
+  if (sizeError !== undefined) {
+    return { ok: false, errorMessage: sizeError };
   }
 
   try {
@@ -78,6 +79,13 @@ export function parsePayloadJson(payloadText: string): ParseResult {
   } catch {
     return { ok: false, errorMessage: "Payload JSON is not valid JSON" };
   }
+}
+
+export function validatePayloadTextSize(text: string): string | undefined {
+  if (new TextEncoder().encode(text).byteLength > maxPayloadTextBytes) {
+    return "Payload JSON is too large";
+  }
+  return undefined;
 }
 
 export function validateDesktopFlowInput(

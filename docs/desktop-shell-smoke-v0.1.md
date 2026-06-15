@@ -73,6 +73,33 @@ pnpm app:smoke
 This runs app typecheck, app tests, and a fixed local runner smoke using the
 safe fixture. It does not open the GUI.
 
+For the manual-smoke preflight gate, run:
+
+```bash
+pnpm app:manual-smoke:check
+```
+
+This checks that the bundled payload fixture and desktop smoke docs exist, then
+runs the fixed local runner against a temporary workspace. It does not open the
+GUI and does not call DeepSeek.
+
+## Runner Safety
+
+The desktop shell invokes only the repository-controlled runner at
+`app/scripts/run-flow.mjs`. It passes arguments as an array, strips secret-like
+environment variables before launching the child process, enforces a runner
+timeout, and accepts only the redacted JSON summary contract returned by the
+runner. Errors shown in the UI are safe summaries and do not include the raw
+payload or CSV content.
+
+Payload JSON is limited to 2 MB for pasted text and selected JSON files. CSV
+draft filenames are still validated by the runtime workspace draft writer, which
+keeps output under `<workspace>/drafts/`.
+
+To see a safe invalid-payload error, paste malformed JSON and click **Convert**.
+To see the size-limit path, select or paste a payload larger than 2 MB. Timeout
+handling is covered by the automated app tests rather than a manual GUI step.
+
 ## Current Limitations
 
 - No native browser bridge.

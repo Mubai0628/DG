@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 import { execFile } from "node:child_process";
-import { mkdtemp, rm } from "node:fs/promises";
+import { access, mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -17,8 +17,17 @@ const fixturePath = path.join(
   "fixtures",
   "web-table-sample-payload.json"
 );
+const requiredDocs = [
+  path.join(repoRoot, "docs", "desktop-shell-smoke-v0.1.md"),
+  path.join(repoRoot, "docs", "web-table-to-csv-acceptance.md"),
+  path.join(repoRoot, "docs", "threat-model-v0.1.md")
+];
 
-const workspaceRoot = await mkdtemp(path.join(tmpdir(), "dw-app-smoke-"));
+await Promise.all([fixturePath, ...requiredDocs].map((file) => access(file)));
+
+const workspaceRoot = await mkdtemp(
+  path.join(tmpdir(), "dw-app-manual-smoke-")
+);
 
 try {
   const result = await runNode([
@@ -28,26 +37,26 @@ try {
     "--payload",
     fixturePath,
     "--filename",
-    "desktop-smoke.csv"
+    "manual-smoke-check.csv"
   ]);
   const summary = JSON.parse(result.stdout);
 
-  assert(summary.draft.relativePath === "drafts/desktop-smoke.csv");
+  assert(summary.draft.relativePath === "drafts/manual-smoke-check.csv");
   assert(summary.extraction.rowCount > 0);
   assert(summary.events.eventCount > 0);
   assert(summary.replaySummary.draftCount >= 1);
+  assert(!JSON.stringify(summary).includes("csvContent"));
 
-  console.log("Desktop shell smoke");
+  console.log("Desktop manual smoke check");
   console.log("status: PASS");
 } finally {
   await rm(workspaceRoot, { recursive: true, force: true });
 }
 
 function runNode(args) {
-  const executable = process.execPath;
   return new Promise((resolve, reject) => {
     execFile(
-      executable,
+      process.execPath,
       args,
       {
         cwd: repoRoot,
@@ -56,7 +65,9 @@ function runNode(args) {
       },
       (error, stdout, stderr) => {
         if (error !== null) {
-          reject(new Error(`desktop smoke failed: ${stderr.slice(0, 400)}`));
+          reject(
+            new Error(`manual smoke check failed: ${stderr.slice(0, 400)}`)
+          );
           return;
         }
         resolve({ stdout });
@@ -77,6 +88,6 @@ function isSensitiveEnvKey(key) {
 
 function assert(condition) {
   if (!condition) {
-    throw new Error("Desktop smoke assertion failed");
+    throw new Error("Desktop manual smoke assertion failed");
   }
 }
