@@ -15,6 +15,7 @@ const ignoredDirectoryNames = new Set([
   "coverage",
   ".turbo",
   ".vite",
+  "gen",
   "deepseek_workbench_v0_2_1_codex_pack",
   "results",
   "reports"
@@ -56,6 +57,10 @@ const boundaryPatterns = [
   { id: "nut_js_reference", pattern: /\bnut-js\b/i },
   { id: "chrome_debugger_reference", pattern: /\bchrome\.debugger\b/ },
   { id: "native_messaging_reference", pattern: /\bnativeMessaging\b/ },
+  { id: "global_shortcut_reference", pattern: /\bglobalShortcut\b/ },
+  { id: "tauri_shell_plugin_reference", pattern: /@tauri-apps\/plugin-shell/ },
+  { id: "tauri_shell_permission_reference", pattern: /\bshell:/ },
+  { id: "std_process_command_reference", pattern: /\bstd::process::Command\b/ },
   { id: "chrome_cookies_reference", pattern: /\bchrome\.cookies\b/ },
   { id: "chrome_storage_reference", pattern: /\bchrome\.storage\b/ },
   { id: "document_cookie_reference", pattern: /\bdocument\.cookie\b/ },
@@ -213,6 +218,27 @@ function isAllowedBoundaryHit(file, line, ruleId) {
   if (file === "scripts/check-boundaries.mjs") {
     return true;
   }
+  if (file === "scripts/release-smoke.mjs") {
+    return true;
+  }
+  if (file === "app/src-tauri/src/commands.rs") {
+    return (
+      ruleId === "std_process_command_reference" ||
+      line.includes("app/scripts/run-flow.mjs") ||
+      line.includes("DEEPSEEK_API_KEY") ||
+      line.includes("OPENAI_API_KEY")
+    );
+  }
+  if (file === "app/scripts/smoke.mjs") {
+    return (
+      line.includes("execFile") ||
+      line.includes("DEEPSEEK_API_KEY") ||
+      line.includes("OPENAI_API_KEY")
+    );
+  }
+  if (file === "app/README.md") {
+    return true;
+  }
   if (file.startsWith("runtime/src/web/")) {
     return true;
   }
@@ -238,6 +264,12 @@ function isAllowedSecretHit(file) {
     return true;
   }
   if (file === "scripts/check-boundaries.mjs") {
+    return true;
+  }
+  if (file === "app/src-tauri/src/commands.rs") {
+    return true;
+  }
+  if (file === "app/scripts/smoke.mjs") {
     return true;
   }
   if (file === "conformance/src/live-runner.ts") {

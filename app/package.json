@@ -1,0 +1,31 @@
+{
+  "name": "@deepseek-workbench/app",
+  "version": "0.1.0",
+  "private": true,
+  "license": "Apache-2.0",
+  "type": "module",
+  "description": "Tauri desktop shell for local DeepSeek Workbench flows.",
+  "scripts": {
+    "dev": "tauri dev",
+    "build": "vite build",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run test",
+    "smoke": "pnpm typecheck && pnpm test && node scripts/smoke.mjs"
+  },
+  "dependencies": {
+    "@deepseek-workbench/runtime": "workspace:*",
+    "@tauri-apps/api": "^2.0.0",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0"
+  },
+  "devDependencies": {
+    "@tauri-apps/cli": "^2.0.0",
+    "@types/node": "24.13.2",
+    "@types/react": "^19.0.0",
+    "@types/react-dom": "^19.0.0",
+    "@vitejs/plugin-react": "^5.0.0",
+    "typescript": "6.0.3",
+    "vite": "^7.0.0",
+    "vitest": "4.1.8"
+  }
+}

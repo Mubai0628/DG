@@ -8,8 +8,13 @@
   "description": "Local-first, DeepSeek-native desktop agent workbench skeleton.",
   "scripts": {
     "lint": "eslint . && prettier --check .",
-    "typecheck": "pnpm --filter @deepseek-workbench/runtime build && pnpm --filter @deepseek-workbench/runtime typecheck && pnpm --filter @deepseek-workbench/conformance typecheck && pnpm --filter @deepseek-workbench/browser-extension typecheck",
+    "typecheck": "pnpm --filter @deepseek-workbench/runtime build && pnpm --filter @deepseek-workbench/runtime typecheck && pnpm --filter @deepseek-workbench/conformance typecheck && pnpm --filter @deepseek-workbench/browser-extension typecheck && pnpm --filter @deepseek-workbench/app typecheck",
     "test": "vitest run runtime/test",
+    "app:dev": "pnpm --filter @deepseek-workbench/app dev",
+    "app:build": "pnpm --filter @deepseek-workbench/app build",
+    "app:typecheck": "pnpm --filter @deepseek-workbench/app typecheck",
+    "app:test": "pnpm --filter @deepseek-workbench/runtime build && pnpm --filter @deepseek-workbench/app test",
+    "app:smoke": "pnpm --filter @deepseek-workbench/runtime build && pnpm --filter @deepseek-workbench/app smoke",
     "test:conformance:dry": "pnpm --filter @deepseek-workbench/runtime build && vitest run conformance/test/conformance-dry.test.ts",
     "test:conformance:live": "pnpm --filter @deepseek-workbench/runtime build && pnpm --filter @deepseek-workbench/conformance build && node conformance/dist/live-runner.js",
     "replay": "pnpm --filter @deepseek-workbench/runtime build && node scripts/replay.mjs",
@@ -18,7 +23,7 @@
     "verify:v0.1-slice": "vitest run runtime/test/web-table-to-csv-flow.test.ts runtime/test/web-table-extractor.test.ts runtime/test/tool-broker.test.ts && pnpm test:conformance:dry && pnpm eval:web-table-to-csv && pnpm run web-table-to-csv -- --help",
     "check:boundaries": "node scripts/check-boundaries.mjs boundaries",
     "check:secrets": "node scripts/check-boundaries.mjs secrets",
-    "verify:ci": "pnpm lint && pnpm typecheck && pnpm test && pnpm test:conformance:dry && pnpm test:conformance:live && pnpm verify:v0.1-slice && pnpm check:boundaries && pnpm check:secrets",
+    "verify:ci": "pnpm lint && pnpm typecheck && pnpm test && pnpm app:test && pnpm test:conformance:dry && pnpm test:conformance:live && pnpm verify:v0.1-slice && pnpm check:boundaries && pnpm check:secrets",
     "release:smoke": "node scripts/release-smoke.mjs"
   },
   "devDependencies": {

@@ -1,0 +1,11 @@
+mod commands;
+
+fn main() {
+    tauri::Builder::default()
+        .invoke_handler(tauri::generate_handler![
+            commands::get_app_version,
+            commands::run_web_table_to_csv_flow
+        ])
+        .run(tauri::generate_context!())
+        .expect("failed to run DeepSeek Workbench desktop shell");
+}
