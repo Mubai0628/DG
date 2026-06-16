@@ -1,0 +1,9 @@
+{
+  "enabled": false,
+  "requiresDevFlag": true,
+  "hostName": "com.dg.bridge",
+  "extensionId": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "previewRequired": true,
+  "autoConvert": false,
+  "fileWriteFromBridge": false
+}

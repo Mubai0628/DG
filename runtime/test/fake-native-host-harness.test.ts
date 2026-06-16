@@ -552,6 +552,9 @@ describe("Fake native host project guard", () => {
     );
     expect(source).not.toMatch(/createServer|listen\(|fetch\(|XMLHttpRequest/);
     expect(source).not.toMatch(/node:fs|node:http|node:https|node:net/);
-    expect(await readdir(sampleDir)).toEqual(["com.dg.bridge.sample.json"]);
+    expect((await readdir(sampleDir)).sort()).toEqual([
+      "com.dg.bridge.sample.json",
+      "dev-host-gate.sample.json"
+    ]);
   });
 });

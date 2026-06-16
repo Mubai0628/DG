@@ -14,6 +14,8 @@ DeepSeek Workbench documentation is organized around the current v0.1
 - [Bridge implementation gate v0.1](bridge-implementation-gate-v0.1.md)
 - [Native Messaging dry check v0.1](native-messaging-dry-check-v0.1.md)
 - [Fake Native Host harness v0.1](fake-native-host-harness-v0.1.md)
+- [Native Host proof-of-life gate v0.1](native-host-proof-of-life-v0.1.md)
+- [ADR 0004: Native host proof-of-life gate](adr/0004-native-host-proof-of-life-gate.md)
 - [v0.1 release checklist](release-checklist-v0.1.md)
 - [v0.1.0-rc.1 release notes](release-notes-v0.1.0-rc.1.md)
 - [v0.1.0-desktop-rc.1 release notes](release-notes-v0.1.0-desktop-rc.1.md)

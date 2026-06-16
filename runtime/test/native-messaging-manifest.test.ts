@@ -218,7 +218,10 @@ describe("native messaging manifest dry check", () => {
     );
     const files = await readdir(sampleDir);
 
-    expect(files).toEqual(["com.dg.bridge.sample.json"]);
+    expect(files.sort()).toEqual([
+      "com.dg.bridge.sample.json",
+      "dev-host-gate.sample.json"
+    ]);
     expect(
       files.some((file) => /\.(?:ps1|cmd|bat|sh|mjs|js)$/i.test(file))
     ).toBe(false);
