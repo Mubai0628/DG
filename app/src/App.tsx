@@ -107,6 +107,12 @@ export function DesktopShell(): JSX.Element {
     () => buildEventLogPanelModel(eventSummary),
     [eventSummary]
   );
+  const preflightBadge =
+    preflight === undefined
+      ? "Source-tree mode / Preflight pending / No native bridge"
+      : preflight.ok
+        ? "Source-tree mode / Preflight OK / No native bridge"
+        : "Source-tree mode / Preflight needs attention / No native bridge";
 
   async function handleConvert(): Promise<void> {
     setStatus("running");
@@ -212,8 +218,9 @@ export function DesktopShell(): JSX.Element {
         <div>
           <p className="eyebrow">DeepSeek Workbench</p>
           <h1>DG Desktop Shell</h1>
+          <p className="subtitle">Local web-table-to-CSV workflow</p>
         </div>
-        <span className="badge">v0.1 local web-table-to-CSV shell</span>
+        <span className="badge">{preflightBadge}</span>
       </header>
 
       <section className="layout">
@@ -225,6 +232,10 @@ export function DesktopShell(): JSX.Element {
               onChange={(event) => setWorkspaceRoot(event.target.value)}
               placeholder="D:\\workspaces\\demo"
             />
+            <p className="fieldHelp">
+              Workspace is a local folder. Draft CSV files are written only
+              under workspace/drafts/.
+            </p>
           </label>
 
           <label>
@@ -234,6 +245,10 @@ export function DesktopShell(): JSX.Element {
               accept="application/json,.json"
               onChange={handlePayloadFile}
             />
+            <p className="fieldHelp">
+              Load a sanitized BrowserDomPayload JSON file exported from the
+              browser extension.
+            </p>
           </label>
 
           <label>
@@ -244,6 +259,10 @@ export function DesktopShell(): JSX.Element {
               placeholder="Paste the sanitized extension payload here"
               spellCheck={false}
             />
+            <p className="fieldHelp">
+              Paste sanitized BrowserDomPayload JSON. Raw page markup and
+              private browser data should not be present.
+            </p>
           </label>
 
           <label>
@@ -255,6 +274,10 @@ export function DesktopShell(): JSX.Element {
             />
           </label>
 
+          <p className="fieldHelp">
+            Convert runs the local runner only. It does not contact DeepSeek or
+            inspect browser secrets, form values, or page storage.
+          </p>
           <button
             type="button"
             className="primary"
@@ -367,7 +390,7 @@ export function DesktopShell(): JSX.Element {
 
             {eventPanel === undefined && eventStatus !== "error" ? (
               <p className="empty">
-                No event summary loaded. Refresh events or run a conversion.
+                No events yet. Run Convert first, then refresh.
               </p>
             ) : null}
 
@@ -405,6 +428,10 @@ export function DesktopShell(): JSX.Element {
                     </dd>
                   </div>
                 </dl>
+                <p className="fieldHelp">
+                  Safety Scan is a summary-only check of events.jsonl. Raw CSV
+                  and raw DOM are not displayed.
+                </p>
 
                 {eventPanel.emptyMessage !== undefined ? (
                   <p className="empty">{eventPanel.emptyMessage}</p>
@@ -485,9 +512,7 @@ export function DesktopShell(): JSX.Element {
             </button>
           </nav>
           {docMessage !== undefined ? (
-            <p className="docHint">
-              Open this repository document locally: {docMessage}
-            </p>
+            <p className="docHint">Local docs path: {docMessage}</p>
           ) : null}
         </section>
       </section>

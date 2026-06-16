@@ -14,7 +14,8 @@
     "test": "vitest run test && cargo test --manifest-path src-tauri/Cargo.toml",
     "preflight": "node scripts/preflight.mjs",
     "smoke": "pnpm typecheck && pnpm test && pnpm preflight && node scripts/smoke.mjs",
-    "manual-smoke:check": "node scripts/manual-smoke-check.mjs"
+    "manual-smoke:check": "node scripts/manual-smoke-check.mjs",
+    "qa:check": "node scripts/qa-check.mjs"
   },
   "dependencies": {
     "@deepseek-workbench/runtime": "workspace:*",

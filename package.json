@@ -17,6 +17,7 @@
     "app:preflight": "pnpm --filter @deepseek-workbench/runtime build && pnpm --filter @deepseek-workbench/app preflight",
     "app:smoke": "pnpm --filter @deepseek-workbench/runtime build && pnpm --filter @deepseek-workbench/app smoke",
     "app:manual-smoke:check": "pnpm app:smoke && pnpm --filter @deepseek-workbench/runtime build && pnpm --filter @deepseek-workbench/app manual-smoke:check",
+    "app:qa:check": "pnpm --filter @deepseek-workbench/runtime build && pnpm --filter @deepseek-workbench/app qa:check",
     "test:conformance:dry": "pnpm --filter @deepseek-workbench/runtime build && vitest run conformance/test/conformance-dry.test.ts",
     "test:conformance:live": "pnpm --filter @deepseek-workbench/runtime build && pnpm --filter @deepseek-workbench/conformance build && node conformance/dist/live-runner.js",
     "replay": "pnpm --filter @deepseek-workbench/runtime build && node scripts/replay.mjs",

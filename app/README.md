@@ -29,6 +29,7 @@ pnpm app:dev
 pnpm app:preflight
 pnpm app:smoke
 pnpm app:manual-smoke:check
+pnpm app:qa:check
 ```
 
 `pnpm app:dev` starts the Tauri desktop shell. For frontend-only debugging,
@@ -44,3 +45,8 @@ For packaged-mode strategy and current standalone limitations, see
 `pnpm app:manual-smoke:check` runs the offline manual-smoke preflight without
 opening the GUI. It verifies the safe fixture and docs exist, then exercises the
 fixed local runner against a temporary workspace.
+
+`pnpm app:qa:check` runs the desktop release-candidate QA check without opening
+the GUI. It verifies desktop QA docs, runs the offline preflight and smoke
+checks, exercises the fixture flow in a temporary workspace, and scans the event
+log for unsafe markers.

@@ -62,6 +62,12 @@ h2 {
   font-size: 18px;
 }
 
+.subtitle {
+  color: #50645f;
+  font-size: 14px;
+  margin: 6px 0 0;
+}
+
 .badge {
   background: #dcefe6;
   border: 1px solid #b9d5c8;
@@ -97,6 +103,14 @@ label {
 label span {
   display: block;
   margin-bottom: 6px;
+}
+
+.fieldHelp {
+  color: #66736f;
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 1.45;
+  margin: 8px 0 0;
 }
 
 input,

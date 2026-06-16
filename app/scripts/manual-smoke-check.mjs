@@ -19,6 +19,10 @@ const fixturePath = path.join(
 );
 const requiredDocs = [
   path.join(repoRoot, "docs", "desktop-shell-smoke-v0.1.md"),
+  path.join(repoRoot, "docs", "desktop-event-log-smoke-v0.1.md"),
+  path.join(repoRoot, "docs", "desktop-manual-qa-v0.1.md"),
+  path.join(repoRoot, "docs", "desktop-rc-checklist-v0.1.md"),
+  path.join(repoRoot, "docs", "desktop-troubleshooting-v0.1.md"),
   path.join(repoRoot, "docs", "web-table-to-csv-acceptance.md"),
   path.join(repoRoot, "docs", "threat-model-v0.1.md")
 ];

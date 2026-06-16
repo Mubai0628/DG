@@ -58,6 +58,7 @@ const tauriConfigPath = path.join(appRoot, "src-tauri", "tauri.conf.json");
 const viteConfigPath = path.join(appRoot, "vite.config.ts");
 const appScriptRunnerPath = path.join(appRoot, "scripts", "run-flow.mjs");
 const appPreflightScriptPath = path.join(appRoot, "scripts", "preflight.mjs");
+const appQaScriptPath = path.join(appRoot, "scripts", "qa-check.mjs");
 const tempRoots: string[] = [];
 
 afterEach(async () => {
@@ -634,7 +635,9 @@ describe("desktop command wrapper", () => {
       })
     );
 
-    expect(model?.emptyMessage).toBe("No events yet. Run a conversion first.");
+    expect(model?.emptyMessage).toBe(
+      "No events yet. Run Convert first, then refresh."
+    );
     expect(JSON.stringify(model)).not.toContain("rawDom");
     expect(JSON.stringify(model)).not.toContain("csvContent");
   });
@@ -1053,7 +1056,16 @@ describe("desktop source boundaries", () => {
       "utf8"
     );
 
+    expect(appSource).toContain("Local web-table-to-CSV workflow");
+    expect(appSource).toContain("Source-tree mode / Preflight OK");
+    expect(appSource).toContain("No native bridge");
+    expect(appSource).toContain("workspace/drafts/");
+    expect(appSource).toContain(
+      "No events yet. Run Convert first, then refresh."
+    );
+    expect(appSource).toContain("summary-only check of events.jsonl");
     expect(appSource).toContain("docs/desktop-event-log-smoke-v0.1.md");
+    expect(appSource).toContain("Local docs path:");
     expect(appSource).toContain("DesktopErrorBoundary");
     expect(appSource).toContain("Reset UI state");
     expect(appSource).toContain("Event log events");
@@ -1113,6 +1125,57 @@ describe("desktop source boundaries", () => {
     expect(combined).toContain('join("run-flow.mjs")');
     expect(commandSource).toContain("LOCAL_STORAGE_MARKER");
     expect(commandSource).toContain("SESSION_STORAGE_MARKER");
+  });
+
+  it("keeps desktop QA docs and RC copy aligned with safety boundaries", async () => {
+    const docs = await Promise.all(
+      [
+        "desktop-manual-qa-v0.1.md",
+        "desktop-rc-checklist-v0.1.md",
+        "desktop-troubleshooting-v0.1.md"
+      ].map(async (file) => ({
+        file,
+        text: await readFile(path.join(repoRoot, "docs", file), "utf8")
+      }))
+    );
+    const combined = docs.map((doc) => doc.text).join("\n");
+
+    expect(combined).toContain("nativeMessaging");
+    expect(combined).toContain("desktop action");
+    expect(combined).toContain("raw browser DOM");
+    expect(combined).toContain("raw CSV");
+    expect(combined).toContain("MCP");
+    expect(combined).toContain("No `nativeMessaging`");
+    expect(combined).toContain("API keys");
+    expect(combined).toContain("PASSWORD_VALUE_MARKER");
+    expect(combined).toContain(
+      "Get-Content D:\\workspaces\\demo\\.deepseek-workbench\\events.jsonl -TotalCount 5"
+    );
+    expect(combined).not.toMatch(/fully standalone packaged runner is ready/i);
+    expect(combined).not.toMatch(
+      /automatic extension-to-app bridge is supported/i
+    );
+  });
+
+  it("configures the offline desktop QA check without GUI or DeepSeek calls", async () => {
+    const rootPackage = JSON.parse(
+      await readFile(rootPackagePath, "utf8")
+    ) as PackageJson;
+    const appPackage = JSON.parse(
+      await readFile(appPackagePath, "utf8")
+    ) as PackageJson;
+    const script = await readFile(appQaScriptPath, "utf8");
+
+    expect(rootPackage.scripts["app:qa:check"]).toContain("qa:check");
+    expect(appPackage.scripts["qa:check"]).toBe("node scripts/qa-check.mjs");
+    expect(script).toContain("Desktop QA check");
+    expect(script).toContain("app:preflight");
+    expect(script).toContain("app:smoke");
+    expect(script).toContain("events.jsonl");
+    expect(script).toContain("scanEventLogForLeaks");
+    expect(script).not.toContain("app:dev");
+    expect(script).not.toContain("DEEPSEEK_API_KEY");
+    expect(script).not.toContain("OPENAI_API_KEY");
   });
 });
 

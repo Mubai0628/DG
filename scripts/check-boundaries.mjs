@@ -250,6 +250,9 @@ function isAllowedBoundaryHit(file, line, ruleId) {
   if (file === "app/scripts/manual-smoke-check.mjs") {
     return true;
   }
+  if (file === "app/scripts/qa-check.mjs") {
+    return true;
+  }
   if (file === "app/scripts/preflight.mjs") {
     return true;
   }
@@ -304,6 +307,9 @@ function isAllowedSecretHit(file) {
     return true;
   }
   if (file === "app/scripts/manual-smoke-check.mjs") {
+    return true;
+  }
+  if (file === "app/scripts/qa-check.mjs") {
     return true;
   }
   if (file === "app/scripts/preflight.mjs") {

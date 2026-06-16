@@ -49,7 +49,7 @@ The result panel should show:
 - warning count
 - injection risk count
 - formula escaped count
-- event count
+- Event log events
 - replay draft count
 
 The CSV is written under:
@@ -78,6 +78,7 @@ For the manual-smoke preflight gate, run:
 ```bash
 pnpm app:preflight
 pnpm app:manual-smoke:check
+pnpm app:qa:check
 ```
 
 `pnpm app:preflight` checks the fixed runner, Node runtime, fixture conversion,
@@ -85,6 +86,11 @@ and safe invalid-payload failure path. `pnpm app:manual-smoke:check` checks that
 the bundled payload fixture and desktop smoke docs exist, then runs the fixed
 local runner against a temporary workspace. Neither command opens the GUI or
 calls DeepSeek.
+
+`pnpm app:qa:check` is the desktop release-candidate QA gate. It verifies the
+desktop QA docs, runs the fixed offline preflight and smoke checks, exercises
+the fixture flow in a temporary workspace, and scans the generated event log for
+raw payload, raw CSV, raw DOM, full URL query, and secret markers.
 
 ## Runner Safety
 
@@ -109,6 +115,9 @@ For packaged/release build readiness and current standalone limitations, see
 
 For the Event Log / Replay panel smoke, see
 `docs/desktop-event-log-smoke-v0.1.md`.
+For the full desktop manual QA checklist, see
+`docs/desktop-manual-qa-v0.1.md`. For troubleshooting, see
+`docs/desktop-troubleshooting-v0.1.md`.
 
 ## Current Limitations
 

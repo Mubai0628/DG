@@ -522,7 +522,7 @@ export function buildEventLogPanelModel(
     warnings: Array.from(new Set(mergedWarnings)),
     timeline,
     ...(eventCount === 0
-      ? { emptyMessage: "No events yet. Run a conversion first." }
+      ? { emptyMessage: "No events yet. Run Convert first, then refresh." }
       : {}),
     ...(typeof summary.safeMessage === "string"
       ? { safeMessage: summary.safeMessage }
