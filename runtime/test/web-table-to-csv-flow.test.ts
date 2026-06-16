@@ -138,6 +138,29 @@ describe("WebTableToCsvFlow", () => {
       await fileExists(path.join(workspaceRoot, "drafts", "orders.csv"))
     ).toBe(false);
   });
+
+  it("returns a safe actionable error when the draft already exists", async () => {
+    const workspaceRoot = await createTempWorkspace();
+    const payload = await readFixture();
+
+    await runWebTableToCsvFlow({
+      workspaceRoot,
+      payload,
+      filename: "orders.csv",
+      clock: safeClock
+    });
+
+    await expect(
+      runWebTableToCsvFlow({
+        workspaceRoot,
+        payload,
+        filename: "orders.csv",
+        clock: safeClock
+      })
+    ).rejects.toThrow(
+      "Draft already exists: drafts/orders.csv. Choose a new draft filename or remove the existing file."
+    );
+  });
 });
 
 describe("web-table-to-csv CLI", () => {

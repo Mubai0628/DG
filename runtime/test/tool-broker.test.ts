@@ -363,7 +363,7 @@ describe("ToolBroker fs.write_draft execution", () => {
       )
     ).resolves.toMatchObject({
       status: "failed",
-      errorKind: "tool_execution_failed"
+      errorKind: "parent_traversal_rejected"
     });
 
     await broker.executeToolCall(
@@ -383,7 +383,7 @@ describe("ToolBroker fs.write_draft execution", () => {
       )
     ).resolves.toMatchObject({
       status: "failed",
-      errorKind: "tool_execution_failed"
+      errorKind: "file_exists"
     });
   });
 
