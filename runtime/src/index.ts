@@ -36,6 +36,7 @@ export function getRuntimeSkeletonStatus(): RuntimeSkeletonStatus {
 }
 
 export * from "./conversation/index.js";
+export * from "./bridge/index.js";
 export * from "./context/index.js";
 export * from "./deepseek/index.js";
 export * from "./events/index.js";
