@@ -3,6 +3,12 @@
 Use this checklist before publishing a desktop release candidate such as
 `v0.1.0-rc.2` or `v0.1.0-desktop-rc.1`.
 
+Current desktop RC target:
+
+```text
+v0.1.0-desktop-rc.1
+```
+
 ## Required Local Commands
 
 Run:
@@ -47,8 +53,25 @@ Record only safe summaries:
 - Event Log / Replay event count and draft count
 - duplicate filename safe error
 - refresh and docs-path actions preserving UI state
+- no `PASSWORD_VALUE_MARKER` false positive for `passwordValuesDropped: true`
 
 Do not publish raw payload or CSV data from a private page.
+
+## Manual QA Coverage
+
+The desktop RC manual QA path should cover:
+
+- Tauri desktop shell starts with `pnpm app:dev`.
+- Workspace root is accepted.
+- Sanitized payload file import and pasted payload input work.
+- Convert writes a CSV draft under `workspace/drafts/`.
+- Event Log / Replay shows event count, draft count, and timeline summaries.
+- Refresh events does not blank the UI and does not clear input state.
+- Event log smoke shows the local docs path and does not navigate away.
+- Duplicate filename shows an actionable `FILE_EXISTS` message.
+- A second filename converts successfully.
+- No raw payload, raw CSV, raw DOM, API key, authorization header, or full URL
+  query string is displayed in the UI.
 
 ## Screenshot Checklist
 
@@ -70,6 +93,23 @@ Before tagging:
 - confirm `verify:ci` is green locally
 - confirm `release:smoke` is green locally
 - confirm generated artifacts are not tracked
+- confirm `app:qa:check` is green locally
+
+## Tag And Release
+
+Do not tag until local checks, manual GUI QA, and GitHub Actions are green.
+
+Suggested commands:
+
+```powershell
+git status --short
+git tag -a v0.1.0-desktop-rc.1 -m "v0.1.0-desktop-rc.1"
+git push origin HEAD
+git push origin v0.1.0-desktop-rc.1
+```
+
+Create the GitHub Release from `v0.1.0-desktop-rc.1` and use
+`docs/release-notes-v0.1.0-desktop-rc.1.md` as the release note source.
 
 ## Generated Artifacts Not Committed
 

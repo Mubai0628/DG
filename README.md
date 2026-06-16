@@ -24,6 +24,26 @@ Current capabilities:
 - `fs.write_draft` Tool Broker path writing only to `workspace/drafts/*.csv`.
 - JSONL event log and deterministic replay summary.
 - Offline eval harness and `pnpm verify:v0.1-slice` gate.
+- Tauri desktop shell for the same local web-table-to-CSV flow.
+- Desktop runner preflight, Event Log / Replay panel, and offline
+  `pnpm app:qa:check` gate.
+
+## Desktop RC status
+
+`v0.1.0-desktop-rc.1` prepares the desktop shell for release-candidate review.
+The desktop app supports source-tree runner mode, workspace selection,
+sanitized payload import or paste, Convert to CSV, Event Log / Replay, Refresh
+events, and safe duplicate-filename errors.
+
+The desktop flow remains local: it uses the fixed repository runner, writes CSV
+drafts only under `workspace/drafts/`, and displays summary event data only.
+
+Desktop RC references:
+
+- [v0.1.0-desktop-rc.1 release notes](docs/release-notes-v0.1.0-desktop-rc.1.md)
+- [Desktop RC checklist](docs/desktop-rc-checklist-v0.1.md)
+- [Desktop manual QA](docs/desktop-manual-qa-v0.1.md)
+- [Desktop troubleshooting](docs/desktop-troubleshooting-v0.1.md)
 
 ## What v0.1.0 does not support
 
@@ -38,7 +58,9 @@ v0.1.0 does not:
 - Read clipboard data.
 - Store raw prompt, raw DOM, raw screenshot, or raw CSV content in events by
   default.
-- Provide MCP, shell execution, a UI, memory system, or context compression.
+- Provide MCP, shell execution, UI automation, memory system, or context
+  compression.
+- Provide packaged standalone desktop conversion guarantees.
 - Call the real DeepSeek API in default tests or CI.
 
 ## Quickstart

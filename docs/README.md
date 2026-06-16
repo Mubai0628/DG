@@ -8,6 +8,11 @@ DeepSeek Workbench documentation is organized around the current v0.1
 - [v0.1 threat model](threat-model-v0.1.md)
 - [v0.1 release checklist](release-checklist-v0.1.md)
 - [v0.1.0-rc.1 release notes](release-notes-v0.1.0-rc.1.md)
+- [v0.1.0-desktop-rc.1 release notes](release-notes-v0.1.0-desktop-rc.1.md)
+- [Desktop RC checklist v0.1](desktop-rc-checklist-v0.1.md)
+- [Desktop manual QA v0.1](desktop-manual-qa-v0.1.md)
+- [Desktop troubleshooting v0.1](desktop-troubleshooting-v0.1.md)
+- [Desktop packaging strategy v0.1](desktop-packaging-strategy-v0.1.md)
 - [Manual smoke test v0.1](manual-smoke-v0.1.md)
 - [GitHub push checklist](github-push-checklist.md)
 
