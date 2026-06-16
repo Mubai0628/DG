@@ -104,7 +104,8 @@ To see the size-limit path, select or paste a payload larger than 2 MB. Timeout
 handling is covered by the automated app tests rather than a manual GUI step.
 
 For packaged/release build readiness and current standalone limitations, see
-`docs/desktop-packaging-v0.1.md`.
+`docs/desktop-packaging-v0.1.md` and
+`docs/desktop-packaging-strategy-v0.1.md`.
 
 ## Current Limitations
 

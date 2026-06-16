@@ -19,6 +19,8 @@ Current limitations:
 - no desktop control
 - no network request path
 - no real DeepSeek API call from the desktop shell
+- no fully standalone packaged runner yet; packaged conversion must pass
+  runner preflight and may require the source tree in v0.1
 
 Development:
 
@@ -36,6 +38,8 @@ close the existing process before retrying.
 
 `pnpm app:preflight` checks the fixed runner, Node runtime, fixture conversion,
 and safe invalid-payload failure path without opening the GUI.
+For packaged-mode strategy and current standalone limitations, see
+`docs/desktop-packaging-strategy-v0.1.md`.
 
 `pnpm app:manual-smoke:check` runs the offline manual-smoke preflight without
 opening the GUI. It verifies the safe fixture and docs exist, then exercises the

@@ -22,11 +22,11 @@ pub struct DesktopFlowResult {
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone, Copy, PartialEq, Eq)]
-#[serde(rename_all = "lowercase")]
+#[serde(rename_all = "snake_case")]
 pub enum RunnerMode {
-    Dev,
-    Packaged,
-    Unknown,
+    DevSourceTree,
+    PackagedWithResources,
+    PackagedNotSupported,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -39,8 +39,12 @@ pub struct RunnerPreflightSummary {
     workspace_valid: Option<bool>,
     payload_limit_bytes: usize,
     warnings: Vec<String>,
+    status_code: String,
     error_code: Option<String>,
     safe_message: Option<String>,
+    runner_status: String,
+    packaged_standalone_support: String,
+    next_action: String,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -154,7 +158,7 @@ fn run_runner_preflight(workspace_root: Option<&str>, mode: RunnerMode) -> Runne
 
     let workspace_valid = workspace_root.map(|root| validate_workspace_root(root).is_ok());
     if workspace_valid == Some(false) {
-        error_code = Some("INVALID_WORKSPACE".to_string());
+        error_code = Some("WORKSPACE_INVALID".to_string());
         safe_message = Some("Workspace root must exist and be a directory".to_string());
     }
 
@@ -178,20 +182,38 @@ fn run_runner_preflight(workspace_root: Option<&str>, mode: RunnerMode) -> Runne
         safe_message = Some("Node runtime was not found for the desktop runner".to_string());
     }
 
-    if mode == RunnerMode::Packaged {
-        warnings.push("Packaged mode does not yet bundle the Node sidecar runner".to_string());
-        if error_code.is_none() {
-            error_code = Some("PACKAGED_MODE_REQUIRES_NODE_AND_SOURCE_TREE".to_string());
-            safe_message =
-                Some("Packaged mode requires Node and the source-tree runner in v0.1".to_string());
+    match mode {
+        RunnerMode::DevSourceTree => {}
+        RunnerMode::PackagedNotSupported => {
+            warnings.push("Packaged mode does not yet bundle the Node sidecar runner".to_string());
+            if error_code.is_none() {
+                error_code = Some("PACKAGED_MODE_REQUIRES_SOURCE_TREE".to_string());
+                safe_message =
+                    Some("Packaged mode requires the source-tree runner in v0.1".to_string());
+            }
         }
-    } else if mode == RunnerMode::Unknown {
-        warnings.push("Runner mode could not be determined".to_string());
-        if error_code.is_none() {
-            error_code = Some("UNKNOWN_RUNNER_MODE".to_string());
-            safe_message = Some("Runner mode could not be determined".to_string());
+        RunnerMode::PackagedWithResources => {
+            warnings.push("Packaged runner resources are reserved for a future task".to_string());
+            if error_code.is_none() {
+                error_code = Some("PACKAGED_RUNNER_NOT_BUNDLED".to_string());
+                safe_message =
+                    Some("Packaged runner resources are not bundled in v0.1".to_string());
+            }
         }
     }
+
+    if mode == RunnerMode::PackagedNotSupported && error_code.as_deref() == Some("RUNNER_NOT_FOUND")
+    {
+        error_code = Some("PACKAGED_RUNNER_NOT_BUNDLED".to_string());
+        safe_message = Some("Packaged runner resources are not bundled in v0.1".to_string());
+    }
+
+    let runner_status = runner_status(runner_found, node_available, workspace_valid);
+    let packaged_standalone_support = packaged_standalone_support(mode);
+    let next_action = next_action(error_code.as_deref());
+    let status_code = error_code
+        .clone()
+        .unwrap_or_else(|| "DEV_SOURCE_TREE_READY".to_string());
 
     RunnerPreflightSummary {
         ok: error_code.is_none(),
@@ -201,16 +223,63 @@ fn run_runner_preflight(workspace_root: Option<&str>, mode: RunnerMode) -> Runne
         workspace_valid,
         payload_limit_bytes: MAX_PAYLOAD_BYTES,
         warnings,
+        status_code,
         error_code,
         safe_message,
+        runner_status,
+        packaged_standalone_support,
+        next_action,
+    }
+}
+
+fn runner_status(
+    runner_found: bool,
+    node_available: bool,
+    workspace_valid: Option<bool>,
+) -> String {
+    if workspace_valid == Some(false) {
+        return "Workspace invalid".to_string();
+    }
+    if !runner_found {
+        return "Runner missing".to_string();
+    }
+    if !node_available {
+        return "Node missing".to_string();
+    }
+    "Ready".to_string()
+}
+
+fn packaged_standalone_support(mode: RunnerMode) -> String {
+    match mode {
+        RunnerMode::DevSourceTree => "Source-tree runner".to_string(),
+        RunnerMode::PackagedWithResources => "Not bundled".to_string(),
+        RunnerMode::PackagedNotSupported => "Source-tree required".to_string(),
+    }
+}
+
+fn next_action(error_code: Option<&str>) -> String {
+    match error_code {
+        None => "Run Convert with a sanitized BrowserDomPayload".to_string(),
+        Some("NODE_RUNTIME_NOT_FOUND") => "Install Node.js and rerun preflight".to_string(),
+        Some("RUNNER_NOT_FOUND") => {
+            "Run from the repository source tree or restore app/scripts/run-flow.mjs".to_string()
+        }
+        Some("PACKAGED_RUNNER_NOT_BUNDLED") => {
+            "Use pnpm app:dev from the source tree for v0.1".to_string()
+        }
+        Some("PACKAGED_MODE_REQUIRES_SOURCE_TREE") => {
+            "Use pnpm app:dev or keep the source-tree runner available".to_string()
+        }
+        Some("WORKSPACE_INVALID") => "Choose an existing local workspace directory".to_string(),
+        Some(_) => "Review the safe preflight message and retry".to_string(),
     }
 }
 
 fn runner_mode() -> RunnerMode {
     if cfg!(debug_assertions) {
-        RunnerMode::Dev
+        RunnerMode::DevSourceTree
     } else {
-        RunnerMode::Packaged
+        RunnerMode::PackagedNotSupported
     }
 }
 
@@ -497,41 +566,81 @@ mod tests {
     #[test]
     fn preflight_passes_in_dev_source_tree_mode() {
         let root = repo_root().expect("repo root");
-        let summary = run_runner_preflight(Some(root.to_string_lossy().as_ref()), RunnerMode::Dev);
+        let summary = run_runner_preflight(
+            Some(root.to_string_lossy().as_ref()),
+            RunnerMode::DevSourceTree,
+        );
 
         assert!(summary.ok);
-        assert_eq!(summary.mode, RunnerMode::Dev);
+        assert_eq!(summary.mode, RunnerMode::DevSourceTree);
         assert!(summary.runner_found);
         assert!(summary.node_available);
         assert_eq!(summary.workspace_valid, Some(true));
         assert_eq!(summary.payload_limit_bytes, MAX_PAYLOAD_BYTES);
+        assert_eq!(summary.status_code, "DEV_SOURCE_TREE_READY");
+        assert_eq!(summary.runner_status, "Ready");
+        assert_eq!(summary.packaged_standalone_support, "Source-tree runner");
+        assert_eq!(
+            summary.next_action,
+            "Run Convert with a sanitized BrowserDomPayload"
+        );
     }
 
     #[test]
     fn preflight_reports_missing_workspace_safely() {
         let root = repo_root().expect("repo root");
         let missing = root.join(".tmp").join("missing-preflight-workspace");
-        let summary =
-            run_runner_preflight(Some(missing.to_string_lossy().as_ref()), RunnerMode::Dev);
+        let summary = run_runner_preflight(
+            Some(missing.to_string_lossy().as_ref()),
+            RunnerMode::DevSourceTree,
+        );
 
         assert!(!summary.ok);
-        assert_eq!(summary.error_code.as_deref(), Some("INVALID_WORKSPACE"));
+        assert_eq!(summary.error_code.as_deref(), Some("WORKSPACE_INVALID"));
+        assert_eq!(summary.status_code, "WORKSPACE_INVALID");
         assert_eq!(summary.workspace_valid, Some(false));
+        assert_eq!(
+            summary.next_action,
+            "Choose an existing local workspace directory"
+        );
         assert!(!summary.safe_message.unwrap_or_default().contains("sk-"));
     }
 
     #[test]
     fn packaged_mode_is_not_reported_as_supported() {
         let root = repo_root().expect("repo root");
-        let summary =
-            run_runner_preflight(Some(root.to_string_lossy().as_ref()), RunnerMode::Packaged);
+        let summary = run_runner_preflight(
+            Some(root.to_string_lossy().as_ref()),
+            RunnerMode::PackagedNotSupported,
+        );
 
         assert!(!summary.ok);
-        assert_eq!(summary.mode, RunnerMode::Packaged);
+        assert_eq!(summary.mode, RunnerMode::PackagedNotSupported);
         assert_eq!(
             summary.error_code.as_deref(),
-            Some("PACKAGED_MODE_REQUIRES_NODE_AND_SOURCE_TREE")
+            Some("PACKAGED_MODE_REQUIRES_SOURCE_TREE")
         );
+        assert_eq!(summary.status_code, "PACKAGED_MODE_REQUIRES_SOURCE_TREE");
+        assert_eq!(summary.packaged_standalone_support, "Source-tree required");
+        assert!(summary.next_action.contains("pnpm app:dev"));
         assert!(!summary.warnings.is_empty());
+    }
+
+    #[test]
+    fn packaged_with_resources_is_reserved_for_future_work() {
+        let root = repo_root().expect("repo root");
+        let summary = run_runner_preflight(
+            Some(root.to_string_lossy().as_ref()),
+            RunnerMode::PackagedWithResources,
+        );
+
+        assert!(!summary.ok);
+        assert_eq!(summary.mode, RunnerMode::PackagedWithResources);
+        assert_eq!(
+            summary.error_code.as_deref(),
+            Some("PACKAGED_RUNNER_NOT_BUNDLED")
+        );
+        assert_eq!(summary.status_code, "PACKAGED_RUNNER_NOT_BUNDLED");
+        assert_eq!(summary.packaged_standalone_support, "Not bundled");
     }
 }

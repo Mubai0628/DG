@@ -103,13 +103,17 @@ export function App(): JSX.Element {
         if (!cancelled) {
           setPreflight({
             ok: false,
-            mode: "unknown",
+            mode: "packaged_not_supported",
             runnerFound: false,
             nodeAvailable: false,
             payloadLimitBytes: 2_000_000,
             warnings: [],
+            statusCode: "PREFLIGHT_FAILED",
             errorCode: "PREFLIGHT_FAILED",
-            safeMessage: safeErrorMessage(caught)
+            safeMessage: safeErrorMessage(caught),
+            runnerStatus: "Preflight failed",
+            packagedStandaloneSupport: "Unknown",
+            nextAction: "Review the safe preflight message and retry"
           });
         }
       });
@@ -196,10 +200,12 @@ export function App(): JSX.Element {
             <p>{runnerPreflightMessage(preflight)}</p>
             {preflight !== undefined ? (
               <p className="muted">
-                mode {preflight.mode} · runner{" "}
+                status {preflight.statusCode} · mode {preflight.mode} · runner{" "}
                 {preflight.runnerFound ? "found" : "missing"} · node{" "}
-                {preflight.nodeAvailable ? "available" : "missing"} · payload
-                limit {preflight.payloadLimitBytes} bytes
+                {preflight.nodeAvailable ? "available" : "missing"} · packaged{" "}
+                {preflight.packagedStandaloneSupport} · next{" "}
+                {preflight.nextAction} · payload limit{" "}
+                {preflight.payloadLimitBytes} bytes
               </p>
             ) : null}
           </div>

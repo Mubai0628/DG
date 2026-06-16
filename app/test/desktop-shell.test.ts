@@ -99,11 +99,15 @@ function fixedPreflight(
 ): RunnerPreflightSummary {
   return {
     ok: true,
-    mode: "dev",
+    mode: "dev_source_tree",
     runnerFound: true,
     nodeAvailable: true,
     payloadLimitBytes: maxPayloadTextBytes,
     warnings: [],
+    statusCode: "DEV_SOURCE_TREE_READY",
+    runnerStatus: "Ready",
+    packagedStandaloneSupport: "Source-tree runner",
+    nextAction: "Run Convert with a sanitized BrowserDomPayload",
     ...overrides
   };
 }
@@ -252,7 +256,8 @@ describe("desktop command wrapper", () => {
     );
 
     expect(preflight.ok).toBe(true);
-    expect(runnerPreflightMessage(preflight)).toContain("Runner ready");
+    expect(runnerPreflightMessage(preflight)).toContain("Ready");
+    expect(preflight.statusCode).toBe("DEV_SOURCE_TREE_READY");
     expect(canRunWithPreflight(preflight)).toBe(true);
   });
 
@@ -262,8 +267,11 @@ describe("desktop command wrapper", () => {
       fixedPreflight({
         ok: false,
         nodeAvailable: false,
+        statusCode: "NODE_RUNTIME_NOT_FOUND",
         errorCode: "NODE_RUNTIME_NOT_FOUND",
-        safeMessage: `Node runtime was not found ${secret}`
+        safeMessage: `Node runtime was not found ${secret}`,
+        runnerStatus: "Node missing",
+        nextAction: "Install Node.js and rerun preflight"
       }) as never;
 
     const preflight = await checkDesktopRunnerPreflight(undefined, invoke);
@@ -278,8 +286,12 @@ describe("desktop command wrapper", () => {
       fixedPreflight({
         ok: false,
         runnerFound: false,
+        statusCode: "RUNNER_NOT_FOUND",
         errorCode: "RUNNER_NOT_FOUND",
-        safeMessage: "Desktop runner could not be found"
+        safeMessage: "Desktop runner could not be found",
+        runnerStatus: "Runner missing",
+        nextAction:
+          "Run from the repository source tree or restore app/scripts/run-flow.mjs"
       }) as never;
 
     const preflight = await checkDesktopRunnerPreflight(undefined, invoke);
@@ -294,13 +306,40 @@ describe("desktop command wrapper", () => {
   it("does not treat packaged mode as supported without a bundled runner", () => {
     const preflight = fixedPreflight({
       ok: false,
-      mode: "packaged",
-      errorCode: "PACKAGED_MODE_REQUIRES_NODE_AND_SOURCE_TREE",
-      safeMessage: "Packaged mode requires Node and the source-tree runner"
+      mode: "packaged_not_supported",
+      statusCode: "PACKAGED_MODE_REQUIRES_SOURCE_TREE",
+      errorCode: "PACKAGED_MODE_REQUIRES_SOURCE_TREE",
+      safeMessage: "Packaged mode requires the source-tree runner in v0.1",
+      runnerStatus: "Ready",
+      packagedStandaloneSupport: "Source-tree required",
+      nextAction: "Use pnpm app:dev or keep the source-tree runner available"
     });
 
     expect(canRunWithPreflight(preflight)).toBe(false);
     expect(runnerPreflightMessage(preflight)).toContain("Packaged mode");
+    expect(preflight.packagedStandaloneSupport).toBe("Source-tree required");
+    expect(preflight.nextAction).toContain("pnpm app:dev");
+  });
+
+  it("renders packaged limitation details without raw input", () => {
+    const secret = "sk-test1234567890abcdef";
+    const preflight = fixedPreflight({
+      ok: false,
+      mode: "packaged_with_resources",
+      statusCode: "PACKAGED_RUNNER_NOT_BUNDLED",
+      errorCode: "PACKAGED_RUNNER_NOT_BUNDLED",
+      safeMessage: "Packaged runner resources are not bundled in v0.1",
+      packagedStandaloneSupport: "Not bundled",
+      nextAction: `Use pnpm app:dev from the source tree for v0.1 ${secret}`
+    });
+    const uiText = safeErrorMessage(
+      `${runnerPreflightMessage(preflight)} ${preflight.nextAction}`
+    );
+
+    expect(canRunWithPreflight(preflight)).toBe(false);
+    expect(preflight.statusCode).toBe("PACKAGED_RUNNER_NOT_BUNDLED");
+    expect(uiText).toContain("Packaged runner resources");
+    expect(uiText).not.toContain(secret);
   });
 
   it("invokes the fixed flow command without exposing env key values", async () => {
@@ -347,8 +386,12 @@ describe("desktop command wrapper", () => {
       return fixedPreflight({
         ok: false,
         runnerFound: false,
+        statusCode: "RUNNER_NOT_FOUND",
         errorCode: "RUNNER_NOT_FOUND",
-        safeMessage: "Desktop runner could not be found"
+        safeMessage: "Desktop runner could not be found",
+        runnerStatus: "Runner missing",
+        nextAction:
+          "Run from the repository source tree or restore app/scripts/run-flow.mjs"
       }) as never;
     };
 

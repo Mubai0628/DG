@@ -36,7 +36,10 @@ export type DesktopFlowResult = {
   };
 };
 
-export type RunnerMode = "dev" | "packaged" | "unknown";
+export type RunnerMode =
+  | "dev_source_tree"
+  | "packaged_with_resources"
+  | "packaged_not_supported";
 
 export type RunnerPreflightSummary = {
   ok: boolean;
@@ -46,8 +49,12 @@ export type RunnerPreflightSummary = {
   workspaceValid?: boolean;
   payloadLimitBytes: number;
   warnings: string[];
+  statusCode: string;
   errorCode?: string;
   safeMessage?: string;
+  runnerStatus: string;
+  packagedStandaloneSupport: string;
+  nextAction: string;
 };
 
 export type ResultPanelModel = {
@@ -163,7 +170,7 @@ export function runnerPreflightMessage(
     return "Runner preflight has not run";
   }
   if (preflight.ok) {
-    return `Runner ready (${preflight.mode})`;
+    return `${preflight.runnerStatus} (${preflight.mode})`;
   }
   return preflight.safeMessage ?? "Runner preflight failed";
 }
