@@ -1,6 +1,9 @@
 import { type DeepSeekToolCall } from "../deepseek/index.js";
 import { type EventStore } from "../events/index.js";
-import { WorkspaceFsError } from "../workspace/index.js";
+import {
+  WorkspaceFsError,
+  type WorkspaceFsErrorKind
+} from "../workspace/index.js";
 
 import { createFsWriteDraftTool } from "./builtin-fs-write-draft.js";
 import { ToolBrokerError } from "./errors.js";
@@ -321,15 +324,31 @@ function normalizeExecutionErrorKind(error: unknown): ToolBrokerErrorKind {
     return error.kind;
   }
   if (error instanceof WorkspaceFsError) {
-    if (error.kind === "secret_like_content_rejected") {
-      return "secret_like_content_rejected";
-    }
-    if (error.kind === "unsupported_content_type") {
-      return "unsupported_content_type";
-    }
-    return "tool_execution_failed";
+    return workspaceErrorKindToToolBrokerErrorKind(error.kind);
   }
   return "tool_execution_failed";
+}
+
+function workspaceErrorKindToToolBrokerErrorKind(
+  kind: WorkspaceFsErrorKind
+): ToolBrokerErrorKind {
+  switch (kind) {
+    case "invalid_workspace_root":
+    case "path_escape":
+    case "absolute_path_rejected":
+    case "parent_traversal_rejected":
+    case "denied_path":
+    case "unsupported_extension":
+    case "unsupported_content_type":
+    case "invalid_filename":
+    case "draft_too_large":
+    case "file_exists":
+    case "symlink_escape":
+    case "secret_like_content_rejected":
+      return kind;
+    case "io_error":
+      return "tool_execution_failed";
+  }
 }
 
 function summarizeToolCallSource(

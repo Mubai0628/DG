@@ -9,20 +9,34 @@ import {
   checkDesktopRunnerPreflight,
   invokeAllowedCommand,
   isAllowedDesktopCommand,
+  loadWorkspaceEventSummary,
   runDesktopWebTableToCsvFlow,
+  safeInvoke,
   type TauriInvoke
 } from "../src/desktop-flow.js";
 import {
+  buildEventLogPanelModel,
   buildResultPanelModel,
+  buildUiErrorFallbackMessage,
   canRunWithPreflight,
   maxPayloadTextBytes,
+  normalizeDesktopCommandError,
+  normalizeDesktopFlowResult,
+  normalizeEventSummary,
+  normalizeRunnerPreflightSummary,
+  normalizeTimelineItem,
+  normalizeWorkspaceEventSummary,
   parsePayloadJson,
   runnerPreflightMessage,
+  safeArray,
   safeErrorMessage,
+  safeShort,
+  safeText,
   validatePayloadTextSize,
   validateDesktopFlowInput,
   type DesktopFlowResult,
-  type RunnerPreflightSummary
+  type RunnerPreflightSummary,
+  type WorkspaceEventSummary
 } from "../src/safety.js";
 import {
   runWebTableToCsvFlow,
@@ -112,7 +126,59 @@ function fixedPreflight(
   };
 }
 
+function fixedEventSummary(
+  overrides: Partial<WorkspaceEventSummary> = {}
+): WorkspaceEventSummary {
+  return {
+    ok: true,
+    eventLogPath: "D:\\workspace\\.deepseek-workbench\\events.jsonl",
+    eventCount: 2,
+    displayedEventCount: 2,
+    taskCount: 1,
+    completedTaskCount: 1,
+    draftCount: 1,
+    lastEventAt: "2026-06-16T00:00:01.000Z",
+    typeCounts: {
+      "task.completed": 1,
+      "fs.draft_written": 1
+    },
+    timeline: [
+      {
+        id: "event-1",
+        ts: "2026-06-16T00:00:00.000Z",
+        type: "fs.draft_written",
+        taskId: "task-1",
+        summary: "draft written: drafts/table.csv · 42 bytes · text/csv",
+        safePayloadKeys: ["relativePath", "bytes", "contentType"]
+      }
+    ],
+    safetyScan: {
+      ok: true,
+      findings: 0,
+      warningCodes: []
+    },
+    warnings: [],
+    ...overrides
+  };
+}
+
 function runNodeScript(args: string[]): Promise<{
+  code: number | null;
+  stdout: string;
+  stderr: string;
+}>;
+function runNodeScript(
+  args: string[],
+  options: { cwd?: string }
+): Promise<{
+  code: number | null;
+  stdout: string;
+  stderr: string;
+}>;
+function runNodeScript(
+  args: string[],
+  options: { cwd?: string } = {}
+): Promise<{
   code: number | null;
   stdout: string;
   stderr: string;
@@ -122,7 +188,7 @@ function runNodeScript(args: string[]): Promise<{
       process.execPath,
       args,
       {
-        cwd: repoRoot,
+        cwd: options.cwd ?? repoRoot,
         timeout: 120_000,
         env: sanitizedTestEnv()
       },
@@ -139,6 +205,12 @@ function runNodeScript(args: string[]): Promise<{
       }
     );
   });
+}
+
+function parseRunnerError(stderr: string): Record<string, unknown> {
+  const lines = stderr.trim().split(/\r?\n/).filter(Boolean);
+  const lastLine = lines[lines.length - 1] ?? "{}";
+  return JSON.parse(lastLine) as Record<string, unknown>;
 }
 
 function sanitizedTestEnv(): NodeJS.ProcessEnv {
@@ -232,6 +304,55 @@ describe("desktop shell safety helpers", () => {
     expect(JSON.stringify(model)).not.toContain("name,amount");
     expect(JSON.stringify(model)).not.toContain("=SUM(A1:A2)");
   });
+
+  it("normalizes real Rust-style camelCase desktop flow responses", async () => {
+    const workspaceRoot = await createTempWorkspace();
+    const normalized = normalizeDesktopFlowResult(fixedResult(workspaceRoot));
+
+    expect(normalized.draft.relativePath).toBe("drafts/table.csv");
+    expect(normalized.events.eventLogPath).toContain(".deepseek-workbench");
+    expect(normalized.replaySummary.draftCount).toBe(1);
+  });
+
+  it("normalizes legacy snake_case desktop flow responses safely", async () => {
+    const workspaceRoot = await createTempWorkspace();
+    const normalized = normalizeDesktopFlowResult({
+      draft: {
+        relative_path: "drafts/table.csv",
+        absolute_path: path.join(workspaceRoot, "drafts", "table.csv"),
+        bytes: 42,
+        sha256: "a".repeat(64),
+        content_type: "text/csv"
+      },
+      extraction: {
+        row_count: 4,
+        column_count: 3,
+        warning_count: 1,
+        injection_risk_count: 1,
+        formula_escaped_count: 1
+      },
+      events: {
+        event_count: 9,
+        event_log_path: path.join(
+          workspaceRoot,
+          ".deepseek-workbench",
+          "events.jsonl"
+        )
+      },
+      replay_summary: {
+        draft_count: 1
+      }
+    });
+
+    expect(normalized.draft.relativePath).toBe("drafts/table.csv");
+    expect(normalized.replaySummary.draftCount).toBe(1);
+  });
+
+  it("turns malformed desktop flow success into a safe invalid response error", () => {
+    expect(() => normalizeDesktopFlowResult({ ok: true })).toThrow(
+      "Desktop flow draft summary was invalid"
+    );
+  });
 });
 
 describe("desktop command wrapper", () => {
@@ -240,6 +361,7 @@ describe("desktop command wrapper", () => {
       "not allowed"
     );
     expect(isAllowedDesktopCommand("check_runner_preflight")).toBe(true);
+    expect(isAllowedDesktopCommand("load_workspace_event_summary")).toBe(true);
     expect(isAllowedDesktopCommand("run_web_table_to_csv_flow")).toBe(true);
   });
 
@@ -279,6 +401,76 @@ describe("desktop command wrapper", () => {
     expect(preflight.ok).toBe(false);
     expect(preflight.errorCode).toBe("NODE_RUNTIME_NOT_FOUND");
     expect(safeErrorMessage(preflight.safeMessage)).not.toContain(secret);
+  });
+
+  it("normalizes runner preflight and event summaries from Rust response shapes", () => {
+    const preflight = normalizeRunnerPreflightSummary(
+      fixedPreflight({ workspaceValid: true })
+    );
+    const eventSummary = normalizeWorkspaceEventSummary(fixedEventSummary());
+
+    expect(preflight.statusCode).toBe("DEV_SOURCE_TREE_READY");
+    expect(preflight.runnerFound).toBe(true);
+    expect(eventSummary.displayedEventCount).toBe(2);
+    expect(eventSummary.timeline).toHaveLength(1);
+  });
+
+  it("safeInvoke catches string, object, Error, and malformed success responses", async () => {
+    await expect(
+      safeInvoke("run_web_table_to_csv_flow", {}, async () => {
+        throw "Desktop flow failed with exit code 1";
+      })
+    ).rejects.toThrow("Desktop flow failed with exit code 1");
+
+    await expect(
+      safeInvoke("run_web_table_to_csv_flow", {}, async () => {
+        throw {
+          ok: false,
+          errorCode: "FILE_EXISTS",
+          safeMessage:
+            "Draft already exists: drafts/web-table-export.csv. Choose a new draft filename or remove the existing file.",
+          stage: "write_draft",
+          exitCode: 1,
+          stdoutJsonParsed: true
+        };
+      })
+    ).rejects.toMatchObject({
+      errorCode: "FILE_EXISTS",
+      stage: "write_draft",
+      exitCode: 1,
+      stdoutJsonParsed: true
+    });
+
+    await expect(
+      safeInvoke("load_workspace_event_summary", {}, async () => {
+        throw new Error("Event summary failed safely");
+      })
+    ).rejects.toThrow("Event summary failed safely");
+
+    await expect(
+      invokeAllowedCommand(
+        "run_web_table_to_csv_flow",
+        {},
+        async () => ({ ok: true }) as never
+      )
+    ).rejects.toMatchObject({
+      errorCode: "INVALID_RESPONSE"
+    });
+  });
+
+  it("normalizes object command errors without leaking raw input", () => {
+    const secret = "sk-test1234567890abcdef";
+    const error = normalizeDesktopCommandError({
+      errorCode: "INVALID_PAYLOAD",
+      safeMessage: `Payload JSON is not valid JSON ${secret}`,
+      stage: "load_payload",
+      runnerFound: true,
+      nodeAvailable: true
+    });
+
+    expect(error.errorCode).toBe("INVALID_PAYLOAD");
+    expect(error.runnerFound).toBe(true);
+    expect(safeErrorMessage(error)).not.toContain(secret);
   });
 
   it("reports runner-missing preflight as a safe error", async () => {
@@ -407,6 +599,246 @@ describe("desktop command wrapper", () => {
     ).rejects.toThrow("Desktop runner could not be found");
     expect(calls).toEqual(["check_runner_preflight"]);
   });
+
+  it("loads event summaries only through the fixed workspace command", async () => {
+    const invoke: TauriInvoke = async (command, args) => {
+      expect(command).toBe("load_workspace_event_summary");
+      expect(args).toEqual({
+        workspaceRoot: "D:\\workspace",
+        maxEvents: 25
+      });
+      return fixedEventSummary() as never;
+    };
+
+    const summary = await loadWorkspaceEventSummary(
+      "D:\\workspace",
+      25,
+      invoke
+    );
+
+    expect(summary.ok).toBe(true);
+    expect(summary.draftCount).toBe(1);
+    expect(JSON.stringify(summary)).not.toContain("csvContent");
+  });
+
+  it("builds a safe no-events model", () => {
+    const model = buildEventLogPanelModel(
+      fixedEventSummary({
+        eventCount: 0,
+        displayedEventCount: 0,
+        taskCount: 0,
+        completedTaskCount: 0,
+        draftCount: 0,
+        typeCounts: {},
+        timeline: []
+      })
+    );
+
+    expect(model?.emptyMessage).toBe("No events yet. Run a conversion first.");
+    expect(JSON.stringify(model)).not.toContain("rawDom");
+    expect(JSON.stringify(model)).not.toContain("csvContent");
+  });
+
+  it("renders undefined and malformed event summaries without throwing", () => {
+    expect(buildEventLogPanelModel(undefined)).toBeUndefined();
+    expect(buildEventLogPanelModel(null)).toBeUndefined();
+
+    const malformed = {
+      ok: true,
+      eventCount: Number.NaN,
+      displayedEventCount: undefined,
+      taskCount: undefined,
+      completedTaskCount: undefined,
+      draftCount: undefined,
+      safetyScan: undefined,
+      warnings: undefined,
+      timeline: [{ id: "bad" }]
+    } as unknown as WorkspaceEventSummary;
+    const model = buildEventLogPanelModel(malformed);
+
+    expect(model).toMatchObject({
+      eventCount: 0,
+      displayedEventCount: 1,
+      taskCount: 0,
+      completedTaskCount: 0,
+      draftCount: 0,
+      safetyOk: false,
+      safetyFindingCount: 0,
+      warnings: ["MALFORMED_EVENT_SUMMARY"],
+      timeline: [
+        {
+          id: "bad",
+          taskId: "no task",
+          summary: "unknown.event event"
+        }
+      ]
+    });
+  });
+
+  it("normalizes null timeline fields without throwing", () => {
+    expect(safeText(null)).toBe("—");
+    expect(safeShort(null)).toBe("—");
+    expect(safeArray(null)).toEqual([]);
+
+    const item = normalizeTimelineItem(
+      {
+        id: null,
+        ts: null,
+        type: null,
+        taskId: null,
+        summary: null,
+        safePayloadKeys: null
+      },
+      0
+    );
+
+    expect(item).toMatchObject({
+      id: "event-1",
+      key: "event-1-0",
+      ts: "unknown time",
+      type: "unknown.event",
+      taskId: "no task",
+      taskIdShort: "no task",
+      summary: "unknown.event event",
+      safePayloadKeys: []
+    });
+  });
+
+  it("renders event timeline items with null taskId/id/summary safely", () => {
+    const summary = {
+      ok: true,
+      eventCount: 1,
+      displayedEventCount: 1,
+      taskCount: 0,
+      completedTaskCount: 0,
+      draftCount: 1,
+      lastEventAt: null,
+      typeCounts: null,
+      timeline: [
+        {
+          id: null,
+          ts: "2026-06-16T00:00:00.000Z",
+          type: "fs.draft_written",
+          taskId: null,
+          summary: null,
+          safePayloadKeys: null
+        }
+      ],
+      safetyScan: null,
+      warnings: null
+    } as unknown as WorkspaceEventSummary;
+    const model = buildEventLogPanelModel(summary);
+
+    expect(model?.timeline).toHaveLength(1);
+    expect(model?.timeline[0]).toMatchObject({
+      id: "event-1",
+      taskId: "no task",
+      taskIdShort: "no task",
+      summary: "fs.draft_written event",
+      safePayloadKeys: []
+    });
+    expect(model?.warnings).toContain("MALFORMED_EVENT_SUMMARY");
+    expect(model?.safetyOk).toBe(false);
+  });
+
+  it("normalizes event summary null timeline and warning codes safely", () => {
+    const summary = normalizeEventSummary({
+      ok: true,
+      eventCount: 2,
+      displayedEventCount: 2,
+      taskCount: 1,
+      completedTaskCount: 1,
+      draftCount: 1,
+      typeCounts: null,
+      timeline: null,
+      safetyScan: {
+        ok: false,
+        findings: 1,
+        warningCodes: null
+      },
+      warnings: null
+    });
+    const model = buildEventLogPanelModel(summary);
+
+    expect(summary.timeline).toEqual([]);
+    expect(model?.timeline).toEqual([]);
+    expect(model?.warnings).toContain("MALFORMED_EVENT_SUMMARY");
+    expect(model?.safetyFindingCount).toBe(1);
+  });
+
+  it("models refresh and convert event summaries with null taskId without ErrorBoundary fallback", async () => {
+    const summary = normalizeWorkspaceEventSummary({
+      ok: true,
+      eventCount: 1,
+      displayedEventCount: 1,
+      taskCount: 0,
+      completedTaskCount: 0,
+      draftCount: 1,
+      typeCounts: {},
+      timeline: [
+        {
+          id: "event-1",
+          ts: "2026-06-16T00:00:00.000Z",
+          type: "fs.draft_written",
+          taskId: null,
+          summary: "draft written",
+          safePayloadKeys: null
+        }
+      ],
+      safetyScan: {
+        ok: true,
+        findings: 0,
+        warningCodes: null
+      },
+      warnings: []
+    });
+    const model = buildEventLogPanelModel(summary);
+    const serialized = JSON.stringify(model);
+
+    expect(model?.timeline[0]?.taskId).toBe("no task");
+    expect(model?.timeline[0]?.summary).toBe("draft written");
+    expect(serialized).not.toContain("Desktop shell recovered");
+    expect(serialized).not.toContain("rawDom");
+  });
+
+  it("builds safe UI error fallback copy without raw payload values", () => {
+    const secret = "sk-test1234567890abcdef";
+    const message = buildUiErrorFallbackMessage(
+      new Error(`render failed with raw payload ${secret}`)
+    );
+
+    expect(message).toBe("Desktop shell recovered from a UI error.");
+    expect(message).not.toContain(secret);
+  });
+
+  it("keeps event panel model on safe summaries only", () => {
+    const secret = "sk-test1234567890abcdef";
+    const model = buildEventLogPanelModel(
+      fixedEventSummary({
+        safetyScan: {
+          ok: false,
+          findings: 2,
+          warningCodes: ["CSV_CONTENT_MARKER", "RAW_DOM_MARKER"]
+        },
+        warnings: ["CSV_CONTENT_MARKER", "RAW_DOM_MARKER"],
+        timeline: [
+          {
+            id: "event-2",
+            ts: "2026-06-16T00:00:02.000Z",
+            type: "tool.executed",
+            summary: "tool.executed: fs.write_draft · drafts/table.csv",
+            safePayloadKeys: ["toolName", "resultSummary"]
+          }
+        ],
+        safeMessage: `safe message ${secret}`
+      })
+    );
+    const serialized = safeErrorMessage(JSON.stringify(model));
+
+    expect(model?.safetyOk).toBe(false);
+    expect(serialized).not.toContain(secret);
+    expect(serialized).not.toContain("name,value");
+  });
 });
 
 describe("desktop runner sidecar safety", () => {
@@ -430,6 +862,13 @@ describe("desktop runner sidecar safety", () => {
 
     expect(result.code).toBe(1);
     expect(result.stderr).toContain("Payload file is too large");
+    expect(parseRunnerError(result.stderr)).toMatchObject({
+      ok: false,
+      errorCode: "INVALID_PAYLOAD",
+      errorKind: "invalid_payload",
+      safeMessage: "Payload file is too large",
+      stage: "load_payload"
+    });
     expect(result.stderr).not.toContain(secret);
     expect(result.stdout).toBe("");
   });
@@ -447,7 +886,79 @@ describe("desktop runner sidecar safety", () => {
 
     expect(result.code).toBe(1);
     expect(result.stderr).toContain("Unsupported desktop runner argument");
+    expect(parseRunnerError(result.stderr)).toMatchObject({
+      ok: false,
+      errorCode: "INVALID_ARGUMENTS",
+      errorKind: "invalid_arguments",
+      stage: "parse_args"
+    });
     expect(result.stderr).not.toContain("csvContent");
+    expect(result.stdout).toBe("");
+  });
+
+  it("returns a structured safe error when a draft already exists", async () => {
+    const workspaceRoot = await createTempWorkspace();
+    const first = await runNodeScript([
+      appScriptRunnerPath,
+      "--workspace",
+      workspaceRoot,
+      "--payload",
+      fixturePath,
+      "--filename",
+      "existing.csv"
+    ]);
+    const second = await runNodeScript([
+      appScriptRunnerPath,
+      "--workspace",
+      workspaceRoot,
+      "--payload",
+      fixturePath,
+      "--filename",
+      "existing.csv"
+    ]);
+    const error = parseRunnerError(second.stderr);
+
+    expect(first.code).toBe(0);
+    expect(second.code).toBe(1);
+    expect(error).toMatchObject({
+      ok: false,
+      errorCode: "FILE_EXISTS",
+      errorKind: "file_exists",
+      safeMessage:
+        "Draft already exists: drafts/existing.csv. Choose a new draft filename or remove the existing file.",
+      stage: "write_draft"
+    });
+    expect(second.stderr).not.toContain("Desktop flow failed with exit code 1");
+    expect(second.stderr).not.toContain("北京");
+    expect(second.stderr).not.toContain("ignore previous instructions");
+    expect(second.stderr).not.toContain("csvContent");
+    expect(second.stdout).toBe("");
+  });
+
+  it("returns a structured safe error for invalid payload JSON", async () => {
+    const workspaceRoot = await createTempWorkspace();
+    const payloadPath = path.join(workspaceRoot, "invalid-payload.json");
+    const secret = "sk-test1234567890abcdef";
+    await writeFile(payloadPath, `{"leaked":"${secret}"`, "utf8");
+
+    const result = await runNodeScript([
+      appScriptRunnerPath,
+      "--workspace",
+      workspaceRoot,
+      "--payload",
+      payloadPath
+    ]);
+    const error = parseRunnerError(result.stderr);
+
+    expect(result.code).toBe(1);
+    expect(error).toMatchObject({
+      ok: false,
+      errorCode: "INVALID_PAYLOAD",
+      errorKind: "invalid_payload",
+      safeMessage: "Payload JSON is not valid JSON",
+      stage: "load_payload"
+    });
+    expect(result.stderr).not.toContain(secret);
     expect(result.stdout).toBe("");
   });
 
@@ -482,6 +993,30 @@ describe("desktop runner sidecar safety", () => {
     ).toBeUndefined();
   });
 
+  it("runs the sidecar successfully from the Tauri-like cwd with absolute args", async () => {
+    const workspaceRoot = await createTempWorkspace();
+    const result = await runNodeScript(
+      [
+        appScriptRunnerPath,
+        "--workspace",
+        workspaceRoot,
+        "--payload",
+        fixturePath,
+        "--filename",
+        "tauri-cwd.csv"
+      ],
+      {
+        cwd: path.join(appRoot, "src-tauri")
+      }
+    );
+    const summary = JSON.parse(result.stdout) as DesktopFlowResult;
+
+    expect(result.code).toBe(0);
+    expect(summary.draft.relativePath).toBe("drafts/tauri-cwd.csv");
+    expect(summary.replaySummary.draftCount).toBe(1);
+    expect(result.stderr).toBe("");
+  });
+
   it("runs the offline app preflight script", async () => {
     const result = await runNodeScript([appPreflightScriptPath]);
 
@@ -512,6 +1047,31 @@ describe("desktop flow integration", () => {
 });
 
 describe("desktop source boundaries", () => {
+  it("keeps refresh events and docs actions from navigating or resetting UI state", async () => {
+    const appSource = await readFile(
+      path.join(appRoot, "src", "App.tsx"),
+      "utf8"
+    );
+
+    expect(appSource).toContain("docs/desktop-event-log-smoke-v0.1.md");
+    expect(appSource).toContain("DesktopErrorBoundary");
+    expect(appSource).toContain("Reset UI state");
+    expect(appSource).toContain("Event log events");
+    expect(appSource).not.toContain("Events written");
+    expect(appSource).not.toContain(".slice(");
+    expect(appSource).not.toContain(
+      'href="../docs/desktop-event-log-smoke-v0.1.md"'
+    );
+    expect(appSource).not.toContain("<a href=");
+    expect(appSource).not.toContain("setEventSummary(undefined);");
+    expect(appSource).toContain("event.preventDefault();");
+    expect(appSource).toContain("event.stopPropagation();");
+    expect(appSource).toContain("void refreshEvents();");
+    expect(appSource).toContain(
+      'setDocMessage("docs/desktop-event-log-smoke-v0.1.md")'
+    );
+  });
+
   it("does not include native bridge or arbitrary shell plugin references in app source", async () => {
     const sourceFiles = [
       "src/App.tsx",
@@ -524,23 +1084,35 @@ describe("desktop source boundaries", () => {
       "src-tauri/tauri.conf.json",
       "src-tauri/capabilities/default.json"
     ];
-    const combined = (
-      await Promise.all(
-        sourceFiles.map((file) => readFile(path.join(appRoot, file), "utf8"))
-      )
-    ).join("\n");
+    const sources = await Promise.all(
+      sourceFiles.map(async (file) => ({
+        file,
+        text: await readFile(path.join(appRoot, file), "utf8")
+      }))
+    );
+    const combined = sources.map((source) => source.text).join("\n");
+    const nonCommandSource = sources
+      .filter((source) => source.file !== "src-tauri/src/commands.rs")
+      .map((source) => source.text)
+      .join("\n");
+    const commandSource = sources.find(
+      (source) => source.file === "src-tauri/src/commands.rs"
+    )?.text;
 
     expect(combined).not.toContain("nativeMessaging");
     expect(combined).not.toContain("@tauri-apps/plugin-shell");
     expect(combined).not.toContain("Command::new(command");
-    expect(combined).not.toContain("localStorage");
-    expect(combined).not.toContain("sessionStorage");
+    expect(nonCommandSource).not.toContain("localStorage");
+    expect(nonCommandSource).not.toContain("sessionStorage");
     expect(combined).not.toContain("shell:allow");
+    expect(combined).toContain(".current_dir(cwd)");
     expect(combined).toContain(".args(args)");
     expect(combined).toContain("env_clear()");
     expect(combined).toContain("sanitize_env_vars");
     expect(combined).toContain("RUNNER_TIMEOUT");
     expect(combined).toContain('join("run-flow.mjs")');
+    expect(commandSource).toContain("LOCAL_STORAGE_MARKER");
+    expect(commandSource).toContain("SESSION_STORAGE_MARKER");
   });
 });
 

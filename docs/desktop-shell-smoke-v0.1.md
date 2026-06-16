@@ -107,6 +107,9 @@ For packaged/release build readiness and current standalone limitations, see
 `docs/desktop-packaging-v0.1.md` and
 `docs/desktop-packaging-strategy-v0.1.md`.
 
+For the Event Log / Replay panel smoke, see
+`docs/desktop-event-log-smoke-v0.1.md`.
+
 ## Current Limitations
 
 - No native browser bridge.

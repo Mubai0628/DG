@@ -124,7 +124,23 @@ textarea {
   padding: 11px 16px;
 }
 
+.secondary {
+  background: #eef4f1;
+  border: 1px solid #b9c9c2;
+  border-radius: 6px;
+  color: #1f5f4a;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 800;
+  padding: 8px 10px;
+}
+
 .primary:disabled {
+  cursor: wait;
+  opacity: 0.7;
+}
+
+.secondary:disabled {
   cursor: wait;
   opacity: 0.7;
 }
@@ -167,6 +183,36 @@ textarea {
   overflow-wrap: anywhere;
 }
 
+.summaryGrid.compact {
+  margin-top: 12px;
+}
+
+.eventPanel {
+  border-top: 1px solid #edf1ef;
+  margin-top: 18px;
+  padding-top: 16px;
+}
+
+.timeline {
+  border-left: 2px solid #d9e0dc;
+  display: grid;
+  gap: 10px;
+  list-style: none;
+  margin: 14px 0 0;
+  padding-left: 14px;
+}
+
+.timeline li {
+  display: grid;
+  gap: 3px;
+}
+
+.timelineMeta {
+  color: #66736f;
+  font-size: 12px;
+  font-weight: 700;
+}
+
 .errorBox {
   background: #fff1f0;
   border: 1px solid #f0b8b1;
@@ -194,9 +240,23 @@ textarea {
   padding-top: 14px;
 }
 
-.docLinks a {
+.docLinks button {
+  background: transparent;
+  border: 0;
   color: #1f5f4a;
+  cursor: pointer;
   font-size: 13px;
   font-weight: 800;
+  padding: 0;
   text-decoration: none;
+}
+
+.docHint {
+  background: #f6f8f7;
+  border: 1px solid #d9e0dc;
+  border-radius: 6px;
+  color: #42534e;
+  font-size: 13px;
+  margin: 12px 0 0;
+  padding: 10px;
 }

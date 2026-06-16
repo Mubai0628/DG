@@ -149,6 +149,25 @@ describe("repository boundary checks", () => {
     );
   });
 
+  it("allows event log leak scanner denylist markers only in the fixed app command source", async () => {
+    const root = await createTempRoot();
+    await mkdir(path.join(root, "app", "src-tauri", "src"), {
+      recursive: true
+    });
+    await writeFile(
+      path.join(root, "app", "src-tauri", "src", "commands.rs"),
+      [
+        'const _RAW_DOM: (&str, &str) = ("RAW_DOM_MARKER", "rawDom");',
+        'const _STORAGE: (&str, &str) = ("LOCAL_STORAGE_MARKER", "localStorage");'
+      ].join("\n"),
+      "utf8"
+    );
+
+    const result = await runBoundaryCheck({ root, silent: true });
+
+    expect(result.ok).toBe(true);
+  });
+
   it("fails on synthetic secret-like content", async () => {
     const root = await createTempRoot();
     await mkdir(path.join(root, "src"), { recursive: true });

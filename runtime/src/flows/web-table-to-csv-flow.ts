@@ -3,6 +3,7 @@ import path from "node:path";
 
 import { JsonlEventStore, replay, type EventRecord } from "../events/index.js";
 import { ToolBroker } from "../tools/tool-broker.js";
+import { type ToolBrokerErrorKind } from "../tools/types.js";
 import { DraftWriter } from "../workspace/index.js";
 import {
   validateBrowserDomPayload,
@@ -18,9 +19,12 @@ import {
 const flowTaskTitle = "web_table_to_csv";
 
 export class WebTableToCsvFlowError extends Error {
-  constructor(message: string) {
+  readonly kind: string;
+
+  constructor(message: string, kind = "flow_failed") {
     super(message);
     this.name = "WebTableToCsvFlowError";
+    this.kind = kind;
   }
 }
 
@@ -97,7 +101,7 @@ export async function runWebTableToCsvFlow(
     });
 
     if (toolResult.status !== "executed") {
-      throw new WebTableToCsvFlowError("Draft write tool did not execute");
+      throw createDraftWriteFlowError(filename, toolResult.errorKind);
     }
 
     const draftSummary = draftSummaryFromToolResult(
@@ -149,13 +153,67 @@ export async function runWebTableToCsvFlow(
         ...taskPayload("failed", payload),
         errorKind:
           error instanceof WebTableToCsvFlowError
-            ? "flow_failed"
+            ? error.kind
             : "unexpected_flow_error"
       }
     });
     throw error;
   } finally {
     eventStore.close?.();
+  }
+}
+
+function createDraftWriteFlowError(
+  filename: string,
+  errorKind: ToolBrokerErrorKind | undefined
+): WebTableToCsvFlowError {
+  const safeRelativePath = `drafts/${filename}`;
+  switch (errorKind) {
+    case "file_exists":
+      return new WebTableToCsvFlowError(
+        `Draft already exists: ${safeRelativePath}. Choose a new draft filename or remove the existing file.`,
+        "file_exists"
+      );
+    case "unsupported_extension":
+      return new WebTableToCsvFlowError(
+        "Draft filename must use an allowed .csv extension",
+        "unsupported_extension"
+      );
+    case "unsupported_content_type":
+      return new WebTableToCsvFlowError(
+        "Draft content type is not supported",
+        "unsupported_content_type"
+      );
+    case "draft_too_large":
+      return new WebTableToCsvFlowError(
+        "Draft content is too large",
+        "draft_too_large"
+      );
+    case "secret_like_content_rejected":
+      return new WebTableToCsvFlowError(
+        "Draft content was rejected because it appears to contain a secret",
+        "secret_like_content_rejected"
+      );
+    case "path_escape":
+    case "absolute_path_rejected":
+    case "parent_traversal_rejected":
+    case "denied_path":
+    case "invalid_filename":
+    case "symlink_escape":
+      return new WebTableToCsvFlowError(
+        "Draft filename was rejected by the workspace path guard",
+        errorKind
+      );
+    case "invalid_workspace_root":
+      return new WebTableToCsvFlowError(
+        "Workspace root must exist and be a directory",
+        "invalid_workspace_root"
+      );
+    default:
+      return new WebTableToCsvFlowError(
+        "Draft write tool did not execute",
+        errorKind ?? "draft_write_failed"
+      );
   }
 }
 
@@ -179,7 +237,8 @@ async function assertExistingWorkspaceRoot(
   const stats = await stat(workspaceRoot).catch(() => undefined);
   if (stats === undefined || !stats.isDirectory()) {
     throw new WebTableToCsvFlowError(
-      "Workspace root must exist and be a directory"
+      "Workspace root must exist and be a directory",
+      "invalid_workspace_root"
     );
   }
 }

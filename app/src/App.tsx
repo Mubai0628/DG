@@ -1,30 +1,87 @@
 import {
+  Component,
   useEffect,
   useMemo,
   useState,
   type ChangeEvent,
-  type JSX
+  type JSX,
+  type ReactNode
 } from "react";
 
 import {
   checkDesktopRunnerPreflight,
   getDesktopAppVersion,
+  loadWorkspaceEventSummary,
   runDesktopWebTableToCsvFlow
 } from "./desktop-flow.js";
 import {
+  buildEventLogPanelModel,
   buildResultPanelModel,
+  buildUiErrorFallbackMessage,
   runnerPreflightMessage,
   defaultDraftFilename,
   validatePayloadTextSize,
   safeErrorMessage,
   type DesktopFlowResult,
+  type EventLogPanelModel,
   type ResultPanelModel,
-  type RunnerPreflightSummary
+  type RunnerPreflightSummary,
+  type WorkspaceEventSummary
 } from "./safety.js";
 
 type RunStatus = "idle" | "running" | "done" | "error";
+type EventStatus = "idle" | "loading" | "loaded" | "error";
+
+type ErrorBoundaryState = {
+  error?: unknown;
+};
+
+export class DesktopErrorBoundary extends Component<
+  { children: ReactNode },
+  ErrorBoundaryState
+> {
+  state: ErrorBoundaryState = {};
+
+  static getDerivedStateFromError(error: unknown): ErrorBoundaryState {
+    return { error };
+  }
+
+  componentDidCatch(): void {
+    // Render a safe fallback only; do not expose stack traces or user payloads.
+  }
+
+  render(): ReactNode {
+    if (this.state.error !== undefined) {
+      return (
+        <main className="shell">
+          <section className="panel">
+            <h1>Desktop shell recovered from a UI error.</h1>
+            <p>{buildUiErrorFallbackMessage(this.state.error)}</p>
+            <button
+              type="button"
+              className="secondary"
+              onClick={() => this.setState({ error: undefined })}
+            >
+              Reset UI state
+            </button>
+          </section>
+        </main>
+      );
+    }
+
+    return this.props.children;
+  }
+}
 
 export function App(): JSX.Element {
+  return (
+    <DesktopErrorBoundary>
+      <DesktopShell />
+    </DesktopErrorBoundary>
+  );
+}
+
+export function DesktopShell(): JSX.Element {
   const [workspaceRoot, setWorkspaceRoot] = useState("");
   const [payloadText, setPayloadText] = useState("");
   const [filename, setFilename] = useState(defaultDraftFilename());
@@ -35,10 +92,20 @@ export function App(): JSX.Element {
   const [preflight, setPreflight] = useState<
     RunnerPreflightSummary | undefined
   >();
+  const [eventSummary, setEventSummary] = useState<
+    WorkspaceEventSummary | undefined
+  >();
+  const [eventStatus, setEventStatus] = useState<EventStatus>("idle");
+  const [eventError, setEventError] = useState<string | undefined>();
+  const [docMessage, setDocMessage] = useState<string | undefined>();
 
   const panel = useMemo<ResultPanelModel | undefined>(
     () => (result === undefined ? undefined : buildResultPanelModel(result)),
     [result]
+  );
+  const eventPanel = useMemo<EventLogPanelModel | undefined>(
+    () => buildEventLogPanelModel(eventSummary),
+    [eventSummary]
   );
 
   async function handleConvert(): Promise<void> {
@@ -57,10 +124,27 @@ export function App(): JSX.Element {
         filename
       });
       setResult(flowResult);
+      await refreshEvents(workspaceRoot);
       setStatus("done");
     } catch (caught) {
       setError(safeErrorMessage(caught));
       setStatus("error");
+    }
+  }
+
+  async function refreshEvents(root = workspaceRoot): Promise<void> {
+    setEventStatus("loading");
+    setEventError(undefined);
+    try {
+      const summary = await loadWorkspaceEventSummary(root, 50);
+      setEventSummary(summary);
+      setEventStatus(summary.ok ? "loaded" : "error");
+      if (!summary.ok) {
+        setEventError(summary.safeMessage ?? "Event summary failed");
+      }
+    } catch (caught) {
+      setEventError(safeErrorMessage(caught));
+      setEventStatus("error");
     }
   }
 
@@ -175,7 +259,11 @@ export function App(): JSX.Element {
             type="button"
             className="primary"
             disabled={status === "running"}
-            onClick={handleConvert}
+            onClick={(event) => {
+              event.preventDefault();
+              event.stopPropagation();
+              void handleConvert();
+            }}
           >
             {status === "running" ? "Converting..." : "Convert"}
           </button>
@@ -239,7 +327,7 @@ export function App(): JSX.Element {
                 <dd>{panel.formulaEscapedCount}</dd>
               </div>
               <div>
-                <dt>Events written</dt>
+                <dt>Event log events</dt>
                 <dd>{panel.eventsWritten}</dd>
               </div>
               <div>
@@ -260,13 +348,147 @@ export function App(): JSX.Element {
             </div>
           ) : null}
 
+          <section className="eventPanel">
+            <div className="panelHeader">
+              <h2>Event Log / Replay</h2>
+              <button
+                type="button"
+                className="secondary"
+                disabled={eventStatus === "loading"}
+                onClick={(event) => {
+                  event.preventDefault();
+                  event.stopPropagation();
+                  void refreshEvents();
+                }}
+              >
+                {eventStatus === "loading" ? "Refreshing..." : "Refresh events"}
+              </button>
+            </div>
+
+            {eventPanel === undefined && eventStatus !== "error" ? (
+              <p className="empty">
+                No event summary loaded. Refresh events or run a conversion.
+              </p>
+            ) : null}
+
+            {eventPanel !== undefined ? (
+              <>
+                <dl className="summaryGrid compact">
+                  <div>
+                    <dt>Events</dt>
+                    <dd>{eventPanel.eventCount}</dd>
+                  </div>
+                  <div>
+                    <dt>Displayed</dt>
+                    <dd>{eventPanel.displayedEventCount}</dd>
+                  </div>
+                  <div>
+                    <dt>Drafts</dt>
+                    <dd>{eventPanel.draftCount}</dd>
+                  </div>
+                  <div>
+                    <dt>Tasks completed</dt>
+                    <dd>
+                      {eventPanel.completedTaskCount} / {eventPanel.taskCount}
+                    </dd>
+                  </div>
+                  <div>
+                    <dt>Last event</dt>
+                    <dd>{eventPanel.lastEventAt ?? "n/a"}</dd>
+                  </div>
+                  <div>
+                    <dt>Safety scan</dt>
+                    <dd>
+                      {eventPanel.safetyOk
+                        ? "OK"
+                        : `${eventPanel.safetyFindingCount} warning(s)`}
+                    </dd>
+                  </div>
+                </dl>
+
+                {eventPanel.emptyMessage !== undefined ? (
+                  <p className="empty">{eventPanel.emptyMessage}</p>
+                ) : null}
+
+                {eventPanel.warnings.length > 0 ? (
+                  <p className="muted">
+                    warnings {eventPanel.warnings.join(", ")}
+                  </p>
+                ) : null}
+
+                {eventPanel.timeline.length > 0 ? (
+                  <ol className="timeline">
+                    {eventPanel.timeline.map((item) => (
+                      <li key={item.key}>
+                        <span className="timelineMeta">
+                          {item.ts} · {item.type}
+                          {item.taskId !== "no task"
+                            ? ` · ${item.taskIdShort}`
+                            : ""}
+                        </span>
+                        <span>{item.summary}</span>
+                      </li>
+                    ))}
+                  </ol>
+                ) : null}
+              </>
+            ) : null}
+
+            {eventStatus === "error" ? (
+              <div className="errorBox">
+                <strong>Event summary unavailable</strong>
+                <p>{eventError}</p>
+              </div>
+            ) : null}
+          </section>
+
           <nav className="docLinks" aria-label="Documentation links">
-            <a href="../docs/web-table-to-csv-acceptance.md">
+            <button
+              type="button"
+              onClick={(event) => {
+                event.preventDefault();
+                event.stopPropagation();
+                setDocMessage("docs/web-table-to-csv-acceptance.md");
+              }}
+            >
               Web table acceptance
-            </a>
-            <a href="../docs/manual-smoke-v0.1.md">Manual smoke</a>
-            <a href="../docs/threat-model-v0.1.md">Threat model</a>
+            </button>
+            <button
+              type="button"
+              onClick={(event) => {
+                event.preventDefault();
+                event.stopPropagation();
+                setDocMessage("docs/manual-smoke-v0.1.md");
+              }}
+            >
+              Manual smoke
+            </button>
+            <button
+              type="button"
+              onClick={(event) => {
+                event.preventDefault();
+                event.stopPropagation();
+                setDocMessage("docs/desktop-event-log-smoke-v0.1.md");
+              }}
+            >
+              Event log smoke
+            </button>
+            <button
+              type="button"
+              onClick={(event) => {
+                event.preventDefault();
+                event.stopPropagation();
+                setDocMessage("docs/threat-model-v0.1.md");
+              }}
+            >
+              Threat model
+            </button>
           </nav>
+          {docMessage !== undefined ? (
+            <p className="docHint">
+              Open this repository document locally: {docMessage}
+            </p>
+          ) : null}
         </section>
       </section>
     </main>

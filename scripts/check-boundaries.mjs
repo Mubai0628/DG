@@ -258,6 +258,7 @@ function isAllowedBoundaryHit(file, line, ruleId) {
       ruleId === "std_process_command_reference" ||
       line.includes("Command::new(program)") ||
       line.includes("app/scripts/run-flow.mjs") ||
+      isEventLogLeakScannerLine(line) ||
       line.includes("DEEPSEEK_API_KEY") ||
       line.includes("OPENAI_API_KEY")
     );
@@ -321,6 +322,10 @@ function isAllowedSecretHit(file) {
     return true;
   }
   return false;
+}
+
+function isEventLogLeakScannerLine(line) {
+  return /\b[A-Z0-9_]+_MARKER\b/.test(line);
 }
 
 function isBoundaryDoc(file) {

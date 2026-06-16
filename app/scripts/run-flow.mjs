@@ -3,8 +3,6 @@ import { readFile, realpath, stat } from "node:fs/promises";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
 
-import { runWebTableToCsvFlow } from "../../runtime/dist/index.js";
-
 export const maxPayloadFileBytes = 2_000_000;
 
 export async function main(argv) {
@@ -14,7 +12,8 @@ export async function main(argv) {
   }
 
   const payloadText = await readPayloadText(parsed.payloadPath);
-  const payload = JSON.parse(payloadText);
+  const payload = parsePayloadJson(payloadText);
+  const { runWebTableToCsvFlow } = await loadRuntimeFlow();
   const result = await runWebTableToCsvFlow({
     workspaceRoot: parsed.workspaceRoot,
     payload,
@@ -100,6 +99,31 @@ export async function readPayloadText(payloadPath) {
   return readFile(payloadPath, "utf8");
 }
 
+export function parsePayloadJson(payloadText) {
+  try {
+    return JSON.parse(payloadText);
+  } catch {
+    throw new Error("Payload JSON is not valid JSON");
+  }
+}
+
+export async function loadRuntimeFlow() {
+  try {
+    return await import("../../runtime/dist/index.js");
+  } catch {
+    throw runnerError(
+      "runtime_not_built",
+      "Runtime build is missing. Run pnpm --filter @deepseek-workbench/runtime build and retry."
+    );
+  }
+}
+
+function runnerError(kind, message) {
+  const error = new Error(message);
+  error.kind = kind;
+  return error;
+}
+
 async function canonicalDirectory(inputPath) {
   const resolved = await realpath(path.resolve(inputPath));
   const entry = await stat(resolved);
@@ -128,6 +152,75 @@ export function safeErrorMessage(error) {
     .slice(0, 400);
 }
 
+export function toDesktopErrorSummary(error) {
+  const safeMessage = safeErrorMessage(error);
+  const errorKind = safeErrorKind(error, safeMessage);
+  return {
+    ok: false,
+    errorCode: errorKind.toUpperCase(),
+    errorKind,
+    safeMessage,
+    stage: safeErrorStage(errorKind)
+  };
+}
+
+function safeErrorKind(error, safeMessage) {
+  if (error !== undefined && typeof error === "object") {
+    const kind = error.kind;
+    if (typeof kind === "string" && kind.length > 0) {
+      return kind;
+    }
+  }
+  if (error instanceof SyntaxError) {
+    return "invalid_payload";
+  }
+  if (/Draft already exists/i.test(safeMessage)) {
+    return "file_exists";
+  }
+  if (/Payload JSON is not valid JSON/i.test(safeMessage)) {
+    return "invalid_payload";
+  }
+  if (/Payload file is too large/i.test(safeMessage)) {
+    return "invalid_payload";
+  }
+  if (/Workspace root must exist/i.test(safeMessage)) {
+    return "workspace_invalid";
+  }
+  if (/Runtime build is missing/i.test(safeMessage)) {
+    return "runtime_not_built";
+  }
+  if (/Unsupported desktop runner argument/i.test(safeMessage)) {
+    return "invalid_arguments";
+  }
+  return "desktop_runner_failed";
+}
+
+function safeErrorStage(errorKind) {
+  switch (errorKind) {
+    case "invalid_arguments":
+      return "parse_args";
+    case "invalid_payload":
+    case "workspace_invalid":
+      return "load_payload";
+    case "runtime_not_built":
+      return "load_runtime";
+    case "file_exists":
+    case "unsupported_extension":
+    case "unsupported_content_type":
+    case "draft_too_large":
+    case "secret_like_content_rejected":
+    case "path_escape":
+    case "absolute_path_rejected":
+    case "parent_traversal_rejected":
+    case "denied_path":
+    case "invalid_filename":
+    case "symlink_escape":
+      return "write_draft";
+    default:
+      return "run_flow";
+  }
+}
+
 function assertSafeSummary(summary) {
   const serialized = JSON.stringify(summary);
   const forbiddenPatterns = [
@@ -152,7 +245,7 @@ if (
   import.meta.url === pathToFileURL(process.argv[1]).href
 ) {
   main(process.argv.slice(2)).catch((error) => {
-    console.error(`Desktop runner failed: ${safeErrorMessage(error)}`);
+    console.error(JSON.stringify(toDesktopErrorSummary(error)));
     process.exitCode = 1;
   });
 }
