@@ -1270,6 +1270,36 @@ describe("desktop source boundaries", () => {
     );
   });
 
+  it("documents bridge transport choice and implementation gate without enabling transport", async () => {
+    const docs = await Promise.all(
+      [
+        "adr/0003-bridge-transport-choice.md",
+        "bridge-implementation-gate-v0.1.md",
+        "README.md"
+      ].map(async (file) => ({
+        file,
+        text: await readFile(path.join(repoRoot, "docs", file), "utf8")
+      }))
+    );
+    const combined = docs.map((doc) => doc.text).join("\n");
+
+    expect(combined).toContain("Native Messaging");
+    expect(combined).toMatch(/localhost loopback HTTP/i);
+    expect(combined).toMatch(/local drop folder/i);
+    expect(combined).toMatch(/custom URL protocol/i);
+    expect(combined).toContain("manual import");
+    expect(combined).toContain("Recommended Next Implementation Path");
+    expect(combined).toContain("No auto Convert");
+    expect(combined).toContain("No file write from bridge");
+    expect(combined).toContain("Boundary checker updated");
+    expect(combined).toContain("Rollback Strategy");
+    expect(combined).toContain("adr/0003-bridge-transport-choice.md");
+    expect(combined).toContain("bridge-implementation-gate-v0.1.md");
+    expect(combined).toContain("localhost server enabled by default");
+    expect(combined).not.toMatch(/localhost server is supported/i);
+    expect(combined).not.toMatch(/automatic Convert is supported/i);
+  });
+
   it("configures the offline desktop QA check without GUI or DeepSeek calls", async () => {
     const rootPackage = JSON.parse(
       await readFile(rootPackagePath, "utf8")

@@ -149,6 +149,31 @@ describe("repository boundary checks", () => {
     );
   });
 
+  it("fails on synthetic localhost server and native message APIs", async () => {
+    const root = await createTempRoot();
+    await mkdir(path.join(root, "src"), { recursive: true });
+    await writeFile(
+      path.join(root, "src", "transport.js"),
+      [
+        "import { createServer } from 'node:http';",
+        "const server = createServer(() => {});",
+        "server.listen(12701);",
+        "chrome.runtime.sendNativeMessage('host', {});",
+        "chrome.runtime.connectNative('host');"
+      ].join("\n"),
+      "utf8"
+    );
+
+    const result = await runBoundaryCheck({ root, silent: true });
+    const ruleIds = result.findings.map((finding) => finding.ruleId);
+
+    expect(result.ok).toBe(false);
+    expect(ruleIds).toContain("node_create_server_reference");
+    expect(ruleIds).toContain("network_listen_reference");
+    expect(ruleIds).toContain("native_message_send_reference");
+    expect(ruleIds).toContain("native_connect_reference");
+  });
+
   it("allows event log leak scanner denylist markers only in the fixed app command source", async () => {
     const root = await createTempRoot();
     await mkdir(path.join(root, "app", "src-tauri", "src"), {

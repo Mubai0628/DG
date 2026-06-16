@@ -10,6 +10,8 @@ DeepSeek Workbench documentation is organized around the current v0.1
 - [Bridge protocol dry harness v0.1](bridge-protocol-dry-harness-v0.1.md)
 - [Bridge pairing UX v0.1](bridge-pairing-ux-v0.1.md)
 - [ADR 0002: Extension to desktop bridge](adr/0002-extension-desktop-bridge.md)
+- [ADR 0003: Bridge transport choice](adr/0003-bridge-transport-choice.md)
+- [Bridge implementation gate v0.1](bridge-implementation-gate-v0.1.md)
 - [v0.1 release checklist](release-checklist-v0.1.md)
 - [v0.1.0-rc.1 release notes](release-notes-v0.1.0-rc.1.md)
 - [v0.1.0-desktop-rc.1 release notes](release-notes-v0.1.0-desktop-rc.1.md)

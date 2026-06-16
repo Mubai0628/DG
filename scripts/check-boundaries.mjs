@@ -97,6 +97,16 @@ const boundaryPatterns = [
   { id: "clipboard_reference", pattern: /\bclipboard\b/i },
   { id: "network_fetch_reference", pattern: /\bfetch\s*\(/ },
   { id: "xml_http_request_reference", pattern: /\bXMLHttpRequest\b/ },
+  { id: "node_create_server_reference", pattern: /\bcreateServer\s*\(/ },
+  { id: "network_listen_reference", pattern: /(?:\.|\b)listen\s*\(/ },
+  {
+    id: "native_message_send_reference",
+    pattern: /\bchrome\.runtime\.sendNativeMessage\b|\bsendNativeMessage\s*\(/
+  },
+  {
+    id: "native_connect_reference",
+    pattern: /\bchrome\.runtime\.connectNative\b|\bconnectNative\s*\(/
+  },
   {
     id: "query_selector_all_reference",
     pattern: /\bdocument\.querySelectorAll\b/
