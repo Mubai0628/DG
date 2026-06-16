@@ -16,10 +16,13 @@ import {
 } from "../src/desktop-flow.js";
 import {
   buildEventLogPanelModel,
+  buildBridgeProposalPreviewModel,
   buildResultPanelModel,
   buildUiErrorFallbackMessage,
   canRunWithPreflight,
+  importBridgeProposalToPayloadEditor,
   maxPayloadTextBytes,
+  normalizeBridgeProposalPreview,
   normalizeDesktopCommandError,
   normalizeDesktopFlowResult,
   normalizeEventSummary,
@@ -27,6 +30,7 @@ import {
   normalizeTimelineItem,
   normalizeWorkspaceEventSummary,
   parsePayloadJson,
+  rejectBridgeProposal,
   runnerPreflightMessage,
   safeArray,
   safeErrorMessage,
@@ -35,11 +39,13 @@ import {
   validatePayloadTextSize,
   validateDesktopFlowInput,
   type DesktopFlowResult,
+  type BridgeProposalPreviewState,
   type RunnerPreflightSummary,
   type WorkspaceEventSummary
 } from "../src/safety.js";
 import {
   runWebTableToCsvFlow,
+  createBridgeProposalPreview,
   type BrowserDomPayload
 } from "@deepseek-workbench/runtime";
 
@@ -161,6 +167,27 @@ function fixedEventSummary(
     warnings: [],
     ...overrides
   };
+}
+
+function fixedBridgePreview(
+  payload: BrowserDomPayload
+): BridgeProposalPreviewState {
+  const runtimePreview = createBridgeProposalPreview({
+    proposalId: "proposal-1",
+    sessionId: "session-1",
+    proposal: {
+      payload,
+      extensionId: "extension-under-test",
+      extensionVersion: "0.1.0"
+    },
+    receivedAt: "2026-01-01T00:00:00.000Z",
+    expiresAt: "2026-01-01T00:05:00.000Z"
+  });
+  const normalized = normalizeBridgeProposalPreview(runtimePreview);
+  if (normalized === undefined) {
+    throw new Error("bridge preview fixture did not normalize");
+  }
+  return normalized;
 }
 
 function runNodeScript(args: string[]): Promise<{
@@ -353,6 +380,87 @@ describe("desktop shell safety helpers", () => {
     expect(() => normalizeDesktopFlowResult({ ok: true })).toThrow(
       "Desktop flow draft summary was invalid"
     );
+  });
+
+  it("normalizes bridge proposal previews without raw payload in the panel model", async () => {
+    const payload = await readFixture();
+    const preview = fixedBridgePreview(payload);
+    const model = buildBridgeProposalPreviewModel(preview);
+    const serializedModel = JSON.stringify(model);
+
+    expect(model).toMatchObject({
+      proposalId: "proposal-1",
+      sessionId: "session-1",
+      source: "example.com/reports/table",
+      tableSummary: "1 table(s), 4 row(s), 3 column(s)",
+      warningSummary: "1 warning(s), 1 injection risk(s)",
+      importDisabled: false,
+      rejectDisabled: false
+    });
+    expect(serializedModel).not.toContain("Product");
+    expect(serializedModel).not.toContain("北京");
+    expect(serializedModel).not.toContain("ignore previous");
+    expect(serializedModel).not.toContain("token=");
+  });
+
+  it("imports bridge proposals only into payload editor state", async () => {
+    const payload = await readFixture();
+    const preview = fixedBridgePreview(payload);
+
+    const decision = importBridgeProposalToPayloadEditor(
+      preview,
+      "2026-01-01T00:00:00.000Z"
+    );
+
+    expect(decision).toMatchObject({
+      ok: true,
+      autoConvert: false,
+      fileWritten: false,
+      eventWritten: false
+    });
+    expect(
+      decision.ok ? JSON.parse(decision.payloadText).schemaVersion : 0
+    ).toBe(1);
+    expect(decision.ok ? decision.preview.status : "blocked").toBe("imported");
+  });
+
+  it("blocks expired and rejected bridge proposal imports", async () => {
+    const payload = await readFixture();
+    const preview = fixedBridgePreview(payload);
+    const expired = {
+      ...preview,
+      expiresAt: "2026-01-01T00:00:01.000Z"
+    };
+
+    expect(
+      importBridgeProposalToPayloadEditor(expired, "2026-01-01T00:00:02.000Z")
+    ).toMatchObject({
+      ok: false,
+      autoConvert: false,
+      fileWritten: false,
+      eventWritten: false
+    });
+
+    const rejected = rejectBridgeProposal(preview);
+    expect(rejected).toMatchObject({
+      status: "rejected",
+      sanitizedPayloadJson: ""
+    });
+    expect(
+      importBridgeProposalToPayloadEditor(rejected, "2026-01-01T00:00:00.000Z")
+    ).toMatchObject({
+      ok: false,
+      safeMessage: "Bridge proposal was rejected"
+    });
+  });
+
+  it("renders empty bridge preview gate as disabled dry UX", () => {
+    const model = buildBridgeProposalPreviewModel(undefined);
+
+    expect(model.emptyMessage).toContain("No live bridge is enabled");
+    expect(model.importDisabled).toBe(true);
+    expect(model.rejectDisabled).toBe(true);
+    expect(JSON.stringify(model)).not.toContain("rawDom");
   });
 });
 
@@ -1069,6 +1177,11 @@ describe("desktop source boundaries", () => {
     expect(appSource).toContain("DesktopErrorBoundary");
     expect(appSource).toContain("Reset UI state");
     expect(appSource).toContain("Event log events");
+    expect(appSource).toContain("Bridge Proposal Preview (dry)");
+    expect(appSource).toContain("Import to Payload Editor");
+    expect(appSource).toContain("Reject Proposal");
+    expect(appSource).toContain("No live bridge is enabled");
+    expect(appSource).toContain("Convert still requires a separate click");
     expect(appSource).not.toContain("Events written");
     expect(appSource).not.toContain(".slice(");
     expect(appSource).not.toContain(

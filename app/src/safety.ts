@@ -139,6 +139,66 @@ export type EventLogPanelModel = {
   safeMessage?: string;
 };
 
+export type BridgePreviewStatus =
+  | "pending"
+  | "imported"
+  | "rejected"
+  | "expired";
+
+export type BridgeProposalPreviewState = {
+  proposalId: string;
+  sessionId: string;
+  sourceHost: string;
+  sourcePathWithoutQuery: string;
+  tableCount: number;
+  rowCount: number;
+  columnCount: number;
+  warningCount: number;
+  injectionRiskCount: number;
+  payloadBytes: number;
+  receivedAt: string;
+  status: BridgePreviewStatus;
+  warnings: string[];
+  sanitizedPayloadJson: string;
+  extensionId?: string;
+  extensionVersion?: string;
+  expiresAt?: string;
+};
+
+export type BridgeProposalPreviewModel = {
+  proposalId: string;
+  sessionId: string;
+  source: string;
+  tableSummary: string;
+  warningSummary: string;
+  payloadBytes: number;
+  receivedAt: string;
+  status: BridgePreviewStatus;
+  warnings: string[];
+  importDisabled: boolean;
+  rejectDisabled: boolean;
+  extensionLabel: string;
+  emptyMessage?: string;
+};
+
+export type BridgeProposalImportDecision =
+  | {
+      ok: true;
+      payloadText: string;
+      preview: BridgeProposalPreviewState;
+      autoConvert: false;
+      fileWritten: false;
+      eventWritten: false;
+    }
+  | {
+      ok: false;
+      safeMessage: string;
+      preview: BridgeProposalPreviewState;
+      autoConvert: false;
+      fileWritten: false;
+      eventWritten: false;
+    };
+
 export type ParseResult =
   | { ok: true; value: unknown }
   | { ok: false; errorMessage: string };
@@ -530,6 +590,168 @@ export function buildEventLogPanelModel(
   };
 }
 
+export function normalizeBridgeProposalPreview(
+  raw: unknown
+): BridgeProposalPreviewState | undefined {
+  if (!isRecord(raw)) {
+    return undefined;
+  }
+  const preview = isRecord(raw.preview) ? raw.preview : raw;
+  const source = isRecord(preview.source) ? preview.source : undefined;
+  const risk = isRecord(preview.risk) ? preview.risk : preview;
+  const status = normalizeBridgePreviewStatus(readString(preview, "status"));
+  const sanitizedPayloadJson =
+    readString(raw, "sanitizedPayloadJson", "sanitized_payload_json") ??
+    readString(raw, "payloadText", "payload_text") ??
+    "";
+  const extensionId = readString(preview, "extensionId", "extension_id");
+  const extensionVersion = readString(
+    preview,
+    "extensionVersion",
+    "extension_version"
+  );
+  const expiresAt = readString(preview, "expiresAt", "expires_at");
+
+  const state: BridgeProposalPreviewState = {
+    proposalId: safeText(readValue(preview, "proposalId", "proposal_id")),
+    sessionId: safeText(readValue(preview, "sessionId", "session_id")),
+    sourceHost: safeText(
+      readValue(source, "sourceHost", "source_host"),
+      safeText(readValue(preview, "sourceHost", "source_host"))
+    ),
+    sourcePathWithoutQuery: stripQueryAndHash(
+      safeText(
+        readValue(
+          source,
+          "sourcePathWithoutQuery",
+          "source_path_without_query"
+        ),
+        safeText(readValue(preview, "sourcePathWithoutQuery"))
+      )
+    ),
+    tableCount: finiteNumber(readValue(risk, "tableCount", "table_count")),
+    rowCount: finiteNumber(readValue(risk, "rowCount", "row_count")),
+    columnCount: finiteNumber(readValue(risk, "columnCount", "column_count")),
+    warningCount: finiteNumber(
+      readValue(risk, "warningCount", "warning_count")
+    ),
+    injectionRiskCount: finiteNumber(
+      readValue(risk, "injectionRiskCount", "injection_risk_count")
+    ),
+    payloadBytes: finiteNumber(
+      readValue(risk, "payloadBytes", "payload_bytes")
+    ),
+    receivedAt: safeText(readValue(preview, "receivedAt", "received_at")),
+    status,
+    warnings: normalizeBridgeWarnings(preview, risk),
+    sanitizedPayloadJson
+  };
+  if (extensionId !== undefined) {
+    state.extensionId = extensionId;
+  }
+  if (extensionVersion !== undefined) {
+    state.extensionVersion = extensionVersion;
+  }
+  if (expiresAt !== undefined) {
+    state.expiresAt = expiresAt;
+  }
+  return state;
+}
+
+export function buildBridgeProposalPreviewModel(
+  preview: BridgeProposalPreviewState | undefined
+): BridgeProposalPreviewModel {
+  if (preview === undefined) {
+    return {
+      proposalId: "—",
+      sessionId: "—",
+      source: "No proposal",
+      tableSummary: "No tables",
+      warningSummary: "No warnings",
+      payloadBytes: 0,
+      receivedAt: "—",
+      status: "pending",
+      warnings: [],
+      importDisabled: true,
+      rejectDisabled: true,
+      extensionLabel: "Unknown extension",
+      emptyMessage:
+        "No live bridge is enabled. This preview gate is for future extension-to-desktop proposals."
+    };
+  }
+  const importDisabled = preview.status !== "pending";
+  const rejectDisabled =
+    preview.status === "rejected" || preview.status === "expired";
+  const warnings = preview.warnings.map((warning) => safeText(warning));
+  return {
+    proposalId: safeShort(preview.proposalId, 18),
+    sessionId: safeShort(preview.sessionId, 18),
+    source: `${preview.sourceHost}${preview.sourcePathWithoutQuery}`,
+    tableSummary: `${preview.tableCount} table(s), ${preview.rowCount} row(s), ${preview.columnCount} column(s)`,
+    warningSummary: `${preview.warningCount} warning(s), ${preview.injectionRiskCount} injection risk(s)`,
+    payloadBytes: preview.payloadBytes,
+    receivedAt: preview.receivedAt,
+    status: preview.status,
+    warnings,
+    importDisabled,
+    rejectDisabled,
+    extensionLabel:
+      preview.extensionId === undefined
+        ? "Unknown extension"
+        : preview.extensionVersion === undefined
+          ? preview.extensionId
+          : `${preview.extensionId} ${preview.extensionVersion}`
+  };
+}
+
+export function importBridgeProposalToPayloadEditor(
+  preview: BridgeProposalPreviewState,
+  nowIso: string
+): BridgeProposalImportDecision {
+  if (preview.status === "rejected") {
+    return blockedBridgeImport(preview, "Bridge proposal was rejected");
+  }
+  if (preview.status === "imported") {
+    return blockedBridgeImport(preview, "Bridge proposal was already imported");
+  }
+  if (preview.status === "expired" || bridgeProposalExpired(preview, nowIso)) {
+    return blockedBridgeImport(
+      {
+        ...preview,
+        status: "expired"
+      },
+      "Bridge proposal expired"
+    );
+  }
+  if (preview.sanitizedPayloadJson.trim().length === 0) {
+    return blockedBridgeImport(
+      preview,
+      "Bridge proposal payload is unavailable"
+    );
+  }
+  return {
+    ok: true,
+    payloadText: preview.sanitizedPayloadJson,
+    preview: {
+      ...preview,
+      status: "imported"
+    },
+    autoConvert: false,
+    fileWritten: false,
+    eventWritten: false
+  };
+}
+
+export function rejectBridgeProposal(
+  preview: BridgeProposalPreviewState
+): BridgeProposalPreviewState {
+  return {
+    ...preview,
+    status: "rejected",
+    sanitizedPayloadJson: ""
+  };
+}
+
 export function runnerPreflightMessage(
   preflight: RunnerPreflightSummary | undefined
 ): string {
@@ -844,4 +1066,60 @@ function invalidWorkspaceEventSummary(message: string): WorkspaceEventSummary {
 
 function finiteNumber(value: unknown, fallback = 0): number {
   return typeof value === "number" && Number.isFinite(value) ? value : fallback;
+}
+
+function normalizeBridgePreviewStatus(
+  value: string | undefined
+): BridgePreviewStatus {
+  return value === "pending" ||
+    value === "imported" ||
+    value === "rejected" ||
+    value === "expired"
+    ? value
+    : "pending";
+}
+
+function normalizeBridgeWarnings(
+  preview: Record<string, unknown>,
+  risk: Record<string, unknown>
+): string[] {
+  return Array.from(
+    new Set([
+      ...readStringArray(preview, "warnings"),
+      ...readStringArray(risk, "warningCodes", "warning_codes"),
+      ...readStringArray(risk, "identityWarnings", "identity_warnings")
+    ])
+  );
+}
+
+function stripQueryAndHash(value: string): string {
+  return value.split(/[?#]/, 1)[0] ?? value;
+}
+
+function bridgeProposalExpired(
+  preview: BridgeProposalPreviewState,
+  nowIso: string
+): boolean {
+  if (preview.expiresAt === undefined) {
+    return false;
+  }
+  const expiresAtMs = Date.parse(preview.expiresAt);
+  const nowMs = Date.parse(nowIso);
+  return Number.isFinite(expiresAtMs) && Number.isFinite(nowMs)
+    ? nowMs > expiresAtMs
+    : false;
+}
+
+function blockedBridgeImport(
+  preview: BridgeProposalPreviewState,
+  safeMessage: string
+): BridgeProposalImportDecision {
+  return {
+    ok: false,
+    safeMessage,
+    preview,
+    autoConvert: false,
+    fileWritten: false,
+    eventWritten: false
+  };
 }

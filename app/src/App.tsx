@@ -16,12 +16,17 @@ import {
 } from "./desktop-flow.js";
 import {
   buildEventLogPanelModel,
+  buildBridgeProposalPreviewModel,
   buildResultPanelModel,
   buildUiErrorFallbackMessage,
   runnerPreflightMessage,
   defaultDraftFilename,
+  importBridgeProposalToPayloadEditor,
+  rejectBridgeProposal,
   validatePayloadTextSize,
   safeErrorMessage,
+  type BridgeProposalPreviewModel,
+  type BridgeProposalPreviewState,
   type DesktopFlowResult,
   type EventLogPanelModel,
   type ResultPanelModel,
@@ -98,6 +103,10 @@ export function DesktopShell(): JSX.Element {
   const [eventStatus, setEventStatus] = useState<EventStatus>("idle");
   const [eventError, setEventError] = useState<string | undefined>();
   const [docMessage, setDocMessage] = useState<string | undefined>();
+  const [bridgePreview, setBridgePreview] = useState<
+    BridgeProposalPreviewState | undefined
+  >();
+  const [bridgeMessage, setBridgeMessage] = useState<string | undefined>();
 
   const panel = useMemo<ResultPanelModel | undefined>(
     () => (result === undefined ? undefined : buildResultPanelModel(result)),
@@ -106,6 +115,10 @@ export function DesktopShell(): JSX.Element {
   const eventPanel = useMemo<EventLogPanelModel | undefined>(
     () => buildEventLogPanelModel(eventSummary),
     [eventSummary]
+  );
+  const bridgePanel = useMemo<BridgeProposalPreviewModel>(
+    () => buildBridgeProposalPreviewModel(bridgePreview),
+    [bridgePreview]
   );
   const preflightBadge =
     preflight === undefined
@@ -171,6 +184,35 @@ export function DesktopShell(): JSX.Element {
       return;
     }
     setPayloadText(fileText);
+  }
+
+  function handleImportBridgeProposal(): void {
+    if (bridgePreview === undefined) {
+      setBridgeMessage("No bridge proposal is available to import.");
+      return;
+    }
+    const decision = importBridgeProposalToPayloadEditor(
+      bridgePreview,
+      new Date().toISOString()
+    );
+    setBridgePreview(decision.preview);
+    if (decision.ok) {
+      setPayloadText(decision.payloadText);
+      setBridgeMessage(
+        "Bridge proposal imported into the payload editor. Convert still requires a separate click."
+      );
+      return;
+    }
+    setBridgeMessage(decision.safeMessage);
+  }
+
+  function handleRejectBridgeProposal(): void {
+    if (bridgePreview === undefined) {
+      setBridgeMessage("No bridge proposal is available to reject.");
+      return;
+    }
+    setBridgePreview(rejectBridgeProposal(bridgePreview));
+    setBridgeMessage("Bridge proposal rejected. Nothing was imported.");
   }
 
   async function refreshVersion(): Promise<void> {
@@ -264,6 +306,84 @@ export function DesktopShell(): JSX.Element {
               private browser data should not be present.
             </p>
           </label>
+
+          <section
+            className="bridgePreview"
+            aria-label="Bridge proposal preview"
+          >
+            <div className="panelHeader">
+              <h2>Bridge Proposal Preview (dry)</h2>
+              <span className="muted">{bridgePanel.status}</span>
+            </div>
+            <p className="fieldHelp">
+              No live bridge is enabled. This preview gate is for future
+              extension-to-desktop proposals.
+            </p>
+            {bridgePanel.emptyMessage !== undefined ? (
+              <p className="empty">{bridgePanel.emptyMessage}</p>
+            ) : (
+              <dl className="summaryGrid compact">
+                <div>
+                  <dt>Source</dt>
+                  <dd>{bridgePanel.source}</dd>
+                </div>
+                <div>
+                  <dt>Extension</dt>
+                  <dd>{bridgePanel.extensionLabel}</dd>
+                </div>
+                <div>
+                  <dt>Tables</dt>
+                  <dd>{bridgePanel.tableSummary}</dd>
+                </div>
+                <div>
+                  <dt>Risks</dt>
+                  <dd>{bridgePanel.warningSummary}</dd>
+                </div>
+                <div>
+                  <dt>Payload bytes</dt>
+                  <dd>{bridgePanel.payloadBytes}</dd>
+                </div>
+                <div>
+                  <dt>Received</dt>
+                  <dd>{bridgePanel.receivedAt}</dd>
+                </div>
+              </dl>
+            )}
+            {bridgePanel.warnings.length > 0 ? (
+              <p className="muted">
+                warnings {bridgePanel.warnings.join(", ")}
+              </p>
+            ) : null}
+            <div className="buttonRow">
+              <button
+                type="button"
+                className="secondary"
+                disabled={bridgePanel.importDisabled}
+                onClick={(event) => {
+                  event.preventDefault();
+                  event.stopPropagation();
+                  handleImportBridgeProposal();
+                }}
+              >
+                Import to Payload Editor
+              </button>
+              <button
+                type="button"
+                className="secondary"
+                disabled={bridgePanel.rejectDisabled}
+                onClick={(event) => {
+                  event.preventDefault();
+                  event.stopPropagation();
+                  handleRejectBridgeProposal();
+                }}
+              >
+                Reject Proposal
+              </button>
+            </div>
+            {bridgeMessage !== undefined ? (
+              <p className="docHint">{bridgeMessage}</p>
+            ) : null}
+          </section>
 
           <label>
             <span>Draft filename</span>
