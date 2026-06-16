@@ -1,6 +1,7 @@
 export * from "./bridge-session.js";
 export * from "./errors.js";
 export * from "./fake-transport.js";
+export * from "./native-messaging-manifest.js";
 export * from "./nonce-store.js";
 export * from "./pairing.js";
 export * from "./preview.js";

@@ -1,0 +1,7 @@
+{
+  "name": "com.dg.bridge",
+  "description": "DG bridge host dry manifest sample. Not installed.",
+  "path": "C:\\Path\\To\\dg-bridge-host.exe",
+  "type": "stdio",
+  "allowed_origins": ["chrome-extension://aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa/"]
+}
