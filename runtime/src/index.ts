@@ -41,6 +41,26 @@ export * from "./context/index.js";
 export * from "./deepseek/index.js";
 export * from "./events/index.js";
 export * from "./flows/index.js";
+export * as modelPlane from "./models/index.js";
+export {
+  getDeepSeekCapabilityProfile,
+  listDeepSeekCapabilityProfiles,
+  normalizeLegacyDeepSeekModelId,
+  runDeepSeekCapabilityDryProbe
+} from "./models/index.js";
+export type {
+  DeepSeekCapabilityInvariant,
+  DeepSeekCapabilityProfile,
+  DeepSeekCapabilityProbeInput,
+  DeepSeekCapabilityProbeResult,
+  DeepSeekCapabilityProbeStatus,
+  DeepSeekCapabilityWarning,
+  DeepSeekCapabilityWarningKind,
+  DeepSeekFeatureSupport,
+  DeepSeekLegacyAlias,
+  DeepSeekModelFamily,
+  DeepSeekModelId as DeepSeekCapabilityModelId
+} from "./models/index.js";
 export * from "./web/index.js";
 export {
   ToolBroker,
