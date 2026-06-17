@@ -7,6 +7,7 @@ DeepSeek Workbench documentation is organized around the current v0.1
 - [v0.1 vertical slice architecture](vertical-slice-v0.1.md)
 - [v0.2 control plane roadmap](v0.2-control-plane-roadmap.md)
 - [Model Plane capability profile v0.2](model-plane-capability-profile-v0.2.md)
+- [Context Ledger v0.2](context-ledger-v0.2.md)
 - [v0.1 threat model](threat-model-v0.1.md)
 - [Extension to desktop bridge threat model v0.1](extension-desktop-bridge-threat-model-v0.1.md)
 - [Bridge protocol dry harness v0.1](bridge-protocol-dry-harness-v0.1.md)

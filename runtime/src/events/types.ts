@@ -8,6 +8,7 @@ export const eventTypes = [
   "llm.repair",
   "cache.boundary.changed",
   "context.assembled",
+  "context.rule.activated",
   "tool.proposed",
   "tool.approved",
   "tool.rejected",
