@@ -40,6 +40,7 @@ export * from "./agents/index.js";
 export * from "./bridge/index.js";
 export * from "./capabilities/index.js";
 export * from "./context/index.js";
+export * from "./memory/index.js";
 export * from "./deepseek/index.js";
 export * from "./events/index.js";
 export * from "./flows/index.js";
