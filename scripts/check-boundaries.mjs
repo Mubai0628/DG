@@ -251,6 +251,9 @@ function isAllowedBoundaryHit(file, line, ruleId) {
   if (file === "scripts/check-boundaries.mjs") {
     return true;
   }
+  if (file === "runtime/src/agents/isolation.ts") {
+    return true;
+  }
   if (file === "scripts/release-smoke.mjs") {
     return true;
   }

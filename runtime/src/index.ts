@@ -36,6 +36,7 @@ export function getRuntimeSkeletonStatus(): RuntimeSkeletonStatus {
 }
 
 export * from "./conversation/index.js";
+export * from "./agents/index.js";
 export * from "./bridge/index.js";
 export * from "./capabilities/index.js";
 export * from "./context/index.js";

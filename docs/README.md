@@ -9,6 +9,7 @@ DeepSeek Workbench documentation is organized around the current v0.1
 - [Model Plane capability profile v0.2](model-plane-capability-profile-v0.2.md)
 - [Context Ledger v0.2](context-ledger-v0.2.md)
 - [Capability Broker v0.2](capability-broker-v0.2.md)
+- [Agent Dossier and Static Router v0.2](agent-dossier-static-router-v0.2.md)
 - [v0.1 threat model](threat-model-v0.1.md)
 - [Extension to desktop bridge threat model v0.1](extension-desktop-bridge-threat-model-v0.1.md)
 - [Bridge protocol dry harness v0.1](bridge-protocol-dry-harness-v0.1.md)
