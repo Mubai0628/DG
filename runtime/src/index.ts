@@ -43,6 +43,7 @@ export * from "./context/index.js";
 export * from "./memory/index.js";
 export * from "./deepseek/index.js";
 export * from "./events/index.js";
+export * from "./execution/index.js";
 export * from "./flows/index.js";
 export * as modelPlane from "./models/index.js";
 export {

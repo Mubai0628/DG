@@ -11,6 +11,7 @@ DeepSeek Workbench documentation is organized around the current v0.1
 - [Capability Broker v0.2](capability-broker-v0.2.md)
 - [Agent Dossier and Static Router v0.2](agent-dossier-static-router-v0.2.md)
 - [Memory Core v0.2](memory-core-v0.2.md)
+- [Patch and Diff Audit v0.2](patch-diff-audit-v0.2.md)
 - [v0.1 threat model](threat-model-v0.1.md)
 - [Extension to desktop bridge threat model v0.1](extension-desktop-bridge-threat-model-v0.1.md)
 - [Bridge protocol dry harness v0.1](bridge-protocol-dry-harness-v0.1.md)
