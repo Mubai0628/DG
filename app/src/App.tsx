@@ -23,6 +23,10 @@ import {
   type AppWorkbenchSurfaceView
 } from "./workbench-surfaces.js";
 import {
+  buildMemoryInspectorView,
+  type AppMemoryInspectorView
+} from "./memory-inspector-view.js";
+import {
   buildEventLogPanelModel,
   buildBridgeProposalPreviewModel,
   buildResultPanelModel,
@@ -150,6 +154,18 @@ export function DesktopShell(): JSX.Element {
       }),
     [controlPlanePanel, error, eventSummary, preflight, result]
   );
+  const memoryInspector = useMemo<AppMemoryInspectorView>(
+    () =>
+      buildMemoryInspectorView({
+        controlProjection: controlPlanePanel,
+        eventSummary,
+        conversionError:
+          error === undefined ? undefined : { safeMessage: error }
+      }),
+    [controlPlanePanel, error, eventSummary]
+  );
+  const bridgeActionsVisible =
+    bridgePanel.status === "pending" && bridgePanel.emptyMessage === undefined;
   const preflightBadge =
     preflight === undefined
       ? "Source-tree mode / Preflight pending / No native bridge"
@@ -346,8 +362,8 @@ export function DesktopShell(): JSX.Element {
               <span className="muted">{bridgePanel.status}</span>
             </div>
             <p className="fieldHelp">
-              No live bridge is enabled. This preview gate is for future
-              extension-to-desktop proposals.
+              No live bridge is enabled. Future extension-to-desktop proposals
+              will appear here for preview.
             </p>
             {bridgePanel.emptyMessage !== undefined ? (
               <p className="empty">{bridgePanel.emptyMessage}</p>
@@ -384,32 +400,36 @@ export function DesktopShell(): JSX.Element {
                 warnings {bridgePanel.warnings.join(", ")}
               </p>
             ) : null}
-            <div className="buttonRow">
-              <button
-                type="button"
-                className="secondary"
-                disabled={bridgePanel.importDisabled}
-                onClick={(event) => {
-                  event.preventDefault();
-                  event.stopPropagation();
-                  handleImportBridgeProposal();
-                }}
-              >
-                Import to Payload Editor
-              </button>
-              <button
-                type="button"
-                className="secondary"
-                disabled={bridgePanel.rejectDisabled}
-                onClick={(event) => {
-                  event.preventDefault();
-                  event.stopPropagation();
-                  handleRejectBridgeProposal();
-                }}
-              >
-                Reject Proposal
-              </button>
-            </div>
+            {bridgeActionsVisible ? (
+              <div className="buttonRow">
+                <button
+                  type="button"
+                  className="secondary"
+                  disabled={bridgePanel.importDisabled}
+                  aria-disabled={bridgePanel.importDisabled}
+                  onClick={(event) => {
+                    event.preventDefault();
+                    event.stopPropagation();
+                    handleImportBridgeProposal();
+                  }}
+                >
+                  Import to Payload Editor
+                </button>
+                <button
+                  type="button"
+                  className="secondary"
+                  disabled={bridgePanel.rejectDisabled}
+                  aria-disabled={bridgePanel.rejectDisabled}
+                  onClick={(event) => {
+                    event.preventDefault();
+                    event.stopPropagation();
+                    handleRejectBridgeProposal();
+                  }}
+                >
+                  Reject Proposal
+                </button>
+              </div>
+            ) : null}
             {bridgeMessage !== undefined ? (
               <p className="docHint">{bridgeMessage}</p>
             ) : null}
@@ -824,6 +844,107 @@ export function DesktopShell(): JSX.Element {
                   {workbenchSurfaces.audit.nextAction}
                 </p>
               </section>
+            </div>
+          </section>
+
+          <section className="eventPanel" aria-label="Memory Inspector">
+            <div className="panelHeader">
+              <h2>Memory Inspector</h2>
+              <span className="muted">Read-only skeleton</span>
+            </div>
+            <p className="fieldHelp">
+              Runtime Memory Core is available, but this inspector is read-only
+              and not connected to persistence.
+            </p>
+
+            {memoryInspector.status === "empty" ? (
+              <div className="statusBox">
+                {memoryInspector.emptyMessages.map((message) => (
+                  <p key={message}>{message}</p>
+                ))}
+              </div>
+            ) : null}
+
+            <dl className="summaryGrid compact">
+              <div>
+                <dt>Policy</dt>
+                <dd>{memoryInspector.typeCounts.policy}</dd>
+              </div>
+              <div>
+                <dt>Project facts</dt>
+                <dd>{memoryInspector.typeCounts.project_fact}</dd>
+              </div>
+              <div>
+                <dt>Pitfalls</dt>
+                <dd>{memoryInspector.typeCounts.pitfall}</dd>
+              </div>
+              <div>
+                <dt>Candidates</dt>
+                <dd>{memoryInspector.candidateCount}</dd>
+              </div>
+              <div>
+                <dt>Committed</dt>
+                <dd>{memoryInspector.committedCount}</dd>
+              </div>
+              <div>
+                <dt>Recalled</dt>
+                <dd>{memoryInspector.recalledCount}</dd>
+              </div>
+              <div>
+                <dt>Revoked / expired</dt>
+                <dd>
+                  {memoryInspector.revokedCount} /{" "}
+                  {memoryInspector.expiredCount}
+                </dd>
+              </div>
+              <div>
+                <dt>Source</dt>
+                <dd>{memoryInspector.source}</dd>
+              </div>
+            </dl>
+
+            {memoryInspector.candidates.length > 0 ? (
+              <ol className="timeline">
+                {memoryInspector.candidates.map((candidate) => (
+                  <li key={candidate.candidateId}>
+                    <span className="timelineMeta">
+                      {candidate.proposedType} · {candidate.status} ·{" "}
+                      {candidate.trustLevel}
+                    </span>
+                    <span>{candidate.proposedSummary}</span>
+                  </li>
+                ))}
+              </ol>
+            ) : null}
+
+            {memoryInspector.items.length > 0 ? (
+              <ol className="timeline">
+                {memoryInspector.items.map((item) => (
+                  <li key={item.memoryId}>
+                    <span className="timelineMeta">
+                      {item.type} · {item.status} · {item.trustLevel}
+                    </span>
+                    <span>{item.summary}</span>
+                  </li>
+                ))}
+              </ol>
+            ) : null}
+
+            {memoryInspector.warnings.length > 0 ? (
+              <p className="muted">
+                warnings{" "}
+                {memoryInspector.warnings
+                  .map((warning) => warning.code)
+                  .join(", ")}
+              </p>
+            ) : null}
+
+            <div className="statusBox">
+              <strong>Next action</strong>
+              <p>{memoryInspector.nextAction}</p>
+              <p className="muted">
+                Commit gate UI is not enabled in this phase.
+              </p>
             </div>
           </section>
 

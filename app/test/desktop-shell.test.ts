@@ -16,6 +16,7 @@ import {
 } from "../src/desktop-flow.js";
 import { buildControlPlaneProjectionView } from "../src/control-plane-view.js";
 import { buildWorkbenchSurfacesView } from "../src/workbench-surfaces.js";
+import { buildMemoryInspectorView } from "../src/memory-inspector-view.js";
 import {
   buildEventLogPanelModel,
   buildBridgeProposalPreviewModel,
@@ -459,7 +460,11 @@ describe("desktop shell safety helpers", () => {
   it("renders empty bridge preview gate as disabled dry UX", () => {
     const model = buildBridgeProposalPreviewModel(undefined);
 
+    expect(model.status).toBe("disabled");
     expect(model.emptyMessage).toContain("No live bridge is enabled");
+    expect(model.emptyMessage).toContain(
+      "Future extension-to-desktop proposals will appear here for preview"
+    );
     expect(model.importDisabled).toBe(true);
     expect(model.rejectDisabled).toBe(true);
     expect(JSON.stringify(model)).not.toContain("rawDom");
@@ -1412,6 +1417,149 @@ describe("app approval diff audit surfaces", () => {
   });
 });
 
+describe("app memory inspector skeleton", () => {
+  it("builds an empty read-only memory inspector view", () => {
+    const view = buildMemoryInspectorView();
+
+    expect(view.status).toBe("empty");
+    expect(view.readOnly).toBe(true);
+    expect(view.persistenceConnected).toBe(false);
+    expect(view.typeCounts).toEqual({
+      policy: 0,
+      project_fact: 0,
+      pitfall: 0
+    });
+    expect(view.candidateCount).toBe(0);
+    expect(view.committedCount).toBe(0);
+    expect(view.emptyMessages).toContain(
+      "No memory records are connected to the desktop shell yet."
+    );
+    expect(view.emptyMessages).toContain(
+      "Runtime Memory Core is available, but this inspector is read-only and not connected to persistence."
+    );
+  });
+
+  it("counts policy project_fact and pitfall summaries", () => {
+    const view = buildMemoryInspectorView({
+      memorySummaries: [
+        {
+          memoryId: "mem-policy",
+          type: "policy",
+          status: "committed",
+          summary: "Always keep bridge transport disabled by default."
+        },
+        {
+          memoryId: "mem-pitfall",
+          type: "pitfall",
+          status: "revoked",
+          summary: "Stale dry harness docs can confuse release state."
+        }
+      ],
+      memoryRecallItems: [
+        {
+          memoryId: "mem-fact",
+          type: "project_fact",
+          status: "recalled",
+          summary: "Desktop shell uses manual payload import."
+        }
+      ],
+      memoryCandidates: [
+        {
+          candidateId: "candidate-pitfall",
+          proposedType: "pitfall",
+          proposedSummary: "Candidate summary only."
+        }
+      ]
+    });
+
+    expect(view.status).toBe("summary");
+    expect(view.typeCounts).toEqual({
+      policy: 1,
+      project_fact: 1,
+      pitfall: 2
+    });
+    expect(view.committedCount).toBe(1);
+    expect(view.recalledCount).toBe(1);
+    expect(view.revokedCount).toBe(1);
+    expect(view.candidateCount).toBe(1);
+  });
+
+  it("keeps memory candidates summary-only and commit-gated", () => {
+    const secret = "sk-test1234567890abcdef";
+    const view = buildMemoryInspectorView({
+      memoryCandidates: [
+        {
+          candidateId: "candidate-1",
+          proposedType: "project_fact",
+          status: "candidate",
+          proposedSummary: `rawPrompt should not appear ${secret}`,
+          source: "model",
+          trustLevel: "model_suggested",
+          reason: "Future candidate only"
+        }
+      ]
+    });
+    const serialized = JSON.stringify(view);
+
+    expect(view.candidates[0]?.proposedSummary).toBe(
+      "Summary withheld by safety policy."
+    );
+    expect(view.nextAction).toContain("Commit gate UI is not enabled");
+    expect(serialized).not.toContain(secret);
+    expect(serialized).not.toContain("rawPrompt");
+    expect(serialized).not.toContain("full content");
+  });
+
+  it("keeps memory item summaries free of raw content markers", () => {
+    const view = buildMemoryInspectorView({
+      memorySummaries: [
+        {
+          memoryId: "memory-1",
+          type: "policy",
+          status: "committed",
+          trustLevel: "explicit_user",
+          namespace: "desktop",
+          summary: "Authorization header and clipboard details must not render",
+          tags: ["safe", "rawDom marker"],
+          provenanceRefCount: 1,
+          evidenceRefCount: 2
+        }
+      ]
+    });
+    const serialized = JSON.stringify(view);
+
+    expect(view.items[0]?.summary).toBe("Summary withheld by safety policy.");
+    expect(view.items[0]?.tags).toContain("Summary withheld by safety policy.");
+    expect(serialized).not.toContain("Authorization header");
+    expect(serialized).not.toContain("clipboard");
+    expect(serialized).not.toContain("rawDom");
+  });
+
+  it("preserves memory inspector state around refresh and FILE_EXISTS", () => {
+    const eventSummary = fixedEventSummary({ eventCount: 4 });
+    const empty = buildMemoryInspectorView({ eventSummary });
+    const fileExists = buildMemoryInspectorView({
+      eventSummary,
+      conversionError: {
+        errorCode: "FILE_EXISTS",
+        safeMessage:
+          "Draft already exists. Choose a new draft filename or remove the existing file."
+      }
+    });
+
+    expect(empty.status).toBe("empty");
+    expect(empty.typeCounts.policy).toBe(0);
+    expect(fileExists.status).toBe("warning");
+    expect(fileExists.typeCounts.policy).toBe(0);
+    expect(fileExists.warnings.map((warning) => warning.code)).toContain(
+      "FILE_EXISTS"
+    );
+    expect(fileExists.nextAction).toBe(
+      "Choose a new draft filename or remove the existing file."
+    );
+  });
+});
+
 describe("desktop source boundaries", () => {
   it("keeps refresh events and docs actions from navigating or resetting UI state", async () => {
     const appSource = await readFile(
@@ -1446,7 +1594,15 @@ describe("desktop source boundaries", () => {
     expect(appSource).toContain("Diff Surface");
     expect(appSource).toContain("Audit Surface");
     expect(appSource).toContain("workbenchSurfaces");
+    expect(appSource).toContain("Memory Inspector");
+    expect(appSource).toContain("memoryInspector");
+    expect(appSource).toContain("Read-only skeleton");
+    expect(appSource).toContain("not connected to persistence");
+    expect(appSource).toContain("Commit gate UI is not enabled");
     expect(appSource).toContain("No live bridge is enabled");
+    expect(appSource).toContain("Future extension-to-desktop proposals");
+    expect(appSource).toContain("bridgeActionsVisible");
+    expect(appSource).toContain('bridgePanel.status === "pending"');
     expect(appSource).toContain("Convert still requires a separate click");
     expect(appSource).not.toContain("Events written");
     expect(appSource).not.toContain("auto approval");
@@ -1454,6 +1610,12 @@ describe("desktop source boundaries", () => {
     expect(appSource).not.toContain("handleApprove");
     expect(appSource).not.toContain("handleApply");
     expect(appSource).not.toContain("handleExecute");
+    expect(appSource).not.toContain("handleCommitMemory");
+    expect(appSource).not.toContain("handleRevokeMemory");
+    expect(appSource).not.toContain("handleExpireMemory");
+    expect(appSource).not.toContain("commit_memory_command");
+    expect(appSource).not.toContain("revoke_memory_command");
+    expect(appSource).not.toContain("expire_memory_command");
     expect(appSource).not.toContain(".slice(");
     expect(appSource).not.toContain(
       'href="../docs/desktop-event-log-smoke-v0.1.md"'
@@ -1470,6 +1632,39 @@ describe("desktop source boundaries", () => {
     );
   });
 
+  it("keeps bridge preview empty state inactive at the visual layer", async () => {
+    const appSource = await readFile(
+      path.join(appRoot, "src", "App.tsx"),
+      "utf8"
+    );
+    const safetySource = await readFile(
+      path.join(appRoot, "src", "safety.ts"),
+      "utf8"
+    );
+    const styles = await readFile(
+      path.join(appRoot, "src", "styles.css"),
+      "utf8"
+    );
+
+    expect(safetySource).toContain('status: "disabled"');
+    expect(safetySource).toContain(
+      "Future extension-to-desktop proposals will appear here for preview."
+    );
+    expect(appSource).toContain("bridgeActionsVisible ? (");
+    expect(appSource).toContain('bridgePanel.status === "pending"');
+    expect(appSource).toContain("aria-disabled={bridgePanel.importDisabled}");
+    expect(appSource).toContain("aria-disabled={bridgePanel.rejectDisabled}");
+    expect(
+      appSource.indexOf("setPayloadText(decision.payloadText)")
+    ).toBeGreaterThan(appSource.indexOf("if (bridgePreview === undefined)"));
+    expect(styles).toMatch(
+      /\.secondary:disabled\s*{[^}]*cursor:\s*not-allowed;/s
+    );
+    expect(styles).not.toMatch(
+      /\.secondary:disabled\s*{[^}]*cursor:\s*(wait|progress);/s
+    );
+  });
+
   it("does not include native bridge or arbitrary shell plugin references in app source", async () => {
     const sourceFiles = [
       "src/App.tsx",
@@ -1477,6 +1672,7 @@ describe("desktop source boundaries", () => {
       "src/safety.ts",
       "src/control-plane-view.ts",
       "src/workbench-surfaces.ts",
+      "src/memory-inspector-view.ts",
       "scripts/preflight.mjs",
       "scripts/run-flow.mjs",
       "src-tauri/src/main.rs",
@@ -1601,6 +1797,28 @@ describe("desktop source boundaries", () => {
     expect(combined).toContain(
       "app-shell-approval-diff-audit-surfaces-v0.2.md"
     );
+  });
+
+  it("documents app memory inspector as a read-only skeleton", async () => {
+    const docs = await Promise.all(
+      ["app-shell-memory-inspector-v0.2.md", "README.md"].map(async (file) => ({
+        file,
+        text: await readFile(path.join(repoRoot, "docs", file), "utf8")
+      }))
+    );
+    const combined = docs.map((doc) => doc.text).join("\n");
+
+    expect(combined).toContain("read-only skeleton");
+    expect(combined).toContain("not connected to desktop persistence");
+    expect(combined).toContain("policy");
+    expect(combined).toContain("project_fact");
+    expect(combined).toContain("pitfall");
+    expect(combined).toContain("There are no commit");
+    expect(combined).toContain("No persistent database");
+    expect(combined).toContain("No vector database");
+    expect(combined).toContain("No real DeepSeek calls");
+    expect(combined).toContain("No raw memory content display");
+    expect(combined).toContain("app-shell-memory-inspector-v0.2.md");
   });
 
   it("configures the offline desktop QA check without GUI or DeepSeek calls", async () => {

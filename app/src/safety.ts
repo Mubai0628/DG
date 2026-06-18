@@ -145,6 +145,8 @@ export type BridgePreviewStatus =
   | "rejected"
   | "expired";
 
+export type BridgeProposalPreviewModelStatus = BridgePreviewStatus | "disabled";
+
 export type BridgeProposalPreviewState = {
   proposalId: string;
   sessionId: string;
@@ -173,7 +175,7 @@ export type BridgeProposalPreviewModel = {
   warningSummary: string;
   payloadBytes: number;
   receivedAt: string;
-  status: BridgePreviewStatus;
+  status: BridgeProposalPreviewModelStatus;
   warnings: string[];
   importDisabled: boolean;
   rejectDisabled: boolean;
@@ -670,13 +672,13 @@ export function buildBridgeProposalPreviewModel(
       warningSummary: "No warnings",
       payloadBytes: 0,
       receivedAt: "—",
-      status: "pending",
+      status: "disabled",
       warnings: [],
       importDisabled: true,
       rejectDisabled: true,
       extensionLabel: "Unknown extension",
       emptyMessage:
-        "No live bridge is enabled. This preview gate is for future extension-to-desktop proposals."
+        "No live bridge is enabled. Future extension-to-desktop proposals will appear here for preview."
     };
   }
   const importDisabled = preview.status !== "pending";
