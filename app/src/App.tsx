@@ -19,6 +19,10 @@ import {
   type AppControlPlaneProjectionView
 } from "./control-plane-view.js";
 import {
+  buildWorkbenchSurfacesView,
+  type AppWorkbenchSurfaceView
+} from "./workbench-surfaces.js";
+import {
   buildEventLogPanelModel,
   buildBridgeProposalPreviewModel,
   buildResultPanelModel,
@@ -133,6 +137,18 @@ export function DesktopShell(): JSX.Element {
   const bridgePanel = useMemo<BridgeProposalPreviewModel>(
     () => buildBridgeProposalPreviewModel(bridgePreview),
     [bridgePreview]
+  );
+  const workbenchSurfaces = useMemo<AppWorkbenchSurfaceView>(
+    () =>
+      buildWorkbenchSurfacesView({
+        eventSummary,
+        controlProjection: controlPlanePanel,
+        conversionResult: result,
+        conversionError:
+          error === undefined ? undefined : { safeMessage: error },
+        preflight
+      }),
+    [controlPlanePanel, error, eventSummary, preflight, result]
   );
   const preflightBadge =
     preflight === undefined
@@ -700,6 +716,114 @@ export function DesktopShell(): JSX.Element {
             >
               <strong>Next action</strong>
               <p>{controlPlanePanel.nextAction.label}</p>
+            </div>
+          </section>
+
+          <section className="eventPanel" aria-label="App Workbench Surfaces">
+            <div className="panelHeader">
+              <h2>Approval / Diff / Audit Surfaces</h2>
+              <span className="muted">Read-only skeleton</span>
+            </div>
+            <p className="fieldHelp">
+              Read-only surfaces for future proposals. No approval, apply, or
+              execution controls are available here.
+            </p>
+
+            <div className="surfaceStack">
+              <section className="surfaceBox" aria-label="Approval Surface">
+                <div className="panelHeader compactHeader">
+                  <h2>Approval Surface</h2>
+                  <span className="muted">
+                    {workbenchSurfaces.approval.status}
+                  </span>
+                </div>
+                {workbenchSurfaces.approval.itemCount === 0 ? (
+                  <p className="empty">
+                    {workbenchSurfaces.approval.emptyMessage}
+                  </p>
+                ) : null}
+                <p className="fieldHelp">
+                  {workbenchSurfaces.approval.nextAction}
+                </p>
+                {workbenchSurfaces.approval.items.length > 0 ? (
+                  <ol className="timeline">
+                    {workbenchSurfaces.approval.items.map((item) => (
+                      <li key={item.id}>
+                        <span className="timelineMeta">
+                          {item.kind} · {item.status}
+                        </span>
+                        <span>{item.summary}</span>
+                      </li>
+                    ))}
+                  </ol>
+                ) : null}
+              </section>
+
+              <section className="surfaceBox" aria-label="Diff Surface">
+                <div className="panelHeader compactHeader">
+                  <h2>Diff Surface</h2>
+                  <span className="muted">{workbenchSurfaces.diff.status}</span>
+                </div>
+                {workbenchSurfaces.diff.items.length === 0 ? (
+                  <p className="empty">{workbenchSurfaces.diff.emptyMessage}</p>
+                ) : null}
+                <dl className="summaryGrid compact">
+                  <div>
+                    <dt>Files</dt>
+                    <dd>{workbenchSurfaces.diff.fileCount}</dd>
+                  </div>
+                  <div>
+                    <dt>Lines + / -</dt>
+                    <dd>
+                      {workbenchSurfaces.diff.linesAdded} /{" "}
+                      {workbenchSurfaces.diff.linesRemoved}
+                    </dd>
+                  </div>
+                </dl>
+                <p className="fieldHelp">{workbenchSurfaces.diff.nextAction}</p>
+              </section>
+
+              <section className="surfaceBox" aria-label="Audit Surface">
+                <div className="panelHeader compactHeader">
+                  <h2>Audit Surface</h2>
+                  <span className="muted">
+                    {workbenchSurfaces.audit.status}
+                  </span>
+                </div>
+                <dl className="summaryGrid compact">
+                  <div>
+                    <dt>Events</dt>
+                    <dd>{workbenchSurfaces.audit.eventCount}</dd>
+                  </div>
+                  <div>
+                    <dt>Displayed</dt>
+                    <dd>{workbenchSurfaces.audit.displayedEventCount}</dd>
+                  </div>
+                  <div>
+                    <dt>Timeline</dt>
+                    <dd>{workbenchSurfaces.audit.timelineCount}</dd>
+                  </div>
+                  <div>
+                    <dt>Safety</dt>
+                    <dd>{workbenchSurfaces.audit.safetyStatus}</dd>
+                  </div>
+                  <div>
+                    <dt>Last event</dt>
+                    <dd>{workbenchSurfaces.audit.lastEventAt}</dd>
+                  </div>
+                  <div>
+                    <dt>Warnings</dt>
+                    <dd>
+                      {workbenchSurfaces.audit.warningCodes.length > 0
+                        ? workbenchSurfaces.audit.warningCodes.join(", ")
+                        : "none"}
+                    </dd>
+                  </div>
+                </dl>
+                <p className="fieldHelp">
+                  {workbenchSurfaces.audit.nextAction}
+                </p>
+              </section>
             </div>
           </section>
 

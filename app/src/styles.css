@@ -213,6 +213,21 @@ textarea {
   padding-top: 16px;
 }
 
+.surfaceStack {
+  display: grid;
+  gap: 14px;
+  margin-top: 14px;
+}
+
+.surfaceBox {
+  border-top: 1px solid #edf1ef;
+  padding-top: 12px;
+}
+
+.compactHeader {
+  margin-bottom: 8px;
+}
+
 .buttonRow {
   display: flex;
   flex-wrap: wrap;

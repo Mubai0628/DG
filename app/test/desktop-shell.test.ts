@@ -15,6 +15,7 @@ import {
   type TauriInvoke
 } from "../src/desktop-flow.js";
 import { buildControlPlaneProjectionView } from "../src/control-plane-view.js";
+import { buildWorkbenchSurfacesView } from "../src/workbench-surfaces.js";
 import {
   buildEventLogPanelModel,
   buildBridgeProposalPreviewModel,
@@ -1294,6 +1295,123 @@ describe("app control-plane projection view", () => {
   });
 });
 
+describe("app approval diff audit surfaces", () => {
+  it("builds empty read-only approval and diff surfaces", () => {
+    const controlProjection = buildControlPlaneProjectionView(undefined);
+    const surfaces = buildWorkbenchSurfacesView({ controlProjection });
+
+    expect(surfaces.readOnly).toBe(true);
+    expect(surfaces.executionEnabled).toBe(false);
+    expect(surfaces.approval.status).toBe("empty");
+    expect(surfaces.approval.emptyMessage).toBe(
+      "No approvals yet. Future patch, capability, git, and shell proposals will appear here before execution."
+    );
+    expect(surfaces.diff.status).toBe("empty");
+    expect(surfaces.diff.emptyMessage).toBe(
+      "No patch proposals yet. Future code changes will appear here as reviewable diffs before apply."
+    );
+  });
+
+  it("maps event summary counts into the audit surface", () => {
+    const eventSummary = fixedEventSummary();
+    const controlProjection = buildControlPlaneProjectionView(eventSummary);
+    const surfaces = buildWorkbenchSurfacesView({
+      eventSummary,
+      controlProjection
+    });
+
+    expect(surfaces.audit.status).toBe("summary");
+    expect(surfaces.audit.eventCount).toBe(2);
+    expect(surfaces.audit.displayedEventCount).toBe(2);
+    expect(surfaces.audit.timelineCount).toBe(1);
+    expect(surfaces.audit.safetyStatus).toBe("ok");
+    expect(surfaces.audit.lastEventAt).toBe("2026-06-16T00:00:01.000Z");
+  });
+
+  it("updates audit surface from conversion result and event summary", () => {
+    const eventSummary = fixedEventSummary({ eventCount: 3 });
+    const result = fixedResult("D:\\workspace");
+    const controlProjection = buildControlPlaneProjectionView(
+      eventSummary,
+      result
+    );
+    const surfaces = buildWorkbenchSurfacesView({
+      eventSummary,
+      controlProjection,
+      conversionResult: result
+    });
+
+    expect(controlProjection.runStatus).toBe("completed");
+    expect(surfaces.audit.status).toBe("summary");
+    expect(surfaces.audit.eventCount).toBe(3);
+    expect(surfaces.audit.nextAction).toContain("Event Log / Replay");
+  });
+
+  it("keeps prior surface state for FILE_EXISTS with actionable next action", () => {
+    const eventSummary = fixedEventSummary();
+    const controlProjection = buildControlPlaneProjectionView(
+      eventSummary,
+      undefined,
+      fixedPreflight(),
+      {
+        errorCode: "FILE_EXISTS",
+        safeMessage:
+          "Draft already exists: drafts/table.csv. Choose a new draft filename or remove the existing file."
+      }
+    );
+    const surfaces = buildWorkbenchSurfacesView({
+      eventSummary,
+      controlProjection,
+      conversionError: {
+        errorCode: "FILE_EXISTS",
+        safeMessage:
+          "Draft already exists: drafts/table.csv. Choose a new draft filename or remove the existing file."
+      }
+    });
+
+    expect(controlProjection.runStatus).toBe("completed");
+    expect(surfaces.audit.eventCount).toBe(2);
+    expect(surfaces.audit.warningCodes).toContain("FILE_EXISTS");
+    expect(surfaces.audit.nextAction).toBe(
+      "Choose a new draft filename or remove the existing file."
+    );
+  });
+
+  it("summarizes future refs without raw source or secrets", () => {
+    const secret = "sk-test1234567890abcdef";
+    const controlProjection = buildControlPlaneProjectionView(undefined);
+    const surfaces = buildWorkbenchSurfacesView({
+      controlProjection,
+      futureApprovalRefs: [
+        {
+          id: "approval-1",
+          kind: "patch",
+          status: "pending",
+          summary: `Approve summary with ${secret}`
+        }
+      ],
+      futurePatchRefs: [
+        {
+          id: "patch-1",
+          fileCount: 1,
+          linesAdded: 2,
+          linesRemoved: 1,
+          summary: `Diff summary with raw source ${secret}`
+        }
+      ]
+    });
+    const serialized = JSON.stringify(surfaces);
+
+    expect(surfaces.approval.status).toBe("pending");
+    expect(surfaces.diff.status).toBe("summary");
+    expect(surfaces.diff.fileCount).toBe(1);
+    expect(serialized).not.toContain(secret);
+    expect(serialized).not.toContain("rawPayload");
+    expect(serialized).not.toContain("csvContent");
+    expect(serialized).not.toContain("rawDom");
+  });
+});
+
 describe("desktop source boundaries", () => {
   it("keeps refresh events and docs actions from navigating or resetting UI state", async () => {
     const appSource = await readFile(
@@ -1321,11 +1439,21 @@ describe("desktop source boundaries", () => {
     expect(appSource).toContain("Read-only projection from event summaries");
     expect(appSource).toContain("No execution is");
     expect(appSource).toContain("buildControlPlaneProjectionView");
+    expect(appSource).toContain("Approval / Diff / Audit Surfaces");
+    expect(appSource).toContain("Read-only skeleton");
+    expect(appSource).toContain("No approval, apply, or");
+    expect(appSource).toContain("Approval Surface");
+    expect(appSource).toContain("Diff Surface");
+    expect(appSource).toContain("Audit Surface");
+    expect(appSource).toContain("workbenchSurfaces");
     expect(appSource).toContain("No live bridge is enabled");
     expect(appSource).toContain("Convert still requires a separate click");
     expect(appSource).not.toContain("Events written");
     expect(appSource).not.toContain("auto approval");
     expect(appSource).not.toContain("Auto Convert");
+    expect(appSource).not.toContain("handleApprove");
+    expect(appSource).not.toContain("handleApply");
+    expect(appSource).not.toContain("handleExecute");
     expect(appSource).not.toContain(".slice(");
     expect(appSource).not.toContain(
       'href="../docs/desktop-event-log-smoke-v0.1.md"'
@@ -1347,6 +1475,8 @@ describe("desktop source boundaries", () => {
       "src/App.tsx",
       "src/desktop-flow.ts",
       "src/safety.ts",
+      "src/control-plane-view.ts",
+      "src/workbench-surfaces.ts",
       "scripts/preflight.mjs",
       "scripts/run-flow.mjs",
       "src-tauri/src/main.rs",
@@ -1375,6 +1505,9 @@ describe("desktop source boundaries", () => {
     expect(nonCommandSource).not.toContain("localStorage");
     expect(nonCommandSource).not.toContain("sessionStorage");
     expect(combined).not.toContain("shell:allow");
+    expect(combined).not.toContain("approve_surface_command");
+    expect(combined).not.toContain("apply_patch_command");
+    expect(combined).not.toContain("execute_surface_command");
     expect(combined).toContain(".current_dir(cwd)");
     expect(combined).toContain(".args(args)");
     expect(combined).toContain("env_clear()");
@@ -1443,6 +1576,31 @@ describe("desktop source boundaries", () => {
     expect(combined).toContain("localhost server enabled by default");
     expect(combined).not.toMatch(/localhost server is supported/i);
     expect(combined).not.toMatch(/automatic Convert is supported/i);
+  });
+
+  it("documents app approval diff audit surfaces as read-only skeletons", async () => {
+    const docs = await Promise.all(
+      ["app-shell-approval-diff-audit-surfaces-v0.2.md", "README.md"].map(
+        async (file) => ({
+          file,
+          text: await readFile(path.join(repoRoot, "docs", file), "utf8")
+        })
+      )
+    );
+    const combined = docs.map((doc) => doc.text).join("\n");
+
+    expect(combined).toContain("read-only skeleton");
+    expect(combined).toMatch(/do not execute any side\s+effect/);
+    expect(combined).toContain(
+      "There are no approve or reject execution controls"
+    );
+    expect(combined).toContain("does not apply patches");
+    expect(combined).toContain("Git execution");
+    expect(combined).toContain("shell execution");
+    expect(combined).toContain("real DeepSeek calls");
+    expect(combined).toContain(
+      "app-shell-approval-diff-audit-surfaces-v0.2.md"
+    );
   });
 
   it("configures the offline desktop QA check without GUI or DeepSeek calls", async () => {
