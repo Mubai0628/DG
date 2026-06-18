@@ -27,6 +27,11 @@ import {
   type AppMemoryInspectorView
 } from "./memory-inspector-view.js";
 import {
+  buildChatRunCanvasView,
+  type AppChatRunCanvasView,
+  type AppRunCanvasIntent
+} from "./chat-run-canvas-view.js";
+import {
   buildEventLogPanelModel,
   buildBridgeProposalPreviewModel,
   buildResultPanelModel,
@@ -119,6 +124,10 @@ export function DesktopShell(): JSX.Element {
     BridgeProposalPreviewState | undefined
   >();
   const [bridgeMessage, setBridgeMessage] = useState<string | undefined>();
+  const [selectedIntent, setSelectedIntent] =
+    useState<AppRunCanvasIntent>("unknown");
+  const [objectiveDraft, setObjectiveDraft] = useState("");
+  const [acceptanceCriteriaDraft, setAcceptanceCriteriaDraft] = useState("");
 
   const panel = useMemo<ResultPanelModel | undefined>(
     () => (result === undefined ? undefined : buildResultPanelModel(result)),
@@ -163,6 +172,36 @@ export function DesktopShell(): JSX.Element {
           error === undefined ? undefined : { safeMessage: error }
       }),
     [controlPlanePanel, error, eventSummary]
+  );
+  const chatRunCanvas = useMemo<AppChatRunCanvasView>(
+    () =>
+      buildChatRunCanvasView({
+        objectiveDraft,
+        selectedIntent,
+        acceptanceCriteriaDraft,
+        workspaceRoot,
+        controlProjection: controlPlanePanel,
+        eventSummary,
+        conversionResult: result,
+        conversionError:
+          error === undefined ? undefined : { safeMessage: error },
+        preflight,
+        memoryInspector,
+        approvalDiffAuditSurfaces: workbenchSurfaces
+      }),
+    [
+      acceptanceCriteriaDraft,
+      controlPlanePanel,
+      error,
+      eventSummary,
+      memoryInspector,
+      objectiveDraft,
+      preflight,
+      result,
+      selectedIntent,
+      workbenchSurfaces,
+      workspaceRoot
+    ]
   );
   const bridgeActionsVisible =
     bridgePanel.status === "pending" && bridgePanel.emptyMessage === undefined;
@@ -540,6 +579,146 @@ export function DesktopShell(): JSX.Element {
               <p>{error}</p>
             </div>
           ) : null}
+
+          <section className="eventPanel" aria-label="Chat Run Canvas">
+            <div className="panelHeader">
+              <h2>Chat / Run Canvas</h2>
+              <span className="muted">Draft only</span>
+            </div>
+            <p className="fieldHelp">
+              This canvas is a local draft surface. No LLM request is sent and
+              no run is created in this phase.
+            </p>
+
+            <label>
+              <span>Future task intent</span>
+              <select
+                value={selectedIntent}
+                onChange={(event) =>
+                  setSelectedIntent(event.target.value as AppRunCanvasIntent)
+                }
+              >
+                <option value="web_data_extraction">web_data_extraction</option>
+                <option value="code_change">code_change</option>
+                <option value="code_review">code_review</option>
+                <option value="verification">verification</option>
+                <option value="documentation">documentation</option>
+                <option value="unknown">unknown</option>
+              </select>
+            </label>
+
+            <label>
+              <span>Objective draft</span>
+              <textarea
+                className="compactTextarea"
+                value={objectiveDraft}
+                onChange={(event) => setObjectiveDraft(event.target.value)}
+                placeholder="Draft a future local objective"
+                spellCheck={false}
+              />
+            </label>
+
+            <label>
+              <span>Acceptance criteria draft</span>
+              <textarea
+                className="compactTextarea"
+                value={acceptanceCriteriaDraft}
+                onChange={(event) =>
+                  setAcceptanceCriteriaDraft(event.target.value)
+                }
+                placeholder="One criterion per line"
+                spellCheck={false}
+              />
+            </label>
+
+            <div className="buttonRow">
+              <button
+                type="button"
+                className="secondary"
+                disabled={true}
+                aria-disabled="true"
+              >
+                Create Run (disabled)
+              </button>
+            </div>
+            <p className="fieldHelp">
+              Create Run is disabled until execution gates are implemented.
+            </p>
+
+            <dl className="summaryGrid compact">
+              <div>
+                <dt>Canvas status</dt>
+                <dd>{chatRunCanvas.status}</dd>
+              </div>
+              <div>
+                <dt>Intent</dt>
+                <dd>{chatRunCanvas.intent}</dd>
+              </div>
+              <div>
+                <dt>Criteria</dt>
+                <dd>{chatRunCanvas.acceptanceCriteriaCount}</dd>
+              </div>
+              <div>
+                <dt>Can create run</dt>
+                <dd>{chatRunCanvas.canCreateRun ? "yes" : "no"}</dd>
+              </div>
+              <div>
+                <dt>Can send to model</dt>
+                <dd>{chatRunCanvas.canSendToModel ? "yes" : "no"}</dd>
+              </div>
+              <div>
+                <dt>Latest run</dt>
+                <dd>{chatRunCanvas.runCanvas.runStatus}</dd>
+              </div>
+              <div>
+                <dt>Phase</dt>
+                <dd>{chatRunCanvas.runCanvas.phase}</dd>
+              </div>
+              <div>
+                <dt>Artifacts</dt>
+                <dd>{chatRunCanvas.runCanvas.artifactCount}</dd>
+              </div>
+              <div>
+                <dt>Events</dt>
+                <dd>{chatRunCanvas.runCanvas.eventCount}</dd>
+              </div>
+              <div>
+                <dt>Surfaces</dt>
+                <dd>
+                  approval {chatRunCanvas.runCanvas.approvalStatus} · diff{" "}
+                  {chatRunCanvas.runCanvas.diffStatus} · audit{" "}
+                  {chatRunCanvas.runCanvas.auditStatus} · memory{" "}
+                  {chatRunCanvas.runCanvas.memoryStatus}
+                </dd>
+              </div>
+            </dl>
+
+            <p className="fieldHelp">
+              Objective summary: {chatRunCanvas.objectiveSummary}
+            </p>
+            <p className="fieldHelp">
+              Acceptance preview:{" "}
+              {chatRunCanvas.chatDraft.acceptanceCriteria.summary}
+            </p>
+            <p className="fieldHelp">
+              Latest result: {chatRunCanvas.runCanvas.latestResult}
+            </p>
+            {chatRunCanvas.warnings.length > 0 ? (
+              <p className="muted">
+                warnings {chatRunCanvas.warnings.join(", ")}
+              </p>
+            ) : null}
+            <div
+              className={
+                chatRunCanvas.nextAction.severity === "blocked"
+                  ? "errorBox"
+                  : "statusBox"
+              }
+            >
+              <strong>Next action</strong>
+              <p>{chatRunCanvas.nextAction.label}</p>
+            </div>
+          </section>
 
           <section className="eventPanel">
             <div className="panelHeader">

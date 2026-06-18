@@ -17,6 +17,7 @@ import {
 import { buildControlPlaneProjectionView } from "../src/control-plane-view.js";
 import { buildWorkbenchSurfacesView } from "../src/workbench-surfaces.js";
 import { buildMemoryInspectorView } from "../src/memory-inspector-view.js";
+import { buildChatRunCanvasView } from "../src/chat-run-canvas-view.js";
 import {
   buildEventLogPanelModel,
   buildBridgeProposalPreviewModel,
@@ -1560,6 +1561,125 @@ describe("app memory inspector skeleton", () => {
   });
 });
 
+describe("app chat run canvas skeleton", () => {
+  it("builds empty draft-only chat run canvas view", () => {
+    const controlProjection = buildControlPlaneProjectionView(undefined);
+    const surfaces = buildWorkbenchSurfacesView({ controlProjection });
+    const memoryInspector = buildMemoryInspectorView();
+    const view = buildChatRunCanvasView({
+      controlProjection,
+      memoryInspector,
+      approvalDiffAuditSurfaces: surfaces
+    });
+
+    expect(view.status).toBe("empty");
+    expect(view.source).toBe("local_state_only");
+    expect(view.canCreateRun).toBe(false);
+    expect(view.canSendToModel).toBe(false);
+    expect(view.intent).toBe("unknown");
+    expect(view.objectiveSummary).toBe("No objective draft yet.");
+    expect(view.acceptanceCriteriaCount).toBe(0);
+    expect(view.nextAction.label).toContain("No LLM request is sent");
+  });
+
+  it("builds local draft preview without enabling run or model send", () => {
+    const eventSummary = fixedEventSummary({ eventCount: 5 });
+    const result = fixedResult("D:\\workspace");
+    const controlProjection = buildControlPlaneProjectionView(
+      eventSummary,
+      result
+    );
+    const surfaces = buildWorkbenchSurfacesView({
+      eventSummary,
+      controlProjection,
+      conversionResult: result
+    });
+    const memoryInspector = buildMemoryInspectorView({ eventSummary });
+    const view = buildChatRunCanvasView({
+      objectiveDraft: "Export the visible table and inspect the summaries.",
+      selectedIntent: "web_data_extraction",
+      acceptanceCriteriaDraft: "CSV exists\nEvent summary updates",
+      workspaceRoot: "D:\\workspace",
+      controlProjection,
+      eventSummary,
+      conversionResult: result,
+      memoryInspector,
+      approvalDiffAuditSurfaces: surfaces
+    });
+
+    expect(view.status).toBe("ready_preview");
+    expect(view.intent).toBe("web_data_extraction");
+    expect(view.acceptanceCriteriaCount).toBe(2);
+    expect(view.contextHintCount).toBeGreaterThan(0);
+    expect(view.canCreateRun).toBe(false);
+    expect(view.canSendToModel).toBe(false);
+    expect(view.runCanvas.runStatus).toBe("completed");
+    expect(view.runCanvas.eventCount).toBe(5);
+    expect(view.runCanvas.auditStatus).toBe("summary");
+    expect(view.runCanvas.memoryStatus).toBe("empty");
+  });
+
+  it("warns on fake API key and raw data markers without exposing summary", () => {
+    const secret = "sk-test1234567890abcdef";
+    const controlProjection = buildControlPlaneProjectionView(undefined);
+    const surfaces = buildWorkbenchSurfacesView({ controlProjection });
+    const memoryInspector = buildMemoryInspectorView();
+    const view = buildChatRunCanvasView({
+      objectiveDraft: `Inspect rawDom and raw CSV without keeping ${secret}`,
+      acceptanceCriteriaDraft: "rawPrompt is withheld",
+      controlProjection,
+      memoryInspector,
+      approvalDiffAuditSurfaces: surfaces
+    });
+    const serialized = JSON.stringify(view);
+
+    expect(view.warnings).toContain("API_KEY_MARKER");
+    expect(view.warnings).toContain("RAW_DOM_MARKER");
+    expect(view.warnings).toContain("RAW_CSV_MARKER");
+    expect(view.warnings).toContain("RAW_PROMPT_MARKER");
+    expect(view.objectiveSummary).toBe(
+      "Draft summary withheld by safety policy."
+    );
+    expect(serialized).not.toContain(secret);
+    expect(serialized).not.toContain("rawDom");
+    expect(serialized).not.toContain("rawPrompt");
+  });
+
+  it("keeps FILE_EXISTS actionable without creating a run", () => {
+    const eventSummary = fixedEventSummary();
+    const controlProjection = buildControlPlaneProjectionView(eventSummary);
+    const surfaces = buildWorkbenchSurfacesView({
+      eventSummary,
+      controlProjection,
+      conversionError: {
+        errorCode: "FILE_EXISTS",
+        safeMessage:
+          "Draft already exists. Choose a new draft filename or remove the existing file."
+      }
+    });
+    const memoryInspector = buildMemoryInspectorView({ eventSummary });
+    const view = buildChatRunCanvasView({
+      objectiveDraft: "Try another file name.",
+      selectedIntent: "web_data_extraction",
+      controlProjection,
+      eventSummary,
+      conversionError: {
+        errorCode: "FILE_EXISTS",
+        safeMessage:
+          "Draft already exists. Choose a new draft filename or remove the existing file."
+      },
+      memoryInspector,
+      approvalDiffAuditSurfaces: surfaces
+    });
+
+    expect(view.canCreateRun).toBe(false);
+    expect(view.nextAction.label).toBe(
+      "Choose a new draft filename or remove the existing file."
+    );
+    expect(view.runCanvas.auditStatus).toBe("warning");
+  });
+});
+
 describe("desktop source boundaries", () => {
   it("keeps refresh events and docs actions from navigating or resetting UI state", async () => {
     const appSource = await readFile(
@@ -1599,6 +1719,14 @@ describe("desktop source boundaries", () => {
     expect(appSource).toContain("Read-only skeleton");
     expect(appSource).toContain("not connected to persistence");
     expect(appSource).toContain("Commit gate UI is not enabled");
+    expect(appSource).toContain("Chat / Run Canvas");
+    expect(appSource).toContain("Draft only");
+    expect(appSource).toContain("No LLM request is sent");
+    expect(appSource).toContain("Create Run (disabled)");
+    expect(appSource).toContain('aria-disabled="true"');
+    expect(appSource).toContain("chatRunCanvas");
+    expect(appSource).toContain("Objective summary:");
+    expect(appSource).toContain("Acceptance preview:");
     expect(appSource).toContain("No live bridge is enabled");
     expect(appSource).toContain("Future extension-to-desktop proposals");
     expect(appSource).toContain("bridgeActionsVisible");
@@ -1613,9 +1741,15 @@ describe("desktop source boundaries", () => {
     expect(appSource).not.toContain("handleCommitMemory");
     expect(appSource).not.toContain("handleRevokeMemory");
     expect(appSource).not.toContain("handleExpireMemory");
+    expect(appSource).not.toContain("handleCreateRun");
+    expect(appSource).not.toContain("handleSendChat");
+    expect(appSource).not.toContain("handleRunCanvas");
     expect(appSource).not.toContain("commit_memory_command");
     expect(appSource).not.toContain("revoke_memory_command");
     expect(appSource).not.toContain("expire_memory_command");
+    expect(appSource).not.toContain("create_run_command");
+    expect(appSource).not.toContain("send_chat_command");
+    expect(appSource).not.toContain("run_canvas_command");
     expect(appSource).not.toContain(".slice(");
     expect(appSource).not.toContain(
       'href="../docs/desktop-event-log-smoke-v0.1.md"'
@@ -1673,6 +1807,7 @@ describe("desktop source boundaries", () => {
       "src/control-plane-view.ts",
       "src/workbench-surfaces.ts",
       "src/memory-inspector-view.ts",
+      "src/chat-run-canvas-view.ts",
       "scripts/preflight.mjs",
       "scripts/run-flow.mjs",
       "src-tauri/src/main.rs",
@@ -1819,6 +1954,27 @@ describe("desktop source boundaries", () => {
     expect(combined).toContain("No real DeepSeek calls");
     expect(combined).toContain("No raw memory content display");
     expect(combined).toContain("app-shell-memory-inspector-v0.2.md");
+  });
+
+  it("documents app chat run canvas as draft-only and non-executing", async () => {
+    const docs = await Promise.all(
+      ["app-shell-chat-run-canvas-v0.2.md", "README.md"].map(async (file) => ({
+        file,
+        text: await readFile(path.join(repoRoot, "docs", file), "utf8")
+      }))
+    );
+    const combined = docs.map((doc) => doc.text).join("\n");
+
+    expect(combined).toContain("draft-only skeleton");
+    expect(combined).toContain("does not send chat requests");
+    expect(combined).toContain("No LLM request is sent");
+    expect(combined).toContain("No run is created");
+    expect(combined).toContain("not written to EventStore");
+    expect(combined).toContain("localStorage");
+    expect(combined).toContain("sessionStorage");
+    expect(combined).toContain("No DeepSeek call");
+    expect(combined).toContain("No patch, Git, or shell execution");
+    expect(combined).toContain("app-shell-chat-run-canvas-v0.2.md");
   });
 
   it("configures the offline desktop QA check without GUI or DeepSeek calls", async () => {

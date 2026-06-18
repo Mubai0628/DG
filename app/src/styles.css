@@ -22,6 +22,7 @@ body {
 
 button,
 input,
+select,
 textarea {
   font: inherit;
 }
@@ -114,6 +115,7 @@ label span {
 }
 
 input,
+select,
 textarea {
   background: #fbfcfb;
   border: 1px solid #cbd5d0;
@@ -126,6 +128,10 @@ textarea {
 textarea {
   min-height: 260px;
   resize: vertical;
+}
+
+.compactTextarea {
+  min-height: 96px;
 }
 
 .primary {

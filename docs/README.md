@@ -18,6 +18,7 @@ DeepSeek Workbench documentation is organized around the current v0.1
 - [App Shell Control Plane Projection v0.2](app-shell-control-plane-projection-v0.2.md)
 - [App Shell Approval / Diff / Audit Surfaces v0.2](app-shell-approval-diff-audit-surfaces-v0.2.md)
 - [App Shell Memory Inspector v0.2](app-shell-memory-inspector-v0.2.md)
+- [App Shell Chat / Run Canvas v0.2](app-shell-chat-run-canvas-v0.2.md)
 - [v0.1 threat model](threat-model-v0.1.md)
 - [Extension to desktop bridge threat model v0.1](extension-desktop-bridge-threat-model-v0.1.md)
 - [Bridge protocol dry harness v0.1](bridge-protocol-dry-harness-v0.1.md)
