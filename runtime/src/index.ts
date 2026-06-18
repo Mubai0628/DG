@@ -39,6 +39,7 @@ export * from "./conversation/index.js";
 export * from "./agents/index.js";
 export * from "./bridge/index.js";
 export * from "./capabilities/index.js";
+export * from "./control-plane/index.js";
 export * from "./context/index.js";
 export * from "./memory/index.js";
 export * from "./deepseek/index.js";

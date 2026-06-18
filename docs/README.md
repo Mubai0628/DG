@@ -13,6 +13,8 @@ DeepSeek Workbench documentation is organized around the current v0.1
 - [Memory Core v0.2](memory-core-v0.2.md)
 - [Patch and Diff Audit v0.2](patch-diff-audit-v0.2.md)
 - [Git Safe Lanes v0.2](git-safe-lanes-v0.2.md)
+- [Shell Allowlist v0.2](shell-allowlist-v0.2.md)
+- [Control Plane v0.2](control-plane-v0.2.md)
 - [v0.1 threat model](threat-model-v0.1.md)
 - [Extension to desktop bridge threat model v0.1](extension-desktop-bridge-threat-model-v0.1.md)
 - [Bridge protocol dry harness v0.1](bridge-protocol-dry-harness-v0.1.md)
