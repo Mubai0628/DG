@@ -398,7 +398,11 @@ export function DesktopShell(): JSX.Element {
           >
             <div className="panelHeader">
               <h2>Bridge Proposal Preview (dry)</h2>
-              <span className="muted">{bridgePanel.status}</span>
+              <span className="muted">
+                {bridgePanel.status === "disabled"
+                  ? "Disabled - no live bridge is enabled."
+                  : bridgePanel.status}
+              </span>
             </div>
             <p className="fieldHelp">
               No live bridge is enabled. Future extension-to-desktop proposals
@@ -583,7 +587,9 @@ export function DesktopShell(): JSX.Element {
           <section className="eventPanel" aria-label="Chat Run Canvas">
             <div className="panelHeader">
               <h2>Chat / Run Canvas</h2>
-              <span className="muted">Draft only</span>
+              <span className="muted">
+                Draft only - no LLM request is sent.
+              </span>
             </div>
             <p className="fieldHelp">
               This canvas is a local draft surface. No LLM request is sent and
@@ -821,7 +827,9 @@ export function DesktopShell(): JSX.Element {
           <section className="eventPanel" aria-label="Control Plane Projection">
             <div className="panelHeader">
               <h2>Control Plane Projection</h2>
-              <span className="muted">Read-only projection</span>
+              <span className="muted">
+                Read-only projection from event summaries
+              </span>
             </div>
             <p className="fieldHelp">
               Read-only projection from event summaries. No execution is
@@ -921,7 +929,9 @@ export function DesktopShell(): JSX.Element {
           <section className="eventPanel" aria-label="App Workbench Surfaces">
             <div className="panelHeader">
               <h2>Approval / Diff / Audit Surfaces</h2>
-              <span className="muted">Read-only skeleton</span>
+              <span className="muted">
+                Read-only skeleton - no execution controls
+              </span>
             </div>
             <p className="fieldHelp">
               Read-only surfaces for future proposals. No approval, apply, or
@@ -1029,7 +1039,9 @@ export function DesktopShell(): JSX.Element {
           <section className="eventPanel" aria-label="Memory Inspector">
             <div className="panelHeader">
               <h2>Memory Inspector</h2>
-              <span className="muted">Read-only skeleton</span>
+              <span className="muted">
+                Read-only skeleton - not connected to persistence
+              </span>
             </div>
             <p className="fieldHelp">
               Runtime Memory Core is available, but this inspector is read-only

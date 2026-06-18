@@ -1310,11 +1310,11 @@ describe("app approval diff audit surfaces", () => {
     expect(surfaces.executionEnabled).toBe(false);
     expect(surfaces.approval.status).toBe("empty");
     expect(surfaces.approval.emptyMessage).toBe(
-      "No approvals yet. Future patch, capability, git, and shell proposals will appear here before execution."
+      "No approvals yet. Future patch, capability, git, and shell proposals will appear here as summaries before any execution gate."
     );
     expect(surfaces.diff.status).toBe("empty");
     expect(surfaces.diff.emptyMessage).toBe(
-      "No patch proposals yet. Future code changes will appear here as reviewable diffs before apply."
+      "No patch proposals yet. Future code changes will appear here as reviewable diff summaries before any future apply gate."
     );
   });
 
@@ -1703,12 +1703,13 @@ describe("desktop source boundaries", () => {
     expect(appSource).toContain("Bridge Proposal Preview (dry)");
     expect(appSource).toContain("Import to Payload Editor");
     expect(appSource).toContain("Reject Proposal");
+    expect(appSource).toContain("Disabled - no live bridge is enabled.");
     expect(appSource).toContain("Control Plane Projection");
     expect(appSource).toContain("Read-only projection from event summaries");
     expect(appSource).toContain("No execution is");
     expect(appSource).toContain("buildControlPlaneProjectionView");
     expect(appSource).toContain("Approval / Diff / Audit Surfaces");
-    expect(appSource).toContain("Read-only skeleton");
+    expect(appSource).toContain("Read-only skeleton - no execution controls");
     expect(appSource).toContain("No approval, apply, or");
     expect(appSource).toContain("Approval Surface");
     expect(appSource).toContain("Diff Surface");
@@ -1716,11 +1717,13 @@ describe("desktop source boundaries", () => {
     expect(appSource).toContain("workbenchSurfaces");
     expect(appSource).toContain("Memory Inspector");
     expect(appSource).toContain("memoryInspector");
-    expect(appSource).toContain("Read-only skeleton");
+    expect(appSource).toContain(
+      "Read-only skeleton - not connected to persistence"
+    );
     expect(appSource).toContain("not connected to persistence");
     expect(appSource).toContain("Commit gate UI is not enabled");
     expect(appSource).toContain("Chat / Run Canvas");
-    expect(appSource).toContain("Draft only");
+    expect(appSource).toContain("Draft only - no LLM request is sent.");
     expect(appSource).toContain("No LLM request is sent");
     expect(appSource).toContain("Create Run (disabled)");
     expect(appSource).toContain('aria-disabled="true"');
@@ -1744,12 +1747,28 @@ describe("desktop source boundaries", () => {
     expect(appSource).not.toContain("handleCreateRun");
     expect(appSource).not.toContain("handleSendChat");
     expect(appSource).not.toContain("handleRunCanvas");
+    expect(appSource).not.toContain("handleSendToDeepSeek");
+    expect(appSource).not.toContain("handleRunGit");
+    expect(appSource).not.toContain("handleRunShell");
+    expect(appSource).not.toContain("handleEnableBridge");
+    expect(appSource).not.toContain("Send to DeepSeek");
+    expect(appSource).not.toContain("Create Run</button>");
+    expect(appSource).not.toContain("Apply Patch");
+    expect(appSource).not.toContain("Run Git");
+    expect(appSource).not.toContain("Run Shell");
+    expect(appSource).not.toContain("Enable native bridge");
+    expect(appSource).not.toContain("Native bridge enabled");
+    expect(appSource).not.toContain("Approve and execute");
+    expect(appSource).not.toContain("Memory commit enabled");
     expect(appSource).not.toContain("commit_memory_command");
     expect(appSource).not.toContain("revoke_memory_command");
     expect(appSource).not.toContain("expire_memory_command");
     expect(appSource).not.toContain("create_run_command");
     expect(appSource).not.toContain("send_chat_command");
     expect(appSource).not.toContain("run_canvas_command");
+    expect(appSource).not.toContain("git_execute_command");
+    expect(appSource).not.toContain("shell_execute_command");
+    expect(appSource).not.toContain("native_bridge_command");
     expect(appSource).not.toContain(".slice(");
     expect(appSource).not.toContain(
       'href="../docs/desktop-event-log-smoke-v0.1.md"'
@@ -1975,6 +1994,103 @@ describe("desktop source boundaries", () => {
     expect(combined).toContain("No DeepSeek call");
     expect(combined).toContain("No patch, Git, or shell execution");
     expect(combined).toContain("app-shell-chat-run-canvas-v0.2.md");
+  });
+
+  it("documents the v0.2 App Shell RC release notes without enabling execution", async () => {
+    const docs = await Promise.all(
+      ["release-notes-v0.2.0-app-shell-rc.1.md", "README.md"].map(
+        async (file) => ({
+          file,
+          text: await readFile(path.join(repoRoot, "docs", file), "utf8")
+        })
+      )
+    );
+    const rootReadme = await readFile(path.join(repoRoot, "README.md"), "utf8");
+    const combined = `${docs.map((doc) => doc.text).join("\n")}\n${rootReadme}`;
+
+    expect(combined).toContain("v0.2.0-app-shell-rc.1");
+    expect(combined).toContain("v0.2 Control Plane foundation");
+    expect(combined).toContain("Model capability profiles");
+    expect(combined).toContain("Rules Ledger v2");
+    expect(combined).toContain("Capability Broker v2 skeleton");
+    expect(combined).toContain("Agent Dossier static router");
+    expect(combined).toContain("Memory Core v1");
+    expect(combined).toContain("Patch/Diff Audit foundation");
+    expect(combined).toContain("Git Safe Lanes");
+    expect(combined).toContain("Shell Allowlist");
+    expect(combined).toContain("Control Plane Task/Run skeleton");
+    expect(combined).toContain("App Shell Chat / Run Canvas");
+    expect(combined).toContain("web_table_to_csv");
+    expect(combined).toContain("Event Log / Replay");
+    expect(combined).toContain("No real chat or LLM execution");
+    expect(combined).toContain("No real control-plane run creation");
+    expect(combined).toContain("No patch apply");
+    expect(combined).toContain("No Git execution");
+    expect(combined).toContain("No shell execution");
+    expect(combined).toContain("No MCP, plugin, or skills runtime");
+    expect(combined).toContain("No `nativeMessaging`");
+    expect(combined).toContain("summary-only");
+    expect(combined).toContain("pnpm verify:ci");
+    expect(combined).toContain("pnpm release:smoke");
+    expect(combined).toContain("pnpm app:qa:check");
+    expect(combined).toContain("release-notes-v0.2.0-app-shell-rc.1.md");
+  });
+
+  it("documents the v0.2 App Shell manual QA flow", async () => {
+    const qaDoc = await readFile(
+      path.join(repoRoot, "docs", "app-shell-v0.2-manual-qa.md"),
+      "utf8"
+    );
+
+    expect(qaDoc).toContain("pnpm verify:ci");
+    expect(qaDoc).toContain("pnpm release:smoke");
+    expect(qaDoc).toContain("pnpm app:qa:check");
+    expect(qaDoc).toContain("git status --short");
+    expect(qaDoc).toContain("pnpm app:dev");
+    expect(qaDoc).toContain("D:\\workspaces\\demo");
+    expect(qaDoc).toContain("web-table-export-v02.csv");
+    expect(qaDoc).toContain("Chat / Run Canvas");
+    expect(qaDoc).toContain("Control Plane Projection");
+    expect(qaDoc).toContain("Approval Surface");
+    expect(qaDoc).toContain("Diff Surface");
+    expect(qaDoc).toContain("Audit Surface");
+    expect(qaDoc).toContain("Memory Inspector");
+    expect(qaDoc).toContain("Bridge Proposal Preview");
+    expect(qaDoc).toContain("Refresh events");
+    expect(qaDoc).toContain("FILE_EXISTS");
+    expect(qaDoc).toContain("PASSWORD_VALUE_MARKER");
+    expect(qaDoc).toContain("No DeepSeek chat execution");
+    expect(qaDoc).toContain("No patch, Git, or shell execution");
+    expect(qaDoc).toContain("No native bridge");
+  });
+
+  it("documents the v0.2 App Shell RC checklist and generated artifact boundaries", async () => {
+    const checklist = await readFile(
+      path.join(repoRoot, "docs", "app-shell-v0.2-rc-checklist.md"),
+      "utf8"
+    );
+    const docsIndex = await readFile(
+      path.join(repoRoot, "docs", "README.md"),
+      "utf8"
+    );
+    const appReadme = await readFile(path.join(appRoot, "README.md"), "utf8");
+
+    expect(checklist).toContain("pnpm verify:ci");
+    expect(checklist).toContain("pnpm release:smoke");
+    expect(checklist).toContain("pnpm app:qa:check");
+    expect(checklist).toContain("GitHub Actions");
+    expect(checklist).toContain("v0.2.0-app-shell-rc.1");
+    expect(checklist).toContain("runtime/dist/");
+    expect(checklist).toContain("browser-extension/dist/");
+    expect(checklist).toContain("app/src-tauri/target/");
+    expect(checklist).toContain("No real chat or LLM execution");
+    expect(checklist).toContain("No `nativeMessaging` or live bridge");
+    expect(checklist).toContain("release-notes-v0.2.0-app-shell-rc.1.md");
+    expect(docsIndex).toContain("release-notes-v0.2.0-app-shell-rc.1.md");
+    expect(docsIndex).toContain("app-shell-v0.2-manual-qa.md");
+    expect(docsIndex).toContain("app-shell-v0.2-rc-checklist.md");
+    expect(appReadme).toContain("draft-only or read-only summaries");
+    expect(appReadme).toContain("no real chat, run creation");
   });
 
   it("configures the offline desktop QA check without GUI or DeepSeek calls", async () => {

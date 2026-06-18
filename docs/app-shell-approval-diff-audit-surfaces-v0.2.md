@@ -21,7 +21,7 @@ and bridge proposals. It can show empty, pending, blocked, or warning state.
 Current empty state:
 
 > No approvals yet. Future patch, capability, git, and shell proposals will
-> appear here before execution.
+> appear here as summaries before any execution gate.
 
 There are no approve or reject execution controls in this task.
 
@@ -33,7 +33,7 @@ file counts and line counts only when future patch refs are supplied.
 Current empty state:
 
 > No patch proposals yet. Future code changes will appear here as reviewable
-> diffs before apply.
+> diff summaries before any future apply gate.
 
 It does not show raw source code and does not apply patches.
 

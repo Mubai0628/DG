@@ -45,6 +45,29 @@ Desktop RC references:
 - [Desktop manual QA](docs/desktop-manual-qa-v0.1.md)
 - [Desktop troubleshooting](docs/desktop-troubleshooting-v0.1.md)
 
+## v0.2 App Shell RC planning status
+
+`v0.2.0-app-shell-rc.1` is a planning and UI release-candidate line for the
+desktop shell. It adds draft-only and read-only App Shell surfaces over the
+existing event summaries:
+
+- Chat / Run Canvas draft surface.
+- Control Plane Projection.
+- Approval / Diff / Audit read-only surfaces.
+- Memory Inspector read-only skeleton.
+- Disabled Bridge Proposal Preview dry state.
+
+These surfaces do not create runs, send chat requests, call DeepSeek, apply
+patches, run Git, run shell commands, execute MCP/plugins/skills, write memory,
+or enable a native bridge. The working flow is still the v0.1 local
+`web_table_to_csv` Convert path plus Event Log / Replay.
+
+v0.2 App Shell RC references:
+
+- [v0.2.0 App Shell RC release notes](docs/release-notes-v0.2.0-app-shell-rc.1.md)
+- [App Shell v0.2 manual QA](docs/app-shell-v0.2-manual-qa.md)
+- [App Shell v0.2 RC checklist](docs/app-shell-v0.2-rc-checklist.md)
+
 ## What v0.1.0 does not support
 
 v0.1.0 does not:

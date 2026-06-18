@@ -114,10 +114,10 @@ export type AppWorkbenchSurfacesInput = {
 };
 
 const emptyApprovalMessage =
-  "No approvals yet. Future patch, capability, git, and shell proposals will appear here before execution.";
+  "No approvals yet. Future patch, capability, git, and shell proposals will appear here as summaries before any execution gate.";
 
 const emptyDiffMessage =
-  "No patch proposals yet. Future code changes will appear here as reviewable diffs before apply.";
+  "No patch proposals yet. Future code changes will appear here as reviewable diff summaries before any future apply gate.";
 
 export function buildWorkbenchSurfacesView(
   input: AppWorkbenchSurfacesInput

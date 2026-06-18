@@ -1,7 +1,8 @@
 # Documentation
 
 DeepSeek Workbench documentation is organized around the current v0.1
-`web_table_to_csv` vertical slice.
+`web_table_to_csv` vertical slice and the v0.2 App Shell control-plane
+foundation.
 
 - [Web table to CSV acceptance](web-table-to-csv-acceptance.md)
 - [v0.1 vertical slice architecture](vertical-slice-v0.1.md)
@@ -19,6 +20,9 @@ DeepSeek Workbench documentation is organized around the current v0.1
 - [App Shell Approval / Diff / Audit Surfaces v0.2](app-shell-approval-diff-audit-surfaces-v0.2.md)
 - [App Shell Memory Inspector v0.2](app-shell-memory-inspector-v0.2.md)
 - [App Shell Chat / Run Canvas v0.2](app-shell-chat-run-canvas-v0.2.md)
+- [v0.2.0 App Shell RC release notes](release-notes-v0.2.0-app-shell-rc.1.md)
+- [App Shell v0.2 manual QA](app-shell-v0.2-manual-qa.md)
+- [App Shell v0.2 RC checklist](app-shell-v0.2-rc-checklist.md)
 - [v0.1 threat model](threat-model-v0.1.md)
 - [Extension to desktop bridge threat model v0.1](extension-desktop-bridge-threat-model-v0.1.md)
 - [Bridge protocol dry harness v0.1](bridge-protocol-dry-harness-v0.1.md)
