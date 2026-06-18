@@ -15,6 +15,10 @@ import {
   runDesktopWebTableToCsvFlow
 } from "./desktop-flow.js";
 import {
+  buildControlPlaneProjectionView,
+  type AppControlPlaneProjectionView
+} from "./control-plane-view.js";
+import {
   buildEventLogPanelModel,
   buildBridgeProposalPreviewModel,
   buildResultPanelModel,
@@ -115,6 +119,16 @@ export function DesktopShell(): JSX.Element {
   const eventPanel = useMemo<EventLogPanelModel | undefined>(
     () => buildEventLogPanelModel(eventSummary),
     [eventSummary]
+  );
+  const controlPlanePanel = useMemo<AppControlPlaneProjectionView>(
+    () =>
+      buildControlPlaneProjectionView(
+        eventSummary,
+        result,
+        preflight,
+        error === undefined ? undefined : { safeMessage: error }
+      ),
+    [error, eventSummary, preflight, result]
   );
   const bridgePanel = useMemo<BridgeProposalPreviewModel>(
     () => buildBridgeProposalPreviewModel(bridgePreview),
@@ -587,6 +601,106 @@ export function DesktopShell(): JSX.Element {
                 <p>{eventError}</p>
               </div>
             ) : null}
+          </section>
+
+          <section className="eventPanel" aria-label="Control Plane Projection">
+            <div className="panelHeader">
+              <h2>Control Plane Projection</h2>
+              <span className="muted">Read-only projection</span>
+            </div>
+            <p className="fieldHelp">
+              Read-only projection from event summaries. No execution is
+              triggered here.
+            </p>
+
+            {controlPlanePanel.status === "empty" ? (
+              <p className="empty">
+                No control-plane projection yet. Run Convert first, then refresh
+                events.
+              </p>
+            ) : null}
+
+            <dl className="summaryGrid compact">
+              <div>
+                <dt>Run status</dt>
+                <dd>{controlPlanePanel.runStatus}</dd>
+              </div>
+              <div>
+                <dt>Intent</dt>
+                <dd>{controlPlanePanel.intent}</dd>
+              </div>
+              <div>
+                <dt>Phase</dt>
+                <dd>{controlPlanePanel.phase}</dd>
+              </div>
+              <div>
+                <dt>Tasks completed</dt>
+                <dd>
+                  {controlPlanePanel.completedTaskCount} /{" "}
+                  {controlPlanePanel.taskCount}
+                </dd>
+              </div>
+              <div>
+                <dt>Drafts / artifacts</dt>
+                <dd>
+                  {controlPlanePanel.draftCount} /{" "}
+                  {controlPlanePanel.artifactRefs.length}
+                </dd>
+              </div>
+              <div>
+                <dt>Timeline</dt>
+                <dd>{controlPlanePanel.timelineCount}</dd>
+              </div>
+              <div>
+                <dt>Last event</dt>
+                <dd>{controlPlanePanel.lastEventAt}</dd>
+              </div>
+              <div>
+                <dt>Safety</dt>
+                <dd>{controlPlanePanel.safetyStatus}</dd>
+              </div>
+            </dl>
+
+            {controlPlanePanel.artifactRefs.length > 0 ? (
+              <ol className="timeline">
+                {controlPlanePanel.artifactRefs.map((artifact) => (
+                  <li key={artifact.id}>
+                    <span className="timelineMeta">
+                      {artifact.label} · {artifact.source}
+                    </span>
+                    <span>{artifact.relativePath}</span>
+                  </li>
+                ))}
+              </ol>
+            ) : null}
+
+            {controlPlanePanel.warnings.length > 0 ? (
+              <p className="muted">
+                warnings{" "}
+                {controlPlanePanel.warnings
+                  .map((warning) => warning.code)
+                  .join(", ")}
+              </p>
+            ) : null}
+
+            {controlPlanePanel.status === "error" &&
+            controlPlanePanel.safeMessage !== undefined ? (
+              <div className="errorBox">
+                <strong>Control projection warning</strong>
+                <p>{controlPlanePanel.safeMessage}</p>
+              </div>
+            ) : null}
+
+            <div
+              className={
+                controlPlanePanel.nextAction.severity === "error"
+                  ? "errorBox"
+                  : "statusBox"
+              }
+            >
+              <strong>Next action</strong>
+              <p>{controlPlanePanel.nextAction.label}</p>
+            </div>
           </section>
 
           <nav className="docLinks" aria-label="Documentation links">

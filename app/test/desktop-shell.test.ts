@@ -14,6 +14,7 @@ import {
   safeInvoke,
   type TauriInvoke
 } from "../src/desktop-flow.js";
+import { buildControlPlaneProjectionView } from "../src/control-plane-view.js";
 import {
   buildEventLogPanelModel,
   buildBridgeProposalPreviewModel,
@@ -1157,6 +1158,142 @@ describe("desktop flow integration", () => {
   });
 });
 
+describe("app control-plane projection view", () => {
+  it("builds an empty read-only projection for no event summary", () => {
+    const view = buildControlPlaneProjectionView(undefined);
+
+    expect(view).toMatchObject({
+      status: "empty",
+      runStatus: "created",
+      intent: "web_data_extraction",
+      phase: "intake",
+      source: "empty"
+    });
+    expect(view.nextAction.label).toBe(
+      "Run Convert first, then refresh events."
+    );
+  });
+
+  it("projects a successful conversion event summary as completed web extraction", () => {
+    const result = fixedResult("D:\\workspace");
+    const view = buildControlPlaneProjectionView(
+      fixedEventSummary(),
+      result,
+      fixedPreflight()
+    );
+
+    expect(view.status).toBe("projected");
+    expect(view.runStatus).toBe("completed");
+    expect(view.intent).toBe("web_data_extraction");
+    expect(view.phase).toBe("result");
+    expect(view.draftCount).toBe(1);
+    expect(view.artifactRefs).toContainEqual(
+      expect.objectContaining({
+        relativePath: "drafts/table.csv",
+        source: "conversion_result"
+      })
+    );
+  });
+
+  it("preserves the previous projection shape for FILE_EXISTS and gives safe next action", () => {
+    const view = buildControlPlaneProjectionView(
+      fixedEventSummary(),
+      undefined,
+      fixedPreflight(),
+      {
+        errorCode: "FILE_EXISTS",
+        safeMessage:
+          "Draft already exists: drafts/table.csv. Choose a new draft filename or remove the existing file."
+      }
+    );
+
+    expect(view.status).toBe("warning");
+    expect(view.runStatus).toBe("completed");
+    expect(view.artifactRefs).toContainEqual(
+      expect.objectContaining({ relativePath: "drafts/table.csv" })
+    );
+    expect(view.nextAction.label).toBe(
+      "Choose a new draft filename or remove the existing file."
+    );
+    expect(view.warnings.map((warning) => warning.code)).toContain(
+      "FILE_EXISTS"
+    );
+  });
+
+  it("handles malformed event summaries without throwing", () => {
+    const view = buildControlPlaneProjectionView({
+      ok: true,
+      eventCount: Number.NaN,
+      displayedEventCount: Number.NaN,
+      taskCount: Number.NaN,
+      completedTaskCount: Number.NaN,
+      draftCount: Number.NaN,
+      typeCounts: null,
+      timeline: null,
+      safetyScan: null,
+      warnings: null
+    } as unknown as WorkspaceEventSummary);
+
+    expect(view.timelineCount).toBe(0);
+    expect(view.taskCount).toBe(0);
+    expect(view.completedTaskCount).toBe(0);
+    expect(view.nextAction.label).toContain("Convert");
+  });
+
+  it("shows safety warning codes only and redacts unsafe messages", () => {
+    const secret = "sk-test1234567890abcdef";
+    const view = buildControlPlaneProjectionView(
+      fixedEventSummary({
+        ok: false,
+        safeMessage: `Event summary failed ${secret}`,
+        safetyScan: {
+          ok: false,
+          findings: 1,
+          warningCodes: ["PASSWORD_VALUE_MARKER", `raw match ${secret}`]
+        }
+      })
+    );
+    const serialized = JSON.stringify(view);
+
+    expect(view.status).toBe("error");
+    expect(view.warnings.map((warning) => warning.code)).toContain(
+      "PASSWORD_VALUE_MARKER"
+    );
+    expect(view.warnings.map((warning) => warning.code)).toContain(
+      "EVENT_SUMMARY_WARNING"
+    );
+    expect(serialized).not.toContain(secret);
+    expect(serialized).not.toContain("raw match");
+  });
+
+  it("keeps projection summaries free of raw CSV, raw payload, and API keys", () => {
+    const secret = "sk-test1234567890abcdef";
+    const view = buildControlPlaneProjectionView(
+      fixedEventSummary({
+        warnings: ["MALFORMED_EVENT_SUMMARY"],
+        timeline: [
+          {
+            id: "event-1",
+            ts: "2026-06-16T00:00:00.000Z",
+            type: "fs.draft_written",
+            taskId: "task-1",
+            summary: "draft written: drafts/table.csv · 42 bytes · text/csv",
+            safePayloadKeys: ["relativePath"]
+          }
+        ],
+        safeMessage: `Safe message with ${secret}`
+      })
+    );
+    const serialized = JSON.stringify(view);
+
+    expect(serialized).toContain("drafts/table.csv");
+    expect(serialized).not.toContain(secret);
+    expect(serialized).not.toContain("csvContent");
+    expect(serialized).not.toContain("rawPayload");
+    expect(serialized).not.toContain("rawDom");
+  });
+});
+
 describe("desktop source boundaries", () => {
   it("keeps refresh events and docs actions from navigating or resetting UI state", async () => {
     const appSource = await readFile(
@@ -1180,9 +1317,15 @@ describe("desktop source boundaries", () => {
     expect(appSource).toContain("Bridge Proposal Preview (dry)");
     expect(appSource).toContain("Import to Payload Editor");
     expect(appSource).toContain("Reject Proposal");
+    expect(appSource).toContain("Control Plane Projection");
+    expect(appSource).toContain("Read-only projection from event summaries");
+    expect(appSource).toContain("No execution is");
+    expect(appSource).toContain("buildControlPlaneProjectionView");
     expect(appSource).toContain("No live bridge is enabled");
     expect(appSource).toContain("Convert still requires a separate click");
     expect(appSource).not.toContain("Events written");
+    expect(appSource).not.toContain("auto approval");
+    expect(appSource).not.toContain("Auto Convert");
     expect(appSource).not.toContain(".slice(");
     expect(appSource).not.toContain(
       'href="../docs/desktop-event-log-smoke-v0.1.md"'
@@ -1192,6 +1335,8 @@ describe("desktop source boundaries", () => {
     expect(appSource).toContain("event.preventDefault();");
     expect(appSource).toContain("event.stopPropagation();");
     expect(appSource).toContain("void refreshEvents();");
+    expect(appSource).toContain("await refreshEvents(workspaceRoot);");
+    expect(appSource).toContain("[error, eventSummary, preflight, result]");
     expect(appSource).toContain(
       'setDocMessage("docs/desktop-event-log-smoke-v0.1.md")'
     );
