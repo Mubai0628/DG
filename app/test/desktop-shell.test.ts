@@ -16,6 +16,7 @@ import {
 } from "../src/desktop-flow.js";
 import { buildControlPlaneProjectionView } from "../src/control-plane-view.js";
 import { buildWorkbenchSurfacesView } from "../src/workbench-surfaces.js";
+import { buildPatchProposalSurfaceView } from "../src/patch-proposal-surface-view.js";
 import { buildMemoryInspectorView } from "../src/memory-inspector-view.js";
 import { buildChatRunCanvasView } from "../src/chat-run-canvas-view.js";
 import {
@@ -1314,7 +1315,7 @@ describe("app approval diff audit surfaces", () => {
     );
     expect(surfaces.diff.status).toBe("empty");
     expect(surfaces.diff.emptyMessage).toBe(
-      "No patch proposals yet. Future code changes will appear here as reviewable diff summaries before any future apply gate."
+      "No patch proposals yet. Future code changes will appear here as reviewable diffs before apply."
     );
   });
 
@@ -1415,6 +1416,120 @@ describe("app approval diff audit surfaces", () => {
     expect(serialized).not.toContain("rawPayload");
     expect(serialized).not.toContain("csvContent");
     expect(serialized).not.toContain("rawDom");
+  });
+
+  it("keeps web table conversion from creating patch proposals in diff surface", () => {
+    const eventSummary = fixedEventSummary();
+    const result = fixedResult("D:\\workspace");
+    const controlProjection = buildControlPlaneProjectionView(
+      eventSummary,
+      result
+    );
+    const surfaces = buildWorkbenchSurfacesView({
+      eventSummary,
+      controlProjection,
+      conversionResult: result
+    });
+
+    expect(surfaces.diff.status).toBe("empty");
+    expect(surfaces.diff.items).toHaveLength(0);
+    expect(surfaces.diff.fileCount).toBe(0);
+    expect(surfaces.diff.nextAction).toBe(
+      "No patch proposals yet. Future code changes will appear here as reviewable diffs before apply."
+    );
+  });
+
+  it("maps synthetic patch proposal summaries into the diff surface", () => {
+    const controlProjection = buildControlPlaneProjectionView(undefined);
+    const surfaces = buildWorkbenchSurfacesView({
+      controlProjection,
+      patchProposalSummaries: [
+        {
+          proposalId: "proposal-1",
+          taskId: "task-1",
+          title: "Update parser summary",
+          status: "simulated",
+          riskLevel: "A2_draft_write",
+          requiresApproval: true,
+          filesChanged: 2,
+          filesCreated: 1,
+          filesUpdated: 1,
+          filesDeleted: 0,
+          linesAdded: 14,
+          linesRemoved: 3,
+          pathSummaries: ["app/src/App.tsx", "app/src/workbench-surfaces.ts"],
+          hash: "patch-hash-1",
+          fingerprint: "patch-fingerprint-1",
+          suggestedNextAction: "Patch apply is not enabled."
+        }
+      ]
+    });
+
+    expect(surfaces.diff.status).toBe("summary");
+    expect(surfaces.diff.fileCount).toBe(2);
+    expect(surfaces.diff.linesAdded).toBe(14);
+    expect(surfaces.diff.linesRemoved).toBe(3);
+    expect(surfaces.diff.items[0]?.proposalId).toBe("proposal-1");
+    expect(surfaces.diff.items[0]?.requiresApproval).toBe(true);
+    expect(surfaces.diff.items[0]?.pathSummaries).toEqual([
+      "app/src/App.tsx",
+      "app/src/workbench-surfaces.ts"
+    ]);
+  });
+
+  it("maps synthetic patch audit warnings as warning codes only", () => {
+    const controlProjection = buildControlPlaneProjectionView(undefined);
+    const surfaces = buildWorkbenchSurfacesView({
+      controlProjection,
+      patchAuditReports: [
+        {
+          auditId: "audit-1",
+          proposalId: "proposal-1",
+          decision: "needs_approval",
+          riskLevel: "A2_draft_write",
+          pathWarnings: ["secret_marker:app/src/App.tsx"],
+          contentWarnings: ["raw_marker"],
+          hash: "audit-hash-1",
+          suggestedNextAction: "request_changes"
+        }
+      ]
+    });
+    const serialized = JSON.stringify(surfaces);
+
+    expect(surfaces.diff.status).toBe("warning");
+    expect(surfaces.diff.warnings).toContain("SECRET_MARKER");
+    expect(surfaces.diff.warnings).toContain("RAW_MARKER");
+    expect(serialized).not.toContain("app/src/App.tsx");
+    expect(serialized).not.toContain("secret_marker:app/src/App.tsx");
+  });
+
+  it("strips raw patch content fields from patch proposal surface view", () => {
+    const secret = "sk-test1234567890abcdef";
+    const view = buildPatchProposalSurfaceView({
+      patchProposalSummaries: [
+        {
+          proposalId: "proposal-raw",
+          taskId: "task-raw",
+          title: `raw source ${secret}`,
+          beforeContent: "const beforeSecret = true;",
+          afterContent: `const token = "${secret}";`,
+          rawPatch: "raw patch body",
+          filesChanged: 1,
+          linesAdded: 1,
+          linesRemoved: 1,
+          pathSummaries: ["runtime/src/index.ts"],
+          hash: "hash-raw"
+        }
+      ]
+    });
+    const serialized = JSON.stringify(view);
+
+    expect(view.items[0]?.title).toContain("[redacted-raw]");
+    expect(serialized).not.toContain(secret);
+    expect(serialized).not.toContain("beforeContent");
+    expect(serialized).not.toContain("afterContent");
+    expect(serialized).not.toContain("const beforeSecret");
+    expect(serialized).not.toContain("raw patch body");
   });
 });
 
@@ -1715,6 +1830,8 @@ describe("desktop source boundaries", () => {
     expect(appSource).toContain("Diff Surface");
     expect(appSource).toContain("Audit Surface");
     expect(appSource).toContain("workbenchSurfaces");
+    expect(appSource).toContain("item.pathSummaries");
+    expect(appSource).toContain("item.warningCodes");
     expect(appSource).toContain("Memory Inspector");
     expect(appSource).toContain("memoryInspector");
     expect(appSource).toContain(
@@ -1783,6 +1900,17 @@ describe("desktop source boundaries", () => {
     expect(appSource).toContain(
       'setDocMessage("docs/desktop-event-log-smoke-v0.1.md")'
     );
+
+    const diffSurfaceSource = appSource.slice(
+      appSource.indexOf('aria-label="Diff Surface"'),
+      appSource.indexOf('aria-label="Audit Surface"')
+    );
+    expect(diffSurfaceSource).not.toContain("<button");
+    expect(diffSurfaceSource).not.toContain("Apply Patch");
+    expect(diffSurfaceSource).not.toContain("Approve");
+    expect(diffSurfaceSource).not.toContain("Reject");
+    expect(diffSurfaceSource).not.toContain("Execute");
+    expect(diffSurfaceSource).not.toContain("Write files");
   });
 
   it("keeps bridge preview empty state inactive at the visual layer", async () => {
@@ -1825,6 +1953,7 @@ describe("desktop source boundaries", () => {
       "src/safety.ts",
       "src/control-plane-view.ts",
       "src/workbench-surfaces.ts",
+      "src/patch-proposal-surface-view.ts",
       "src/memory-inspector-view.ts",
       "src/chat-run-canvas-view.ts",
       "scripts/preflight.mjs",
@@ -2206,6 +2335,33 @@ describe("desktop source boundaries", () => {
     expect(plan).toContain("DW-P0G-001");
     expect(plan).toContain("DW-P0G-002 Patch Proposal UI bridge");
     expect(docsIndex).toContain("p0g-001-workspace-read-index-plan.md");
+  });
+
+  it("documents the P0G-002 patch proposal UI bridge without enabling apply", async () => {
+    const doc = await readFile(
+      path.join(repoRoot, "docs", "patch-proposal-ui-bridge-v0.2.md"),
+      "utf8"
+    );
+    const docsIndex = await readFile(
+      path.join(repoRoot, "docs", "README.md"),
+      "utf8"
+    );
+    const combined = `${doc}\n${docsIndex}`;
+
+    expect(combined).toContain("Patch Proposal UI Bridge v0.2");
+    expect(combined).toContain("summary-only preview path");
+    expect(combined).toContain("does not apply patches");
+    expect(combined).toContain("No patch apply");
+    expect(combined).toContain("No filesystem write");
+    expect(combined).toContain("No real Git execution");
+    expect(combined).toContain("No real shell execution");
+    expect(combined).toContain("No DeepSeek call");
+    expect(combined).toContain("no raw source code");
+    expect(combined).toContain("Patch and Diff Audit");
+    expect(combined).toContain("Control Plane");
+    expect(combined).toContain("Approval Surface");
+    expect(combined).toContain("Agent Dossier");
+    expect(docsIndex).toContain("patch-proposal-ui-bridge-v0.2.md");
   });
 
   it("configures the offline desktop QA check without GUI or DeepSeek calls", async () => {

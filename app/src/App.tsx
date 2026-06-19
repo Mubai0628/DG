@@ -990,6 +990,31 @@ export function DesktopShell(): JSX.Element {
                   </div>
                 </dl>
                 <p className="fieldHelp">{workbenchSurfaces.diff.nextAction}</p>
+                {workbenchSurfaces.diff.items.length > 0 ? (
+                  <ol className="timeline">
+                    {workbenchSurfaces.diff.items.map((item) => (
+                      <li key={item.id}>
+                        <span className="timelineMeta">
+                          {item.status} · {item.riskLevel} ·{" "}
+                          {item.requiresApproval
+                            ? "approval required"
+                            : "approval not requested"}
+                        </span>
+                        <span>{item.summary}</span>
+                        {item.pathSummaries.length > 0 ? (
+                          <span className="timelineMeta">
+                            Paths: {item.pathSummaries.join(", ")}
+                          </span>
+                        ) : null}
+                        {item.warningCodes.length > 0 ? (
+                          <span className="timelineMeta">
+                            Warnings: {item.warningCodes.join(", ")}
+                          </span>
+                        ) : null}
+                      </li>
+                    ))}
+                  </ol>
+                ) : null}
               </section>
 
               <section className="surfaceBox" aria-label="Audit Surface">

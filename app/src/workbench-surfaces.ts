@@ -10,6 +10,11 @@ import {
   type AppControlPlaneProjectionView,
   type AppControlPlaneWarningView
 } from "./control-plane-view.js";
+import {
+  buildPatchProposalSurfaceView,
+  type AppPatchProposalSurfaceInput,
+  type AppPatchProposalSurfaceView
+} from "./patch-proposal-surface-view.js";
 
 export type AppApprovalSurfaceStatus =
   | "empty"
@@ -40,9 +45,22 @@ export type AppDiffItemView = {
   id: string;
   label: string;
   fileCount: number;
+  filesCreated: number;
+  filesUpdated: number;
+  filesDeleted: number;
   linesAdded: number;
   linesRemoved: number;
   summary: string;
+  proposalId: string;
+  taskId: string;
+  status: string;
+  riskLevel: string;
+  requiresApproval: boolean;
+  pathSummaries: string[];
+  warningCodes: string[];
+  hash: string;
+  fingerprint: string;
+  suggestedNextAction: string;
 };
 
 export type AppDiffSurfaceView = {
@@ -110,14 +128,18 @@ export type AppWorkbenchSurfacesInput = {
     | undefined;
   preflight?: RunnerPreflightSummary | undefined;
   futurePatchRefs?: AppWorkbenchPatchRef[] | undefined;
+  patchProposalSummaries?:
+    | AppPatchProposalSurfaceInput["patchProposalSummaries"]
+    | undefined;
+  patchAuditReports?:
+    | AppPatchProposalSurfaceInput["patchAuditReports"]
+    | undefined;
+  workspaceIndexRef?: AppPatchProposalSurfaceInput["workspaceIndexRef"];
   futureApprovalRefs?: AppWorkbenchApprovalRef[] | undefined;
 };
 
 const emptyApprovalMessage =
   "No approvals yet. Future patch, capability, git, and shell proposals will appear here as summaries before any execution gate.";
-
-const emptyDiffMessage =
-  "No patch proposals yet. Future code changes will appear here as reviewable diff summaries before any future apply gate.";
 
 export function buildWorkbenchSurfacesView(
   input: AppWorkbenchSurfacesInput
@@ -161,28 +183,35 @@ function buildDiffSurface(
   input: AppWorkbenchSurfacesInput,
   warnings: string[]
 ): AppDiffSurfaceView {
-  const items = safeArray(input.futurePatchRefs).map((item, index) =>
-    normalizeDiffItem(item, index)
-  );
-  const totals = items.reduce(
-    (acc, item) => ({
-      fileCount: acc.fileCount + item.fileCount,
-      linesAdded: acc.linesAdded + item.linesAdded,
-      linesRemoved: acc.linesRemoved + item.linesRemoved
-    }),
-    { fileCount: 0, linesAdded: 0, linesRemoved: 0 }
+  const patchSurface = buildPatchProposalSurfaceView({
+    patchProposalSummaries: [
+      ...safeArray(input.patchProposalSummaries),
+      ...safeArray(input.futurePatchRefs)
+    ],
+    patchAuditReports: input.patchAuditReports,
+    controlProjection: input.controlProjection,
+    workspaceIndexRef: input.workspaceIndexRef,
+    conversionResult: input.conversionResult,
+    conversionError: input.conversionError,
+    eventSummary: input.eventSummary
+  });
+  const items = patchSurface.items.map(patchItemToDiffItem);
+  const warningCodes = Array.from(
+    new Set([
+      ...warnings,
+      ...patchSurface.warnings.map((warning) => warning.code)
+    ])
   );
 
   return {
-    status: items.length > 0 ? "summary" : "empty",
-    ...totals,
+    status: patchSurface.status,
+    fileCount: patchSurface.diffSummary.filesChanged,
+    linesAdded: patchSurface.diffSummary.linesAdded,
+    linesRemoved: patchSurface.diffSummary.linesRemoved,
     items,
-    nextAction:
-      items.length > 0
-        ? "Review diff summaries only. Patch apply is disabled."
-        : emptyDiffMessage,
-    warnings,
-    emptyMessage: emptyDiffMessage
+    nextAction: patchSurface.nextAction,
+    warnings: warningCodes,
+    emptyMessage: patchSurface.emptyMessage
   };
 }
 
@@ -248,15 +277,31 @@ function normalizeApprovalItem(
   };
 }
 
-function normalizeDiffItem(item: unknown, index: number): AppDiffItemView {
-  const record = isRecord(item) ? item : {};
+function patchItemToDiffItem(
+  item: AppPatchProposalSurfaceView["items"][number]
+): AppDiffItemView {
   return {
-    id: safeText(record.id, `diff-${index + 1}`),
-    label: safeText(record.label, "Future patch proposal"),
-    fileCount: finiteNumber(record.fileCount),
-    linesAdded: finiteNumber(record.linesAdded),
-    linesRemoved: finiteNumber(record.linesRemoved),
-    summary: safeErrorMessage(safeText(record.summary, "Diff summary pending"))
+    id: item.proposalId,
+    label: item.title,
+    fileCount: item.filesChanged,
+    filesCreated: item.filesCreated,
+    filesUpdated: item.filesUpdated,
+    filesDeleted: item.filesDeleted,
+    linesAdded: item.linesAdded,
+    linesRemoved: item.linesRemoved,
+    summary: safeErrorMessage(
+      `${item.filesChanged} file(s), ${item.linesAdded} added, ${item.linesRemoved} removed.`
+    ),
+    proposalId: item.proposalId,
+    taskId: item.taskId,
+    status: item.status,
+    riskLevel: item.riskLevel,
+    requiresApproval: item.requiresApproval,
+    pathSummaries: item.pathSummaries,
+    warningCodes: item.warningCodes,
+    hash: item.hash,
+    fingerprint: item.fingerprint,
+    suggestedNextAction: item.suggestedNextAction
   };
 }
 
