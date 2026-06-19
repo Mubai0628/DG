@@ -67,6 +67,7 @@ export type {
   DeepSeekModelId as DeepSeekCapabilityModelId
 } from "./models/index.js";
 export * from "./web/index.js";
+export * from "./workspace-index/index.js";
 export {
   ToolBroker,
   createToolCallRequestFromDeepSeekToolCall

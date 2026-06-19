@@ -26,6 +26,7 @@ foundation.
 - [v0.2 App Shell RC post-release review](v0.2-app-shell-rc-postrelease-review.md)
 - [P0G Coding Workflow roadmap](p0g-coding-workflow-roadmap.md)
 - [P0G-001 Workspace Read / Index plan](p0g-001-workspace-read-index-plan.md)
+- [Workspace Read / Index v0.2](workspace-read-index-v0.2.md)
 - [v0.1 threat model](threat-model-v0.1.md)
 - [Extension to desktop bridge threat model v0.1](extension-desktop-bridge-threat-model-v0.1.md)
 - [Bridge protocol dry harness v0.1](bridge-protocol-dry-harness-v0.1.md)
