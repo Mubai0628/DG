@@ -31,6 +31,7 @@ import {
   type AppChatRunCanvasView,
   type AppRunCanvasIntent
 } from "./chat-run-canvas-view.js";
+import { buildRunDraftView, type AppRunDraftView } from "./run-draft-view.js";
 import {
   buildEventLogPanelModel,
   buildBridgeProposalPreviewModel,
@@ -128,6 +129,9 @@ export function DesktopShell(): JSX.Element {
     useState<AppRunCanvasIntent>("unknown");
   const [objectiveDraft, setObjectiveDraft] = useState("");
   const [acceptanceCriteriaDraft, setAcceptanceCriteriaDraft] = useState("");
+  const [runDraftPreview, setRunDraftPreview] = useState<
+    AppRunDraftView | undefined
+  >();
 
   const panel = useMemo<ResultPanelModel | undefined>(
     () => (result === undefined ? undefined : buildResultPanelModel(result)),
@@ -203,6 +207,26 @@ export function DesktopShell(): JSX.Element {
       workspaceRoot
     ]
   );
+  const runDraftCandidate = useMemo<AppRunDraftView>(
+    () =>
+      buildRunDraftView({
+        objectiveDraft,
+        selectedIntent,
+        acceptanceCriteriaDraft,
+        workspaceRoot,
+        controlProjection: controlPlanePanel,
+        eventSummary
+      }),
+    [
+      acceptanceCriteriaDraft,
+      controlPlanePanel,
+      eventSummary,
+      objectiveDraft,
+      selectedIntent,
+      workspaceRoot
+    ]
+  );
+  const displayedRunDraft = runDraftPreview ?? runDraftCandidate;
   const bridgeActionsVisible =
     bridgePanel.status === "pending" && bridgePanel.emptyMessage === undefined;
   const preflightBadge =
@@ -211,6 +235,16 @@ export function DesktopShell(): JSX.Element {
       : preflight.ok
         ? "Source-tree mode / Preflight OK / No native bridge"
         : "Source-tree mode / Preflight needs attention / No native bridge";
+
+  useEffect(() => {
+    setRunDraftPreview(undefined);
+  }, [acceptanceCriteriaDraft, objectiveDraft, selectedIntent, workspaceRoot]);
+
+  function handlePreviewDraftRun(): void {
+    if (runDraftCandidate.canPreview) {
+      setRunDraftPreview(runDraftCandidate);
+    }
+  }
 
   async function handleConvert(): Promise<void> {
     setStatus("running");
@@ -641,6 +675,15 @@ export function DesktopShell(): JSX.Element {
               <button
                 type="button"
                 className="secondary"
+                onClick={handlePreviewDraftRun}
+                disabled={!runDraftCandidate.canPreview}
+                aria-disabled={!runDraftCandidate.canPreview}
+              >
+                Preview Draft Run
+              </button>
+              <button
+                type="button"
+                className="secondary"
                 disabled={true}
                 aria-disabled="true"
               >
@@ -650,6 +693,64 @@ export function DesktopShell(): JSX.Element {
             <p className="fieldHelp">
               Create Run is disabled until execution gates are implemented.
             </p>
+
+            <section className="surfaceBox" aria-label="Run Draft Preview">
+              <div className="panelHeader compactHeader">
+                <h2>Run Draft Preview</h2>
+                <span className="muted">{displayedRunDraft.status}</span>
+              </div>
+              <p className="fieldHelp">
+                Preview only. No run is created and no LLM request is sent.
+              </p>
+              <dl className="summaryGrid compact">
+                <div>
+                  <dt>Mode</dt>
+                  <dd>{displayedRunDraft.mode}</dd>
+                </div>
+                <div>
+                  <dt>Preview only</dt>
+                  <dd>{displayedRunDraft.previewOnly ? "yes" : "no"}</dd>
+                </div>
+                <div>
+                  <dt>Intent</dt>
+                  <dd>{displayedRunDraft.intent}</dd>
+                </div>
+                <div>
+                  <dt>Criteria</dt>
+                  <dd>{displayedRunDraft.acceptanceCriteriaCount}</dd>
+                </div>
+                <div>
+                  <dt>Workspace</dt>
+                  <dd>{displayedRunDraft.workspaceRootSummary}</dd>
+                </div>
+                <div>
+                  <dt>Can create run</dt>
+                  <dd>{displayedRunDraft.canCreateRun ? "yes" : "no"}</dd>
+                </div>
+              </dl>
+              <p className="fieldHelp">
+                Draft objective: {displayedRunDraft.objectiveSummary}
+              </p>
+              {displayedRunDraft.proposedPhases.length > 0 ? (
+                <ol className="timeline">
+                  {displayedRunDraft.proposedPhases.map((phase) => (
+                    <li key={phase.id}>
+                      <span className="timelineMeta">future phase</span>
+                      <span>{phase.label}</span>
+                    </li>
+                  ))}
+                </ol>
+              ) : null}
+              {displayedRunDraft.warnings.length > 0 ? (
+                <p className="muted">
+                  warnings{" "}
+                  {displayedRunDraft.warnings
+                    .map((warning) => warning.code)
+                    .join(", ")}
+                </p>
+              ) : null}
+              <p className="fieldHelp">{displayedRunDraft.nextAction}</p>
+            </section>
 
             <dl className="summaryGrid compact">
               <div>

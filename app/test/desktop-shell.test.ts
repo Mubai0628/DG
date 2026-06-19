@@ -19,6 +19,7 @@ import { buildWorkbenchSurfacesView } from "../src/workbench-surfaces.js";
 import { buildPatchProposalSurfaceView } from "../src/patch-proposal-surface-view.js";
 import { buildMemoryInspectorView } from "../src/memory-inspector-view.js";
 import { buildChatRunCanvasView } from "../src/chat-run-canvas-view.js";
+import { buildRunDraftView, summarizeRunDraft } from "../src/run-draft-view.js";
 import {
   buildEventLogPanelModel,
   buildBridgeProposalPreviewModel,
@@ -1795,6 +1796,180 @@ describe("app chat run canvas skeleton", () => {
   });
 });
 
+describe("app control plane run draft preview", () => {
+  it("returns an empty local draft when the objective is empty", () => {
+    const view = buildRunDraftView({
+      selectedIntent: "code_change",
+      acceptanceCriteriaDraft: "Tests pass",
+      workspaceRoot: "D:\\workspace"
+    });
+
+    expect(view.status).toBe("empty");
+    expect(view.mode).toBe("local_draft");
+    expect(view.previewOnly).toBe(true);
+    expect(view.canPreview).toBe(false);
+    expect(view.canCreateRun).toBe(false);
+    expect(view.canSendToModel).toBe(false);
+    expect(view.objectiveSummary).toBe("No objective draft yet.");
+  });
+
+  it("builds a safe local run draft preview without creating a real run", () => {
+    const eventSummary = fixedEventSummary({ eventCount: 4 });
+    const controlProjection = buildControlPlaneProjectionView(eventSummary);
+    const view = buildRunDraftView({
+      objectiveDraft: "Prepare a small parser refactor plan.",
+      selectedIntent: "code_change",
+      acceptanceCriteriaDraft: "Tests pass\nDiff summary is safe",
+      workspaceRoot: "D:\\workspace\\demo",
+      controlProjection,
+      eventSummary,
+      idGenerator: () => "local-draft-test"
+    });
+    const summary = summarizeRunDraft(view);
+
+    expect(view.draftId).toBe("local-draft-test");
+    expect(view.status).toBe("draft_ready");
+    expect(view.canPreview).toBe(true);
+    expect(view.intent).toBe("code_change");
+    expect(view.acceptanceCriteriaCount).toBe(2);
+    expect(view.workspaceRootSummary).toBe(".../demo");
+    expect(view.warnings).toHaveLength(0);
+    expect(summary).toContain("preview_only=yes");
+    expect(summary).toContain("intent=code_change");
+  });
+
+  it("uses warning codes for fake API key markers without exposing raw values", () => {
+    const secret = "sk-test1234567890abcdef";
+    const view = buildRunDraftView({
+      objectiveDraft: `Review a draft that includes ${secret}`,
+      selectedIntent: "documentation",
+      acceptanceCriteriaDraft: "Summary is safe",
+      workspaceRoot: "D:\\workspace"
+    });
+    const serialized = JSON.stringify(view);
+
+    expect(view.status).toBe("draft_blocked");
+    expect(view.canPreview).toBe(false);
+    expect(view.safety.warningCodes).toContain("API_KEY_MARKER");
+    expect(view.objectiveSummary).toBe(
+      "Draft summary withheld by safety policy."
+    );
+    expect(serialized).not.toContain(secret);
+  });
+
+  it("detects raw prompt, DOM, CSV, screenshot, and clipboard markers", () => {
+    const view = buildRunDraftView({
+      objectiveDraft:
+        "Inspect rawPrompt, rawDom, rawCsv, rawScreenshot, and clipboard markers.",
+      selectedIntent: "verification",
+      acceptanceCriteriaDraft: "warning codes only",
+      workspaceRoot: "D:\\workspace"
+    });
+    const warningCodes = view.warnings.map((warning) => warning.code);
+    const serialized = JSON.stringify(view);
+
+    expect(warningCodes).toContain("RAW_PROMPT_MARKER");
+    expect(warningCodes).toContain("RAW_DOM_MARKER");
+    expect(warningCodes).toContain("RAW_CSV_MARKER");
+    expect(warningCodes).toContain("RAW_SCREENSHOT_MARKER");
+    expect(warningCodes).toContain("CLIPBOARD_MARKER");
+    expect(serialized).not.toContain("rawPrompt, rawDom");
+  });
+
+  it("summarizes unsafe acceptance criteria without copying raw values", () => {
+    const view = buildRunDraftView({
+      objectiveDraft: "Preview a verification task.",
+      selectedIntent: "verification",
+      acceptanceCriteriaDraft:
+        "Keep rawPrompt and Authorization: Bearer hidden from summaries",
+      workspaceRoot: "D:\\workspace"
+    });
+    const serialized = JSON.stringify(view);
+
+    expect(view.status).toBe("draft_blocked");
+    expect(view.safety.warningCodes).toContain("AUTHORIZATION_HEADER_MARKER");
+    expect(view.safety.warningCodes).toContain("RAW_PROMPT_MARKER");
+    expect(view.acceptanceCriteria.summaries).toEqual([
+      "Acceptance criteria summary withheld by safety policy."
+    ]);
+    expect(serialized).not.toContain("Authorization: Bearer");
+    expect(serialized).not.toContain("rawPrompt");
+  });
+
+  it("allows preview with clarification warnings for unknown intent", () => {
+    const view = buildRunDraftView({
+      objectiveDraft: "Plan the next local-only step.",
+      selectedIntent: "unknown",
+      acceptanceCriteriaDraft: "Preview exists",
+      workspaceRoot: "D:\\workspace"
+    });
+    const warningCodes = view.warnings.map((warning) => warning.code);
+
+    expect(view.status).toBe("warning");
+    expect(view.canPreview).toBe(true);
+    expect(warningCodes).toContain("INTENT_UNKNOWN_NEEDS_CLARIFICATION");
+    expect(view.proposedPhases.map((phase) => phase.id)).toEqual([
+      "intake",
+      "clarification"
+    ]);
+  });
+
+  it("warns but still previews when acceptance criteria or workspace are empty", () => {
+    const view = buildRunDraftView({
+      objectiveDraft: "Draft a local documentation task.",
+      selectedIntent: "documentation"
+    });
+    const warningCodes = view.warnings.map((warning) => warning.code);
+
+    expect(view.status).toBe("warning");
+    expect(view.canPreview).toBe(true);
+    expect(warningCodes).toContain("ACCEPTANCE_CRITERIA_EMPTY");
+    expect(warningCodes).toContain("WORKSPACE_ROOT_EMPTY");
+  });
+
+  it("plans code_change future phases without execution", () => {
+    const view = buildRunDraftView({
+      objectiveDraft: "Prepare a code change draft.",
+      selectedIntent: "code_change",
+      acceptanceCriteriaDraft: "Diff summary exists",
+      workspaceRoot: "D:\\workspace"
+    });
+
+    expect(view.proposedPhases.map((phase) => phase.id)).toEqual([
+      "intake",
+      "context",
+      "routing",
+      "capability_planning",
+      "approval",
+      "diff",
+      "audit"
+    ]);
+    expect(view.expectedSurfaces).toContain("Diff Surface");
+    expect(view.nextAction).toContain("No run is created");
+  });
+
+  it("plans web data extraction phases without coder execution", () => {
+    const view = buildRunDraftView({
+      objectiveDraft: "Export a table to CSV.",
+      selectedIntent: "web_data_extraction",
+      acceptanceCriteriaDraft: "CSV exists",
+      workspaceRoot: "D:\\workspace"
+    });
+    const phases = view.proposedPhases.map((phase) => phase.id);
+    const serialized = JSON.stringify(view);
+
+    expect(phases).toEqual([
+      "intake",
+      "context",
+      "execution_plan",
+      "result",
+      "audit"
+    ]);
+    expect(phases).not.toContain("routing");
+    expect(serialized).not.toContain("coder");
+  });
+});
+
 describe("desktop source boundaries", () => {
   it("keeps refresh events and docs actions from navigating or resetting UI state", async () => {
     const appSource = await readFile(
@@ -1843,6 +2018,15 @@ describe("desktop source boundaries", () => {
     expect(appSource).toContain("Draft only - no LLM request is sent.");
     expect(appSource).toContain("No LLM request is sent");
     expect(appSource).toContain("Create Run (disabled)");
+    expect(appSource).toContain("Preview Draft Run");
+    expect(appSource).toContain("Run Draft Preview");
+    expect(appSource).toContain("displayedRunDraft");
+    expect(appSource).toContain("runDraftCandidate");
+    expect(appSource).toContain("setRunDraftPreview");
+    expect(appSource).toContain("handlePreviewDraftRun");
+    expect(appSource).toContain(
+      "Preview only. No run is created and no LLM request is sent."
+    );
     expect(appSource).toContain('aria-disabled="true"');
     expect(appSource).toContain("chatRunCanvas");
     expect(appSource).toContain("Objective summary:");
@@ -1883,6 +2067,12 @@ describe("desktop source boundaries", () => {
     expect(appSource).not.toContain("create_run_command");
     expect(appSource).not.toContain("send_chat_command");
     expect(appSource).not.toContain("run_canvas_command");
+    expect(appSource).not.toContain("createControlPlaneRun");
+    expect(appSource).not.toContain("createControlPlaneTask");
+    expect(appSource).not.toContain("routeAgentTask");
+    expect(appSource).not.toContain("planCapabilityInvocation");
+    expect(appSource).not.toContain("EventStore");
+    expect(appSource).not.toContain("writeEvent");
     expect(appSource).not.toContain("git_execute_command");
     expect(appSource).not.toContain("shell_execute_command");
     expect(appSource).not.toContain("native_bridge_command");
@@ -1956,6 +2146,7 @@ describe("desktop source boundaries", () => {
       "src/patch-proposal-surface-view.ts",
       "src/memory-inspector-view.ts",
       "src/chat-run-canvas-view.ts",
+      "src/run-draft-view.ts",
       "scripts/preflight.mjs",
       "scripts/run-flow.mjs",
       "src-tauri/src/main.rs",
@@ -2123,6 +2314,37 @@ describe("desktop source boundaries", () => {
     expect(combined).toContain("No DeepSeek call");
     expect(combined).toContain("No patch, Git, or shell execution");
     expect(combined).toContain("app-shell-chat-run-canvas-v0.2.md");
+  });
+
+  it("documents app run draft as local preview only", async () => {
+    const docs = await Promise.all(
+      ["app-shell-run-draft-v0.2.md", "README.md"].map(async (file) => ({
+        file,
+        text: await readFile(path.join(repoRoot, "docs", file), "utf8")
+      }))
+    );
+    const combined = docs.map((doc) => doc.text).join("\n");
+
+    expect(combined).toContain("App Shell Run Draft v0.2");
+    expect(combined).toContain("local-only Control Plane run preview");
+    expect(combined).toContain("local_draft");
+    expect(combined).toContain("preview_only");
+    expect(combined).toContain("No real ControlPlaneRun is created");
+    expect(combined).toContain("No EventStore entry is written");
+    expect(combined).toContain("No Tauri command is added or invoked");
+    expect(combined).toContain("No DeepSeek call");
+    expect(combined).toContain(
+      "No agent, capability, patch, Git, or shell execution"
+    );
+    expect(combined).toContain("No persistence is used");
+    expect(combined).toContain("localStorage");
+    expect(combined).toContain("sessionStorage");
+    expect(combined).toContain("warning codes only");
+    expect(combined).toContain("Workspace Index");
+    expect(combined).toContain("Patch Proposal UI Bridge");
+    expect(combined).toContain("Agent Dossier");
+    expect(combined).toContain("Capability Broker");
+    expect(combined).toContain("app-shell-run-draft-v0.2.md");
   });
 
   it("documents the v0.2 App Shell RC release notes without enabling execution", async () => {

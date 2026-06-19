@@ -20,6 +20,7 @@ foundation.
 - [App Shell Approval / Diff / Audit Surfaces v0.2](app-shell-approval-diff-audit-surfaces-v0.2.md)
 - [App Shell Memory Inspector v0.2](app-shell-memory-inspector-v0.2.md)
 - [App Shell Chat / Run Canvas v0.2](app-shell-chat-run-canvas-v0.2.md)
+- [App Shell Run Draft v0.2](app-shell-run-draft-v0.2.md)
 - [v0.2.0 App Shell RC release notes](release-notes-v0.2.0-app-shell-rc.1.md)
 - [App Shell v0.2 manual QA](app-shell-v0.2-manual-qa.md)
 - [App Shell v0.2 RC checklist](app-shell-v0.2-rc-checklist.md)
