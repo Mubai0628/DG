@@ -2093,6 +2093,121 @@ describe("desktop source boundaries", () => {
     expect(appReadme).toContain("no real chat, run creation");
   });
 
+  it("documents the v0.2 App Shell RC post-release review and locks P0F", async () => {
+    const review = await readFile(
+      path.join(repoRoot, "docs", "v0.2-app-shell-rc-postrelease-review.md"),
+      "utf8"
+    );
+    const docsIndex = await readFile(
+      path.join(repoRoot, "docs", "README.md"),
+      "utf8"
+    );
+
+    expect(review).toContain("v0.2.0-app-shell-rc.1");
+    expect(review).toContain("Control plane foundation");
+    expect(review).toContain("release tag checks passed");
+    expect(review).toContain("Tag: TODO");
+    expect(review).toContain("Commit: TODO");
+    expect(review).toContain("P0F is complete");
+    expect(review).toContain("web_table_to_csv");
+    expect(review).toContain("Event Log / Replay");
+    expect(review).toContain("Control Plane Projection");
+    expect(review).toContain("Chat / Run Canvas");
+    expect(review).toContain("Approval / Diff / Audit");
+    expect(review).toContain("Memory Inspector");
+    expect(review).toContain("Bridge Proposal Preview");
+    expect(review).toContain("Real chat / LLM execution");
+    expect(review).toContain("Real run creation");
+    expect(review).toContain("Patch apply");
+    expect(review).toContain("Git execution");
+    expect(review).toContain("Shell execution");
+    expect(review).toContain("MCP, plugin, or skills runtime");
+    expect(review).toContain("Native bridge");
+    expect(review).toContain("Memory persistence UI");
+    expect(review).toContain("pnpm verify:ci");
+    expect(review).toContain("pnpm release:smoke");
+    expect(review).toContain("pnpm app:qa:check");
+    expect(review).toContain("manual GUI QA");
+    expect(review).toContain("GitHub Actions Node runtime warning");
+    expect(review).toContain("Tauri bundle identifier warning");
+    expect(review).toContain("No raw payload uploads");
+    expect(review).toContain("No raw CSV uploads");
+    expect(review).toContain("No API key uploads");
+    expect(review).toContain("No ignored `conformance/results/`");
+    expect(docsIndex).toContain("v0.2-app-shell-rc-postrelease-review.md");
+  });
+
+  it("documents the P0G Coding Workflow roadmap without enabling execution", async () => {
+    const roadmap = await readFile(
+      path.join(repoRoot, "docs", "p0g-coding-workflow-roadmap.md"),
+      "utf8"
+    );
+    const rootReadme = await readFile(path.join(repoRoot, "README.md"), "utf8");
+    const docsIndex = await readFile(
+      path.join(repoRoot, "docs", "README.md"),
+      "utf8"
+    );
+    const combined = `${roadmap}\n${rootReadme}\n${docsIndex}`;
+
+    expect(combined).toContain("P0G Coding Workflow Roadmap");
+    expect(combined).toContain("coding workflow MVP");
+    expect(combined).toContain("read-only workspace intelligence");
+    expect(combined).toContain("patch proposal UI");
+    expect(combined).toContain("P0G-001 Workspace Read / Index Skeleton");
+    expect(combined).toContain("P0G-002 Patch Proposal UI Bridge");
+    expect(combined).toContain("P0G-003 Control Plane Run Draft");
+    expect(combined).toContain("P0G-004 Context Cart / Rules Ledger");
+    expect(combined).toContain("P0G-005 Agent Route Preview");
+    expect(combined).toContain("P0G-006 Capability Plan Preview");
+    expect(combined).toContain("P0G-007 Memory Recall Preview");
+    expect(combined).toContain("P0G-008 App Shell RC Polish");
+    expect(combined).toContain("Patch apply");
+    expect(combined).toContain("Real Git execution");
+    expect(combined).toContain("Real shell execution");
+    expect(combined).toContain("Real DeepSeek chat");
+    expect(combined).toContain("MCP, plugin, or skills runtime");
+    expect(combined).toContain("Native bridge");
+    expect(combined).toContain("Desktop action");
+    expect(combined).toContain("p0g-coding-workflow-roadmap.md");
+    expect(combined).toContain("P0F is complete");
+  });
+
+  it("documents P0G-001 as a read-only workspace index plan", async () => {
+    const plan = await readFile(
+      path.join(repoRoot, "docs", "p0g-001-workspace-read-index-plan.md"),
+      "utf8"
+    );
+    const docsIndex = await readFile(
+      path.join(repoRoot, "docs", "README.md"),
+      "utf8"
+    );
+
+    expect(plan).toContain("Do not implement this plan in P0F-015");
+    expect(plan).toContain("Scope");
+    expect(plan).toContain("Non-Goals");
+    expect(plan).toContain("Suggested Data Model");
+    expect(plan).toContain("Path Guard Rules");
+    expect(plan).toContain("Read-Only File Summary Model");
+    expect(plan).toContain("Virtual / In-Memory Fixtures");
+    expect(plan).toContain("Event Summary Policy");
+    expect(plan).toContain("Tests");
+    expect(plan).toContain("Commands To Run");
+    expect(plan).toContain("Completion Report Format");
+    expect(plan).toContain("WorkspaceIndex");
+    expect(plan).toContain("WorkspacePathGuardResult");
+    expect(plan).toContain("absolute paths");
+    expect(plan).toContain("Windows drive-letter paths");
+    expect(plan).toContain("parent traversal");
+    expect(plan).toContain("node_modules");
+    expect(plan).toContain("No Git execution");
+    expect(plan).toContain("No shell execution");
+    expect(plan).toContain("No DeepSeek call");
+    expect(plan).toContain("pnpm test -- workspace-index");
+    expect(plan).toContain("DW-P0G-001");
+    expect(plan).toContain("DW-P0G-002 Patch Proposal UI bridge");
+    expect(docsIndex).toContain("p0g-001-workspace-read-index-plan.md");
+  });
+
   it("configures the offline desktop QA check without GUI or DeepSeek calls", async () => {
     const rootPackage = JSON.parse(
       await readFile(rootPackagePath, "utf8")

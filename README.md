@@ -68,6 +68,18 @@ v0.2 App Shell RC references:
 - [App Shell v0.2 manual QA](docs/app-shell-v0.2-manual-qa.md)
 - [App Shell v0.2 RC checklist](docs/app-shell-v0.2-rc-checklist.md)
 
+## Current roadmap
+
+P0F is complete after `v0.2.0-app-shell-rc.1`. The next phase is P0G Coding
+Workflow MVP: read-only workspace intelligence first, then patch proposal and
+control-plane previews. Real chat, run execution, patch apply, Git execution,
+shell execution, MCP/plugin/skills runtime, native bridge, and desktop action
+remain deferred.
+
+- [v0.2 App Shell RC post-release review](docs/v0.2-app-shell-rc-postrelease-review.md)
+- [P0G Coding Workflow roadmap](docs/p0g-coding-workflow-roadmap.md)
+- [P0G-001 Workspace Read / Index plan](docs/p0g-001-workspace-read-index-plan.md)
+
 ## What v0.1.0 does not support
 
 v0.1.0 does not:
