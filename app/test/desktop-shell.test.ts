@@ -20,6 +20,8 @@ import { buildPatchProposalSurfaceView } from "../src/patch-proposal-surface-vie
 import { buildMemoryInspectorView } from "../src/memory-inspector-view.js";
 import { buildChatRunCanvasView } from "../src/chat-run-canvas-view.js";
 import { buildRunDraftView, summarizeRunDraft } from "../src/run-draft-view.js";
+import { buildContextCartView } from "../src/context-cart-view.js";
+import { buildAgentRoutePreviewView } from "../src/agent-route-preview-view.js";
 import {
   buildEventLogPanelModel,
   buildBridgeProposalPreviewModel,
@@ -1970,6 +1972,293 @@ describe("app control plane run draft preview", () => {
   });
 });
 
+describe("app context cart rules ledger visualization", () => {
+  it("builds an empty read-only context cart skeleton", () => {
+    const view = buildContextCartView();
+
+    expect(view.status).toBe("empty");
+    expect(view.source).toBe("empty");
+    expect(view.readOnly).toBe(true);
+    expect(view.totalSegments).toBe(0);
+    expect(view.totalTokenEstimate).toBe(0);
+    expect(view.layers).toHaveLength(6);
+    expect(view.frozenPrefixHash).toBe("n/a");
+    expect(view.volatileTailHash).toBe("n/a");
+    expect(view.noCompressZoneCount).toBe(0);
+    expect(view.nextAction).toContain("No context assembly report");
+  });
+
+  it("maps synthetic context summaries to layer, hash, and placement counts", () => {
+    const view = buildContextCartView({
+      contextAssemblyReport: {
+        source: "synthetic_summary",
+        segmentCountByLayer: {
+          immutable_rules: 1,
+          workspace_rules: 2,
+          task_contract: 1,
+          volatile_tail: 3,
+          no_compress_zone: 2
+        },
+        tokenEstimatesByLayer: {
+          immutable_rules: 10,
+          workspace_rules: 20,
+          task_contract: 30,
+          volatile_tail: 40,
+          no_compress_zone: 50
+        },
+        hashSummary: {
+          globalFrozenPrefixHash: "frozenprefix1234567890",
+          workspaceRulesHash: "workspacehash1234567890",
+          taskContractHash: "taskcontract1234567890",
+          volatileTailHash: "volatiletail1234567890",
+          noCompressZoneHash: "nocompress1234567890"
+        },
+        noCompressZoneIds: ["approval-1", "diff-1"],
+        placementDecisions: [
+          {
+            segmentId: "rule-1",
+            layer: "immutable_rules",
+            placement: "frozen_prefix",
+            reasonCode: "IMMUTABLE_RULE"
+          },
+          {
+            segmentId: "memory-1",
+            layer: "volatile_tail",
+            placement: "volatile_tail",
+            reasonCode: "MEMORY_RECALL_VOLATILE"
+          }
+        ],
+        warnings: ["CACHE_BOUNDARY_REVIEW"]
+      }
+    });
+
+    expect(view.status).toBe("warning");
+    expect(view.source).toBe("synthetic_summary");
+    expect(view.totalSegments).toBe(9);
+    expect(view.totalTokenEstimate).toBe(150);
+    expect(view.frozenPrefixHash).toBe("frozenprefix");
+    expect(view.workspaceRulesHash).toBe("workspacehas");
+    expect(view.taskContractHash).toBe("taskcontract");
+    expect(view.volatileTailHash).toBe("volatiletail");
+    expect(view.noCompressZoneHash).toBe("nocompress12");
+    expect(view.noCompressZoneCount).toBe(2);
+    expect(view.placementDecisionCount).toBe(2);
+    expect(
+      view.layers.find((layer) => layer.layer === "volatile_tail")
+    ).toMatchObject({ segmentCount: 3, tokenEstimate: 40, volatileOnly: true });
+    expect(view.warnings.map((warning) => warning.code)).toContain(
+      "CACHE_BOUNDARY_REVIEW"
+    );
+  });
+
+  it("drops raw segment content and unsafe marker summaries", () => {
+    const secret = "sk-test1234567890abcdef";
+    const view = buildContextCartView({
+      contextAssemblyReport: {
+        source: "synthetic_summary",
+        segments: [
+          {
+            id: "segment-raw",
+            layer: "task_contract",
+            title: `Do not show ${secret}`,
+            source: "task",
+            content: "rawPrompt should never render"
+          }
+        ],
+        hashSummary: {
+          taskContractHash: "taskcontractabcdef"
+        }
+      }
+    });
+    const serialized = JSON.stringify(view);
+
+    expect(view.status).toBe("warning");
+    expect(view.segmentSummaries[0]?.title).toBe(
+      "Summary withheld by safety policy."
+    );
+    expect(view.segmentSummaries[0]?.warningCodes).toContain(
+      "RAW_CONTEXT_FIELD_DROPPED"
+    );
+    expect(serialized).not.toContain(secret);
+    expect(serialized).not.toContain("rawPrompt");
+    expect(serialized).not.toContain("should never render");
+  });
+
+  it("shows run draft relationship as next action only without assembly", () => {
+    const runDraft = buildRunDraftView({
+      objectiveDraft: "Preview a code change.",
+      selectedIntent: "code_change",
+      acceptanceCriteriaDraft: "Summary only",
+      workspaceRoot: "D:\\workspace"
+    });
+    const view = buildContextCartView({ runDraft });
+
+    expect(view.status).toBe("warning");
+    expect(view.totalSegments).toBe(0);
+    expect(view.placementDecisionCount).toBe(0);
+    expect(view.nextAction).toContain("derive task_contract");
+    expect(view.warnings.map((warning) => warning.code)).toContain(
+      "RUN_DRAFT_CONTEXT_PENDING"
+    );
+  });
+
+  it("marks memory recalls as volatile-tail relationship only", () => {
+    const memoryInspector = buildMemoryInspectorView({
+      memoryRecallItems: [
+        {
+          memoryId: "memory-1",
+          type: "project_fact",
+          status: "recalled",
+          trustLevel: "verified_tool_result",
+          namespace: "workspace",
+          summary: "Safe summary only"
+        }
+      ]
+    });
+    const view = buildContextCartView({ memoryInspector });
+
+    expect(view.status).toBe("warning");
+    expect(view.warnings.map((warning) => warning.code)).toContain(
+      "MEMORY_RECALL_VOLATILE_TAIL"
+    );
+    expect(JSON.stringify(view)).not.toContain("full content");
+  });
+});
+
+describe("app agent route preview", () => {
+  it("builds an empty preview until a local run draft exists", () => {
+    const view = buildAgentRoutePreviewView({
+      selectedIntent: "code_change"
+    });
+
+    expect(view.status).toBe("empty");
+    expect(view.source).toBe("empty");
+    expect(view.previewOnly).toBe(true);
+    expect(view.executionEnabled).toBe(false);
+    expect(view.steps).toHaveLength(0);
+    expect(view.nextAction).toContain("Preview a local run draft first");
+  });
+
+  it("routes web data extraction through orchestrator and verifier only", () => {
+    const runDraft = buildRunDraftView({
+      objectiveDraft: "Export the selected web table to CSV.",
+      selectedIntent: "web_data_extraction",
+      acceptanceCriteriaDraft: "CSV draft exists",
+      workspaceRoot: "D:\\workspace"
+    });
+    const view = buildAgentRoutePreviewView({
+      runDraft,
+      contextCart: buildContextCartView({
+        contextAssemblyReport: {
+          source: "synthetic_summary",
+          segmentCountByLayer: { volatile_tail: 1 }
+        }
+      })
+    });
+
+    expect(view.status).toBe("preview");
+    expect(view.steps.map((step) => step.role)).toEqual([
+      "orchestrator",
+      "verifier"
+    ]);
+    expect(view.steps.map((step) => step.role)).not.toContain("coder");
+    expect(view.nextAction).toContain("No agent is executed");
+  });
+
+  it("routes code changes through orchestrator coder reviewer verifier", () => {
+    const runDraft = buildRunDraftView({
+      objectiveDraft: "Prepare a small UI patch proposal.",
+      selectedIntent: "code_change",
+      acceptanceCriteriaDraft: "Patch summary exists\nTests are described",
+      workspaceRoot: "D:\\workspace"
+    });
+    const view = buildAgentRoutePreviewView({
+      runDraft,
+      contextCart: buildContextCartView({
+        contextAssemblyReport: {
+          source: "synthetic_summary",
+          segmentCountByLayer: { task_contract: 1 }
+        }
+      })
+    });
+
+    expect(view.steps.map((step) => step.role)).toEqual([
+      "orchestrator",
+      "coder",
+      "reviewer",
+      "verifier"
+    ]);
+    expect(view.status).toBe("warning");
+    expect(view.warnings.map((warning) => warning.code)).toContain(
+      "PATCH_CAPABILITY_NOT_CONNECTED"
+    );
+    expect(
+      view.steps.find((step) => step.role === "coder")?.expectedOutputs
+    ).toContain("patch proposal summary");
+  });
+
+  it("marks unknown intent as needing clarification", () => {
+    const runDraft = buildRunDraftView({
+      objectiveDraft: "Plan this later.",
+      selectedIntent: "unknown",
+      acceptanceCriteriaDraft: "Preview only",
+      workspaceRoot: "D:\\workspace"
+    });
+    const view = buildAgentRoutePreviewView({ runDraft });
+
+    expect(view.status).toBe("needs_clarification");
+    expect(view.steps.map((step) => step.role)).toEqual(["orchestrator"]);
+    expect(view.warnings.map((warning) => warning.code)).toContain(
+      "INTENT_UNKNOWN_NEEDS_CLARIFICATION"
+    );
+  });
+
+  it("includes display-only model profile ids and capability refs", () => {
+    const runDraft = buildRunDraftView({
+      objectiveDraft: "Review a proposed code diff.",
+      selectedIntent: "code_review",
+      acceptanceCriteriaDraft: "Reviewer summary exists",
+      workspaceRoot: "D:\\workspace"
+    });
+    const view = buildAgentRoutePreviewView({ runDraft });
+    const serialized = JSON.stringify(view);
+
+    expect(view.modelProfileIds).toContain("deepseek-v4-pro");
+    expect(view.modelProfileIds).toContain("deepseek-v4-flash");
+    expect(view.capabilityRefCount).toBeGreaterThan(0);
+    for (const step of view.steps) {
+      for (const capability of step.allowedCapabilityRefs) {
+        expect(capability.mode).toBe("display_only");
+      }
+    }
+    expect(serialized).toContain("native.workspace.index");
+    expect(serialized).toContain("native.git.diff_summary");
+  });
+
+  it("does not expose unsafe objective markers in route summaries", () => {
+    const secret = "sk-test1234567890abcdef";
+    const runDraft = buildRunDraftView({
+      objectiveDraft: `Route a draft containing ${secret} and rawDom.`,
+      selectedIntent: "verification",
+      acceptanceCriteriaDraft: "warning codes only",
+      workspaceRoot: "D:\\workspace"
+    });
+    const view = buildAgentRoutePreviewView({ runDraft });
+    const serialized = JSON.stringify(view);
+
+    expect(view.status).toBe("error");
+    expect(view.warnings.map((warning) => warning.code)).toContain(
+      "API_KEY_MARKER"
+    );
+    expect(view.warnings.map((warning) => warning.code)).toContain(
+      "RAW_DOM_MARKER"
+    );
+    expect(serialized).not.toContain(secret);
+    expect(serialized).not.toContain("rawDom");
+    expect(serialized).not.toContain("Route a draft containing");
+  });
+});
+
 describe("desktop source boundaries", () => {
   it("keeps refresh events and docs actions from navigating or resetting UI state", async () => {
     const appSource = await readFile(
@@ -2020,6 +2309,23 @@ describe("desktop source boundaries", () => {
     expect(appSource).toContain("Create Run (disabled)");
     expect(appSource).toContain("Preview Draft Run");
     expect(appSource).toContain("Run Draft Preview");
+    expect(appSource).toContain("Context Cart / Rules Ledger");
+    expect(appSource).toContain("Read-only summary");
+    expect(appSource).toContain(
+      "Raw prompt and segment content are not displayed."
+    );
+    expect(appSource).toContain("buildContextCartView");
+    expect(appSource).toContain("contextCart");
+    expect(appSource).toContain("No context assembly report is connected yet");
+    expect(appSource).toContain("Agent Route Preview");
+    expect(appSource).toContain("Preview only");
+    expect(appSource).toContain("No agent");
+    expect(appSource).toContain("no model request is sent");
+    expect(appSource).toContain("buildAgentRoutePreviewView");
+    expect(appSource).toContain("agentRoutePreview");
+    expect(appSource).toContain(
+      "Preview a local run draft first. Agent routes will appear here"
+    );
     expect(appSource).toContain("displayedRunDraft");
     expect(appSource).toContain("runDraftCandidate");
     expect(appSource).toContain("setRunDraftPreview");
@@ -2048,12 +2354,18 @@ describe("desktop source boundaries", () => {
     expect(appSource).not.toContain("handleCreateRun");
     expect(appSource).not.toContain("handleSendChat");
     expect(appSource).not.toContain("handleRunCanvas");
+    expect(appSource).not.toContain("handleRouteAgent");
+    expect(appSource).not.toContain("handleSpawnAgent");
     expect(appSource).not.toContain("handleSendToDeepSeek");
     expect(appSource).not.toContain("handleRunGit");
     expect(appSource).not.toContain("handleRunShell");
     expect(appSource).not.toContain("handleEnableBridge");
     expect(appSource).not.toContain("Send to DeepSeek");
     expect(appSource).not.toContain("Create Run</button>");
+    expect(appSource).not.toContain("Run Agent");
+    expect(appSource).not.toContain("Execute Agent");
+    expect(appSource).not.toContain("Spawn Agent");
+    expect(appSource).not.toContain("Send Agent");
     expect(appSource).not.toContain("Apply Patch");
     expect(appSource).not.toContain("Run Git");
     expect(appSource).not.toContain("Run Shell");
@@ -2071,6 +2383,11 @@ describe("desktop source boundaries", () => {
     expect(appSource).not.toContain("createControlPlaneTask");
     expect(appSource).not.toContain("routeAgentTask");
     expect(appSource).not.toContain("planCapabilityInvocation");
+    expect(appSource).not.toContain("assemblePrompt");
+    expect(appSource).not.toContain("assembleContext");
+    expect(appSource).not.toContain("ContextLedger");
+    expect(appSource).not.toContain("ContextLedgerV2");
+    expect(appSource).not.toContain("PromptAssembler");
     expect(appSource).not.toContain("EventStore");
     expect(appSource).not.toContain("writeEvent");
     expect(appSource).not.toContain("git_execute_command");
@@ -2147,6 +2464,8 @@ describe("desktop source boundaries", () => {
       "src/memory-inspector-view.ts",
       "src/chat-run-canvas-view.ts",
       "src/run-draft-view.ts",
+      "src/context-cart-view.ts",
+      "src/agent-route-preview-view.ts",
       "scripts/preflight.mjs",
       "scripts/run-flow.mjs",
       "src-tauri/src/main.rs",
@@ -2345,6 +2664,66 @@ describe("desktop source boundaries", () => {
     expect(combined).toContain("Agent Dossier");
     expect(combined).toContain("Capability Broker");
     expect(combined).toContain("app-shell-run-draft-v0.2.md");
+  });
+
+  it("documents app context cart as read-only and summary-only", async () => {
+    const docs = await Promise.all(
+      ["app-shell-context-cart-v0.2.md", "README.md"].map(async (file) => ({
+        file,
+        text: await readFile(path.join(repoRoot, "docs", file), "utf8")
+      }))
+    );
+    const combined = docs.map((doc) => doc.text).join("\n");
+
+    expect(combined).toContain("App Shell Context Cart v0.2");
+    expect(combined).toContain("read-only visualization");
+    expect(combined).toContain("immutable_rules");
+    expect(combined).toContain("workspace_rules");
+    expect(combined).toContain("task_contract");
+    expect(combined).toContain("session_working_set");
+    expect(combined).toContain("volatile_tail");
+    expect(combined).toContain("no_compress_zone");
+    expect(combined).toContain("raw prompt text");
+    expect(combined).toContain("raw segment content");
+    expect(combined).toContain("warning codes only");
+    expect(combined).toContain("frozen prefix");
+    expect(combined).toContain("volatile tail");
+    expect(combined).toContain("no-compress zone");
+    expect(combined).toContain("No model call");
+    expect(combined).toContain("No prompt assembly");
+    expect(combined).toContain("No EventStore writes");
+    expect(combined).toContain("No persistent context store");
+    expect(combined).toContain("No DeepSeek call");
+    expect(combined).toContain("app-shell-context-cart-v0.2.md");
+  });
+
+  it("documents app agent route preview as preview-only", async () => {
+    const docs = await Promise.all(
+      ["app-shell-agent-route-preview-v0.2.md", "README.md"].map(
+        async (file) => ({
+          file,
+          text: await readFile(path.join(repoRoot, "docs", file), "utf8")
+        })
+      )
+    );
+    const combined = docs.map((doc) => doc.text).join("\n");
+
+    expect(combined).toContain("App Shell Agent Route Preview v0.2");
+    expect(combined).toContain("fixed roles before dynamic bidding");
+    expect(combined).toContain("orchestrator -> verifier");
+    expect(combined).toContain("orchestrator -> coder -> reviewer -> verifier");
+    expect(combined).toContain("deepseek-v4-pro");
+    expect(combined).toContain("deepseek-v4-flash");
+    expect(combined).toContain("capability ids as refs only");
+    expect(combined).toContain("raw objective text");
+    expect(combined).toContain("warning codes only");
+    expect(combined).toContain("No dynamic bidding");
+    expect(combined).toContain("No real multi-agent execution");
+    expect(combined).toContain("No model request");
+    expect(combined).toContain("No DeepSeek call");
+    expect(combined).toContain("No EventStore write");
+    expect(combined).toContain("No patch, Git, or shell execution");
+    expect(combined).toContain("app-shell-agent-route-preview-v0.2.md");
   });
 
   it("documents the v0.2 App Shell RC release notes without enabling execution", async () => {

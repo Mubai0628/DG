@@ -33,6 +33,14 @@ import {
 } from "./chat-run-canvas-view.js";
 import { buildRunDraftView, type AppRunDraftView } from "./run-draft-view.js";
 import {
+  buildContextCartView,
+  type AppContextCartView
+} from "./context-cart-view.js";
+import {
+  buildAgentRoutePreviewView,
+  type AppAgentRoutePreviewView
+} from "./agent-route-preview-view.js";
+import {
   buildEventLogPanelModel,
   buildBridgeProposalPreviewModel,
   buildResultPanelModel,
@@ -227,6 +235,44 @@ export function DesktopShell(): JSX.Element {
     ]
   );
   const displayedRunDraft = runDraftPreview ?? runDraftCandidate;
+  const contextCart = useMemo<AppContextCartView>(
+    () =>
+      buildContextCartView({
+        runDraft: displayedRunDraft,
+        controlProjection: controlPlanePanel,
+        memoryInspector,
+        patchSurface: workbenchSurfaces.diff,
+        eventSummary
+      }),
+    [
+      controlPlanePanel,
+      displayedRunDraft,
+      eventSummary,
+      memoryInspector,
+      workbenchSurfaces.diff
+    ]
+  );
+  const agentRoutePreview = useMemo<AppAgentRoutePreviewView>(
+    () =>
+      buildAgentRoutePreviewView({
+        runDraft: displayedRunDraft,
+        selectedIntent,
+        objectiveSummary: displayedRunDraft.objectiveSummary,
+        acceptanceCriteriaCount: displayedRunDraft.acceptanceCriteriaCount,
+        workspaceRoot,
+        contextCart,
+        patchSurface: workbenchSurfaces.diff,
+        memoryInspector
+      }),
+    [
+      contextCart,
+      displayedRunDraft,
+      memoryInspector,
+      selectedIntent,
+      workbenchSurfaces.diff,
+      workspaceRoot
+    ]
+  );
   const bridgeActionsVisible =
     bridgePanel.status === "pending" && bridgePanel.emptyMessage === undefined;
   const preflightBadge =
@@ -825,6 +871,213 @@ export function DesktopShell(): JSX.Element {
               <strong>Next action</strong>
               <p>{chatRunCanvas.nextAction.label}</p>
             </div>
+          </section>
+
+          <section className="eventPanel" aria-label="Agent Route Preview">
+            <div className="panelHeader">
+              <h2>Agent Route Preview</h2>
+              <span className="muted">Preview only</span>
+            </div>
+            <p className="fieldHelp">
+              Shows the fixed role route that a future run would use. No agent
+              is executed and no model request is sent.
+            </p>
+
+            {agentRoutePreview.status === "empty" ? (
+              <p className="empty">
+                Preview a local run draft first. Agent routes will appear here
+                before any execution.
+              </p>
+            ) : null}
+
+            <dl className="summaryGrid compact">
+              <div>
+                <dt>Status</dt>
+                <dd>{agentRoutePreview.status}</dd>
+              </div>
+              <div>
+                <dt>Intent</dt>
+                <dd>{agentRoutePreview.intent}</dd>
+              </div>
+              <div>
+                <dt>Roles</dt>
+                <dd>{agentRoutePreview.roleCount}</dd>
+              </div>
+              <div>
+                <dt>Capability refs</dt>
+                <dd>{agentRoutePreview.capabilityRefCount}</dd>
+              </div>
+              <div>
+                <dt>Profiles</dt>
+                <dd>
+                  {agentRoutePreview.modelProfileIds.length > 0
+                    ? agentRoutePreview.modelProfileIds.join(", ")
+                    : "n/a"}
+                </dd>
+              </div>
+              <div>
+                <dt>Execution enabled</dt>
+                <dd>{agentRoutePreview.executionEnabled ? "yes" : "no"}</dd>
+              </div>
+            </dl>
+
+            {agentRoutePreview.steps.length > 0 ? (
+              <ol className="timeline">
+                {agentRoutePreview.steps.map((step) => (
+                  <li key={step.stepId}>
+                    <span className="timelineMeta">
+                      {step.order}. {step.role} · {step.modelProfileId}
+                    </span>
+                    <span>{step.purpose}</span>
+                    <span className="timelineMeta">
+                      Outputs: {step.expectedOutputs.join(", ")}
+                    </span>
+                    {step.allowedCapabilityRefs.length > 0 ? (
+                      <span className="timelineMeta">
+                        Capability refs:{" "}
+                        {step.allowedCapabilityRefs
+                          .map((ref) => ref.capabilityId)
+                          .join(", ")}
+                      </span>
+                    ) : null}
+                    {step.warningCodes.length > 0 ? (
+                      <span className="timelineMeta">
+                        Warnings: {step.warningCodes.join(", ")}
+                      </span>
+                    ) : null}
+                  </li>
+                ))}
+              </ol>
+            ) : null}
+
+            {agentRoutePreview.warnings.length > 0 ? (
+              <p className="muted">
+                warnings{" "}
+                {agentRoutePreview.warnings
+                  .map((warning) => warning.code)
+                  .join(", ")}
+              </p>
+            ) : null}
+
+            <p className="fieldHelp">{agentRoutePreview.nextAction}</p>
+          </section>
+
+          <section className="eventPanel" aria-label="Context Cart">
+            <div className="panelHeader">
+              <h2>Context Cart / Rules Ledger</h2>
+              <span className="muted">Read-only summary</span>
+            </div>
+            <p className="fieldHelp">
+              Shows context placement, hashes, token estimates, and no-compress
+              zones. Raw prompt and segment content are not displayed.
+            </p>
+
+            {contextCart.status === "empty" ? (
+              <p className="empty">
+                No context assembly report is connected yet. Future run drafts
+                will show context placement here before model execution.
+              </p>
+            ) : null}
+
+            <dl className="summaryGrid compact">
+              <div>
+                <dt>Segments</dt>
+                <dd>{contextCart.totalSegments}</dd>
+              </div>
+              <div>
+                <dt>Token estimate</dt>
+                <dd>{contextCart.totalTokenEstimate}</dd>
+              </div>
+              <div>
+                <dt>Frozen prefix</dt>
+                <dd>{contextCart.frozenPrefixHash}</dd>
+              </div>
+              <div>
+                <dt>Volatile tail</dt>
+                <dd>{contextCart.volatileTailHash}</dd>
+              </div>
+              <div>
+                <dt>No-compress zones</dt>
+                <dd>{contextCart.noCompressZoneCount}</dd>
+              </div>
+              <div>
+                <dt>Placements</dt>
+                <dd>{contextCart.placementDecisionCount}</dd>
+              </div>
+              <div>
+                <dt>Cache boundary</dt>
+                <dd>
+                  {contextCart.cacheBoundaryChanged ? "changed" : "unchanged"}
+                </dd>
+              </div>
+              <div>
+                <dt>Source</dt>
+                <dd>{contextCart.source}</dd>
+              </div>
+            </dl>
+
+            <div className="surfaceStack">
+              {contextCart.layers.map((layer) => (
+                <section className="surfaceBox" key={layer.layer}>
+                  <div className="panelHeader compactHeader">
+                    <h2>{layer.layer}</h2>
+                    <span className="muted">{layer.placement}</span>
+                  </div>
+                  <dl className="summaryGrid compact">
+                    <div>
+                      <dt>Segments</dt>
+                      <dd>{layer.segmentCount}</dd>
+                    </div>
+                    <div>
+                      <dt>Tokens</dt>
+                      <dd>{layer.tokenEstimate}</dd>
+                    </div>
+                    <div>
+                      <dt>Hash prefix</dt>
+                      <dd>{layer.hashPrefix}</dd>
+                    </div>
+                    <div>
+                      <dt>Volatile only</dt>
+                      <dd>{layer.volatileOnly ? "yes" : "no"}</dd>
+                    </div>
+                    <div>
+                      <dt>No-compress</dt>
+                      <dd>{layer.noCompressCount}</dd>
+                    </div>
+                    <div>
+                      <dt>Warnings</dt>
+                      <dd>
+                        {layer.warningCodes.length > 0
+                          ? layer.warningCodes.join(", ")
+                          : "none"}
+                      </dd>
+                    </div>
+                  </dl>
+                </section>
+              ))}
+            </div>
+
+            {contextCart.placementDecisions.length > 0 ? (
+              <ol className="timeline">
+                {contextCart.placementDecisions.map((decision) => (
+                  <li key={`${decision.segmentId}-${decision.reasonCode}`}>
+                    <span className="timelineMeta">
+                      {decision.layer} · {decision.placement}
+                    </span>
+                    <span>{decision.reasonCode}</span>
+                  </li>
+                ))}
+              </ol>
+            ) : null}
+
+            {contextCart.warnings.length > 0 ? (
+              <p className="muted">
+                warnings{" "}
+                {contextCart.warnings.map((warning) => warning.code).join(", ")}
+              </p>
+            ) : null}
+
+            <p className="fieldHelp">{contextCart.nextAction}</p>
           </section>
 
           <section className="eventPanel">
