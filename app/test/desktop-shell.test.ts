@@ -28,6 +28,11 @@ import {
 } from "../src/capability-plan-preview-view.js";
 import { buildMemoryRecallPreviewView } from "../src/memory-recall-preview-view.js";
 import {
+  buildWorkspaceIndexBridgeView,
+  parseWorkspaceIndexSummaryJson,
+  validateWorkspaceIndexSummaryInput
+} from "../src/workspace-index-bridge-view.js";
+import {
   buildEventLogPanelModel,
   buildBridgeProposalPreviewModel,
   buildResultPanelModel,
@@ -179,6 +184,104 @@ function fixedEventSummary(
     },
     warnings: [],
     ...overrides
+  };
+}
+
+function fixedWorkspaceIndexSummary(): Record<string, unknown> {
+  return {
+    workspaceIndexId: "workspace-index-test-1",
+    status: "built",
+    fileCount: 3,
+    indexedFileCount: 2,
+    skippedFileCount: 1,
+    totalBytes: 1234,
+    totalLines: 88,
+    hash: "abcdef1234567890",
+    fileSummaries: [
+      {
+        path: "README.md",
+        extension: "md",
+        language: "md",
+        sizeBytes: 234,
+        lineCount: 20,
+        hash: "readmehash123456",
+        indexed: true,
+        warningCodes: [],
+        symbolCount: 2
+      },
+      {
+        path: "app/src/App.tsx",
+        extension: "tsx",
+        language: "tsx",
+        sizeBytes: 1000,
+        lineCount: 68,
+        hash: "apphash123456789",
+        indexed: true,
+        warningCodes: ["LARGE_COMPONENT_SUMMARY"],
+        symbolCount: 5
+      },
+      {
+        path: "docs/private-note.md",
+        extension: "md",
+        language: "md",
+        sizeBytes: 0,
+        lineCount: 0,
+        hash: "skippedhash123456",
+        indexed: false,
+        skippedReason: "UNSAFE_CONTENT_SKIPPED",
+        warningCodes: ["UNSAFE_CONTENT_SKIPPED"],
+        symbolCount: 0
+      }
+    ],
+    directorySummaries: [
+      {
+        path: "app/src",
+        fileCount: 1,
+        indexedFileCount: 1,
+        skippedFileCount: 0,
+        languageCounts: { tsx: 1 },
+        warningCodes: []
+      },
+      {
+        path: "docs",
+        fileCount: 1,
+        indexedFileCount: 0,
+        skippedFileCount: 1,
+        languageCounts: { md: 1 },
+        warningCodes: ["UNSAFE_CONTENT_SKIPPED"]
+      }
+    ],
+    languageSummary: [
+      {
+        language: "md",
+        fileCount: 2,
+        indexedFileCount: 1,
+        lineCount: 20,
+        sizeBytes: 234
+      },
+      {
+        language: "tsx",
+        fileCount: 1,
+        indexedFileCount: 1,
+        lineCount: 68,
+        sizeBytes: 1000
+      }
+    ],
+    symbolSummaries: [
+      {
+        filePath: "README.md",
+        name: "Overview",
+        kind: "heading",
+        language: "md"
+      },
+      {
+        filePath: "app/src/App.tsx",
+        name: "DesktopShell",
+        kind: "function",
+        language: "tsx"
+      }
+    ],
+    warningCodes: ["UNSAFE_CONTENT_SKIPPED"]
   };
 }
 
@@ -2717,6 +2820,251 @@ describe("app memory recall preview", () => {
   });
 });
 
+describe("app workspace index bridge", () => {
+  it("builds an empty read-only bridge state", () => {
+    const view = buildWorkspaceIndexBridgeView();
+
+    expect(view.status).toBe("empty");
+    expect(view.source).toBe("empty");
+    expect(view.readOnly).toBe(true);
+    expect(view.filesystemCrawlEnabled).toBe(false);
+    expect(view.eventWritesEnabled).toBe(false);
+    expect(view.nextAction).toContain("Raw file content is not accepted");
+  });
+
+  it("parses safe summary JSON and renders counts without raw content", () => {
+    const parsed = parseWorkspaceIndexSummaryJson(
+      JSON.stringify(fixedWorkspaceIndexSummary())
+    );
+    expect(parsed.ok).toBe(true);
+    const view = parsed.ok
+      ? buildWorkspaceIndexBridgeView(parsed.input)
+      : buildWorkspaceIndexBridgeView({
+          parseErrorCode: parsed.errorCode,
+          parseErrorMessage: parsed.safeMessage
+        });
+    const serialized = JSON.stringify(view);
+
+    expect(view.status).toBe("warning");
+    expect(view.workspaceIndexId).toBe("workspace-index-test-1");
+    expect(view.fileCount).toBe(3);
+    expect(view.indexedFileCount).toBe(2);
+    expect(view.skippedFileCount).toBe(1);
+    expect(view.directoryCount).toBe(2);
+    expect(view.languageCount).toBe(2);
+    expect(view.symbolCount).toBe(2);
+    expect(view.totalBytes).toBe(1234);
+    expect(view.totalLines).toBe(88);
+    expect(view.hashPrefix).toBe("abcdef123456");
+    expect(view.languages.map((language) => language.language)).toEqual([
+      "md",
+      "tsx"
+    ]);
+    expect(view.topDirectories.map((directory) => directory.path)).toContain(
+      "app/src"
+    );
+    expect(view.topFiles.map((file) => file.path)).toContain("app/src/App.tsx");
+    expect(view.warnings.map((warning) => warning.code)).toContain(
+      "UNSAFE_CONTENT_SKIPPED"
+    );
+    expect(serialized).not.toContain("beforeContent");
+    expect(serialized).not.toContain("afterContent");
+    expect(serialized).not.toContain("source code line");
+  });
+
+  it("rejects raw content fields and raw diff fields", () => {
+    const rawContent = buildWorkspaceIndexBridgeView({
+      source: "synthetic_summary",
+      summary: {
+        ...fixedWorkspaceIndexSummary(),
+        fileSummaries: [
+          {
+            path: "src/index.ts",
+            content: "source code line",
+            beforeContent: "before",
+            afterContent: "after",
+            rawDiff: "@@ hidden"
+          }
+        ]
+      }
+    });
+
+    expect(rawContent.status).toBe("rejected");
+    expect(rawContent.warnings.map((warning) => warning.code)).toContain(
+      "WORKSPACE_INDEX_RAW_FIELD_REJECTED"
+    );
+    expect(JSON.stringify(rawContent)).not.toContain("source code line");
+  });
+
+  it("rejects fake secrets and authorization markers in summary JSON", () => {
+    const secretJson = JSON.stringify({
+      ...fixedWorkspaceIndexSummary(),
+      note: "Bearer abcdefghijklmnopqrstuvwxyz"
+    });
+    const parsed = parseWorkspaceIndexSummaryJson(secretJson);
+    const authorization = buildWorkspaceIndexBridgeView({
+      source: "synthetic_summary",
+      summary: {
+        ...fixedWorkspaceIndexSummary(),
+        warningCodes: ["Authorization: token"]
+      }
+    });
+
+    expect(parsed.ok).toBe(false);
+    if (!parsed.ok) {
+      expect(parsed.errorCode).toBe("WORKSPACE_INDEX_UNSAFE_MARKER");
+    }
+    expect(authorization.status).toBe("rejected");
+    expect(JSON.stringify(authorization)).not.toContain("Authorization: token");
+  });
+
+  it("rejects unsafe paths and generated directories", () => {
+    const unsafePaths = [
+      "C:/repo/src/App.tsx",
+      "//server/share/file.ts",
+      "../src/App.tsx",
+      ".env",
+      ".git/config",
+      "node_modules/pkg/index.js",
+      "runtime/dist/index.js",
+      "app/src-tauri/target/debug/app.exe",
+      ".tmp/cache.json",
+      "src/App.tsx?token=secret",
+      "src/App$(bad).tsx"
+    ];
+
+    for (const unsafePath of unsafePaths) {
+      const view = buildWorkspaceIndexBridgeView({
+        source: "synthetic_summary",
+        summary: {
+          ...fixedWorkspaceIndexSummary(),
+          fileSummaries: [
+            {
+              path: unsafePath,
+              language: "ts",
+              extension: "ts",
+              indexed: true
+            }
+          ]
+        }
+      });
+
+      expect(view.status, unsafePath).toBe("rejected");
+      expect(view.warnings.map((warning) => warning.code)).toContain(
+        "WORKSPACE_INDEX_UNSAFE_PATH"
+      );
+    }
+  });
+
+  it("rejects too-large JSON and too many file summaries", () => {
+    const parsed = parseWorkspaceIndexSummaryJson("x".repeat(64), {
+      maxJsonBytes: 12
+    });
+    const tooManyFiles = buildWorkspaceIndexBridgeView({
+      source: "synthetic_summary",
+      maxFileSummaries: 1,
+      summary: fixedWorkspaceIndexSummary()
+    });
+
+    expect(parsed.ok).toBe(false);
+    if (!parsed.ok) {
+      expect(parsed.errorCode).toBe("WORKSPACE_INDEX_JSON_TOO_LARGE");
+    }
+    expect(tooManyFiles.status).toBe("rejected");
+    expect(tooManyFiles.warnings.map((warning) => warning.code)).toContain(
+      "WORKSPACE_INDEX_TOO_MANY_FILES"
+    );
+  });
+
+  it("validates summary inputs without accepting unsafe schema", () => {
+    expect(
+      validateWorkspaceIndexSummaryInput({
+        source: "synthetic_summary",
+        summary: fixedWorkspaceIndexSummary()
+      }).ok
+    ).toBe(true);
+    expect(
+      validateWorkspaceIndexSummaryInput({
+        source: "synthetic_summary",
+        summary: { fileSummaries: [{ path: "http://example.test/file.ts" }] }
+      })
+    ).toMatchObject({
+      ok: false,
+      errorCode: "WORKSPACE_INDEX_UNSAFE_PATH"
+    });
+  });
+
+  it("feeds Run Canvas, Context Cart, Agent Route, and Capability Plan with summary refs only", () => {
+    const workspaceIndexBridge = buildWorkspaceIndexBridgeView({
+      source: "synthetic_summary",
+      summary: fixedWorkspaceIndexSummary()
+    });
+    const runDraft = buildRunDraftView({
+      objectiveDraft: "Prepare a code change with workspace index summaries.",
+      selectedIntent: "code_change",
+      acceptanceCriteriaDraft: "Workspace index summary visible",
+      workspaceRoot: "D:\\workspace",
+      workspaceIndexRef: workspaceIndexBridge
+    });
+    const controlProjection = buildControlPlaneProjectionView(undefined);
+    const surfaces = buildWorkbenchSurfacesView({
+      controlProjection
+    });
+    const memoryInspector = buildMemoryInspectorView();
+    const chatCanvas = buildChatRunCanvasView({
+      objectiveDraft: "Prepare a code change with workspace index summaries.",
+      selectedIntent: "code_change",
+      acceptanceCriteriaDraft: "Workspace index summary visible",
+      workspaceRoot: "D:\\workspace",
+      controlProjection,
+      memoryInspector,
+      approvalDiffAuditSurfaces: surfaces,
+      workspaceIndexBridge
+    });
+    const contextCart = buildContextCartView({
+      runDraft,
+      workspaceIndexRef: workspaceIndexBridge
+    });
+    const agentRoutePreview = buildAgentRoutePreviewView({
+      runDraft,
+      contextCart,
+      workspaceIndexRef: workspaceIndexBridge
+    });
+    const capabilityPlan = buildCapabilityPlanPreviewView({
+      runDraft,
+      agentRoutePreview,
+      contextCart,
+      workspaceIndexRef: workspaceIndexBridge,
+      selectedIntent: "code_change"
+    });
+    const serialized = JSON.stringify({
+      chatCanvas,
+      contextCart,
+      agentRoutePreview,
+      capabilityPlan
+    });
+
+    expect(
+      chatCanvas.chatDraft.contextHints.find(
+        (hint) => hint.id === "workspace-index"
+      )?.value
+    ).toContain("2/3 indexed");
+    expect(contextCart.nextAction).toContain("Workspace index summary");
+    expect(
+      agentRoutePreview.steps
+        .flatMap((step) => step.contextRefs)
+        .includes("workspace-index:summary")
+    ).toBe(true);
+    expect(
+      capabilityPlan.items.find(
+        (item) => item.capabilityId === "native.workspace.index"
+      )?.inputSummary
+    ).toContain("2/3 indexed");
+    expect(serialized).not.toContain("source code line");
+    expect(serialized).not.toContain("rawDiff");
+  });
+});
+
 describe("desktop source boundaries", () => {
   it("keeps refresh events and docs actions from navigating or resetting UI state", async () => {
     const appSource = await readFile(
@@ -2808,6 +3156,17 @@ describe("desktop source boundaries", () => {
     expect(appSource).toContain(
       "Preview a local run draft first. Memory recall summaries will"
     );
+    expect(appSource).toContain("Workspace Index");
+    expect(appSource).toContain("Read-only summary");
+    expect(appSource).toContain("Preview Workspace Index");
+    expect(appSource).toContain("buildWorkspaceIndexBridgeView");
+    expect(appSource).toContain("parseWorkspaceIndexSummaryJson");
+    expect(appSource).toContain("handlePreviewWorkspaceIndex");
+    expect(appSource).toContain("handleWorkspaceIndexSummaryFile");
+    expect(appSource).toContain("Raw file content");
+    expect(appSource).toContain("does not crawl the workspace");
+    expect(appSource).toContain("workspaceIndexBridge");
+    expect(appSource).toContain("loadedWorkspaceIndexRef");
     expect(appSource).toContain("displayedRunDraft");
     expect(appSource).toContain("runDraftCandidate");
     expect(appSource).toContain("setRunDraftPreview");
@@ -2867,6 +3226,10 @@ describe("desktop source boundaries", () => {
     expect(appSource).not.toContain("revoke_memory_command");
     expect(appSource).not.toContain("expire_memory_command");
     expect(appSource).not.toContain("recall_memory_command");
+    expect(appSource).not.toContain("workspace_index_command");
+    expect(appSource).not.toContain("scan_workspace_command");
+    expect(appSource).not.toContain("crawl_workspace_command");
+    expect(appSource).not.toContain("load_workspace_index_summary");
     expect(appSource).not.toContain("new InMemoryMemoryStore");
     expect(appSource).not.toContain("MemoryStore");
     expect(appSource).not.toContain("create_run_command");
@@ -2957,6 +3320,7 @@ describe("desktop source boundaries", () => {
       "src/patch-proposal-surface-view.ts",
       "src/memory-inspector-view.ts",
       "src/memory-recall-preview-view.ts",
+      "src/workspace-index-bridge-view.ts",
       "src/chat-run-canvas-view.ts",
       "src/run-draft-view.ts",
       "src/context-cart-view.ts",
@@ -3656,6 +4020,38 @@ describe("desktop source boundaries", () => {
     expect(docsIndex).toContain(
       "p0h-001-workspace-index-to-app-bridge-plan.md"
     );
+  });
+
+  it("documents the App Shell Workspace Index bridge without enabling scanning", async () => {
+    const doc = await readFile(
+      path.join(repoRoot, "docs", "app-shell-workspace-index-bridge-v0.3.md"),
+      "utf8"
+    );
+    const docsIndex = await readFile(
+      path.join(repoRoot, "docs", "README.md"),
+      "utf8"
+    );
+    const appReadme = await readFile(path.join(appRoot, "README.md"), "utf8");
+    const combined = `${doc}\n${docsIndex}\n${appReadme}`;
+
+    expect(combined).toContain("Workspace Index Bridge v0.3");
+    expect(combined).toContain("read-only App Shell surface");
+    expect(combined).toContain("summary-only `WorkspaceIndex` JSON");
+    expect(combined).toContain("not a workspace scanner");
+    expect(combined).toContain("No real workspace scanner");
+    expect(combined).toContain("No filesystem crawling");
+    expect(combined).toContain("No `.env`");
+    expect(combined).toContain("No EventStore write");
+    expect(combined).toContain("No Tauri command");
+    expect(combined).toContain("No patch apply");
+    expect(combined).toContain("No Git execution");
+    expect(combined).toContain("No shell execution");
+    expect(combined).toContain("No DeepSeek call");
+    expect(combined).toContain("No native bridge");
+    expect(combined).toContain("No desktop action");
+    expect(docsIndex).toContain("app-shell-workspace-index-bridge-v0.3.md");
+    expect(appReadme).toContain("Workspace Index summary bridge");
+    expect(appReadme).toContain("summary-only JSON previews");
   });
 
   it("documents P0G-001 as a read-only workspace index plan", async () => {

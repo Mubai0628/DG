@@ -14,7 +14,8 @@ Current scope:
   planning-only summaries: Chat / Run Canvas, local Run Draft Preview, Control
   Plane Projection, Context Cart, Agent Route Preview, Capability Plan Preview,
   Patch Proposal / Diff, Approval / Diff / Audit, Memory Inspector, Memory
-  Recall Preview, and disabled Bridge Proposal Preview
+  Recall Preview, Workspace Index summary bridge, and disabled Bridge Proposal
+  Preview
 
 Current limitations:
 
@@ -23,6 +24,8 @@ Current limitations:
 - no browser data access
 - no desktop control
 - no network request path
+- no App Shell workspace filesystem crawling; Workspace Index accepts
+  summary-only JSON previews
 - no real DeepSeek API call from the desktop shell
 - no real chat, run creation, approval execution, patch apply, Git execution,
   shell execution, capability invocation, PermissionLease issuance, memory

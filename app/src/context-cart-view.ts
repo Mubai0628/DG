@@ -4,6 +4,7 @@ import type { AppMemoryInspectorView } from "./memory-inspector-view.js";
 import type { AppMemoryRecallPreviewView } from "./memory-recall-preview-view.js";
 import type { AppRunDraftView } from "./run-draft-view.js";
 import type { AppDiffSurfaceView } from "./workbench-surfaces.js";
+import type { AppWorkspaceIndexBridgeView } from "./workspace-index-bridge-view.js";
 
 export type AppContextCartStatus = "empty" | "summary" | "warning" | "error";
 
@@ -94,7 +95,7 @@ export type AppContextCartInput = {
   rulesLedgerSummary?: unknown;
   runDraft?: AppRunDraftView | undefined;
   controlProjection?: AppControlPlaneProjectionView | undefined;
-  workspaceIndexRef?: unknown;
+  workspaceIndexRef?: AppWorkspaceIndexBridgeView | undefined;
   memoryInspector?: AppMemoryInspectorView | undefined;
   memoryRecallPreview?: AppMemoryRecallPreviewView | undefined;
   patchSurface?: AppDiffSurfaceView | undefined;
@@ -426,6 +427,9 @@ function rawFieldWarnings(value: unknown): AppContextCartWarning[] {
 }
 
 function nextActionForEmpty(input: AppContextCartInput): string {
+  if (workspaceIndexLoaded(input.workspaceIndexRef)) {
+    return "Workspace index summary is available as metadata only. Future context assembly may use it for volatile_tail or task_contract preview without raw file content.";
+  }
   if (input.runDraft !== undefined && input.runDraft.status !== "empty") {
     if (finiteNumber(input.memoryRecallPreview?.volatileTailCount) > 0) {
       return "Future context assembly will place memory recall summaries in volatile_tail only.";
@@ -436,6 +440,9 @@ function nextActionForEmpty(input: AppContextCartInput): string {
 }
 
 function nextActionForSummary(input: AppContextCartInput): string {
+  if (workspaceIndexLoaded(input.workspaceIndexRef)) {
+    return "Review summary-only context placement. Workspace index refs remain counts, safe paths, and hash prefixes only.";
+  }
   if (finiteNumber(input.memoryRecallPreview?.volatileTailCount) > 0) {
     return "Review summary-only context placement. Memory recall refs remain volatile_tail and do not change frozen prefix.";
   }
@@ -462,6 +469,12 @@ function normalizeSource(
   return readValue(summary, "source") === "synthetic_summary"
     ? "synthetic_summary"
     : "future_context_ledger";
+}
+
+function workspaceIndexLoaded(
+  view: AppWorkspaceIndexBridgeView | undefined
+): boolean {
+  return view?.status === "loaded" || view?.status === "warning";
 }
 
 function emptyLayer(layer: AppContextLayerName): AppContextLayerView {

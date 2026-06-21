@@ -11,6 +11,7 @@ import type {
   AppDiffSurfaceView,
   AppWorkbenchApprovalRef
 } from "./workbench-surfaces.js";
+import type { AppWorkspaceIndexBridgeView } from "./workspace-index-bridge-view.js";
 
 export type AppCapabilityPlanStatus =
   | "empty"
@@ -93,7 +94,7 @@ export type AppCapabilityPlanPreviewInput = {
   agentRoutePreview?: AppAgentRoutePreviewView | undefined;
   contextCart?: AppContextCartView | undefined;
   patchSurface?: AppDiffSurfaceView | undefined;
-  workspaceIndexRef?: unknown;
+  workspaceIndexRef?: AppWorkspaceIndexBridgeView | undefined;
   memoryInspector?: AppMemoryInspectorView | undefined;
   selectedIntent?: AppRunDraftIntent | undefined;
   conversionResult?: DesktopFlowResult | undefined;
@@ -259,14 +260,16 @@ export function buildCapabilityPlanPreviewView(
     return planFromTemplates(
       intent,
       [],
-      [...safetyWarnings, "INTENT_UNKNOWN_NEEDS_CLARIFICATION"]
+      [...safetyWarnings, "INTENT_UNKNOWN_NEEDS_CLARIFICATION"],
+      input
     );
   }
 
   return planFromTemplates(
     intent,
     capabilityIdsForIntent(intent, input),
-    planWarnings(input, safetyWarnings)
+    planWarnings(input, safetyWarnings),
+    input
   );
 }
 
@@ -330,10 +333,15 @@ function emptyPlan(
 function planFromTemplates(
   intent: AppRunDraftIntent,
   capabilityIds: readonly CapabilityTemplateId[],
-  inheritedWarnings: readonly string[]
+  inheritedWarnings: readonly string[],
+  input?: AppCapabilityPlanPreviewInput
 ): AppCapabilityPlanPreviewView {
   const items = capabilityIds.map((capabilityId) =>
-    itemFromTemplate(capabilityTemplates[capabilityId], inheritedWarnings)
+    itemFromTemplate(
+      capabilityTemplates[capabilityId],
+      inheritedWarnings,
+      input
+    )
   );
   const itemWarnings = items.flatMap((item) => item.warningCodes);
   const warnings = uniqueStrings([...inheritedWarnings, ...itemWarnings]);
@@ -366,7 +374,8 @@ function planFromTemplates(
 
 function itemFromTemplate(
   template: CapabilityTemplate,
-  inheritedWarnings: readonly string[]
+  inheritedWarnings: readonly string[],
+  input?: AppCapabilityPlanPreviewInput
 ): AppCapabilityPlanItemView {
   const warningCodes = uniqueStrings([
     ...inheritedWarnings,
@@ -376,7 +385,7 @@ function itemFromTemplate(
     ...template,
     roleRefs: rolesForCapability(template.capabilityId),
     routeStepRefs: routeStepsForCapability(template.capabilityId),
-    inputSummary: "Summary-only preview; raw arguments are not available.",
+    inputSummary: inputSummaryForCapability(template.capabilityId, input),
     warningCodes
   };
 }
@@ -462,6 +471,26 @@ function warningsForTemplate(template: CapabilityTemplate): string[] {
     codes.push("LEASE_NOT_ISSUED");
   }
   return codes;
+}
+
+function inputSummaryForCapability(
+  capabilityId: string,
+  input: AppCapabilityPlanPreviewInput | undefined
+): string {
+  if (
+    capabilityId === "native.workspace.index" &&
+    workspaceIndexLoaded(input?.workspaceIndexRef)
+  ) {
+    const view = input.workspaceIndexRef;
+    return `Workspace index summary loaded: ${view.indexedFileCount}/${view.fileCount} indexed file(s), ${view.warnings.length} warning(s). Raw file content is not available.`;
+  }
+  return "Summary-only preview; raw arguments are not available.";
+}
+
+function workspaceIndexLoaded(
+  view: AppWorkspaceIndexBridgeView | undefined
+): view is AppWorkspaceIndexBridgeView {
+  return view?.status === "loaded" || view?.status === "warning";
 }
 
 function rolesForCapability(capabilityId: string): string[] {

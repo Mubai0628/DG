@@ -25,6 +25,7 @@ foundation.
 - [App Shell Agent Route Preview v0.2](app-shell-agent-route-preview-v0.2.md)
 - [App Shell Capability Plan Preview v0.2](app-shell-capability-plan-preview-v0.2.md)
 - [App Shell Memory Recall Preview v0.2](app-shell-memory-recall-preview-v0.2.md)
+- [App Shell Workspace Index Bridge v0.3](app-shell-workspace-index-bridge-v0.3.md)
 - [v0.3.0 Coding Workflow Preview RC release notes](release-notes-v0.3.0-coding-workflow-preview-rc.1.md)
 - [App Shell Coding Workflow manual QA](app-shell-coding-workflow-manual-qa.md)
 - [App Shell Coding Workflow RC checklist](app-shell-coding-workflow-rc-checklist.md)

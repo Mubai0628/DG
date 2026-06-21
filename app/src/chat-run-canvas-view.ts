@@ -1,6 +1,7 @@
 import type { AppControlPlaneProjectionView } from "./control-plane-view.js";
 import type { AppMemoryInspectorView } from "./memory-inspector-view.js";
 import type { AppWorkbenchSurfaceView } from "./workbench-surfaces.js";
+import type { AppWorkspaceIndexBridgeView } from "./workspace-index-bridge-view.js";
 import {
   safeErrorMessage,
   safeText,
@@ -89,6 +90,7 @@ export type AppChatRunCanvasInput = {
   preflight?: RunnerPreflightSummary | undefined;
   memoryInspector: AppMemoryInspectorView;
   approvalDiffAuditSurfaces: AppWorkbenchSurfaceView;
+  workspaceIndexBridge?: AppWorkspaceIndexBridgeView | undefined;
 };
 
 const dangerousDraftPatterns = [
@@ -229,9 +231,26 @@ function contextHintsFrom(
       id: "memory",
       label: "Memory",
       value: input.memoryInspector.status
+    },
+    {
+      id: "workspace-index",
+      label: "Workspace index",
+      value: workspaceIndexHint(input.workspaceIndexBridge)
     }
   ];
   return hints;
+}
+
+function workspaceIndexHint(
+  view: AppWorkspaceIndexBridgeView | undefined
+): string {
+  if (view === undefined || view.status === "empty") {
+    return "not loaded";
+  }
+  if (view.status === "rejected") {
+    return "rejected summary";
+  }
+  return `${view.indexedFileCount}/${view.fileCount} indexed; ${view.warnings.length} warning(s)`;
 }
 
 function draftWarnings(text: string): string[] {

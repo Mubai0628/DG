@@ -31,6 +31,12 @@ import {
   type AppMemoryRecallPreviewView
 } from "./memory-recall-preview-view.js";
 import {
+  buildWorkspaceIndexBridgeView,
+  parseWorkspaceIndexSummaryJson,
+  type AppWorkspaceIndexBridgeView,
+  type AppWorkspaceIndexSource
+} from "./workspace-index-bridge-view.js";
+import {
   buildChatRunCanvasView,
   type AppChatRunCanvasView,
   type AppRunCanvasIntent
@@ -149,6 +155,19 @@ export function DesktopShell(): JSX.Element {
   const [runDraftPreview, setRunDraftPreview] = useState<
     AppRunDraftView | undefined
   >();
+  const [workspaceIndexJson, setWorkspaceIndexJson] = useState("");
+  const [workspaceIndexFileLabel, setWorkspaceIndexFileLabel] = useState<
+    string | undefined
+  >();
+  const [workspaceIndexBridge, setWorkspaceIndexBridge] =
+    useState<AppWorkspaceIndexBridgeView>(() =>
+      buildWorkspaceIndexBridgeView()
+    );
+  const loadedWorkspaceIndexRef =
+    workspaceIndexBridge.status === "loaded" ||
+    workspaceIndexBridge.status === "warning"
+      ? workspaceIndexBridge
+      : undefined;
 
   const panel = useMemo<ResultPanelModel | undefined>(
     () => (result === undefined ? undefined : buildResultPanelModel(result)),
@@ -202,12 +221,14 @@ export function DesktopShell(): JSX.Element {
         acceptanceCriteriaDraft,
         workspaceRoot,
         controlProjection: controlPlanePanel,
-        eventSummary
+        eventSummary,
+        workspaceIndexRef: loadedWorkspaceIndexRef
       }),
     [
       acceptanceCriteriaDraft,
       controlPlanePanel,
       eventSummary,
+      loadedWorkspaceIndexRef,
       objectiveDraft,
       selectedIntent,
       workspaceRoot
@@ -222,9 +243,16 @@ export function DesktopShell(): JSX.Element {
         selectedIntent,
         acceptanceCriteriaCount: displayedRunDraft.acceptanceCriteriaCount,
         workspaceRoot,
-        memoryInspector
+        memoryInspector,
+        workspaceIndexRef: loadedWorkspaceIndexRef
       }),
-    [displayedRunDraft, memoryInspector, selectedIntent, workspaceRoot]
+    [
+      displayedRunDraft,
+      loadedWorkspaceIndexRef,
+      memoryInspector,
+      selectedIntent,
+      workspaceRoot
+    ]
   );
   const contextCart = useMemo<AppContextCartView>(
     () =>
@@ -233,6 +261,7 @@ export function DesktopShell(): JSX.Element {
         controlProjection: controlPlanePanel,
         memoryInspector,
         memoryRecallPreview,
+        workspaceIndexRef: loadedWorkspaceIndexRef,
         patchSurface: baseWorkbenchSurfaces.diff,
         eventSummary
       }),
@@ -241,6 +270,7 @@ export function DesktopShell(): JSX.Element {
       controlPlanePanel,
       displayedRunDraft,
       eventSummary,
+      loadedWorkspaceIndexRef,
       memoryInspector,
       memoryRecallPreview
     ]
@@ -254,6 +284,7 @@ export function DesktopShell(): JSX.Element {
         acceptanceCriteriaCount: displayedRunDraft.acceptanceCriteriaCount,
         workspaceRoot,
         contextCart,
+        workspaceIndexRef: loadedWorkspaceIndexRef,
         patchSurface: baseWorkbenchSurfaces.diff,
         memoryInspector
       }),
@@ -261,6 +292,7 @@ export function DesktopShell(): JSX.Element {
       baseWorkbenchSurfaces.diff,
       contextCart,
       displayedRunDraft,
+      loadedWorkspaceIndexRef,
       memoryInspector,
       selectedIntent,
       workspaceRoot
@@ -273,6 +305,7 @@ export function DesktopShell(): JSX.Element {
         agentRoutePreview,
         contextCart,
         patchSurface: baseWorkbenchSurfaces.diff,
+        workspaceIndexRef: loadedWorkspaceIndexRef,
         memoryInspector,
         selectedIntent,
         conversionResult: result,
@@ -285,6 +318,7 @@ export function DesktopShell(): JSX.Element {
       contextCart,
       displayedRunDraft,
       error,
+      loadedWorkspaceIndexRef,
       memoryInspector,
       result,
       selectedIntent
@@ -324,7 +358,8 @@ export function DesktopShell(): JSX.Element {
           error === undefined ? undefined : { safeMessage: error },
         preflight,
         memoryInspector,
-        approvalDiffAuditSurfaces: workbenchSurfaces
+        approvalDiffAuditSurfaces: workbenchSurfaces,
+        workspaceIndexBridge
       }),
     [
       acceptanceCriteriaDraft,
@@ -337,6 +372,7 @@ export function DesktopShell(): JSX.Element {
       result,
       selectedIntent,
       workbenchSurfaces,
+      workspaceIndexBridge,
       workspaceRoot
     ]
   );
@@ -416,6 +452,38 @@ export function DesktopShell(): JSX.Element {
       return;
     }
     setPayloadText(fileText);
+  }
+
+  async function handleWorkspaceIndexSummaryFile(
+    event: ChangeEvent<HTMLInputElement>
+  ): Promise<void> {
+    const file = event.target.files?.[0];
+    if (file === undefined) {
+      return;
+    }
+    setWorkspaceIndexFileLabel(file.name);
+    setWorkspaceIndexJson(await file.text());
+  }
+
+  function handlePreviewWorkspaceIndex(): void {
+    const source: AppWorkspaceIndexSource =
+      workspaceIndexFileLabel === undefined
+        ? "pasted_summary_json"
+        : "file_summary_json";
+    const parsed = parseWorkspaceIndexSummaryJson(workspaceIndexJson, {
+      source
+    });
+    if (parsed.ok) {
+      setWorkspaceIndexBridge(buildWorkspaceIndexBridgeView(parsed.input));
+      return;
+    }
+    setWorkspaceIndexBridge(
+      buildWorkspaceIndexBridgeView({
+        source,
+        parseErrorCode: parsed.errorCode,
+        parseErrorMessage: parsed.safeMessage
+      })
+    );
   }
 
   function handleImportBridgeProposal(): void {
@@ -922,6 +990,16 @@ export function DesktopShell(): JSX.Element {
             <p className="fieldHelp">
               Latest result: {chatRunCanvas.runCanvas.latestResult}
             </p>
+            {chatRunCanvas.chatDraft.contextHints.length > 0 ? (
+              <ol className="timeline">
+                {chatRunCanvas.chatDraft.contextHints.map((hint) => (
+                  <li key={hint.id}>
+                    <span className="timelineMeta">{hint.label}</span>
+                    <span>{hint.value}</span>
+                  </li>
+                ))}
+              </ol>
+            ) : null}
             {chatRunCanvas.warnings.length > 0 ? (
               <p className="muted">
                 warnings {chatRunCanvas.warnings.join(", ")}
@@ -937,6 +1015,191 @@ export function DesktopShell(): JSX.Element {
               <strong>Next action</strong>
               <p>{chatRunCanvas.nextAction.label}</p>
             </div>
+          </section>
+
+          <section className="eventPanel" aria-label="Workspace Index">
+            <div className="panelHeader">
+              <h2>Workspace Index</h2>
+              <span className="muted">Read-only summary</span>
+            </div>
+            <p className="fieldHelp">
+              Load or paste a safe WorkspaceIndex summary JSON. Raw file content
+              is not accepted or displayed.
+            </p>
+
+            <label>
+              <span>WorkspaceIndex summary JSON file</span>
+              <input
+                type="file"
+                accept="application/json,.json"
+                onChange={(event) => {
+                  void handleWorkspaceIndexSummaryFile(event);
+                }}
+              />
+              <p className="fieldHelp">
+                This reads only the selected summary JSON file text into local
+                React state. It does not crawl the workspace.
+              </p>
+            </label>
+
+            <label>
+              <span>WorkspaceIndex summary JSON</span>
+              <textarea
+                className="compactTextarea"
+                value={workspaceIndexJson}
+                onChange={(event) => {
+                  setWorkspaceIndexFileLabel(undefined);
+                  setWorkspaceIndexJson(event.target.value);
+                }}
+                placeholder="Paste a summary-only WorkspaceIndex JSON export"
+                spellCheck={false}
+              />
+            </label>
+
+            <div className="buttonRow">
+              <button
+                type="button"
+                className="secondary"
+                onClick={(event) => {
+                  event.preventDefault();
+                  event.stopPropagation();
+                  handlePreviewWorkspaceIndex();
+                }}
+              >
+                Preview Workspace Index
+              </button>
+            </div>
+
+            {workspaceIndexFileLabel !== undefined ? (
+              <p className="fieldHelp">
+                Loaded local summary file: {workspaceIndexFileLabel}
+              </p>
+            ) : null}
+
+            {workspaceIndexBridge.status === "empty" ? (
+              <p className="empty">
+                No WorkspaceIndex summary loaded yet. Paste a summary-only JSON
+                export to preview metadata.
+              </p>
+            ) : null}
+
+            {workspaceIndexBridge.status === "rejected" ? (
+              <div className="errorBox">
+                <strong>Workspace index summary rejected</strong>
+                <p>
+                  {workspaceIndexBridge.warnings[0]?.safeMessage ??
+                    "Workspace index summary was rejected by safety policy."}
+                </p>
+                <p className="muted">
+                  codes{" "}
+                  {workspaceIndexBridge.warnings
+                    .map((warning) => warning.code)
+                    .join(", ")}
+                </p>
+              </div>
+            ) : null}
+
+            <dl className="summaryGrid compact">
+              <div>
+                <dt>Status</dt>
+                <dd>{workspaceIndexBridge.status}</dd>
+              </div>
+              <div>
+                <dt>Files</dt>
+                <dd>{workspaceIndexBridge.fileCount}</dd>
+              </div>
+              <div>
+                <dt>Indexed / skipped</dt>
+                <dd>
+                  {workspaceIndexBridge.indexedFileCount} /{" "}
+                  {workspaceIndexBridge.skippedFileCount}
+                </dd>
+              </div>
+              <div>
+                <dt>Directories</dt>
+                <dd>{workspaceIndexBridge.directoryCount}</dd>
+              </div>
+              <div>
+                <dt>Languages</dt>
+                <dd>{workspaceIndexBridge.languageCount}</dd>
+              </div>
+              <div>
+                <dt>Symbols</dt>
+                <dd>{workspaceIndexBridge.symbolCount}</dd>
+              </div>
+              <div>
+                <dt>Bytes / lines</dt>
+                <dd>
+                  {workspaceIndexBridge.totalBytes} /{" "}
+                  {workspaceIndexBridge.totalLines}
+                </dd>
+              </div>
+              <div>
+                <dt>Hash prefix</dt>
+                <dd>{workspaceIndexBridge.hashPrefix}</dd>
+              </div>
+            </dl>
+
+            {workspaceIndexBridge.languages.length > 0 ? (
+              <ol className="timeline">
+                {workspaceIndexBridge.languages.map((language) => (
+                  <li key={language.language}>
+                    <span className="timelineMeta">
+                      {language.language} · {language.indexedFileCount} indexed
+                    </span>
+                    <span>
+                      {language.fileCount} file(s), {language.lineCount} line(s)
+                    </span>
+                  </li>
+                ))}
+              </ol>
+            ) : null}
+
+            {workspaceIndexBridge.topDirectories.length > 0 ? (
+              <ol className="timeline">
+                {workspaceIndexBridge.topDirectories.map((directory) => (
+                  <li key={directory.path}>
+                    <span className="timelineMeta">directory</span>
+                    <span>
+                      {directory.path} · {directory.fileCount} file(s)
+                    </span>
+                  </li>
+                ))}
+              </ol>
+            ) : null}
+
+            {workspaceIndexBridge.topFiles.length > 0 ? (
+              <ol className="timeline">
+                {workspaceIndexBridge.topFiles.map((file) => (
+                  <li key={file.path}>
+                    <span className="timelineMeta">
+                      {file.language} · {file.hashPrefix}
+                    </span>
+                    <span>
+                      {file.path} · {file.lineCount} line(s) ·{" "}
+                      {file.symbolCount} symbol(s)
+                    </span>
+                    {file.warningCodes.length > 0 ? (
+                      <span className="timelineMeta">
+                        Warnings: {file.warningCodes.join(", ")}
+                      </span>
+                    ) : null}
+                  </li>
+                ))}
+              </ol>
+            ) : null}
+
+            {workspaceIndexBridge.warnings.length > 0 &&
+            workspaceIndexBridge.status !== "rejected" ? (
+              <p className="muted">
+                warnings{" "}
+                {workspaceIndexBridge.warnings
+                  .map((warning) => warning.code)
+                  .join(", ")}
+              </p>
+            ) : null}
+
+            <p className="fieldHelp">{workspaceIndexBridge.nextAction}</p>
           </section>
 
           <section className="eventPanel" aria-label="Agent Route Preview">
