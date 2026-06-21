@@ -734,9 +734,7 @@ export function DesktopShell(): JSX.Element {
           <section className="eventPanel" aria-label="Chat Run Canvas">
             <div className="panelHeader">
               <h2>Chat / Run Canvas</h2>
-              <span className="muted">
-                Draft only - no LLM request is sent.
-              </span>
+              <span className="muted">Draft only. No LLM request is sent.</span>
             </div>
             <p className="fieldHelp">
               This canvas is a local draft surface. No LLM request is sent and
@@ -804,7 +802,8 @@ export function DesktopShell(): JSX.Element {
               </button>
             </div>
             <p className="fieldHelp">
-              Create Run is disabled until execution gates are implemented.
+              Create Run is disabled. Execution gates are not implemented in
+              this preview.
             </p>
 
             <section className="surfaceBox" aria-label="Run Draft Preview">
@@ -1134,7 +1133,8 @@ export function DesktopShell(): JSX.Element {
             </div>
             <p className="fieldHelp">
               Shows summary-only memory refs that a future run may recall into
-              volatile_tail. No memory is committed or persisted here.
+              volatile_tail. Recall refs would enter volatile_tail. No memory is
+              committed or persisted here.
             </p>
 
             {memoryRecallPreview.status === "empty" ? (
@@ -1571,7 +1571,7 @@ export function DesktopShell(): JSX.Element {
             <div className="panelHeader">
               <h2>Approval / Diff / Audit Surfaces</h2>
               <span className="muted">
-                Read-only skeleton - no execution controls
+                Read-only skeleton. No execution controls.
               </span>
             </div>
             <p className="fieldHelp">
@@ -1617,6 +1617,9 @@ export function DesktopShell(): JSX.Element {
                 {workbenchSurfaces.diff.items.length === 0 ? (
                   <p className="empty">{workbenchSurfaces.diff.emptyMessage}</p>
                 ) : null}
+                <p className="fieldHelp">
+                  No patch apply. Raw source and raw diff are not displayed.
+                </p>
                 <dl className="summaryGrid compact">
                   <div>
                     <dt>Files</dt>
@@ -1706,7 +1709,7 @@ export function DesktopShell(): JSX.Element {
             <div className="panelHeader">
               <h2>Memory Inspector</h2>
               <span className="muted">
-                Read-only skeleton - not connected to persistence
+                Read-only skeleton. Not connected to persistence.
               </span>
             </div>
             <p className="fieldHelp">

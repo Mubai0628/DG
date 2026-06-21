@@ -68,13 +68,34 @@ v0.2 App Shell RC references:
 - [App Shell v0.2 manual QA](docs/app-shell-v0.2-manual-qa.md)
 - [App Shell v0.2 RC checklist](docs/app-shell-v0.2-rc-checklist.md)
 
+## v0.3 Coding Workflow Preview RC status
+
+Recommended tag: `v0.3.0-coding-workflow-preview-rc.1`.
+
+The P0G coding workflow preview adds read-only, draft-only, preview-only, and
+planning-only surfaces for workspace index summaries, patch proposal summaries,
+local run drafts, Context Cart, Agent Route Preview, Capability Plan Preview,
+and Memory Recall Preview.
+
+The only real user-facing workflow remains the v0.1 local `web_table_to_csv`
+Convert path plus Event Log / Replay. The App Shell still does not create real
+runs, send DeepSeek chat requests, apply patches, execute Git or shell, invoke
+capabilities, issue permission leases, write memory, connect memory
+persistence, enable MCP/plugin/skills runtime, enable a native bridge, or
+perform desktop actions.
+
+v0.3 Coding Workflow Preview RC references:
+
+- [v0.3.0 Coding Workflow Preview RC release notes](docs/release-notes-v0.3.0-coding-workflow-preview-rc.1.md)
+- [App Shell Coding Workflow manual QA](docs/app-shell-coding-workflow-manual-qa.md)
+- [App Shell Coding Workflow RC checklist](docs/app-shell-coding-workflow-rc-checklist.md)
+
 ## Current roadmap
 
-P0F is complete after `v0.2.0-app-shell-rc.1`. The next phase is P0G Coding
-Workflow MVP: read-only workspace intelligence first, then patch proposal and
-control-plane previews. Real chat, run execution, patch apply, Git execution,
-shell execution, MCP/plugin/skills runtime, native bridge, and desktop action
-remain deferred.
+P0F is complete after `v0.2.0-app-shell-rc.1`. P0G now has a coding workflow
+preview RC line. Real chat, run execution, patch apply, Git execution, shell
+execution, MCP/plugin/skills runtime, native bridge, and desktop action remain
+deferred.
 
 - [v0.2 App Shell RC post-release review](docs/v0.2-app-shell-rc-postrelease-review.md)
 - [P0G Coding Workflow roadmap](docs/p0g-coding-workflow-roadmap.md)
