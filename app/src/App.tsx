@@ -41,6 +41,11 @@ import {
   type AppAgentRoutePreviewView
 } from "./agent-route-preview-view.js";
 import {
+  buildCapabilityPlanPreviewView,
+  capabilityPlanApprovalRefs,
+  type AppCapabilityPlanPreviewView
+} from "./capability-plan-preview-view.js";
+import {
   buildEventLogPanelModel,
   buildBridgeProposalPreviewModel,
   buildResultPanelModel,
@@ -163,7 +168,7 @@ export function DesktopShell(): JSX.Element {
     () => buildBridgeProposalPreviewModel(bridgePreview),
     [bridgePreview]
   );
-  const workbenchSurfaces = useMemo<AppWorkbenchSurfaceView>(
+  const baseWorkbenchSurfaces = useMemo<AppWorkbenchSurfaceView>(
     () =>
       buildWorkbenchSurfacesView({
         eventSummary,
@@ -184,6 +189,108 @@ export function DesktopShell(): JSX.Element {
           error === undefined ? undefined : { safeMessage: error }
       }),
     [controlPlanePanel, error, eventSummary]
+  );
+  const runDraftCandidate = useMemo<AppRunDraftView>(
+    () =>
+      buildRunDraftView({
+        objectiveDraft,
+        selectedIntent,
+        acceptanceCriteriaDraft,
+        workspaceRoot,
+        controlProjection: controlPlanePanel,
+        eventSummary
+      }),
+    [
+      acceptanceCriteriaDraft,
+      controlPlanePanel,
+      eventSummary,
+      objectiveDraft,
+      selectedIntent,
+      workspaceRoot
+    ]
+  );
+  const displayedRunDraft = runDraftPreview ?? runDraftCandidate;
+  const contextCart = useMemo<AppContextCartView>(
+    () =>
+      buildContextCartView({
+        runDraft: displayedRunDraft,
+        controlProjection: controlPlanePanel,
+        memoryInspector,
+        patchSurface: baseWorkbenchSurfaces.diff,
+        eventSummary
+      }),
+    [
+      baseWorkbenchSurfaces.diff,
+      controlPlanePanel,
+      displayedRunDraft,
+      eventSummary,
+      memoryInspector
+    ]
+  );
+  const agentRoutePreview = useMemo<AppAgentRoutePreviewView>(
+    () =>
+      buildAgentRoutePreviewView({
+        runDraft: displayedRunDraft,
+        selectedIntent,
+        objectiveSummary: displayedRunDraft.objectiveSummary,
+        acceptanceCriteriaCount: displayedRunDraft.acceptanceCriteriaCount,
+        workspaceRoot,
+        contextCart,
+        patchSurface: baseWorkbenchSurfaces.diff,
+        memoryInspector
+      }),
+    [
+      baseWorkbenchSurfaces.diff,
+      contextCart,
+      displayedRunDraft,
+      memoryInspector,
+      selectedIntent,
+      workspaceRoot
+    ]
+  );
+  const capabilityPlanPreview = useMemo<AppCapabilityPlanPreviewView>(
+    () =>
+      buildCapabilityPlanPreviewView({
+        runDraft: displayedRunDraft,
+        agentRoutePreview,
+        contextCart,
+        patchSurface: baseWorkbenchSurfaces.diff,
+        memoryInspector,
+        selectedIntent,
+        conversionResult: result,
+        conversionError:
+          error === undefined ? undefined : { safeMessage: error }
+      }),
+    [
+      agentRoutePreview,
+      baseWorkbenchSurfaces.diff,
+      contextCart,
+      displayedRunDraft,
+      error,
+      memoryInspector,
+      result,
+      selectedIntent
+    ]
+  );
+  const workbenchSurfaces = useMemo<AppWorkbenchSurfaceView>(
+    () =>
+      buildWorkbenchSurfacesView({
+        eventSummary,
+        controlProjection: controlPlanePanel,
+        conversionResult: result,
+        conversionError:
+          error === undefined ? undefined : { safeMessage: error },
+        preflight,
+        futureApprovalRefs: capabilityPlanApprovalRefs(capabilityPlanPreview)
+      }),
+    [
+      capabilityPlanPreview,
+      controlPlanePanel,
+      error,
+      eventSummary,
+      preflight,
+      result
+    ]
   );
   const chatRunCanvas = useMemo<AppChatRunCanvasView>(
     () =>
@@ -212,64 +319,6 @@ export function DesktopShell(): JSX.Element {
       result,
       selectedIntent,
       workbenchSurfaces,
-      workspaceRoot
-    ]
-  );
-  const runDraftCandidate = useMemo<AppRunDraftView>(
-    () =>
-      buildRunDraftView({
-        objectiveDraft,
-        selectedIntent,
-        acceptanceCriteriaDraft,
-        workspaceRoot,
-        controlProjection: controlPlanePanel,
-        eventSummary
-      }),
-    [
-      acceptanceCriteriaDraft,
-      controlPlanePanel,
-      eventSummary,
-      objectiveDraft,
-      selectedIntent,
-      workspaceRoot
-    ]
-  );
-  const displayedRunDraft = runDraftPreview ?? runDraftCandidate;
-  const contextCart = useMemo<AppContextCartView>(
-    () =>
-      buildContextCartView({
-        runDraft: displayedRunDraft,
-        controlProjection: controlPlanePanel,
-        memoryInspector,
-        patchSurface: workbenchSurfaces.diff,
-        eventSummary
-      }),
-    [
-      controlPlanePanel,
-      displayedRunDraft,
-      eventSummary,
-      memoryInspector,
-      workbenchSurfaces.diff
-    ]
-  );
-  const agentRoutePreview = useMemo<AppAgentRoutePreviewView>(
-    () =>
-      buildAgentRoutePreviewView({
-        runDraft: displayedRunDraft,
-        selectedIntent,
-        objectiveSummary: displayedRunDraft.objectiveSummary,
-        acceptanceCriteriaCount: displayedRunDraft.acceptanceCriteriaCount,
-        workspaceRoot,
-        contextCart,
-        patchSurface: workbenchSurfaces.diff,
-        memoryInspector
-      }),
-    [
-      contextCart,
-      displayedRunDraft,
-      memoryInspector,
-      selectedIntent,
-      workbenchSurfaces.diff,
       workspaceRoot
     ]
   );
@@ -960,6 +1009,104 @@ export function DesktopShell(): JSX.Element {
             ) : null}
 
             <p className="fieldHelp">{agentRoutePreview.nextAction}</p>
+          </section>
+
+          <section className="eventPanel" aria-label="Capability Plan Preview">
+            <div className="panelHeader">
+              <h2>Capability Plan Preview</h2>
+              <span className="muted">Planning only</span>
+            </div>
+            <p className="fieldHelp">
+              Shows future capability needs as descriptors. No capability is
+              invoked and no permission lease is issued.
+            </p>
+
+            {capabilityPlanPreview.status === "empty" ? (
+              <p className="empty">
+                Preview a local run draft and agent route first. Capability
+                plans will appear here before approval or execution.
+              </p>
+            ) : null}
+
+            <dl className="summaryGrid compact">
+              <div>
+                <dt>Status</dt>
+                <dd>{capabilityPlanPreview.status}</dd>
+              </div>
+              <div>
+                <dt>Items</dt>
+                <dd>{capabilityPlanPreview.itemCount}</dd>
+              </div>
+              <div>
+                <dt>High risk</dt>
+                <dd>{capabilityPlanPreview.highRiskCount}</dd>
+              </div>
+              <div>
+                <dt>Disabled</dt>
+                <dd>{capabilityPlanPreview.disabledCount}</dd>
+              </div>
+              <div>
+                <dt>Approval required</dt>
+                <dd>{capabilityPlanPreview.approvalRequiredCount}</dd>
+              </div>
+              <div>
+                <dt>Lease required</dt>
+                <dd>{capabilityPlanPreview.leaseRequiredCount}</dd>
+              </div>
+              <div>
+                <dt>Execution enabled</dt>
+                <dd>{capabilityPlanPreview.executionEnabled ? "yes" : "no"}</dd>
+              </div>
+              <div>
+                <dt>Lease issued</dt>
+                <dd>{capabilityPlanPreview.leaseIssued ? "yes" : "no"}</dd>
+              </div>
+            </dl>
+
+            {capabilityPlanPreview.items.length > 0 ? (
+              <ol className="timeline">
+                {capabilityPlanPreview.items.map((item) => (
+                  <li key={item.capabilityId}>
+                    <span className="timelineMeta">
+                      {item.capabilityId} · {item.sourceType} · {item.category}
+                    </span>
+                    <span>{item.title}</span>
+                    <span className="timelineMeta">
+                      {item.riskLevel} · {item.invokePolicy} ·{" "}
+                      {item.executionMode} · {item.planStatus}
+                    </span>
+                    <span className="timelineMeta">{item.inputSummary}</span>
+                    {item.leasePreview?.required === true ? (
+                      <span className="timelineMeta">
+                        Lease: {item.leasePreview.status} ·{" "}
+                        {item.leasePreview.reason}
+                      </span>
+                    ) : null}
+                    {item.disabledReason !== undefined ? (
+                      <span className="timelineMeta">
+                        Disabled: {item.disabledReason}
+                      </span>
+                    ) : null}
+                    {item.warningCodes.length > 0 ? (
+                      <span className="timelineMeta">
+                        Warnings: {item.warningCodes.join(", ")}
+                      </span>
+                    ) : null}
+                  </li>
+                ))}
+              </ol>
+            ) : null}
+
+            {capabilityPlanPreview.warnings.length > 0 ? (
+              <p className="muted">
+                warnings{" "}
+                {capabilityPlanPreview.warnings
+                  .map((warning) => warning.code)
+                  .join(", ")}
+              </p>
+            ) : null}
+
+            <p className="fieldHelp">{capabilityPlanPreview.nextAction}</p>
           </section>
 
           <section className="eventPanel" aria-label="Context Cart">

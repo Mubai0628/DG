@@ -23,6 +23,7 @@ foundation.
 - [App Shell Run Draft v0.2](app-shell-run-draft-v0.2.md)
 - [App Shell Context Cart v0.2](app-shell-context-cart-v0.2.md)
 - [App Shell Agent Route Preview v0.2](app-shell-agent-route-preview-v0.2.md)
+- [App Shell Capability Plan Preview v0.2](app-shell-capability-plan-preview-v0.2.md)
 - [v0.2.0 App Shell RC release notes](release-notes-v0.2.0-app-shell-rc.1.md)
 - [App Shell v0.2 manual QA](app-shell-v0.2-manual-qa.md)
 - [App Shell v0.2 RC checklist](app-shell-v0.2-rc-checklist.md)

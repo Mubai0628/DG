@@ -23,6 +23,10 @@ import { buildRunDraftView, summarizeRunDraft } from "../src/run-draft-view.js";
 import { buildContextCartView } from "../src/context-cart-view.js";
 import { buildAgentRoutePreviewView } from "../src/agent-route-preview-view.js";
 import {
+  buildCapabilityPlanPreviewView,
+  capabilityPlanApprovalRefs
+} from "../src/capability-plan-preview-view.js";
+import {
   buildEventLogPanelModel,
   buildBridgeProposalPreviewModel,
   buildResultPanelModel,
@@ -2259,6 +2263,196 @@ describe("app agent route preview", () => {
   });
 });
 
+describe("app capability plan preview", () => {
+  it("builds an empty capability plan until a run draft and route exist", () => {
+    const view = buildCapabilityPlanPreviewView({
+      selectedIntent: "code_change"
+    });
+
+    expect(view.status).toBe("empty");
+    expect(view.source).toBe("empty");
+    expect(view.planningOnly).toBe(true);
+    expect(view.executionEnabled).toBe(false);
+    expect(view.leaseIssued).toBe(false);
+    expect(view.items).toHaveLength(0);
+    expect(view.nextAction).toContain("Preview a local run draft");
+  });
+
+  it("maps web data extraction to display-only workspace and draft-write descriptors", () => {
+    const runDraft = buildRunDraftView({
+      objectiveDraft: "Export a web table to CSV.",
+      selectedIntent: "web_data_extraction",
+      acceptanceCriteriaDraft: "CSV exists",
+      workspaceRoot: "D:\\workspace"
+    });
+    const agentRoutePreview = buildAgentRoutePreviewView({ runDraft });
+    const view = buildCapabilityPlanPreviewView({
+      runDraft,
+      agentRoutePreview
+    });
+
+    expect(view.itemCount).toBe(2);
+    expect(view.items.map((item) => item.capabilityId)).toContain(
+      "native.workspace.index"
+    );
+    expect(view.items.map((item) => item.capabilityId)).toContain(
+      "native.fs.write_draft"
+    );
+    expect(
+      view.items.find((item) => item.capabilityId === "native.workspace.index")
+        ?.planStatus
+    ).toBe("display_only");
+    expect(
+      view.items.find((item) => item.capabilityId === "native.fs.write_draft")
+        ?.planStatus
+    ).toBe("approval_required");
+    expect(view.leaseRequiredCount).toBe(1);
+    expect(JSON.stringify(view)).not.toContain("rawDom");
+  });
+
+  it("maps code change to workspace, patch, git, and disabled command refs", () => {
+    const runDraft = buildRunDraftView({
+      objectiveDraft: "Prepare a local code change preview.",
+      selectedIntent: "code_change",
+      acceptanceCriteriaDraft: "Patch proposal summary exists",
+      workspaceRoot: "D:\\workspace"
+    });
+    const patchSurface = buildWorkbenchSurfacesView({
+      controlProjection: buildControlPlaneProjectionView(undefined),
+      patchProposalSummaries: [
+        {
+          proposalId: "patch-1",
+          title: "Safe patch summary",
+          filesChanged: 1,
+          linesAdded: 2,
+          linesRemoved: 1
+        }
+      ]
+    }).diff;
+    const agentRoutePreview = buildAgentRoutePreviewView({
+      runDraft,
+      patchSurface
+    });
+    const view = buildCapabilityPlanPreviewView({
+      runDraft,
+      agentRoutePreview,
+      patchSurface
+    });
+    const ids = view.items.map((item) => item.capabilityId);
+
+    expect(ids).toContain("native.workspace.index");
+    expect(ids).toContain("native.patch.propose");
+    expect(ids).toContain("native.git.diff_summary");
+    expect(ids).toContain("native.git.status");
+    expect(ids).toContain("native.shell.pnpm_test");
+    expect(ids).toContain("native.patch.apply");
+    expect(ids).toContain("native.git.commit_draft");
+    expect(view.highRiskCount).toBeGreaterThanOrEqual(3);
+    expect(view.disabledCount).toBeGreaterThanOrEqual(3);
+    expect(
+      view.items.find((item) => item.capabilityId === "native.patch.apply")
+        ?.planStatus
+    ).toBe("disabled");
+    expect(
+      view.items.find((item) => item.capabilityId === "native.git.commit_draft")
+        ?.planStatus
+    ).toBe("disabled");
+    expect(
+      view.items.find((item) => item.capabilityId === "native.shell.pnpm_test")
+        ?.invokePolicy
+    ).toBe("DISABLED");
+    expect(view.warnings.map((warning) => warning.code)).toContain(
+      "PATCH_APPLY_DISABLED"
+    );
+    expect(view.warnings.map((warning) => warning.code)).toContain(
+      "GIT_WRITE_DISABLED"
+    );
+    expect(view.warnings.map((warning) => warning.code)).toContain(
+      "SHELL_EXECUTION_DISABLED"
+    );
+  });
+
+  it("returns needs clarification for unknown intent", () => {
+    const runDraft = buildRunDraftView({
+      objectiveDraft: "Clarify this task later.",
+      selectedIntent: "unknown",
+      acceptanceCriteriaDraft: "Preview only",
+      workspaceRoot: "D:\\workspace"
+    });
+    const agentRoutePreview = buildAgentRoutePreviewView({ runDraft });
+    const view = buildCapabilityPlanPreviewView({
+      runDraft,
+      agentRoutePreview
+    });
+
+    expect(view.status).toBe("needs_clarification");
+    expect(view.itemCount).toBe(0);
+    expect(view.warnings.map((warning) => warning.code)).toContain(
+      "INTENT_UNKNOWN_NEEDS_CLARIFICATION"
+    );
+  });
+
+  it("strips raw arguments and unsafe markers from the view model", () => {
+    const secret = "sk-test1234567890abcdef";
+    const runDraft = buildRunDraftView({
+      objectiveDraft: `Plan with ${secret} and rawDom markers.`,
+      selectedIntent: "verification",
+      acceptanceCriteriaDraft: "warning codes only",
+      workspaceRoot: "D:\\workspace"
+    });
+    const agentRoutePreview = buildAgentRoutePreviewView({ runDraft });
+    const view = buildCapabilityPlanPreviewView({
+      runDraft,
+      agentRoutePreview,
+      conversionError: {
+        safeMessage: "rawCsv should be warning-only"
+      }
+    });
+    const serialized = JSON.stringify(view);
+
+    expect(view.status).toBe("blocked");
+    expect(view.warnings.map((warning) => warning.code)).toContain(
+      "API_KEY_MARKER"
+    );
+    expect(view.warnings.map((warning) => warning.code)).toContain(
+      "RAW_DOM_MARKER"
+    );
+    expect(view.warnings.map((warning) => warning.code)).toContain(
+      "RAW_CSV_MARKER"
+    );
+    expect(serialized).not.toContain(secret);
+    expect(serialized).not.toContain("rawDom");
+    expect(serialized).not.toContain("rawCsv");
+    expect(serialized).not.toContain("Plan with");
+  });
+
+  it("passes capability approvals to the existing approval surface as read-only dry refs", () => {
+    const runDraft = buildRunDraftView({
+      objectiveDraft: "Export a web table to CSV.",
+      selectedIntent: "web_data_extraction",
+      acceptanceCriteriaDraft: "CSV exists",
+      workspaceRoot: "D:\\workspace"
+    });
+    const agentRoutePreview = buildAgentRoutePreviewView({ runDraft });
+    const capabilityPlan = buildCapabilityPlanPreviewView({
+      runDraft,
+      agentRoutePreview
+    });
+    const surfaces = buildWorkbenchSurfacesView({
+      controlProjection: buildControlPlaneProjectionView(undefined),
+      futureApprovalRefs: capabilityPlanApprovalRefs(capabilityPlan)
+    });
+
+    expect(surfaces.approval.status).toBe("pending");
+    expect(surfaces.approval.itemCount).toBe(1);
+    expect(surfaces.approval.items[0]).toMatchObject({
+      kind: "capability",
+      status: "dry"
+    });
+    expect(JSON.stringify(surfaces.approval)).not.toContain("raw");
+  });
+});
+
 describe("desktop source boundaries", () => {
   it("keeps refresh events and docs actions from navigating or resetting UI state", async () => {
     const appSource = await readFile(
@@ -2326,6 +2520,16 @@ describe("desktop source boundaries", () => {
     expect(appSource).toContain(
       "Preview a local run draft first. Agent routes will appear here"
     );
+    expect(appSource).toContain("Capability Plan Preview");
+    expect(appSource).toContain("Planning only");
+    expect(appSource).toContain("No capability");
+    expect(appSource).toContain("no permission lease is issued");
+    expect(appSource).toContain("buildCapabilityPlanPreviewView");
+    expect(appSource).toContain("capabilityPlanPreview");
+    expect(appSource).toContain("capabilityPlanApprovalRefs");
+    expect(appSource).toContain(
+      "Preview a local run draft and agent route first"
+    );
     expect(appSource).toContain("displayedRunDraft");
     expect(appSource).toContain("runDraftCandidate");
     expect(appSource).toContain("setRunDraftPreview");
@@ -2356,6 +2560,9 @@ describe("desktop source boundaries", () => {
     expect(appSource).not.toContain("handleRunCanvas");
     expect(appSource).not.toContain("handleRouteAgent");
     expect(appSource).not.toContain("handleSpawnAgent");
+    expect(appSource).not.toContain("handleInvokeCapability");
+    expect(appSource).not.toContain("handleIssueLease");
+    expect(appSource).not.toContain("handleDryRunCapability");
     expect(appSource).not.toContain("handleSendToDeepSeek");
     expect(appSource).not.toContain("handleRunGit");
     expect(appSource).not.toContain("handleRunShell");
@@ -2366,6 +2573,9 @@ describe("desktop source boundaries", () => {
     expect(appSource).not.toContain("Execute Agent");
     expect(appSource).not.toContain("Spawn Agent");
     expect(appSource).not.toContain("Send Agent");
+    expect(appSource).not.toContain("Invoke Capability");
+    expect(appSource).not.toContain("Issue Lease");
+    expect(appSource).not.toContain("Execute Capability");
     expect(appSource).not.toContain("Apply Patch");
     expect(appSource).not.toContain("Run Git");
     expect(appSource).not.toContain("Run Shell");
@@ -2383,6 +2593,7 @@ describe("desktop source boundaries", () => {
     expect(appSource).not.toContain("createControlPlaneTask");
     expect(appSource).not.toContain("routeAgentTask");
     expect(appSource).not.toContain("planCapabilityInvocation");
+    expect(appSource).not.toContain("issuePermissionLease");
     expect(appSource).not.toContain("assemblePrompt");
     expect(appSource).not.toContain("assembleContext");
     expect(appSource).not.toContain("ContextLedger");
@@ -2466,6 +2677,7 @@ describe("desktop source boundaries", () => {
       "src/run-draft-view.ts",
       "src/context-cart-view.ts",
       "src/agent-route-preview-view.ts",
+      "src/capability-plan-preview-view.ts",
       "scripts/preflight.mjs",
       "scripts/run-flow.mjs",
       "src-tauri/src/main.rs",
@@ -2724,6 +2936,36 @@ describe("desktop source boundaries", () => {
     expect(combined).toContain("No EventStore write");
     expect(combined).toContain("No patch, Git, or shell execution");
     expect(combined).toContain("app-shell-agent-route-preview-v0.2.md");
+  });
+
+  it("documents app capability plan preview as planning-only", async () => {
+    const docs = await Promise.all(
+      ["app-shell-capability-plan-preview-v0.2.md", "README.md"].map(
+        async (file) => ({
+          file,
+          text: await readFile(path.join(repoRoot, "docs", file), "utf8")
+        })
+      )
+    );
+    const combined = docs.map((doc) => doc.text).join("\n");
+
+    expect(combined).toContain("App Shell Capability Plan Preview v0.2");
+    expect(combined).toContain("planning-only");
+    expect(combined).toContain("descriptor-style capability needs");
+    expect(combined).toContain("does not invoke tools");
+    expect(combined).toContain("does not issue permission leases");
+    expect(combined).toContain("native.workspace.index");
+    expect(combined).toContain("native.fs.write_draft");
+    expect(combined).toContain("native.patch.apply` as disabled");
+    expect(combined).toContain("native.git.commit_draft` as disabled");
+    expect(combined).toContain("shell descriptors remain disabled");
+    expect(combined).toContain("Approval Surface");
+    expect(combined).toContain("No capability execution");
+    expect(combined).toContain("No permission lease issuing");
+    expect(combined).toContain("No real dry-run execution");
+    expect(combined).toContain("No DeepSeek call");
+    expect(combined).toContain("No patch, Git, or shell execution");
+    expect(combined).toContain("app-shell-capability-plan-preview-v0.2.md");
   });
 
   it("documents the v0.2 App Shell RC release notes without enabling execution", async () => {
