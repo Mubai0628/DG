@@ -3523,6 +3523,141 @@ describe("desktop source boundaries", () => {
     expect(combined).toContain("P0F is complete");
   });
 
+  it("documents the v0.3 post-release review and P0H roadmap lock", async () => {
+    const review = await readFile(
+      path.join(
+        repoRoot,
+        "docs",
+        "v0.3-coding-workflow-preview-postrelease-review.md"
+      ),
+      "utf8"
+    );
+    const roadmap = await readFile(
+      path.join(
+        repoRoot,
+        "docs",
+        "p0h-coding-workflow-controlled-creation-roadmap.md"
+      ),
+      "utf8"
+    );
+    const docsIndex = await readFile(
+      path.join(repoRoot, "docs", "README.md"),
+      "utf8"
+    );
+    const rootReadme = await readFile(path.join(repoRoot, "README.md"), "utf8");
+    const combined = `${review}\n${roadmap}\n${docsIndex}\n${rootReadme}`;
+
+    expect(combined).toContain("v0.3.0-coding-workflow-preview-rc.1");
+    expect(combined).toContain(
+      "Coding workflow preview surfaces, no execution"
+    );
+    expect(combined).toContain("Tag: `v0.3.0-coding-workflow-preview-rc.1`");
+    expect(combined).toContain("Commit: `cbb89b9`");
+    expect(combined).toContain("published pre-release");
+    expect(combined).toContain("P0G is complete");
+    expect(combined).toContain("P0H Coding");
+    expect(combined).toContain("Workflow Controlled Creation MVP");
+    expect(combined).toContain("web_table_to_csv");
+    expect(combined).toContain("Event Log / Replay");
+    expect(combined).toContain("Local Run Draft Preview");
+    expect(combined).toContain("Context Cart / Rules Ledger visualization");
+    expect(combined).toContain("Agent Route Preview");
+    expect(combined).toContain("Capability Plan Preview");
+    expect(combined).toContain("Patch Proposal UI Bridge");
+    expect(combined).toContain("Memory Recall Preview");
+    expect(combined).toContain("Bridge Proposal Preview");
+    expect(combined).toContain("Real DeepSeek chat");
+    expect(combined).toContain("Real ControlPlaneRun creation");
+    expect(combined).toContain("Patch apply");
+    expect(combined).toContain("Git execution");
+    expect(combined).toContain("Shell execution");
+    expect(combined).toContain("Capability invocation");
+    expect(combined).toContain("PermissionLease issuing");
+    expect(combined).toContain("Memory commit, revoke, or expire UI");
+    expect(combined).toContain("MCP, plugin, or skills runtime");
+    expect(combined).toContain("Native bridge");
+    expect(combined).toContain("Desktop action");
+    expect(combined).toContain("pnpm verify:ci");
+    expect(combined).toContain("pnpm release:smoke");
+    expect(combined).toContain("pnpm app:qa:check");
+    expect(combined).toContain("manual GUI QA");
+    expect(combined).toContain("GitHub Actions warning");
+    expect(combined).toContain("Tauri bundle identifier warning");
+    expect(combined).toContain("No raw payload uploads");
+    expect(combined).toContain("No raw CSV uploads");
+    expect(combined).toContain("No raw source uploads");
+    expect(combined).toContain("No raw prompt uploads");
+    expect(combined).toContain("No API key uploads");
+    expect(combined).toContain("No ignored `conformance/results/`");
+    expect(combined).toContain("P0H-001 Workspace Index To App Bridge");
+    expect(combined).toContain(
+      "P0H-002 Run Draft To Control Plane Draft Event"
+    );
+    expect(combined).toContain("P0H-003 Context Cart From Run Draft");
+    expect(combined).toContain("P0H-004 Static Agent Route Preview");
+    expect(combined).toContain("P0H-005 Capability Plan Preview");
+    expect(combined).toContain("P0H-006 Patch Proposal Creation Preview");
+    expect(combined).toContain("P0H-007 Memory Recall Preview");
+    expect(combined).toContain(
+      "P0H-008 Coding Workflow Controlled Creation RC"
+    );
+    expect(combined).toContain("controlled creation MVP");
+    expect(combined).toContain("still does not allow arbitrary execution");
+    expect(combined).toContain("Do not crawl the real filesystem by default");
+    expect(combined).toContain(
+      "v0.3-coding-workflow-preview-postrelease-review.md"
+    );
+    expect(combined).toContain(
+      "p0h-coding-workflow-controlled-creation-roadmap.md"
+    );
+  });
+
+  it("documents P0H-001 as a read-only Workspace Index to App bridge plan", async () => {
+    const plan = await readFile(
+      path.join(
+        repoRoot,
+        "docs",
+        "p0h-001-workspace-index-to-app-bridge-plan.md"
+      ),
+      "utf8"
+    );
+    const docsIndex = await readFile(
+      path.join(repoRoot, "docs", "README.md"),
+      "utf8"
+    );
+
+    expect(plan).toContain("Do not implement this plan in P0G-009");
+    expect(plan).toContain("Scope");
+    expect(plan).toContain("Non-Goals");
+    expect(plan).toContain("Data Model");
+    expect(plan).toContain("Source Of Workspace Index Summaries");
+    expect(plan).toContain("Path And Secret Safety");
+    expect(plan).toContain("Summary-Only UI Mapping");
+    expect(plan).toContain("Tests");
+    expect(plan).toContain("Commands To Run");
+    expect(plan).toContain("Completion Report Format");
+    expect(plan).toContain("AppWorkspaceIndexBridgeView");
+    expect(plan).toContain("synthetic fixture summaries");
+    expect(plan).toContain("explicit app-local safe summary input");
+    expect(plan).toContain("No raw file content display");
+    expect(plan).toContain("No filesystem crawling by default");
+    expect(plan).toContain("No `.env`");
+    expect(plan).toContain("No patch apply");
+    expect(plan).toContain("No Git execution");
+    expect(plan).toContain("No shell execution");
+    expect(plan).toContain("No DeepSeek call");
+    expect(plan).toContain("No real ControlPlaneRun creation");
+    expect(plan).toContain("No capability invocation");
+    expect(plan).toContain("No PermissionLease issuing");
+    expect(plan).toContain("no EventStore write");
+    expect(plan).toContain("no Tauri invoke added");
+    expect(plan).toContain("DW-P0H-001");
+    expect(plan).toContain("DW-P0H-002 Run Draft -> Control Plane Draft Event");
+    expect(docsIndex).toContain(
+      "p0h-001-workspace-index-to-app-bridge-plan.md"
+    );
+  });
+
   it("documents P0G-001 as a read-only workspace index plan", async () => {
     const plan = await readFile(
       path.join(repoRoot, "docs", "p0g-001-workspace-read-index-plan.md"),
