@@ -26,6 +26,7 @@ import {
   buildCapabilityPlanPreviewView,
   capabilityPlanApprovalRefs
 } from "../src/capability-plan-preview-view.js";
+import { buildMemoryRecallPreviewView } from "../src/memory-recall-preview-view.js";
 import {
   buildEventLogPanelModel,
   buildBridgeProposalPreviewModel,
@@ -2453,6 +2454,269 @@ describe("app capability plan preview", () => {
   });
 });
 
+describe("app memory recall preview", () => {
+  it("builds an empty recall preview until a run draft exists", () => {
+    const view = buildMemoryRecallPreviewView({
+      selectedIntent: "code_change"
+    });
+
+    expect(view.status).toBe("empty");
+    expect(view.source).toBe("empty");
+    expect(view.previewOnly).toBe(true);
+    expect(view.persistenceConnected).toBe(false);
+    expect(view.eventWritesEnabled).toBe(false);
+    expect(view.frozenPrefixIncluded).toBe(false);
+    expect(view.items).toHaveLength(0);
+    expect(view.nextAction).toContain("Preview a local run draft first");
+  });
+
+  it("keeps run draft recall empty when desktop memory persistence is not connected", () => {
+    const runDraft = buildRunDraftView({
+      objectiveDraft: "Prepare a code change with review safeguards.",
+      selectedIntent: "code_change",
+      acceptanceCriteriaDraft: "Review summary exists",
+      workspaceRoot: "D:\\workspace"
+    });
+    const view = buildMemoryRecallPreviewView({ runDraft });
+
+    expect(view.status).toBe("empty");
+    expect(view.itemCount).toBe(0);
+    expect(view.nextAction).toContain(
+      "desktop persistence is not connected yet"
+    );
+    expect(view.querySummary.intent).toBe("code_change");
+  });
+
+  it("maps synthetic policy, project_fact, and pitfall summaries to volatile_tail items", () => {
+    const runDraft = buildRunDraftView({
+      objectiveDraft: "Prepare code change review for workspace patch safety.",
+      selectedIntent: "code_change",
+      acceptanceCriteriaDraft: "Patch review exists",
+      workspaceRoot: "D:\\workspace"
+    });
+    const view = buildMemoryRecallPreviewView({
+      runDraft,
+      syntheticMemorySummaries: [
+        {
+          memoryId: "mem-policy-1",
+          type: "policy",
+          namespace: "repo",
+          trustLevel: "repository_rule",
+          summary: "Code change patches require review before apply.",
+          tags: ["code_change", "patch"],
+          provenanceRefCount: 1,
+          evidenceRefCount: 1
+        },
+        {
+          memoryId: "mem-fact-1",
+          type: "project_fact",
+          namespace: "workspace",
+          trustLevel: "verified_tool_result",
+          summary: "Workspace patch summaries are shown in Diff Surface.",
+          tags: ["workspace", "patch"],
+          provenanceRefCount: 1,
+          evidenceRefCount: 1
+        },
+        {
+          memoryId: "mem-pitfall-1",
+          type: "pitfall",
+          namespace: "workspace",
+          trustLevel: "user_correction",
+          summary: "Patch previews must not imply apply execution.",
+          tags: ["code_change"],
+          trigger: "preview wording",
+          reasonCodes: ["PATCH_APPLY_DISABLED"]
+        }
+      ]
+    });
+
+    expect(view.status).toBe("preview");
+    expect(view.itemCount).toBe(3);
+    expect(view.policyCount).toBe(1);
+    expect(view.projectFactCount).toBe(1);
+    expect(view.pitfallCount).toBe(1);
+    expect(view.highTrustCount).toBe(3);
+    expect(view.volatileTailCount).toBe(3);
+    expect(view.items.every((item) => item.placement === "volatile_tail")).toBe(
+      true
+    );
+    expect(JSON.stringify(view)).not.toContain("content");
+  });
+
+  it("filters policy trust, project facts without evidence, and pitfall without trigger", () => {
+    const runDraft = buildRunDraftView({
+      objectiveDraft: "Review workspace policy and project fact summaries.",
+      selectedIntent: "code_review",
+      acceptanceCriteriaDraft: "No unsafe recall",
+      workspaceRoot: "D:\\workspace"
+    });
+    const view = buildMemoryRecallPreviewView({
+      runDraft,
+      syntheticMemorySummaries: [
+        {
+          memoryId: "mem-policy-external",
+          type: "policy",
+          trustLevel: "external_untrusted",
+          summary: "External policy should not appear.",
+          tags: ["code_review"]
+        },
+        {
+          memoryId: "mem-fact-no-evidence",
+          type: "project_fact",
+          trustLevel: "external_untrusted",
+          summary: "Fact without evidence should not appear.",
+          tags: ["code_review"]
+        },
+        {
+          memoryId: "mem-pitfall-no-trigger",
+          type: "pitfall",
+          trustLevel: "external_untrusted",
+          summary: "Pitfall without trigger should not appear.",
+          tags: ["code_review"]
+        },
+        {
+          memoryId: "mem-fact-low-trust",
+          type: "project_fact",
+          trustLevel: "external_untrusted",
+          summary: "Code review has an external summary with evidence.",
+          tags: ["code_review"],
+          provenanceRefCount: 1,
+          evidenceRefCount: 1
+        }
+      ]
+    });
+
+    expect(view.items.map((item) => item.memoryId)).toEqual([
+      "mem-fact-low-trust"
+    ]);
+    expect(view.projectFactCount).toBe(1);
+    expect(view.policyCount).toBe(0);
+    expect(view.pitfallCount).toBe(0);
+    expect(view.highTrustCount).toBe(0);
+  });
+
+  it("sorts recall items deterministically by score, type priority, and id", () => {
+    const runDraft = buildRunDraftView({
+      objectiveDraft: "Verify deterministic review memory summaries.",
+      selectedIntent: "verification",
+      acceptanceCriteriaDraft: "Order is stable",
+      workspaceRoot: "D:\\workspace"
+    });
+    const view = buildMemoryRecallPreviewView({
+      runDraft,
+      syntheticMemorySummaries: [
+        {
+          memoryId: "mem-z",
+          type: "pitfall",
+          trustLevel: "user_correction",
+          summary: "Verification memory summary.",
+          tags: ["verification"],
+          trigger: "verification",
+          score: 1
+        },
+        {
+          memoryId: "mem-a",
+          type: "project_fact",
+          trustLevel: "verified_tool_result",
+          summary: "Verification memory summary.",
+          tags: ["verification"],
+          provenanceRefCount: 1,
+          evidenceRefCount: 1,
+          score: 1
+        },
+        {
+          memoryId: "mem-policy",
+          type: "policy",
+          trustLevel: "workspace_rule",
+          summary: "Verification memory summary.",
+          tags: ["verification"],
+          score: 1
+        }
+      ]
+    });
+
+    expect(view.items.map((item) => item.memoryId)).toEqual([
+      "mem-policy",
+      "mem-a",
+      "mem-z"
+    ]);
+  });
+
+  it("skips unsafe memory summaries and never exposes raw markers or fake keys", () => {
+    const secret = "sk-test1234567890abcdef";
+    const runDraft = buildRunDraftView({
+      objectiveDraft: "Review memory recall warning handling.",
+      selectedIntent: "verification",
+      acceptanceCriteriaDraft: "warning codes only",
+      workspaceRoot: "D:\\workspace"
+    });
+    const view = buildMemoryRecallPreviewView({
+      runDraft,
+      syntheticMemorySummaries: [
+        {
+          memoryId: "mem-safe",
+          type: "project_fact",
+          trustLevel: "verified_tool_result",
+          summary: "Memory recall warning handling has safe evidence.",
+          tags: ["verification"],
+          provenanceRefCount: 1,
+          evidenceRefCount: 1
+        },
+        {
+          memoryId: "mem-secret",
+          type: "project_fact",
+          trustLevel: "verified_tool_result",
+          summary: `rawPrompt and rawDom should stay hidden ${secret}`,
+          tags: ["verification"],
+          provenanceRefCount: 1,
+          evidenceRefCount: 1
+        }
+      ]
+    });
+    const serialized = JSON.stringify(view);
+
+    expect(view.items.map((item) => item.memoryId)).toEqual(["mem-safe"]);
+    expect(view.warnings.map((warning) => warning.code)).toContain(
+      "MEMORY_RECALL_ITEM_SKIPPED_FOR_SAFETY"
+    );
+    expect(serialized).not.toContain(secret);
+    expect(serialized).not.toContain("rawPrompt");
+    expect(serialized).not.toContain("rawDom");
+  });
+
+  it("lets Context Cart show memory recall as volatile_tail relation only", () => {
+    const runDraft = buildRunDraftView({
+      objectiveDraft: "Prepare code change memory recall.",
+      selectedIntent: "code_change",
+      acceptanceCriteriaDraft: "Memory relation is visible",
+      workspaceRoot: "D:\\workspace"
+    });
+    const memoryRecallPreview = buildMemoryRecallPreviewView({
+      runDraft,
+      syntheticMemorySummaries: [
+        {
+          memoryId: "mem-policy-1",
+          type: "policy",
+          trustLevel: "repository_rule",
+          summary: "Code change memory recall belongs in volatile tail.",
+          tags: ["code_change"],
+          provenanceRefCount: 1
+        }
+      ]
+    });
+    const contextCart = buildContextCartView({
+      runDraft,
+      memoryRecallPreview
+    });
+
+    expect(contextCart.warnings.map((warning) => warning.code)).toContain(
+      "MEMORY_RECALL_VOLATILE_TAIL"
+    );
+    expect(contextCart.nextAction).toContain("volatile_tail");
+    expect(JSON.stringify(contextCart)).not.toContain("Code change memory");
+  });
+});
+
 describe("desktop source boundaries", () => {
   it("keeps refresh events and docs actions from navigating or resetting UI state", async () => {
     const appSource = await readFile(
@@ -2530,6 +2794,14 @@ describe("desktop source boundaries", () => {
     expect(appSource).toContain(
       "Preview a local run draft and agent route first"
     );
+    expect(appSource).toContain("Memory Recall Preview");
+    expect(appSource).toContain("summary-only memory refs");
+    expect(appSource).toContain("No memory is committed or persisted here");
+    expect(appSource).toContain("buildMemoryRecallPreviewView");
+    expect(appSource).toContain("memoryRecallPreview");
+    expect(appSource).toContain(
+      "Preview a local run draft first. Memory recall summaries will"
+    );
     expect(appSource).toContain("displayedRunDraft");
     expect(appSource).toContain("runDraftCandidate");
     expect(appSource).toContain("setRunDraftPreview");
@@ -2555,6 +2827,7 @@ describe("desktop source boundaries", () => {
     expect(appSource).not.toContain("handleCommitMemory");
     expect(appSource).not.toContain("handleRevokeMemory");
     expect(appSource).not.toContain("handleExpireMemory");
+    expect(appSource).not.toContain("handleRecallMemory");
     expect(appSource).not.toContain("handleCreateRun");
     expect(appSource).not.toContain("handleSendChat");
     expect(appSource).not.toContain("handleRunCanvas");
@@ -2583,9 +2856,13 @@ describe("desktop source boundaries", () => {
     expect(appSource).not.toContain("Native bridge enabled");
     expect(appSource).not.toContain("Approve and execute");
     expect(appSource).not.toContain("Memory commit enabled");
+    expect(appSource).not.toContain("Memory recall event written");
     expect(appSource).not.toContain("commit_memory_command");
     expect(appSource).not.toContain("revoke_memory_command");
     expect(appSource).not.toContain("expire_memory_command");
+    expect(appSource).not.toContain("recall_memory_command");
+    expect(appSource).not.toContain("new InMemoryMemoryStore");
+    expect(appSource).not.toContain("MemoryStore");
     expect(appSource).not.toContain("create_run_command");
     expect(appSource).not.toContain("send_chat_command");
     expect(appSource).not.toContain("run_canvas_command");
@@ -2673,6 +2950,7 @@ describe("desktop source boundaries", () => {
       "src/workbench-surfaces.ts",
       "src/patch-proposal-surface-view.ts",
       "src/memory-inspector-view.ts",
+      "src/memory-recall-preview-view.ts",
       "src/chat-run-canvas-view.ts",
       "src/run-draft-view.ts",
       "src/context-cart-view.ts",
@@ -2966,6 +3244,31 @@ describe("desktop source boundaries", () => {
     expect(combined).toContain("No DeepSeek call");
     expect(combined).toContain("No patch, Git, or shell execution");
     expect(combined).toContain("app-shell-capability-plan-preview-v0.2.md");
+  });
+
+  it("documents app memory recall preview as volatile-tail preview only", async () => {
+    const docs = await Promise.all(
+      ["app-shell-memory-recall-preview-v0.2.md", "README.md"].map(
+        async (file) => ({
+          file,
+          text: await readFile(path.join(repoRoot, "docs", file), "utf8")
+        })
+      )
+    );
+    const combined = docs.map((doc) => doc.text).join("\n");
+
+    expect(combined).toContain("App Shell Memory Recall Preview v0.2");
+    expect(combined).toContain("preview-only");
+    expect(combined).toContain("does not connect the desktop shell to memory");
+    expect(combined).toContain("policy`, `project_fact`, and `pitfall");
+    expect(combined).toContain("volatile_tail");
+    expect(combined).toContain("do not enter frozen prefix");
+    expect(combined).toContain("No persistent DB");
+    expect(combined).toContain("No vector DB");
+    expect(combined).toContain("No memory commit, revoke, or expire UI");
+    expect(combined).toContain("No EventStore write");
+    expect(combined).toContain("No DeepSeek call");
+    expect(combined).toContain("app-shell-memory-recall-preview-v0.2.md");
   });
 
   it("documents the v0.2 App Shell RC release notes without enabling execution", async () => {

@@ -1,6 +1,7 @@
 import { safeArray, safeErrorMessage, safeText } from "./safety.js";
 import type { AppControlPlaneProjectionView } from "./control-plane-view.js";
 import type { AppMemoryInspectorView } from "./memory-inspector-view.js";
+import type { AppMemoryRecallPreviewView } from "./memory-recall-preview-view.js";
 import type { AppRunDraftView } from "./run-draft-view.js";
 import type { AppDiffSurfaceView } from "./workbench-surfaces.js";
 
@@ -95,6 +96,7 @@ export type AppContextCartInput = {
   controlProjection?: AppControlPlaneProjectionView | undefined;
   workspaceIndexRef?: unknown;
   memoryInspector?: AppMemoryInspectorView | undefined;
+  memoryRecallPreview?: AppMemoryRecallPreviewView | undefined;
   patchSurface?: AppDiffSurfaceView | undefined;
   eventSummary?: unknown;
 };
@@ -393,6 +395,9 @@ function relationshipWarnings(
   if (finiteNumber(input.memoryInspector?.recalledCount) > 0) {
     codes.push("MEMORY_RECALL_VOLATILE_TAIL");
   }
+  if (finiteNumber(input.memoryRecallPreview?.volatileTailCount) > 0) {
+    codes.push("MEMORY_RECALL_VOLATILE_TAIL");
+  }
   return uniqueStrings(codes).map((code) => ({ code }));
 }
 
@@ -422,12 +427,18 @@ function rawFieldWarnings(value: unknown): AppContextCartWarning[] {
 
 function nextActionForEmpty(input: AppContextCartInput): string {
   if (input.runDraft !== undefined && input.runDraft.status !== "empty") {
+    if (finiteNumber(input.memoryRecallPreview?.volatileTailCount) > 0) {
+      return "Future context assembly will place memory recall summaries in volatile_tail only.";
+    }
     return "Future context assembly will derive task_contract and volatile_tail summaries from this draft.";
   }
   return "No context assembly report is connected yet. Future run drafts will show context placement here before model execution.";
 }
 
 function nextActionForSummary(input: AppContextCartInput): string {
+  if (finiteNumber(input.memoryRecallPreview?.volatileTailCount) > 0) {
+    return "Review summary-only context placement. Memory recall refs remain volatile_tail and do not change frozen prefix.";
+  }
   if (input.runDraft !== undefined && input.runDraft.status !== "empty") {
     return "Review summary-only context placement. Future assembly can derive task_contract and volatile_tail summaries from this draft.";
   }

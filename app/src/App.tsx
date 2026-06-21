@@ -27,6 +27,10 @@ import {
   type AppMemoryInspectorView
 } from "./memory-inspector-view.js";
 import {
+  buildMemoryRecallPreviewView,
+  type AppMemoryRecallPreviewView
+} from "./memory-recall-preview-view.js";
+import {
   buildChatRunCanvasView,
   type AppChatRunCanvasView,
   type AppRunCanvasIntent
@@ -210,12 +214,25 @@ export function DesktopShell(): JSX.Element {
     ]
   );
   const displayedRunDraft = runDraftPreview ?? runDraftCandidate;
+  const memoryRecallPreview = useMemo<AppMemoryRecallPreviewView>(
+    () =>
+      buildMemoryRecallPreviewView({
+        runDraft: displayedRunDraft,
+        objectiveSummary: displayedRunDraft.objectiveSummary,
+        selectedIntent,
+        acceptanceCriteriaCount: displayedRunDraft.acceptanceCriteriaCount,
+        workspaceRoot,
+        memoryInspector
+      }),
+    [displayedRunDraft, memoryInspector, selectedIntent, workspaceRoot]
+  );
   const contextCart = useMemo<AppContextCartView>(
     () =>
       buildContextCartView({
         runDraft: displayedRunDraft,
         controlProjection: controlPlanePanel,
         memoryInspector,
+        memoryRecallPreview,
         patchSurface: baseWorkbenchSurfaces.diff,
         eventSummary
       }),
@@ -224,7 +241,8 @@ export function DesktopShell(): JSX.Element {
       controlPlanePanel,
       displayedRunDraft,
       eventSummary,
-      memoryInspector
+      memoryInspector,
+      memoryRecallPreview
     ]
   );
   const agentRoutePreview = useMemo<AppAgentRoutePreviewView>(
@@ -1107,6 +1125,128 @@ export function DesktopShell(): JSX.Element {
             ) : null}
 
             <p className="fieldHelp">{capabilityPlanPreview.nextAction}</p>
+          </section>
+
+          <section className="eventPanel" aria-label="Memory Recall Preview">
+            <div className="panelHeader">
+              <h2>Memory Recall Preview</h2>
+              <span className="muted">Preview only</span>
+            </div>
+            <p className="fieldHelp">
+              Shows summary-only memory refs that a future run may recall into
+              volatile_tail. No memory is committed or persisted here.
+            </p>
+
+            {memoryRecallPreview.status === "empty" ? (
+              <p className="empty">
+                Preview a local run draft first. Memory recall summaries will
+                appear here before context assembly.
+              </p>
+            ) : null}
+
+            <dl className="summaryGrid compact">
+              <div>
+                <dt>Status</dt>
+                <dd>{memoryRecallPreview.status}</dd>
+              </div>
+              <div>
+                <dt>Intent</dt>
+                <dd>{memoryRecallPreview.intent}</dd>
+              </div>
+              <div>
+                <dt>Items</dt>
+                <dd>{memoryRecallPreview.itemCount}</dd>
+              </div>
+              <div>
+                <dt>Policy</dt>
+                <dd>{memoryRecallPreview.policyCount}</dd>
+              </div>
+              <div>
+                <dt>Project facts</dt>
+                <dd>{memoryRecallPreview.projectFactCount}</dd>
+              </div>
+              <div>
+                <dt>Pitfalls</dt>
+                <dd>{memoryRecallPreview.pitfallCount}</dd>
+              </div>
+              <div>
+                <dt>High trust</dt>
+                <dd>{memoryRecallPreview.highTrustCount}</dd>
+              </div>
+              <div>
+                <dt>volatile_tail</dt>
+                <dd>{memoryRecallPreview.volatileTailCount}</dd>
+              </div>
+              <div>
+                <dt>Persistence</dt>
+                <dd>
+                  {memoryRecallPreview.persistenceConnected
+                    ? "connected"
+                    : "off"}
+                </dd>
+              </div>
+              <div>
+                <dt>Frozen prefix</dt>
+                <dd>
+                  {memoryRecallPreview.frozenPrefixIncluded
+                    ? "included"
+                    : "not included"}
+                </dd>
+              </div>
+            </dl>
+
+            <p className="fieldHelp">
+              Query: {memoryRecallPreview.querySummary.objectiveSummary} ·
+              criteria{" "}
+              {memoryRecallPreview.querySummary.acceptanceCriteriaCount}·
+              workspace {memoryRecallPreview.querySummary.workspaceSummary}
+            </p>
+
+            {memoryRecallPreview.items.length > 0 ? (
+              <ol className="timelineList">
+                {memoryRecallPreview.items.map((item) => (
+                  <li key={item.memoryId}>
+                    <strong>{item.type}</strong> · {item.memoryId} ·{" "}
+                    {item.namespace}
+                    <span className="timelineMeta">
+                      trust {item.trustLevel} · score {item.score} ·{" "}
+                      {item.placement}
+                    </span>
+                    <span>{item.summary}</span>
+                    <span className="timelineMeta">
+                      provenance {item.provenanceRefCount} · evidence{" "}
+                      {item.evidenceRefCount}
+                    </span>
+                    {item.tags.length > 0 ? (
+                      <span className="timelineMeta">
+                        Tags: {item.tags.join(", ")}
+                      </span>
+                    ) : null}
+                    {item.reasonCodes.length > 0 ? (
+                      <span className="timelineMeta">
+                        Reasons: {item.reasonCodes.join(", ")}
+                      </span>
+                    ) : null}
+                    {item.warningCodes.length > 0 ? (
+                      <span className="timelineMeta">
+                        Warnings: {item.warningCodes.join(", ")}
+                      </span>
+                    ) : null}
+                  </li>
+                ))}
+              </ol>
+            ) : null}
+
+            {memoryRecallPreview.warnings.length > 0 ? (
+              <p className="muted">
+                warnings{" "}
+                {memoryRecallPreview.warnings
+                  .map((warning) => warning.code)
+                  .join(", ")}
+              </p>
+            ) : null}
+
+            <p className="fieldHelp">{memoryRecallPreview.nextAction}</p>
           </section>
 
           <section className="eventPanel" aria-label="Context Cart">
