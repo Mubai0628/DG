@@ -16,6 +16,9 @@ Current scope:
   Patch Proposal / Diff, Approval / Diff / Audit, Memory Inspector, Memory
   Recall Preview, Workspace Index summary bridge, and disabled Bridge Proposal
   Preview
+- optionally record one local summary-only Run Draft Event to
+  `workspace/.deepseek-workbench/events.jsonl`; this is not run creation or
+  execution
 
 Current limitations:
 

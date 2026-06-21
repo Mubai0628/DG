@@ -54,6 +54,7 @@ export const eventTypes = [
   "workspace.file.summarized",
   "control.task.created",
   "control.run.created",
+  "control.run.draft_recorded",
   "control.run.planned",
   "control.run.status_changed",
   "control.run.needs_clarification",

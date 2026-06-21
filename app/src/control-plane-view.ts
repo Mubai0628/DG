@@ -74,6 +74,8 @@ export type AppControlPlaneProjectionView = {
   taskCount: number;
   completedTaskCount: number;
   draftCount: number;
+  draftEventCount: number;
+  latestDraftEventSummary?: string;
   artifactRefs: AppControlPlaneArtifactView[];
   timelineCount: number;
   lastEventAt: string;
@@ -174,6 +176,13 @@ export function buildControlPlaneProjectionView(
   const taskCount = finiteNumber(eventSummary.taskCount);
   const draftCount =
     result?.replaySummary.draftCount ?? finiteNumber(eventSummary.draftCount);
+  const draftEventCount = finiteNumber(
+    eventSummary.typeCounts?.["control.run.draft_recorded"]
+  );
+  const latestDraftEventSummary = latestSummaryForType(
+    eventSummary,
+    "control.run.draft_recorded"
+  );
   const phase: AppControlPlanePhaseView =
     status === "error" ? "audit" : completedTaskCount > 0 ? "result" : "audit";
   const runStatus =
@@ -191,6 +200,10 @@ export function buildControlPlaneProjectionView(
     taskCount,
     completedTaskCount,
     draftCount,
+    draftEventCount,
+    ...(latestDraftEventSummary !== undefined
+      ? { latestDraftEventSummary }
+      : {}),
     artifactRefs,
     timelineCount: timeline.length,
     lastEventAt: safeText(eventSummary.lastEventAt, "n/a"),
@@ -201,7 +214,8 @@ export function buildControlPlaneProjectionView(
       runStatus,
       fileExistsWarning,
       preflightWarning,
-      eventOk
+      eventOk,
+      draftEventCount
     }),
     source: result !== undefined ? "conversion_result" : "event_log_summary",
     ...(eventSummary.safeMessage !== undefined
@@ -221,6 +235,7 @@ function emptyProjection(
     taskCount: 0,
     completedTaskCount: 0,
     draftCount: 0,
+    draftEventCount: 0,
     artifactRefs: [],
     timelineCount: 0,
     lastEventAt: "n/a",
@@ -276,6 +291,14 @@ function extractDraftPath(summary: string): string | undefined {
   return match?.[0];
 }
 
+function latestSummaryForType(
+  eventSummary: WorkspaceEventSummary,
+  eventType: string
+): string | undefined {
+  const items = safeArray(eventSummary.timeline).map(normalizeTimelineItem);
+  return [...items].reverse().find((item) => item.type === eventType)?.summary;
+}
+
 function warningCode(value: string): string | undefined {
   const text = safeText(value, "").trim();
   if (text.length === 0) {
@@ -301,6 +324,7 @@ function nextActionFor(input: {
   fileExistsWarning: boolean;
   preflightWarning: boolean;
   eventOk: boolean;
+  draftEventCount: number;
 }): AppControlPlaneNextAction {
   if (input.preflightWarning) {
     return {
@@ -323,6 +347,12 @@ function nextActionFor(input: {
   if (input.runStatus === "completed") {
     return {
       label: "Review the draft CSV and Event Log / Replay summary.",
+      severity: "info"
+    };
+  }
+  if (input.draftEventCount > 0) {
+    return {
+      label: "Draft event recorded. Real run creation is still disabled.",
       severity: "info"
     };
   }

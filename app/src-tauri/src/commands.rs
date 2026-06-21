@@ -9,6 +9,7 @@ use std::thread;
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
 const MAX_PAYLOAD_BYTES: usize = 2_000_000;
+const MAX_RUN_DRAFT_EVENT_PAYLOAD_BYTES: usize = 16_384;
 const MAX_RUNNER_STDOUT_BYTES: usize = 65_536;
 const MAX_EVENT_LOG_BYTES: u64 = 2_000_000;
 const RUNNER_TIMEOUT: Duration = Duration::from_secs(60);
@@ -69,6 +70,11 @@ impl DesktopFlowError {
 
     fn with_stdout_json_parsed(mut self, parsed: bool) -> Self {
         self.stdout_json_parsed = parsed;
+        self
+    }
+
+    fn with_stage(mut self, stage: &str) -> Self {
+        self.stage = stage.to_string();
         self
     }
 
@@ -215,6 +221,18 @@ pub struct WorkspaceEventSummary {
 
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
+pub struct RunDraftEventRecordResult {
+    ok: bool,
+    event_id: String,
+    event_type: String,
+    draft_id: String,
+    event_log_path: String,
+    safe_message: String,
+    warnings: Vec<String>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct EventTimelineItem {
     id: String,
     ts: String,
@@ -249,6 +267,129 @@ pub fn load_workspace_event_summary(
     max_events: Option<usize>,
 ) -> WorkspaceEventSummary {
     load_event_summary(&workspace_root, max_events)
+}
+
+#[tauri::command(rename_all = "camelCase")]
+pub fn record_control_run_draft_event(
+    workspace_root: String,
+    payload_json: String,
+) -> Result<RunDraftEventRecordResult, DesktopFlowError> {
+    let workspace_root =
+        validate_workspace_root(&workspace_root).map_err(DesktopFlowError::workspace_invalid)?;
+    validate_run_draft_event_payload_text(&payload_json).map_err(|message| {
+        DesktopFlowError::invalid_payload(message).with_stage("record_draft_event")
+    })?;
+    let payload: Value = serde_json::from_str(&payload_json).map_err(|_| {
+        DesktopFlowError::invalid_payload("Draft event payload is not valid JSON")
+            .with_stage("record_draft_event")
+    })?;
+    validate_run_draft_event_payload(&payload).map_err(|message| {
+        DesktopFlowError::invalid_payload(message).with_stage("record_draft_event")
+    })?;
+
+    let draft_id = nested_string(Some(&payload), "draftId").ok_or_else(|| {
+        DesktopFlowError::invalid_payload("Draft event payload is missing draftId")
+            .with_stage("record_draft_event")
+    })?;
+    let local_task_id = nested_string(Some(&payload), "localTaskId");
+    let event_dir = workspace_root.join(".deepseek-workbench");
+    fs::create_dir_all(&event_dir).map_err(|_| {
+        DesktopFlowError::new(
+            "EVENT_LOG_WRITE_FAILED",
+            "Draft event log directory could not be created",
+            "record_draft_event",
+        )
+    })?;
+    let canonical_event_dir = event_dir.canonicalize().map_err(|_| {
+        DesktopFlowError::new(
+            "EVENT_LOG_WRITE_FAILED",
+            "Draft event log directory could not be resolved",
+            "record_draft_event",
+        )
+    })?;
+    if !canonical_event_dir.starts_with(&workspace_root) || !canonical_event_dir.is_dir() {
+        return Err(DesktopFlowError::new(
+            "EVENT_LOG_PATH_ESCAPE",
+            "Draft event log path is outside the workspace",
+            "record_draft_event",
+        ));
+    }
+
+    let event_log_path = canonical_event_dir.join("events.jsonl");
+    if event_log_path.exists() {
+        let canonical_event_log = event_log_path.canonicalize().map_err(|_| {
+            DesktopFlowError::new(
+                "EVENT_LOG_WRITE_FAILED",
+                "Draft event log could not be resolved",
+                "record_draft_event",
+            )
+        })?;
+        if !canonical_event_log.starts_with(&workspace_root) || !canonical_event_log.is_file() {
+            return Err(DesktopFlowError::new(
+                "EVENT_LOG_PATH_ESCAPE",
+                "Draft event log path is outside the workspace",
+                "record_draft_event",
+            ));
+        }
+    }
+
+    let millis = unix_epoch_millis();
+    let event_id = format!("control-run-draft-{millis}");
+    let timestamp = format!("unix-ms-{millis}");
+    let event = serde_json::json!({
+        "id": event_id,
+        "ts": timestamp,
+        "type": "control.run.draft_recorded",
+        "schemaVersion": 1,
+        "taskId": local_task_id,
+        "payload": payload
+    });
+    let event_line = serde_json::to_string(&event).map_err(|_| {
+        DesktopFlowError::new(
+            "EVENT_SERIALIZE_FAILED",
+            "Draft event could not be serialized",
+            "record_draft_event",
+        )
+    })?;
+    if event_line.as_bytes().len() > MAX_RUN_DRAFT_EVENT_PAYLOAD_BYTES + 1024
+        || contains_run_draft_event_sensitive_marker(&event_line)
+    {
+        return Err(DesktopFlowError::new(
+            "DRAFT_EVENT_REJECTED",
+            "Draft event payload failed final safety validation",
+            "record_draft_event",
+        ));
+    }
+
+    use std::io::Write;
+    let mut file = fs::OpenOptions::new()
+        .create(true)
+        .append(true)
+        .open(&event_log_path)
+        .map_err(|_| {
+            DesktopFlowError::new(
+                "EVENT_LOG_WRITE_FAILED",
+                "Draft event could not be written",
+                "record_draft_event",
+            )
+        })?;
+    writeln!(file, "{event_line}").map_err(|_| {
+        DesktopFlowError::new(
+            "EVENT_LOG_WRITE_FAILED",
+            "Draft event could not be written",
+            "record_draft_event",
+        )
+    })?;
+
+    Ok(RunDraftEventRecordResult {
+        ok: true,
+        event_id,
+        event_type: "control.run.draft_recorded".to_string(),
+        draft_id,
+        event_log_path: event_log_path.to_string_lossy().to_string(),
+        safe_message: "Summary-only draft event recorded locally. No run was created.".to_string(),
+        warnings: Vec::new(),
+    })
 }
 
 #[tauri::command(rename_all = "camelCase")]
@@ -628,22 +769,37 @@ fn timeline_item(event: &Value) -> EventTimelineItem {
 
 fn safe_payload_keys(payload: &serde_json::Map<String, Value>) -> BTreeSet<String> {
     let allowed = [
+        "acceptanceCriteriaCount",
+        "agentRouteSummary",
         "argumentSummary",
         "bytes",
+        "capabilityPlanSummary",
         "columnCount",
         "contentType",
+        "contextCartSummary",
+        "createdAt",
         "decision",
+        "draftId",
         "errorKind",
+        "eventKind",
         "formulaEscapedCount",
         "injectionRiskCount",
+        "intent",
+        "localOnly",
+        "localTaskId",
+        "memoryRecallSummary",
         "metadataSummary",
+        "noExecution",
+        "objectiveSummary",
         "overwritten",
+        "previewOnly",
         "redactedTextCount",
         "redaction",
         "relativePath",
         "resultSummary",
         "riskLevel",
         "rowCount",
+        "schemaVersion",
         "selectedTableId",
         "sha256",
         "sourceHost",
@@ -655,6 +811,10 @@ fn safe_payload_keys(payload: &serde_json::Map<String, Value>) -> BTreeSet<Strin
         "title",
         "toolName",
         "warningCount",
+        "warningCodes",
+        "workspaceIndexRef",
+        "workspaceRootHash",
+        "workspaceSummary",
     ];
     allowed
         .into_iter()
@@ -723,6 +883,15 @@ fn summarize_safe_event(event: &Value) -> String {
                 ],
             )
         }
+        "control.run.draft_recorded" => format_parts(
+            "draft event recorded",
+            [
+                nested_string(payload, "intent"),
+                nested_string(payload, "objectiveSummary"),
+                nested_display(payload, "acceptanceCriteriaCount", "criteria"),
+                nested_array_display(payload, "warningCodes", "warning codes"),
+            ],
+        ),
         _ => format_parts(
             &event_type,
             [
@@ -774,6 +943,14 @@ fn nested_display(parent: Option<&Value>, key: &str, label: &str) -> Option<Stri
         .as_str()
         .filter(|value| !value.is_empty())
         .map(|value| format!("{value} {label}"))
+}
+
+fn nested_array_display(parent: Option<&Value>, key: &str, label: &str) -> Option<String> {
+    let count = parent
+        .and_then(|value| value.get(key))
+        .and_then(Value::as_array)
+        .map(Vec::len)?;
+    Some(format!("{count} {label}"))
 }
 
 fn scan_event_log_for_leaks(text: &str) -> EventSafetyScan {
@@ -853,6 +1030,142 @@ fn validate_payload_size(payload_json: &str) -> Result<(), String> {
         return Err("Payload JSON is too large".to_string());
     }
     Ok(())
+}
+
+fn validate_run_draft_event_payload_text(payload_json: &str) -> Result<(), String> {
+    if payload_json.trim().is_empty() {
+        return Err("Draft event payload is required".to_string());
+    }
+    if payload_json.as_bytes().len() > MAX_RUN_DRAFT_EVENT_PAYLOAD_BYTES {
+        return Err("Draft event payload is too large".to_string());
+    }
+    if contains_run_draft_event_sensitive_marker(payload_json) {
+        return Err("Draft event payload contains an unsafe marker".to_string());
+    }
+    Ok(())
+}
+
+fn validate_run_draft_event_payload(payload: &Value) -> Result<(), String> {
+    let object = payload
+        .as_object()
+        .ok_or_else(|| "Draft event payload must be an object".to_string())?;
+    if object.get("eventKind").and_then(Value::as_str) != Some("control.run.draft_recorded") {
+        return Err("Draft event kind is invalid".to_string());
+    }
+    if object.get("schemaVersion").and_then(Value::as_u64) != Some(1) {
+        return Err("Draft event schema version is invalid".to_string());
+    }
+    if object.get("previewOnly").and_then(Value::as_bool) != Some(true)
+        || object.get("localOnly").and_then(Value::as_bool) != Some(true)
+        || object.get("noExecution").and_then(Value::as_bool) != Some(true)
+    {
+        return Err("Draft event must be local preview only".to_string());
+    }
+    for key in [
+        "draftId",
+        "localTaskId",
+        "intent",
+        "objectiveSummary",
+        "workspaceSummary",
+        "createdAt",
+    ] {
+        if object
+            .get(key)
+            .and_then(Value::as_str)
+            .map_or(true, str::is_empty)
+        {
+            return Err(format!("Draft event payload is missing {key}"));
+        }
+    }
+    if object
+        .get("acceptanceCriteriaCount")
+        .and_then(Value::as_u64)
+        .is_none()
+    {
+        return Err("Draft event payload is missing acceptanceCriteriaCount".to_string());
+    }
+    if let Some(forbidden_key) = find_forbidden_run_draft_event_key(payload) {
+        return Err(format!(
+            "Draft event payload contains forbidden field {forbidden_key}"
+        ));
+    }
+    let text = serde_json::to_string(payload)
+        .map_err(|_| "Draft event payload could not be serialized".to_string())?;
+    if contains_run_draft_event_sensitive_marker(&text) {
+        return Err("Draft event payload contains an unsafe marker".to_string());
+    }
+    Ok(())
+}
+
+fn find_forbidden_run_draft_event_key(value: &Value) -> Option<String> {
+    match value {
+        Value::Array(items) => items.iter().find_map(find_forbidden_run_draft_event_key),
+        Value::Object(object) => {
+            for (key, nested_value) in object {
+                if forbidden_run_draft_event_key(key) {
+                    return Some(key.to_string());
+                }
+                if let Some(found) = find_forbidden_run_draft_event_key(nested_value) {
+                    return Some(found);
+                }
+            }
+            None
+        }
+        _ => None,
+    }
+}
+
+fn forbidden_run_draft_event_key(key: &str) -> bool {
+    let lower = key.to_ascii_lowercase();
+    let raw = "raw";
+    let clip_board = ["clip", "board"].join("");
+    matches!(
+        lower.as_str(),
+        "objectiveraw"
+            | "acceptancecriteriaraw"
+            | "prompt"
+            | "beforecontent"
+            | "aftercontent"
+            | "screenshot"
+            | "apikey"
+            | "authorization"
+            | "env"
+            | "stdout"
+            | "stderr"
+            | "content"
+            | "fullcontent"
+            | "memorycontent"
+    ) || lower == format!("{raw}prompt")
+        || lower == format!("{raw}dom")
+        || lower == format!("{raw}csv")
+        || lower == format!("{raw}source")
+        || lower == format!("{raw}diff")
+        || lower == clip_board
+}
+
+fn contains_run_draft_event_sensitive_marker(text: &str) -> bool {
+    let lower = text.to_ascii_lowercase();
+    let clip_board = ["clip", "board"].join("");
+    lower.contains("authorization")
+        || lower.contains("bearer ")
+        || lower.contains("\"sk-")
+        || lower.contains(":\"sk-")
+        || lower.contains(" sk-")
+        || lower.contains("api key")
+        || lower.contains("apikey")
+        || lower.contains("rawprompt")
+        || lower.contains("rawdom")
+        || lower.contains("rawcsv")
+        || lower.contains("rawsource")
+        || lower.contains("rawdiff")
+        || lower.contains("beforecontent")
+        || lower.contains("aftercontent")
+        || lower.contains("raw screenshot")
+        || lower.contains("raw payload")
+        || lower.contains(&clip_board)
+        || lower.contains("-----begin ")
+        || lower.contains("token=")
+        || lower.contains("secret=")
 }
 
 fn validate_filename(filename: &str) -> Result<(), String> {
@@ -1152,6 +1465,13 @@ fn contains_sensitive_marker(message: &str) -> bool {
         || lower.contains("api key")
 }
 
+fn unix_epoch_millis() -> u128 {
+    SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .map(|duration| duration.as_millis())
+        .unwrap_or(0)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -1173,6 +1493,57 @@ mod tests {
         let event_dir = workspace.join(".deepseek-workbench");
         fs::create_dir_all(&event_dir).expect("event dir");
         fs::write(event_dir.join("events.jsonl"), text).expect("event log");
+    }
+
+    fn safe_run_draft_event_payload() -> String {
+        serde_json::json!({
+            "eventKind": "control.run.draft_recorded",
+            "draftId": "local-draft-test",
+            "localTaskId": "local-task-local-draft-test",
+            "intent": "code_change",
+            "objectiveSummary": "Prepare a safe local draft.",
+            "acceptanceCriteriaCount": 2,
+            "workspaceSummary": ".../demo",
+            "workspaceRootHash": "workspace-12345678",
+            "workspaceIndexRef": {
+                "workspaceIndexId": "workspace-index-test",
+                "fileCount": 3,
+                "indexedFileCount": 2,
+                "skippedFileCount": 1,
+                "warningCount": 0,
+                "hashPrefix": "abcdef123456"
+            },
+            "contextCartSummary": {
+                "status": "empty",
+                "totalSegments": 0,
+                "totalTokenEstimate": 0,
+                "warningCount": 0
+            },
+            "agentRouteSummary": {
+                "status": "preview",
+                "roleCount": 4,
+                "capabilityRefCount": 3,
+                "routeId": "route-test"
+            },
+            "capabilityPlanSummary": {
+                "status": "preview",
+                "itemCount": 3,
+                "approvalRequiredCount": 1,
+                "disabledCount": 1
+            },
+            "memoryRecallSummary": {
+                "status": "empty",
+                "itemCount": 0,
+                "volatileTailCount": 0
+            },
+            "warningCodes": ["ACCEPTANCE_CRITERIA_EMPTY"],
+            "createdAt": "2026-06-21T00:00:00.000Z",
+            "schemaVersion": 1,
+            "previewOnly": true,
+            "localOnly": true,
+            "noExecution": true
+        })
+        .to_string()
     }
 
     #[test]
@@ -1500,6 +1871,110 @@ mod tests {
         assert!(summary.timeline[1]
             .safe_payload_keys
             .contains(&"relativePath".to_string()));
+
+        let _ = fs::remove_dir_all(workspace);
+    }
+
+    #[test]
+    fn records_control_run_draft_event_to_fixed_workspace_log() {
+        let workspace = temp_workspace("run-draft-event");
+        let result = record_control_run_draft_event(
+            workspace.to_string_lossy().to_string(),
+            safe_run_draft_event_payload(),
+        )
+        .expect("draft event record");
+
+        assert!(result.ok);
+        assert_eq!(result.event_type, "control.run.draft_recorded");
+        assert_eq!(result.draft_id, "local-draft-test");
+        assert!(
+            result
+                .event_log_path
+                .ends_with(".deepseek-workbench\\events.jsonl")
+                || result
+                    .event_log_path
+                    .ends_with(".deepseek-workbench/events.jsonl")
+        );
+
+        let event_log = workspace.join(".deepseek-workbench").join("events.jsonl");
+        let text = fs::read_to_string(&event_log).expect("event log");
+        let lines = text.lines().collect::<Vec<_>>();
+        assert_eq!(lines.len(), 1);
+        assert!(lines[0].contains("\"type\":\"control.run.draft_recorded\""));
+        assert!(lines[0].contains("\"objectiveSummary\""));
+        assert!(!lines[0].contains("objectiveRaw"));
+        assert!(!lines[0].contains("acceptanceCriteriaRaw"));
+
+        let summary = load_event_summary(workspace.to_string_lossy().as_ref(), Some(10));
+        let serialized = serde_json::to_string(&summary).expect("summary");
+        assert!(summary.ok);
+        assert_eq!(summary.event_count, 1);
+        assert_eq!(summary.completed_task_count, 0);
+        assert_eq!(summary.draft_count, 0);
+        assert_eq!(
+            summary
+                .type_counts
+                .get("control.run.draft_recorded")
+                .copied(),
+            Some(1)
+        );
+        assert!(summary.timeline[0].summary.contains("draft event recorded"));
+        assert!(summary.timeline[0]
+            .safe_payload_keys
+            .contains(&"objectiveSummary".to_string()));
+        assert!(!serialized.contains("objectiveRaw"));
+
+        let _ = fs::remove_dir_all(workspace);
+    }
+
+    #[test]
+    fn record_run_draft_event_rejects_raw_fields_and_does_not_write() {
+        let workspace = temp_workspace("run-draft-raw");
+        let mut payload: Value =
+            serde_json::from_str(&safe_run_draft_event_payload()).expect("payload");
+        payload[format!("{}{}", "raw", "Prompt")] = Value::String("private prompt".to_string());
+
+        let error = record_control_run_draft_event(
+            workspace.to_string_lossy().to_string(),
+            payload.to_string(),
+        )
+        .expect_err("raw field should be rejected");
+
+        assert_eq!(error.error_code, "INVALID_PAYLOAD");
+        assert_eq!(error.stage, "record_draft_event");
+        assert!(!workspace
+            .join(".deepseek-workbench")
+            .join("events.jsonl")
+            .exists());
+
+        let _ = fs::remove_dir_all(workspace);
+    }
+
+    #[test]
+    fn record_run_draft_event_rejects_secret_markers_and_oversized_payload() {
+        let workspace = temp_workspace("run-draft-secret");
+        let secret = "sk-test1234567890abcdef";
+        let mut payload: Value =
+            serde_json::from_str(&safe_run_draft_event_payload()).expect("payload");
+        payload["objectiveSummary"] = Value::String(format!("unsafe {secret}"));
+
+        let secret_error = record_control_run_draft_event(
+            workspace.to_string_lossy().to_string(),
+            payload.to_string(),
+        )
+        .expect_err("secret should be rejected");
+        let oversized_error = record_control_run_draft_event(
+            workspace.to_string_lossy().to_string(),
+            "x".repeat(MAX_RUN_DRAFT_EVENT_PAYLOAD_BYTES + 1),
+        )
+        .expect_err("oversized payload should be rejected");
+
+        assert_eq!(secret_error.error_code, "INVALID_PAYLOAD");
+        assert_eq!(oversized_error.error_code, "INVALID_PAYLOAD");
+        assert!(!workspace
+            .join(".deepseek-workbench")
+            .join("events.jsonl")
+            .exists());
 
         let _ = fs::remove_dir_all(workspace);
     }

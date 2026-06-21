@@ -1,4 +1,10 @@
 import {
+  normalizeRunDraftEventRecordResult,
+  validateRunDraftEventPayload,
+  type AppRunDraftEventRecordRequest,
+  type AppRunDraftEventRecordResult
+} from "./run-draft-event-view.js";
+import {
   normalizeDesktopCommandError,
   normalizeDesktopFlowResult,
   normalizeRunnerPreflightSummary,
@@ -20,6 +26,7 @@ export const allowedDesktopCommands = [
   "get_app_version",
   "check_runner_preflight",
   "load_workspace_event_summary",
+  "record_control_run_draft_event",
   "run_web_table_to_csv_flow"
 ] as const;
 
@@ -95,6 +102,28 @@ export async function loadWorkspaceEventSummary(
   );
 }
 
+export async function recordControlRunDraftEvent(
+  request: AppRunDraftEventRecordRequest,
+  invokeImpl?: TauriInvoke
+): Promise<AppRunDraftEventRecordResult> {
+  if (request.workspaceRoot.trim().length === 0) {
+    throw new Error("Workspace root is required");
+  }
+  const validation = validateRunDraftEventPayload(request.payload);
+  if (!validation.ok) {
+    throw new Error(validation.safeMessage);
+  }
+
+  return invokeAllowedCommand<AppRunDraftEventRecordResult>(
+    "record_control_run_draft_event",
+    {
+      workspaceRoot: request.workspaceRoot,
+      payloadJson: JSON.stringify(request.payload)
+    },
+    invokeImpl
+  );
+}
+
 export async function invokeAllowedCommand<T>(
   command: string,
   args: Record<string, unknown>,
@@ -139,6 +168,8 @@ function normalizeAllowedCommandResponse(
       return normalizeRunnerPreflightSummary(raw);
     case "load_workspace_event_summary":
       return normalizeWorkspaceEventSummary(raw);
+    case "record_control_run_draft_event":
+      return normalizeRunDraftEventRecordResult(raw);
     case "run_web_table_to_csv_flow":
       return normalizeDesktopFlowResult(raw);
     default:

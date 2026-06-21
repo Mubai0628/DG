@@ -10,6 +10,7 @@ import {
   invokeAllowedCommand,
   isAllowedDesktopCommand,
   loadWorkspaceEventSummary,
+  recordControlRunDraftEvent,
   runDesktopWebTableToCsvFlow,
   safeInvoke,
   type TauriInvoke
@@ -20,6 +21,11 @@ import { buildPatchProposalSurfaceView } from "../src/patch-proposal-surface-vie
 import { buildMemoryInspectorView } from "../src/memory-inspector-view.js";
 import { buildChatRunCanvasView } from "../src/chat-run-canvas-view.js";
 import { buildRunDraftView, summarizeRunDraft } from "../src/run-draft-view.js";
+import {
+  buildRunDraftEventPayload,
+  summarizeRunDraftEventResult,
+  validateRunDraftEventPayload
+} from "../src/run-draft-event-view.js";
 import { buildContextCartView } from "../src/context-cart-view.js";
 import { buildAgentRoutePreviewView } from "../src/agent-route-preview-view.js";
 import {
@@ -591,6 +597,9 @@ describe("desktop command wrapper", () => {
     );
     expect(isAllowedDesktopCommand("check_runner_preflight")).toBe(true);
     expect(isAllowedDesktopCommand("load_workspace_event_summary")).toBe(true);
+    expect(isAllowedDesktopCommand("record_control_run_draft_event")).toBe(
+      true
+    );
     expect(isAllowedDesktopCommand("run_web_table_to_csv_flow")).toBe(true);
   });
 
@@ -2080,6 +2089,198 @@ describe("app control plane run draft preview", () => {
   });
 });
 
+describe("app run draft event preview", () => {
+  it("builds a summary-only draft event payload from a safe local run draft", () => {
+    const runDraft = buildRunDraftView({
+      objectiveDraft: "Prepare a code change plan.",
+      selectedIntent: "code_change",
+      acceptanceCriteriaDraft: "Tests pass\nDiff summary exists",
+      workspaceRoot: "D:\\workspace",
+      idGenerator: () => "local-draft-event-test"
+    });
+    const workspaceIndex = buildWorkspaceIndexBridgeView({
+      source: "synthetic_summary",
+      summary: fixedWorkspaceIndexSummary()
+    });
+    const preview = buildRunDraftEventPayload({
+      runDraft,
+      workspaceRoot: "D:\\workspace",
+      workspaceIndexRef: workspaceIndex,
+      createdAt: "2026-06-21T00:00:00.000Z"
+    });
+
+    expect(preview.status).toBe("ready");
+    expect(preview.canRecord).toBe(true);
+    expect(preview.payload).toMatchObject({
+      eventKind: "control.run.draft_recorded",
+      draftId: "local-draft-event-test",
+      localTaskId: "local-task-local-draft-event-test",
+      intent: "code_change",
+      objectiveSummary: "Prepare a code change plan.",
+      acceptanceCriteriaCount: 2,
+      schemaVersion: 1,
+      previewOnly: true,
+      localOnly: true,
+      noExecution: true
+    });
+    expect(preview.payload?.workspaceRootHash).toMatch(/^workspace-/);
+    expect(preview.payload?.workspaceIndexRef).toMatchObject({
+      fileCount: 3,
+      indexedFileCount: 2,
+      skippedFileCount: 1
+    });
+    expect(JSON.stringify(preview)).not.toContain("objectiveDraft");
+    expect(JSON.stringify(preview)).not.toContain("acceptanceCriteriaDraft");
+  });
+
+  it("blocks event payloads for blocked drafts or missing workspace", () => {
+    const blockedDraft = buildRunDraftView({
+      objectiveDraft: "Keep rawPrompt out of events.",
+      selectedIntent: "verification",
+      acceptanceCriteriaDraft: "safe",
+      workspaceRoot: "D:\\workspace"
+    });
+    const blockedPreview = buildRunDraftEventPayload({
+      runDraft: blockedDraft,
+      workspaceRoot: "D:\\workspace"
+    });
+    const safeDraft = buildRunDraftView({
+      objectiveDraft: "Prepare a local preview.",
+      selectedIntent: "documentation",
+      acceptanceCriteriaDraft: "safe"
+    });
+    const missingWorkspace = buildRunDraftEventPayload({ runDraft: safeDraft });
+
+    expect(blockedPreview.status).toBe("blocked");
+    expect(blockedPreview.canRecord).toBe(false);
+    expect(blockedPreview.warnings.map((warning) => warning.code)).toContain(
+      "RAW_PROMPT_MARKER"
+    );
+    expect(missingWorkspace.status).toBe("blocked");
+    expect(missingWorkspace.warnings.map((warning) => warning.code)).toContain(
+      "WORKSPACE_ROOT_REQUIRED"
+    );
+  });
+
+  it("rejects raw fields and secret markers in draft event payloads", () => {
+    const runDraft = buildRunDraftView({
+      objectiveDraft: "Prepare a local preview.",
+      selectedIntent: "documentation",
+      acceptanceCriteriaDraft: "safe",
+      workspaceRoot: "D:\\workspace",
+      idGenerator: () => "local-draft-safe"
+    });
+    const preview = buildRunDraftEventPayload({
+      runDraft,
+      workspaceRoot: "D:\\workspace"
+    });
+    if (preview.payload === undefined) {
+      throw new Error("expected payload");
+    }
+    const withRawField = {
+      ...preview.payload,
+      rawPrompt: "do not store"
+    } as typeof preview.payload;
+    const withSecret = {
+      ...preview.payload,
+      objectiveSummary: "sk-test1234567890abcdef"
+    };
+
+    expect(validateRunDraftEventPayload(withRawField)).toMatchObject({
+      ok: false,
+      errorCode: "RAW_FIELD_REJECTED"
+    });
+    expect(validateRunDraftEventPayload(withSecret)).toMatchObject({
+      ok: false,
+      errorCode: "UNSAFE_MARKER_REJECTED"
+    });
+  });
+
+  it("records draft events only through the fixed allowlisted desktop command", async () => {
+    const runDraft = buildRunDraftView({
+      objectiveDraft: "Prepare a local preview.",
+      selectedIntent: "documentation",
+      acceptanceCriteriaDraft: "safe",
+      workspaceRoot: "D:\\workspace",
+      idGenerator: () => "local-draft-record"
+    });
+    const preview = buildRunDraftEventPayload({
+      runDraft,
+      workspaceRoot: "D:\\workspace"
+    });
+    if (preview.payload === undefined) {
+      throw new Error("expected payload");
+    }
+    const invoke: TauriInvoke = async (command, args) => {
+      expect(command).toBe("record_control_run_draft_event");
+      expect(args?.workspaceRoot).toBe("D:\\workspace");
+      expect(typeof args?.payloadJson).toBe("string");
+      expect(args?.payloadJson).not.toContain("objectiveDraft");
+      return {
+        ok: true,
+        eventId: "control-run-draft-test",
+        eventType: "control.run.draft_recorded",
+        draftId: "local-draft-record",
+        eventLogPath: "D:\\workspace\\.deepseek-workbench\\events.jsonl",
+        safeMessage:
+          "Summary-only draft event recorded locally. No run was created.",
+        warnings: []
+      } as never;
+    };
+    const result = await recordControlRunDraftEvent(
+      {
+        workspaceRoot: "D:\\workspace",
+        payload: preview.payload
+      },
+      invoke
+    );
+
+    expect(isAllowedDesktopCommand("record_control_run_draft_event")).toBe(
+      true
+    );
+    expect(result.ok).toBe(true);
+    expect(summarizeRunDraftEventResult(result)).toContain(
+      "No run was created"
+    );
+  });
+
+  it("projects draft events without marking a run completed", () => {
+    const summary = fixedEventSummary({
+      eventCount: 1,
+      displayedEventCount: 1,
+      taskCount: 0,
+      completedTaskCount: 0,
+      draftCount: 0,
+      typeCounts: {
+        "control.run.draft_recorded": 1
+      },
+      timeline: [
+        {
+          id: "control-run-draft-test",
+          ts: "unix-ms-1",
+          type: "control.run.draft_recorded",
+          taskId: "local-task-local-draft-test",
+          summary:
+            "draft event recorded: code_change · Prepare a safe plan. · 2 criteria",
+          safePayloadKeys: ["draftId", "intent", "objectiveSummary"]
+        }
+      ]
+    });
+    const eventPanel = buildEventLogPanelModel(summary);
+    const projection = buildControlPlaneProjectionView(summary);
+
+    expect(eventPanel?.eventCount).toBe(1);
+    expect(eventPanel?.draftCount).toBe(0);
+    expect(projection.draftEventCount).toBe(1);
+    expect(projection.completedTaskCount).toBe(0);
+    expect(projection.runStatus).toBe("planned");
+    expect(projection.nextAction.label).toContain(
+      "Real run creation is still disabled"
+    );
+    expect(JSON.stringify(projection)).not.toContain("rawPrompt");
+  });
+});
+
 describe("app context cart rules ledger visualization", () => {
   it("builds an empty read-only context cart skeleton", () => {
     const view = buildContextCartView();
@@ -3119,6 +3320,11 @@ describe("desktop source boundaries", () => {
     expect(appSource).toContain("Create Run (disabled)");
     expect(appSource).toContain("Preview Draft Run");
     expect(appSource).toContain("Run Draft Preview");
+    expect(appSource).toContain("Record Draft Event (local)");
+    expect(appSource).toContain("recordControlRunDraftEvent");
+    expect(appSource).toContain("handleRecordRunDraftEvent");
+    expect(appSource).toContain("does not create or execute a run");
+    expect(appSource).toContain("summary-only draft event");
     expect(appSource).toContain("Context Cart / Rules Ledger");
     expect(appSource).toContain("Read-only summary");
     expect(appSource).toContain(
@@ -3323,6 +3529,7 @@ describe("desktop source boundaries", () => {
       "src/workspace-index-bridge-view.ts",
       "src/chat-run-canvas-view.ts",
       "src/run-draft-view.ts",
+      "src/run-draft-event-view.ts",
       "src/context-cart-view.ts",
       "src/agent-route-preview-view.ts",
       "src/capability-plan-preview-view.ts",
@@ -4052,6 +4259,35 @@ describe("desktop source boundaries", () => {
     expect(docsIndex).toContain("app-shell-workspace-index-bridge-v0.3.md");
     expect(appReadme).toContain("Workspace Index summary bridge");
     expect(appReadme).toContain("summary-only JSON previews");
+  });
+
+  it("documents the App Shell Run Draft Event bridge as local-only opt-in", async () => {
+    const doc = await readFile(
+      path.join(repoRoot, "docs", "app-shell-run-draft-event-v0.3.md"),
+      "utf8"
+    );
+    const docsIndex = await readFile(
+      path.join(repoRoot, "docs", "README.md"),
+      "utf8"
+    );
+    const appReadme = await readFile(path.join(appRoot, "README.md"), "utf8");
+    const combined = `${doc}\n${docsIndex}\n${appReadme}`;
+
+    expect(combined).toContain("Run Draft Event v0.3");
+    expect(combined).toContain("local, summary-only");
+    expect(combined).toContain("Record Draft Event (local)");
+    expect(combined).toContain("control.run.draft_recorded");
+    expect(combined).toContain(".deepseek-workbench/events.jsonl");
+    expect(combined).toContain("not run creation");
+    expect(combined).toContain("No real ControlPlaneRun creation");
+    expect(combined).toContain("No execution");
+    expect(combined).toContain("No PermissionLease issuing");
+    expect(combined).toContain("No DeepSeek call");
+    expect(combined).toContain("No patch apply");
+    expect(combined).toContain("No Git or shell execution");
+    expect(combined).toContain("No native bridge");
+    expect(docsIndex).toContain("app-shell-run-draft-event-v0.3.md");
+    expect(appReadme).toContain("summary-only Run Draft Event");
   });
 
   it("documents P0G-001 as a read-only workspace index plan", async () => {

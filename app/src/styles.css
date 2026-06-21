@@ -114,6 +114,22 @@ label span {
   margin: 8px 0 0;
 }
 
+.successText {
+  color: #1f6f49;
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1.45;
+  margin: 8px 0 0;
+}
+
+.errorText {
+  color: #9b2c2c;
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1.45;
+  margin: 8px 0 0;
+}
+
 input,
 select,
 textarea {

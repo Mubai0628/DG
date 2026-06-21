@@ -12,6 +12,7 @@ import {
   checkDesktopRunnerPreflight,
   getDesktopAppVersion,
   loadWorkspaceEventSummary,
+  recordControlRunDraftEvent,
   runDesktopWebTableToCsvFlow
 } from "./desktop-flow.js";
 import {
@@ -42,6 +43,12 @@ import {
   type AppRunCanvasIntent
 } from "./chat-run-canvas-view.js";
 import { buildRunDraftView, type AppRunDraftView } from "./run-draft-view.js";
+import {
+  buildRunDraftEventPayload,
+  summarizeRunDraftEventResult,
+  type AppRunDraftEventPreview,
+  type AppRunDraftEventRecordResult
+} from "./run-draft-event-view.js";
 import {
   buildContextCartView,
   type AppContextCartView
@@ -77,6 +84,7 @@ import {
 
 type RunStatus = "idle" | "running" | "done" | "error";
 type EventStatus = "idle" | "loading" | "loaded" | "error";
+type DraftEventStatus = "idle" | "recording" | "recorded" | "error";
 
 type ErrorBoundaryState = {
   error?: unknown;
@@ -154,6 +162,14 @@ export function DesktopShell(): JSX.Element {
   const [acceptanceCriteriaDraft, setAcceptanceCriteriaDraft] = useState("");
   const [runDraftPreview, setRunDraftPreview] = useState<
     AppRunDraftView | undefined
+  >();
+  const [runDraftEventStatus, setRunDraftEventStatus] =
+    useState<DraftEventStatus>("idle");
+  const [runDraftEventResult, setRunDraftEventResult] = useState<
+    AppRunDraftEventRecordResult | undefined
+  >();
+  const [runDraftEventError, setRunDraftEventError] = useState<
+    string | undefined
   >();
   const [workspaceIndexJson, setWorkspaceIndexJson] = useState("");
   const [workspaceIndexFileLabel, setWorkspaceIndexFileLabel] = useState<
@@ -344,6 +360,27 @@ export function DesktopShell(): JSX.Element {
       result
     ]
   );
+  const runDraftEventPreview = useMemo<AppRunDraftEventPreview>(
+    () =>
+      buildRunDraftEventPayload({
+        runDraft: displayedRunDraft,
+        workspaceRoot,
+        workspaceIndexRef: loadedWorkspaceIndexRef,
+        contextCart,
+        agentRoutePreview,
+        capabilityPlanPreview,
+        memoryRecallPreview
+      }),
+    [
+      agentRoutePreview,
+      capabilityPlanPreview,
+      contextCart,
+      displayedRunDraft,
+      loadedWorkspaceIndexRef,
+      memoryRecallPreview,
+      workspaceRoot
+    ]
+  );
   const chatRunCanvas = useMemo<AppChatRunCanvasView>(
     () =>
       buildChatRunCanvasView({
@@ -387,11 +424,42 @@ export function DesktopShell(): JSX.Element {
 
   useEffect(() => {
     setRunDraftPreview(undefined);
+    setRunDraftEventStatus("idle");
+    setRunDraftEventResult(undefined);
+    setRunDraftEventError(undefined);
   }, [acceptanceCriteriaDraft, objectiveDraft, selectedIntent, workspaceRoot]);
 
   function handlePreviewDraftRun(): void {
     if (runDraftCandidate.canPreview) {
       setRunDraftPreview(runDraftCandidate);
+    }
+  }
+
+  async function handleRecordRunDraftEvent(): Promise<void> {
+    if (
+      !runDraftEventPreview.canRecord ||
+      runDraftEventPreview.payload === undefined
+    ) {
+      setRunDraftEventStatus("error");
+      setRunDraftEventError(
+        runDraftEventPreview.safeMessage ??
+          "Draft event payload is not ready to record."
+      );
+      return;
+    }
+    setRunDraftEventStatus("recording");
+    setRunDraftEventError(undefined);
+    try {
+      const recordResult = await recordControlRunDraftEvent({
+        workspaceRoot,
+        payload: runDraftEventPreview.payload
+      });
+      setRunDraftEventResult(recordResult);
+      setRunDraftEventStatus("recorded");
+      await refreshEvents(workspaceRoot);
+    } catch (caught) {
+      setRunDraftEventError(safeErrorMessage(caught));
+      setRunDraftEventStatus("error");
     }
   }
 
@@ -868,10 +936,31 @@ export function DesktopShell(): JSX.Element {
               >
                 Create Run (disabled)
               </button>
+              <button
+                type="button"
+                className="secondary"
+                onClick={() => void handleRecordRunDraftEvent()}
+                disabled={
+                  !runDraftEventPreview.canRecord ||
+                  runDraftEventStatus === "recording"
+                }
+                aria-disabled={
+                  !runDraftEventPreview.canRecord ||
+                  runDraftEventStatus === "recording"
+                }
+              >
+                {runDraftEventStatus === "recording"
+                  ? "Recording Draft Event..."
+                  : "Record Draft Event (local)"}
+              </button>
             </div>
             <p className="fieldHelp">
               Create Run is disabled. Execution gates are not implemented in
               this preview.
+            </p>
+            <p className="fieldHelp">
+              Record Draft Event (local) writes one summary-only draft event to
+              the workspace event log. It does not create or execute a run.
             </p>
 
             <section className="surfaceBox" aria-label="Run Draft Preview">
@@ -929,7 +1018,26 @@ export function DesktopShell(): JSX.Element {
                     .join(", ")}
                 </p>
               ) : null}
+              {runDraftEventPreview.warnings.length > 0 ? (
+                <p className="muted">
+                  draft event warnings{" "}
+                  {runDraftEventPreview.warnings
+                    .map((warning) => warning.code)
+                    .join(", ")}
+                </p>
+              ) : null}
               <p className="fieldHelp">{displayedRunDraft.nextAction}</p>
+              <p className="fieldHelp">{runDraftEventPreview.nextAction}</p>
+              {runDraftEventResult !== undefined ? (
+                <p className="successText">
+                  {summarizeRunDraftEventResult(runDraftEventResult)}
+                </p>
+              ) : null}
+              {runDraftEventStatus === "error" ? (
+                <p className="errorText">
+                  {runDraftEventError ?? "Draft event was not recorded safely."}
+                </p>
+              ) : null}
             </section>
 
             <dl className="summaryGrid compact">
@@ -1779,6 +1887,10 @@ export function DesktopShell(): JSX.Element {
                 <dd>{controlPlanePanel.timelineCount}</dd>
               </div>
               <div>
+                <dt>Draft events</dt>
+                <dd>{controlPlanePanel.draftEventCount}</dd>
+              </div>
+              <div>
                 <dt>Last event</dt>
                 <dd>{controlPlanePanel.lastEventAt}</dd>
               </div>
@@ -1799,6 +1911,12 @@ export function DesktopShell(): JSX.Element {
                   </li>
                 ))}
               </ol>
+            ) : null}
+
+            {controlPlanePanel.latestDraftEventSummary !== undefined ? (
+              <p className="fieldHelp">
+                Latest draft event: {controlPlanePanel.latestDraftEventSummary}
+              </p>
             ) : null}
 
             {controlPlanePanel.warnings.length > 0 ? (
