@@ -37,6 +37,7 @@ import {
   buildCapabilityPlanPreviewView,
   capabilityPlanApprovalRefs
 } from "../src/capability-plan-preview-view.js";
+import { buildCapabilityPlanPreview } from "../../runtime/src/capabilities/plan-preview.js";
 import { buildMemoryRecallPreviewView } from "../src/memory-recall-preview-view.js";
 import {
   buildWorkspaceIndexBridgeView,
@@ -2900,6 +2901,48 @@ describe("app capability plan preview", () => {
     expect(view.nextAction).toContain("Preview a local run draft");
   });
 
+  it("uses runtime Capability Broker preview helper output shape", () => {
+    const runDraft = buildRunDraftView({
+      objectiveDraft: "Prepare a local code change preview.",
+      selectedIntent: "code_change",
+      acceptanceCriteriaDraft: "Patch proposal summary exists",
+      workspaceRoot: "D:\\workspace"
+    });
+    const agentRoutePreview = buildAgentRoutePreviewView({ runDraft });
+    const runtimePreview = buildCapabilityPlanPreview({
+      intent: "code_change",
+      routePreview: {
+        routeId: agentRoutePreview.routeId,
+        status: agentRoutePreview.status,
+        roleRefs: agentRoutePreview.steps.map((step) => step.role),
+        routeStepRefs: agentRoutePreview.steps.map((step) => step.stepId),
+        capabilityRefs: agentRoutePreview.steps.flatMap((step) =>
+          step.allowedCapabilityRefs.map((ref) => ref.capabilityId)
+        )
+      },
+      runDraftSummary: `${runDraft.objectiveSummary} criteria:${runDraft.acceptanceCriteriaCount}`
+    });
+    const appPreview = buildCapabilityPlanPreviewView({
+      runDraft,
+      agentRoutePreview
+    });
+
+    expect(appPreview.source).toBe("runtime_capability_broker_preview");
+    expect(appPreview.itemCount).toBe(runtimePreview.itemCount);
+    expect(appPreview.items.map((item) => item.capabilityId)).toEqual(
+      runtimePreview.items.map((item) => item.capabilityId)
+    );
+    expect(appPreview.approvalRequiredCount).toBe(
+      runtimePreview.approvalRequiredCount
+    );
+    expect(appPreview.leaseRequiredCount).toBe(
+      runtimePreview.leaseRequiredCount
+    );
+    expect(
+      appPreview.items.every((item) => item.descriptorHash.length > 0)
+    ).toBe(true);
+  });
+
   it("maps web data extraction to display-only workspace and draft-write descriptors", () => {
     const runDraft = buildRunDraftView({
       objectiveDraft: "Export a web table to CSV.",
@@ -2913,6 +2956,7 @@ describe("app capability plan preview", () => {
       agentRoutePreview
     });
 
+    expect(view.source).toBe("runtime_capability_broker_preview");
     expect(view.itemCount).toBe(2);
     expect(view.items.map((item) => item.capabilityId)).toContain(
       "native.workspace.index"
@@ -3593,6 +3637,10 @@ describe("desktop source boundaries", () => {
       path.join(appRoot, "src", "agent-route-preview-view.ts"),
       "utf8"
     );
+    const capabilityPlanSource = await readFile(
+      path.join(appRoot, "src", "capability-plan-preview-view.ts"),
+      "utf8"
+    );
 
     expect(appSource).toContain("Local web-table-to-CSV workflow");
     expect(appSource).toContain("Source-tree mode / Preflight OK");
@@ -3667,8 +3715,11 @@ describe("desktop source boundaries", () => {
     );
     expect(appSource).toContain("Capability Plan Preview");
     expect(appSource).toContain("Planning only");
+    expect(appSource).toContain("Capability Broker preview helper");
     expect(appSource).toContain("No capability");
-    expect(appSource).toContain("no permission lease is issued");
+    expect(appSource).toContain("permission lease is issued");
+    expect(capabilityPlanSource).toContain("buildCapabilityPlanPreview");
+    expect(capabilityPlanSource).toContain("runtime_capability_broker_preview");
     expect(appSource).toContain("buildCapabilityPlanPreviewView");
     expect(appSource).toContain("capabilityPlanPreview");
     expect(appSource).toContain("capabilityPlanApprovalRefs");
@@ -4142,16 +4193,21 @@ describe("desktop source boundaries", () => {
 
   it("documents app capability plan preview as planning-only", async () => {
     const docs = await Promise.all(
-      ["app-shell-capability-plan-preview-v0.2.md", "README.md"].map(
-        async (file) => ({
-          file,
-          text: await readFile(path.join(repoRoot, "docs", file), "utf8")
-        })
-      )
+      [
+        "app-shell-capability-plan-preview-v0.2.md",
+        "runtime-capability-plan-preview-v0.3.md",
+        "README.md"
+      ].map(async (file) => ({
+        file,
+        text: await readFile(path.join(repoRoot, "docs", file), "utf8")
+      }))
     );
     const combined = docs.map((doc) => doc.text).join("\n");
 
     expect(combined).toContain("App Shell Capability Plan Preview v0.2");
+    expect(combined).toContain("Runtime Capability Plan Preview v0.3");
+    expect(combined).toContain("pure runtime Capability Broker preview helper");
+    expect(combined).toContain("runtime-capability-plan-preview-v0.3.md");
     expect(combined).toContain("planning-only");
     expect(combined).toContain("descriptor-style capability needs");
     expect(combined).toContain("does not invoke tools");

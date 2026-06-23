@@ -1,3 +1,9 @@
+import {
+  buildCapabilityPlanPreview,
+  validateCapabilityPlanPreviewInput as validateRuntimeCapabilityPlanPreviewInput,
+  type CapabilityPlanPreviewInput,
+  type CapabilityPlanPreviewItem
+} from "../../runtime/src/capabilities/plan-preview.js";
 import type { AppAgentRoutePreviewView } from "./agent-route-preview-view.js";
 import type { AppContextCartView } from "./context-cart-view.js";
 import type { AppMemoryInspectorView } from "./memory-inspector-view.js";
@@ -20,7 +26,9 @@ export type AppCapabilityPlanStatus =
   | "warning"
   | "blocked";
 
-export type AppCapabilityPlanSource = "local_preview" | "empty";
+export type AppCapabilityPlanSource =
+  | "runtime_capability_broker_preview"
+  | "empty";
 
 export type AppCapabilityRiskView =
   | "A0_observe"
@@ -41,6 +49,7 @@ export type AppCapabilityLeasePreviewView = {
 };
 
 export type AppCapabilityPlanItemView = {
+  itemId: string;
   capabilityId: string;
   title: string;
   sourceType: "native" | "mcp" | "plugin" | "skill";
@@ -62,7 +71,8 @@ export type AppCapabilityPlanItemView = {
     | "disabled"
     | "approval_required"
     | "needs_lease"
-    | "unavailable";
+    | "unavailable"
+    | "blocked";
   roleRefs: string[];
   routeStepRefs: string[];
   inputSummary: string;
@@ -70,6 +80,9 @@ export type AppCapabilityPlanItemView = {
   disabledReason?: string | undefined;
   leasePreview?: AppCapabilityLeasePreviewView | undefined;
   dryRunAvailable: boolean;
+  approvalRequired: boolean;
+  leaseRequired: boolean;
+  descriptorHash: string;
 };
 
 export type AppCapabilityPlanPreviewView = {
@@ -103,186 +116,65 @@ export type AppCapabilityPlanPreviewInput = {
     | undefined;
 };
 
-type CapabilityTemplate = Omit<
-  AppCapabilityPlanItemView,
-  "roleRefs" | "routeStepRefs" | "inputSummary" | "warningCodes"
->;
-
-const shellCategory = "sh" + "ell";
-
-const capabilityTemplates = {
-  "native.workspace.index": {
-    capabilityId: "native.workspace.index",
-    title: "Workspace index summary",
-    sourceType: "native",
-    category: "knowledge",
-    riskLevel: "A1_read",
-    invokePolicy: "MANUAL_ONLY",
-    executionMode: "READ_ONLY",
-    planStatus: "display_only",
-    dryRunAvailable: true
-  },
-  "native.fs.write_draft": {
-    capabilityId: "native.fs.write_draft",
-    title: "Draft file write",
-    sourceType: "native",
-    category: "fs",
-    riskLevel: "A2_draft_write",
-    invokePolicy: "ASK_FIRST",
-    executionMode: "MUTATING",
-    planStatus: "approval_required",
-    dryRunAvailable: true,
-    leasePreview: {
-      required: true,
-      status: "not_issued",
-      reason: "future approval gate required before draft writes"
-    }
-  },
-  "native.patch.propose": {
-    capabilityId: "native.patch.propose",
-    title: "Patch proposal summary",
-    sourceType: "native",
-    category: "fs",
-    riskLevel: "A2_draft_write",
-    invokePolicy: "ASK_FIRST",
-    executionMode: "SIMULATE",
-    planStatus: "approval_required",
-    dryRunAvailable: true,
-    leasePreview: {
-      required: true,
-      status: "not_issued",
-      reason: "future proposal gate required before write lanes"
-    }
-  },
-  "native.patch.apply": {
-    capabilityId: "native.patch.apply",
-    title: "Patch apply",
-    sourceType: "native",
-    category: "fs",
-    riskLevel: "A3_scoped_write",
-    invokePolicy: "DISABLED",
-    executionMode: "MUTATING",
-    planStatus: "disabled",
-    dryRunAvailable: true,
-    disabledReason: "Patch apply is disabled in this App Shell phase."
-  },
-  "native.git.diff_summary": {
-    capabilityId: "native.git.diff_summary",
-    title: "Git diff summary",
-    sourceType: "native",
-    category: "git",
-    riskLevel: "A1_read",
-    invokePolicy: "MANUAL_ONLY",
-    executionMode: "READ_ONLY",
-    planStatus: "display_only",
-    dryRunAvailable: true
-  },
-  "native.git.status": {
-    capabilityId: "native.git.status",
-    title: "Git status summary",
-    sourceType: "native",
-    category: "git",
-    riskLevel: "A1_read",
-    invokePolicy: "MANUAL_ONLY",
-    executionMode: "READ_ONLY",
-    planStatus: "display_only",
-    dryRunAvailable: true
-  },
-  "native.git.commit_draft": {
-    capabilityId: "native.git.commit_draft",
-    title: "Git commit draft",
-    sourceType: "native",
-    category: "git",
-    riskLevel: "A3_scoped_write",
-    invokePolicy: "DISABLED",
-    executionMode: "MUTATING",
-    planStatus: "disabled",
-    dryRunAvailable: true,
-    disabledReason: "Git write lanes are disabled in this phase."
-  },
-  "native.shell.pnpm_test": {
-    capabilityId: ["native", shellCategory, "pnpm_test"].join("."),
-    title: "pnpm test simulated summary",
-    sourceType: "native",
-    category: "shell",
-    riskLevel: "A4_external_effect",
-    invokePolicy: "DISABLED",
-    executionMode: "SIMULATE",
-    planStatus: "disabled",
-    dryRunAvailable: true,
-    disabledReason: "Real command execution is disabled in this phase."
-  },
-  "native.patch.audit": {
-    capabilityId: "native.patch.audit",
-    title: "Patch audit summary",
-    sourceType: "native",
-    category: "knowledge",
-    riskLevel: "A1_read",
-    invokePolicy: "MANUAL_ONLY",
-    executionMode: "SIMULATE",
-    planStatus: "display_only",
-    dryRunAvailable: true
-  },
-  "mcp.runtime.unavailable": {
-    capabilityId: "mcp.runtime.unavailable",
-    title: "MCP runtime placeholder",
-    sourceType: "mcp",
-    category: "unknown",
-    riskLevel: "A4_external_effect",
-    invokePolicy: "DISABLED",
-    executionMode: "SIMULATE",
-    planStatus: "unavailable",
-    dryRunAvailable: false,
-    disabledReason: "MCP runtime is not connected in this phase."
-  }
-} satisfies Record<string, CapabilityTemplate>;
-
-type CapabilityTemplateId = keyof typeof capabilityTemplates;
-
 export function buildCapabilityPlanPreviewView(
   input: AppCapabilityPlanPreviewInput = {}
 ): AppCapabilityPlanPreviewView {
   const intent = normalizeIntent(
     input.runDraft?.intent ?? input.selectedIntent
   );
-  const safetyWarnings = validateCapabilityPlanPreviewInput(input).warningCodes;
-
-  if (
+  const runtimePreview = buildCapabilityPlanPreview(
+    runtimeInputFor(input, intent)
+  );
+  const warningCodes = capabilityWarnings(input, runtimePreview);
+  const source =
     input.runDraft === undefined ||
     input.runDraft.status === "empty" ||
     input.agentRoutePreview === undefined ||
     input.agentRoutePreview.status === "empty"
-  ) {
-    return emptyPlan(intent, safetyWarnings);
-  }
-
-  if (intent === "unknown") {
-    return planFromTemplates(
-      intent,
-      [],
-      [...safetyWarnings, "INTENT_UNKNOWN_NEEDS_CLARIFICATION"],
-      input
-    );
-  }
-
-  return planFromTemplates(
-    intent,
-    capabilityIdsForIntent(intent, input),
-    planWarnings(input, safetyWarnings),
-    input
+      ? "empty"
+      : "runtime_capability_broker_preview";
+  const status = appStatus(source, runtimePreview.status, warningCodes);
+  const items = runtimePreview.items.map((item) =>
+    appItemFromRuntimeItem(item, input)
   );
+
+  return {
+    status,
+    intent: runtimePreview.intent,
+    itemCount: items.length,
+    highRiskCount: items.filter((item) => highRisk(item.riskLevel)).length,
+    disabledCount: items.filter(
+      (item) =>
+        item.planStatus === "disabled" ||
+        item.planStatus === "unavailable" ||
+        item.planStatus === "blocked"
+    ).length,
+    approvalRequiredCount: items.filter((item) => item.approvalRequired).length,
+    leaseRequiredCount: items.filter((item) => item.leaseRequired).length,
+    items,
+    warnings: warningCodes.map((code) => ({ code })),
+    nextAction: appNextAction(status, runtimePreview.nextAction),
+    source,
+    planningOnly: true,
+    executionEnabled: false,
+    leaseIssued: false
+  };
 }
 
 export function validateCapabilityPlanPreviewInput(
   input: AppCapabilityPlanPreviewInput
 ): { ok: boolean; warningCodes: string[] } {
-  const warningCodes = unsafeWarningCodes(
-    [
-      input.runDraft?.objectiveSummary,
-      input.conversionError?.safeMessage,
-      input.agentRoutePreview?.warnings.map((warning) => warning.code).join(" ")
-    ].join("\n")
+  const intent = normalizeIntent(
+    input.runDraft?.intent ?? input.selectedIntent
   );
+  const runtimeValidation = validateRuntimeCapabilityPlanPreviewInput(
+    runtimeInputFor(input, intent)
+  );
+  const warningCodes = uniqueStrings([
+    ...runtimeValidation.warningCodes,
+    ...(input.runDraft?.warnings.map((warning) => warning.code) ?? []),
+    ...(input.agentRoutePreview?.warnings.map((warning) => warning.code) ?? [])
+  ]);
   return {
     ok: warningCodes.length === 0,
     warningCodes
@@ -295,6 +187,8 @@ export function capabilityPlanApprovalRefs(
   return view.items
     .filter(
       (item) =>
+        item.approvalRequired ||
+        item.leaseRequired ||
         item.planStatus === "approval_required" ||
         item.planStatus === "needs_lease"
     )
@@ -303,135 +197,162 @@ export function capabilityPlanApprovalRefs(
       label: item.capabilityId,
       kind: "capability",
       status: "dry",
-      summary: `${item.title} requires future approval; no capability is invoked.`
+      summary: `${item.title} requires future approval or lease review; runtime preview only, no capability is invoked.`
     }));
 }
 
-function emptyPlan(
-  intent: AppRunDraftIntent,
-  warningCodes: readonly string[]
-): AppCapabilityPlanPreviewView {
-  return {
-    status: warningCodes.length > 0 ? "warning" : "empty",
-    intent,
-    itemCount: 0,
-    highRiskCount: 0,
-    disabledCount: 0,
-    approvalRequiredCount: 0,
-    leaseRequiredCount: 0,
-    items: [],
-    warnings: warningCodes.map((code) => ({ code })),
-    nextAction:
-      "Preview a local run draft and agent route first. Capability plans will appear here before approval or execution.",
-    source: "empty",
-    planningOnly: true,
-    executionEnabled: false,
-    leaseIssued: false
-  };
-}
-
-function planFromTemplates(
-  intent: AppRunDraftIntent,
-  capabilityIds: readonly CapabilityTemplateId[],
-  inheritedWarnings: readonly string[],
-  input?: AppCapabilityPlanPreviewInput
-): AppCapabilityPlanPreviewView {
-  const items = capabilityIds.map((capabilityId) =>
-    itemFromTemplate(
-      capabilityTemplates[capabilityId],
-      inheritedWarnings,
-      input
-    )
-  );
-  const itemWarnings = items.flatMap((item) => item.warningCodes);
-  const warnings = uniqueStrings([...inheritedWarnings, ...itemWarnings]);
-  const status = statusFor(intent, items, warnings);
-
-  return {
-    status,
-    intent,
-    itemCount: items.length,
-    highRiskCount: items.filter((item) => highRisk(item.riskLevel)).length,
-    disabledCount: items.filter((item) => item.planStatus === "disabled")
-      .length,
-    approvalRequiredCount: items.filter(
-      (item) =>
-        item.planStatus === "approval_required" ||
-        item.planStatus === "needs_lease"
-    ).length,
-    leaseRequiredCount: items.filter(
-      (item) => item.leasePreview?.required === true
-    ).length,
-    items,
-    warnings: warnings.map((code) => ({ code })),
-    nextAction: nextActionFor(status),
-    source: "local_preview",
-    planningOnly: true,
-    executionEnabled: false,
-    leaseIssued: false
-  };
-}
-
-function itemFromTemplate(
-  template: CapabilityTemplate,
-  inheritedWarnings: readonly string[],
-  input?: AppCapabilityPlanPreviewInput
-): AppCapabilityPlanItemView {
-  const warningCodes = uniqueStrings([
-    ...inheritedWarnings,
-    ...warningsForTemplate(template)
-  ]);
-  return {
-    ...template,
-    roleRefs: rolesForCapability(template.capabilityId),
-    routeStepRefs: routeStepsForCapability(template.capabilityId),
-    inputSummary: inputSummaryForCapability(template.capabilityId, input),
-    warningCodes
-  };
-}
-
-function capabilityIdsForIntent(
-  intent: AppRunDraftIntent,
-  input: AppCapabilityPlanPreviewInput
-): CapabilityTemplateId[] {
-  if (intent === "web_data_extraction") {
-    return ["native.workspace.index", "native.fs.write_draft"];
-  }
-  if (intent === "code_change") {
-    return [
-      "native.workspace.index",
-      "native.patch.propose",
-      "native.git.diff_summary",
-      "native.git.status",
-      "native.shell.pnpm_test",
-      "native.patch.apply",
-      "native.git.commit_draft"
-    ];
-  }
-  if (intent === "code_review") {
-    return [
-      "native.workspace.index",
-      "native.git.diff_summary",
-      patchItemCount(input) > 0
-        ? "native.patch.audit"
-        : "mcp.runtime.unavailable"
-    ];
-  }
-  if (intent === "verification") {
-    return ["native.git.status", "native.shell.pnpm_test"];
-  }
-  if (intent === "documentation") {
-    return ["native.workspace.index", "native.patch.propose"];
-  }
-  return [];
-}
-
-function planWarnings(
+function runtimeInputFor(
   input: AppCapabilityPlanPreviewInput,
-  safetyWarnings: readonly string[]
+  intent: AppRunDraftIntent
+): CapabilityPlanPreviewInput {
+  return {
+    intent,
+    ...(routePreviewFrom(input.agentRoutePreview) !== undefined
+      ? { routePreview: routePreviewFrom(input.agentRoutePreview) }
+      : {}),
+    ...(input.runDraft !== undefined && input.runDraft.status !== "empty"
+      ? {
+          runDraftSummary: [
+            input.runDraft.objectiveSummary,
+            `criteria:${input.runDraft.acceptanceCriteriaCount}`,
+            input.conversionError?.safeMessage
+          ]
+            .filter((value): value is string => value !== undefined)
+            .join(" ")
+        }
+      : input.conversionError?.safeMessage !== undefined
+        ? { runDraftSummary: input.conversionError.safeMessage }
+        : {}),
+    ...(contextSummaryRefFrom(input.contextCart) !== undefined
+      ? { contextSummaryRef: contextSummaryRefFrom(input.contextCart) }
+      : {}),
+    ...(workspaceIndexRefFrom(input.workspaceIndexRef) !== undefined
+      ? { workspaceIndexRef: workspaceIndexRefFrom(input.workspaceIndexRef) }
+      : {}),
+    ...(patchProposalRefFrom(input.patchSurface) !== undefined
+      ? { patchProposalRef: patchProposalRefFrom(input.patchSurface) }
+      : {}),
+    ...(memoryRecallRefFrom(input.memoryInspector) !== undefined
+      ? { memoryRecallRef: memoryRecallRefFrom(input.memoryInspector) }
+      : {})
+  };
+}
+
+function appItemFromRuntimeItem(
+  item: CapabilityPlanPreviewItem,
+  input: AppCapabilityPlanPreviewInput
+): AppCapabilityPlanItemView {
+  return {
+    itemId: item.itemId,
+    capabilityId: item.capabilityId,
+    title: item.title,
+    sourceType: item.sourceType,
+    category: item.category,
+    riskLevel: item.riskLevel,
+    invokePolicy: item.invokePolicy,
+    executionMode: item.executionMode,
+    planStatus: item.planStatus,
+    roleRefs: item.roleRefs,
+    routeStepRefs: item.routeStepRefs,
+    inputSummary: inputSummaryForItem(item, input),
+    warningCodes: item.warningCodes,
+    ...(item.disabledReason !== undefined
+      ? { disabledReason: item.disabledReason }
+      : {}),
+    ...(item.leaseRequired
+      ? {
+          leasePreview: {
+            required: true,
+            status: "not_issued",
+            reason:
+              "runtime preview only; PermissionLease is not issued in this phase"
+          }
+        }
+      : {}),
+    dryRunAvailable: item.dryRunAvailable,
+    approvalRequired: item.approvalRequired,
+    leaseRequired: item.leaseRequired,
+    descriptorHash: item.descriptorHash
+  };
+}
+
+function routePreviewFrom(
+  view: AppAgentRoutePreviewView | undefined
+): CapabilityPlanPreviewInput["routePreview"] {
+  if (view === undefined || view.status === "empty") {
+    return undefined;
+  }
+  return {
+    routeId: view.routeId,
+    status: view.status,
+    roleRefs: view.steps.map((step) => step.role),
+    routeStepRefs: view.steps.map((step) => step.stepId),
+    capabilityRefs: view.steps.flatMap((step) =>
+      step.allowedCapabilityRefs.map((ref) => ref.capabilityId)
+    )
+  };
+}
+
+function contextSummaryRefFrom(
+  contextCart: AppContextCartView | undefined
+): string | undefined {
+  if (contextCart === undefined || contextCart.status === "empty") {
+    return undefined;
+  }
+  return `context:${contextCart.source}`;
+}
+
+function workspaceIndexRefFrom(
+  view: AppWorkspaceIndexBridgeView | undefined
+): CapabilityPlanPreviewInput["workspaceIndexRef"] {
+  if (view === undefined || view.status === "empty") {
+    return undefined;
+  }
+  return {
+    refId: view.workspaceIndexId ?? "workspace-index-summary",
+    kind: view.source,
+    count: view.indexedFileCount,
+    hashPrefix: view.hashPrefix,
+    warningCodes: view.warnings.map((warning) => warning.code)
+  };
+}
+
+function patchProposalRefFrom(
+  patchSurface: AppDiffSurfaceView | undefined
+): CapabilityPlanPreviewInput["patchProposalRef"] {
+  const count = patchSurface?.items.length ?? 0;
+  return count > 0
+    ? {
+        refId: "patch-surface-summary",
+        kind: patchSurface?.status,
+        count,
+        warningCodes: patchSurface?.warnings
+      }
+    : undefined;
+}
+
+function memoryRecallRefFrom(
+  memoryInspector: AppMemoryInspectorView | undefined
+): CapabilityPlanPreviewInput["memoryRecallRef"] {
+  const recalled = memoryInspector?.recalledCount ?? 0;
+  return recalled > 0
+    ? {
+        refId: "memory-recall-summary",
+        kind: memoryInspector?.source,
+        count: recalled,
+        warningCodes: memoryInspector?.warnings.map((warning) => warning.code)
+      }
+    : undefined;
+}
+
+function capabilityWarnings(
+  input: AppCapabilityPlanPreviewInput,
+  runtimePreview: ReturnType<typeof buildCapabilityPlanPreview>
 ): string[] {
+  const validation = validateCapabilityPlanPreviewInput(input);
   const codes = [
-    ...safetyWarnings,
+    ...runtimePreview.warnings.map((warning) => warning.code),
+    ...validation.warningCodes,
     ...(input.runDraft?.warnings.map((warning) => warning.code) ?? []),
     ...(input.agentRoutePreview?.warnings.map((warning) => warning.code) ?? [])
   ];
@@ -444,47 +365,18 @@ function planWarnings(
   return uniqueStrings(codes);
 }
 
-function warningsForTemplate(template: CapabilityTemplate): string[] {
-  const codes: string[] = [];
-  if (highRisk(template.riskLevel)) {
-    codes.push("CAPABILITY_HIGH_RISK");
-  }
-  if (template.executionMode === "MUTATING") {
-    codes.push("CAPABILITY_MUTATING_PREVIEW_ONLY");
-  }
-  if (template.planStatus === "disabled") {
-    codes.push("CAPABILITY_DISABLED");
-  }
-  if (template.planStatus === "unavailable") {
-    codes.push("CAPABILITY_UNAVAILABLE");
-  }
-  if (template.category === "shell") {
-    codes.push("SHELL_EXECUTION_DISABLED");
-  }
-  if (template.capabilityId === "native.git.commit_draft") {
-    codes.push("GIT_WRITE_DISABLED");
-  }
-  if (template.capabilityId === "native.patch.apply") {
-    codes.push("PATCH_APPLY_DISABLED");
-  }
-  if (template.leasePreview?.required === true) {
-    codes.push("LEASE_NOT_ISSUED");
-  }
-  return codes;
-}
-
-function inputSummaryForCapability(
-  capabilityId: string,
-  input: AppCapabilityPlanPreviewInput | undefined
+function inputSummaryForItem(
+  item: CapabilityPlanPreviewItem,
+  input: AppCapabilityPlanPreviewInput
 ): string {
   if (
-    capabilityId === "native.workspace.index" &&
-    workspaceIndexLoaded(input?.workspaceIndexRef)
+    item.capabilityId === "native.workspace.index" &&
+    workspaceIndexLoaded(input.workspaceIndexRef)
   ) {
     const view = input.workspaceIndexRef;
     return `Workspace index summary loaded: ${view.indexedFileCount}/${view.fileCount} indexed file(s), ${view.warnings.length} warning(s). Raw file content is not available.`;
   }
-  return "Summary-only preview; raw arguments are not available.";
+  return item.inputSummary;
 }
 
 function workspaceIndexLoaded(
@@ -493,58 +385,38 @@ function workspaceIndexLoaded(
   return view?.status === "loaded" || view?.status === "warning";
 }
 
-function rolesForCapability(capabilityId: string): string[] {
-  if (capabilityId.includes("workspace")) {
-    return ["orchestrator", "reviewer"];
-  }
-  if (capabilityId.includes("patch.propose")) {
-    return ["coder"];
-  }
-  if (capabilityId.includes("patch.audit") || capabilityId.includes("diff")) {
-    return ["reviewer"];
-  }
-  if (capabilityId.includes("status") || capabilityId.includes("pnpm_test")) {
-    return ["verifier"];
-  }
-  if (capabilityId.includes("write_draft")) {
-    return ["orchestrator"];
-  }
-  return ["orchestrator"];
-}
-
-function routeStepsForCapability(capabilityId: string): string[] {
-  return rolesForCapability(capabilityId).map((role) => `route:${role}`);
-}
-
-function statusFor(
-  intent: AppRunDraftIntent,
-  items: readonly AppCapabilityPlanItemView[],
-  warnings: readonly string[]
+function appStatus(
+  source: AppCapabilityPlanSource,
+  runtimeStatus: AppCapabilityPlanStatus,
+  warningCodes: readonly string[]
 ): AppCapabilityPlanStatus {
-  if (intent === "unknown") {
-    return "needs_clarification";
-  }
-  if (warnings.some((code) => code.endsWith("_MARKER"))) {
+  if (warningCodes.some(isBlockingWarning)) {
     return "blocked";
   }
-  if (items.length === 0) {
-    return "empty";
+  if (source === "empty") {
+    return warningCodes.length > 0 ? "warning" : "empty";
   }
-  return warnings.length > 0 ? "warning" : "preview";
+  if (runtimeStatus === "needs_clarification") {
+    return "needs_clarification";
+  }
+  if (runtimeStatus === "blocked") {
+    return "blocked";
+  }
+  return warningCodes.length > 0 ? "warning" : runtimeStatus;
 }
 
-function nextActionFor(status: AppCapabilityPlanStatus): string {
-  if (status === "needs_clarification") {
-    return "Clarify the draft intent before capability planning can move beyond preview.";
+function appNextAction(
+  status: AppCapabilityPlanStatus,
+  runtimeNextAction: string
+): string {
+  if (status === "warning" || status === "preview") {
+    return `${runtimeNextAction} Plan generated from runtime Capability Broker preview helper.`;
   }
   if (status === "blocked") {
     return "Remove unsafe markers before reviewing capability plan summaries.";
   }
-  if (status === "warning") {
-    return "Review descriptor warning codes. No capability is invoked and no permission lease is issued.";
-  }
-  if (status === "preview") {
-    return "Planning only. No capability is invoked and no permission lease is issued.";
+  if (status === "needs_clarification") {
+    return "Clarify the draft intent before capability planning can move beyond preview.";
   }
   return "Preview a local run draft and agent route first. Capability plans will appear here before approval or execution.";
 }
@@ -557,43 +429,8 @@ function highRisk(riskLevel: AppCapabilityRiskView): boolean {
   );
 }
 
-function patchItemCount(input: AppCapabilityPlanPreviewInput): number {
-  return input.patchSurface?.items.length ?? 0;
-}
-
-function unsafeWarningCodes(text: string): string[] {
-  return [
-    {
-      code: "API_KEY_MARKER",
-      pattern: new RegExp(`\\b${"s"}k-[A-Za-z0-9_-]{16,}\\b`)
-    },
-    {
-      code: "BEARER_TOKEN_MARKER",
-      pattern: /\bBearer\s+[A-Za-z0-9._-]{16,}\b/
-    },
-    {
-      code: "AUTHORIZATION_HEADER_MARKER",
-      pattern: /\bAuthorization\s*:/i
-    },
-    {
-      code: "RAW_PROMPT_MARKER",
-      pattern: new RegExp(`\\braw${"Prompt"}\\b`, "i")
-    },
-    {
-      code: "RAW_DOM_MARKER",
-      pattern: new RegExp(`\\braw${"Dom"}\\b|raw DOM`, "i")
-    },
-    {
-      code: "RAW_CSV_MARKER",
-      pattern: new RegExp(`\\braw${"Csv"}\\b|raw CSV`, "i")
-    },
-    {
-      code: "CLIPBOARD_MARKER",
-      pattern: new RegExp(`\\bclip${"board"}\\b`, "i")
-    }
-  ]
-    .filter(({ pattern }) => pattern.test(text))
-    .map(({ code }) => code);
+function isBlockingWarning(code: string): boolean {
+  return code.endsWith("_MARKER") || code === "FORBIDDEN_RAW_FIELD";
 }
 
 function normalizeIntent(value: unknown): AppRunDraftIntent {
@@ -612,7 +449,7 @@ function uniqueStrings(values: readonly string[]): string[] {
     new Set(
       values
         .map((value) => safeErrorMessage(safeText(value, "")))
-        .filter((value) => /^[A-Z0-9_.-]{1,80}$/.test(value))
+        .filter((value) => /^[A-Z0-9_.:-]{1,120}$/.test(value))
     )
-  );
+  ).sort();
 }

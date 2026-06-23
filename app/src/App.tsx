@@ -1458,8 +1458,9 @@ export function DesktopShell(): JSX.Element {
               <span className="muted">Planning only</span>
             </div>
             <p className="fieldHelp">
-              Shows future capability needs as descriptors. No capability is
-              invoked and no permission lease is issued.
+              Shows future capability needs as descriptors from the runtime
+              Capability Broker preview helper. No capability is invoked and no
+              permission lease is issued.
             </p>
 
             {capabilityPlanPreview.status === "empty" ? (

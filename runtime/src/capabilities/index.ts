@@ -3,6 +3,7 @@ export * from "./descriptor.js";
 export * from "./errors.js";
 export * from "./invocation-policy.js";
 export * from "./native-descriptors.js";
+export * from "./plan-preview.js";
 export * from "./permission-lease.js";
 export * from "./registry.js";
 export * from "./risk.js";

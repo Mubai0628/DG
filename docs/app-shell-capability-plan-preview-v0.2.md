@@ -2,7 +2,8 @@
 
 Capability Plan Preview is a planning-only App Shell surface. It turns the
 local Run Draft, Agent Route Preview, Context Cart, Patch Surface, and Memory
-Inspector summaries into descriptor-style capability needs.
+Inspector summaries into descriptor-style capability needs by consuming the
+pure runtime Capability Broker preview helper.
 
 It does not call Capability Broker execution APIs. It does not invoke tools. It
 does not issue permission leases.
@@ -70,8 +71,8 @@ All items are local preview rows. They are not executable plans.
 
 ## Integration
 
-- Capability Broker v2: the App surface mirrors descriptor fields but does not
-  call invocation planning or execution.
+- Capability Broker v2: the App surface consumes the runtime preview helper for
+  descriptor fields but does not call invocation planning or execution.
 - Agent Route Preview: role and route-step refs are derived from the local
   route preview.
 - Approval Surface: approval-required capability rows may appear as read-only
