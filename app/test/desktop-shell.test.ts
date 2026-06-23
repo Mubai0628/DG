@@ -73,6 +73,7 @@ import {
   type WorkspaceEventSummary
 } from "../src/safety.js";
 import {
+  buildStaticAgentRoutePreview,
   runWebTableToCsvFlow,
   createBridgeProposalPreview,
   type BrowserDomPayload
@@ -2750,12 +2751,44 @@ describe("app agent route preview", () => {
     });
 
     expect(view.status).toBe("preview");
+    expect(view.source).toBe("runtime_static_router_preview");
     expect(view.steps.map((step) => step.role)).toEqual([
       "orchestrator",
       "verifier"
     ]);
     expect(view.steps.map((step) => step.role)).not.toContain("coder");
     expect(view.nextAction).toContain("No agent is executed");
+  });
+
+  it("uses the runtime static router helper output shape", () => {
+    const runDraft = buildRunDraftView({
+      objectiveDraft: "Prepare a runtime backed route preview.",
+      selectedIntent: "code_review",
+      acceptanceCriteriaDraft: "Reviewer summary exists",
+      workspaceRoot: "D:\\workspace"
+    });
+    const runtimePreview = buildStaticAgentRoutePreview({
+      intent: runDraft.intent,
+      objectiveSummary: runDraft.objectiveSummary,
+      acceptanceCriteriaCount: runDraft.acceptanceCriteriaCount,
+      createdAt: "2026-01-01T00:00:00.000Z",
+      idGenerator: () => "route-runtime"
+    });
+    const appPreview = buildAgentRoutePreviewView({
+      runDraft,
+      createdAt: "2026-01-01T00:00:00.000Z",
+      idGenerator: () => "route-runtime"
+    });
+
+    expect(appPreview.source).toBe("runtime_static_router_preview");
+    expect(appPreview.routeId).toBe(runtimePreview.routeId);
+    expect(appPreview.steps.map((step) => step.role)).toEqual(
+      runtimePreview.steps.map((step) => step.role)
+    );
+    expect(appPreview.modelProfileIds).toEqual(runtimePreview.modelProfileIds);
+    expect(appPreview.capabilityRefCount).toBe(
+      runtimePreview.capabilityRefCount
+    );
   });
 
   it("routes code changes through orchestrator coder reviewer verifier", () => {
@@ -3556,6 +3589,10 @@ describe("desktop source boundaries", () => {
       path.join(appRoot, "src", "App.tsx"),
       "utf8"
     );
+    const agentRouteSource = await readFile(
+      path.join(appRoot, "src", "agent-route-preview-view.ts"),
+      "utf8"
+    );
 
     expect(appSource).toContain("Local web-table-to-CSV workflow");
     expect(appSource).toContain("Source-tree mode / Preflight OK");
@@ -3619,8 +3656,10 @@ describe("desktop source boundaries", () => {
     expect(appSource).toContain("No context assembly report is connected yet");
     expect(appSource).toContain("Agent Route Preview");
     expect(appSource).toContain("Preview only");
+    expect(appSource).toContain("runtime static router helper");
     expect(appSource).toContain("No agent");
     expect(appSource).toContain("no model request is sent");
+    expect(agentRouteSource).toContain("buildStaticAgentRoutePreview");
     expect(appSource).toContain("buildAgentRoutePreviewView");
     expect(appSource).toContain("agentRoutePreview");
     expect(appSource).toContain(
@@ -4075,6 +4114,30 @@ describe("desktop source boundaries", () => {
     expect(combined).toContain("No EventStore write");
     expect(combined).toContain("No patch, Git, or shell execution");
     expect(combined).toContain("app-shell-agent-route-preview-v0.2.md");
+  });
+
+  it("documents runtime static agent route preview helper as pure preview-only", async () => {
+    const docs = await Promise.all(
+      ["runtime-static-agent-route-preview-v0.3.md", "README.md"].map(
+        async (file) => ({
+          file,
+          text: await readFile(path.join(repoRoot, "docs", file), "utf8")
+        })
+      )
+    );
+    const combined = docs.map((doc) => doc.text).join("\n");
+
+    expect(combined).toContain("Runtime Static Agent Route Preview v0.3");
+    expect(combined).toContain("pure runtime static router preview helper");
+    expect(combined).toContain("runtime_static_router_preview");
+    expect(combined).toContain("orchestrator -> verifier");
+    expect(combined).toContain("orchestrator -> coder -> reviewer -> verifier");
+    expect(combined).toContain("No dynamic bidding");
+    expect(combined).toContain("No agent execution");
+    expect(combined).toContain("No model call");
+    expect(combined).toContain("No capability invocation");
+    expect(combined).toContain("No EventStore write");
+    expect(combined).toContain("runtime-static-agent-route-preview-v0.3.md");
   });
 
   it("documents app capability plan preview as planning-only", async () => {

@@ -28,6 +28,7 @@ foundation.
 - [App Shell Workspace Index Bridge v0.3](app-shell-workspace-index-bridge-v0.3.md)
 - [App Shell Run Draft Event v0.3](app-shell-run-draft-event-v0.3.md)
 - [App Shell Context Assembly Preview v0.3](app-shell-context-assembly-preview-v0.3.md)
+- [Runtime Static Agent Route Preview v0.3](runtime-static-agent-route-preview-v0.3.md)
 - [v0.3.0 Coding Workflow Preview RC release notes](release-notes-v0.3.0-coding-workflow-preview-rc.1.md)
 - [App Shell Coding Workflow manual QA](app-shell-coding-workflow-manual-qa.md)
 - [App Shell Coding Workflow RC checklist](app-shell-coding-workflow-rc-checklist.md)

@@ -1368,8 +1368,9 @@ export function DesktopShell(): JSX.Element {
               <span className="muted">Preview only</span>
             </div>
             <p className="fieldHelp">
-              Shows the fixed role route that a future run would use. No agent
-              is executed and no model request is sent.
+              Route generated from runtime static router helper. Shows the fixed
+              role route that a future run would use. No agent is executed and
+              no model request is sent.
             </p>
 
             {agentRoutePreview.status === "empty" ? (

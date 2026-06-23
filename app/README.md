@@ -12,10 +12,12 @@ Current scope:
 - show a safe summary of draft, event, and replay results
 - show App Shell planning surfaces as draft-only, read-only, preview-only, or
   planning-only summaries: Chat / Run Canvas, local Run Draft Preview, Control
-  Plane Projection, Context Cart, Agent Route Preview, Capability Plan Preview,
-  Patch Proposal / Diff, Approval / Diff / Audit, Memory Inspector, Memory
-  Recall Preview, Workspace Index summary bridge, Context Assembly Preview, and
-  disabled Bridge Proposal Preview
+  Plane Projection, Context Cart, Agent Route Preview backed by the runtime
+  static router helper, Capability Plan Preview, Patch Proposal / Diff,
+  Approval / Diff / Audit, Memory Inspector, Memory Recall Preview, Workspace
+  Index summary bridge, Context Assembly Preview, and disabled Bridge Proposal
+  Preview
+- show the Workspace Index summary bridge as a read-only summary JSON preview
 - optionally record one local summary-only Run Draft Event to
   `workspace/.deepseek-workbench/events.jsonl`; this is not run creation or
   execution
