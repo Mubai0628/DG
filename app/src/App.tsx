@@ -54,6 +54,11 @@ import {
   type AppContextCartView
 } from "./context-cart-view.js";
 import {
+  buildContextAssemblyPreviewView,
+  summarizeContextAssemblyPreview,
+  type AppContextAssemblyPreviewView
+} from "./context-assembly-preview-view.js";
+import {
   buildAgentRoutePreviewView,
   type AppAgentRoutePreviewView
 } from "./agent-route-preview-view.js";
@@ -179,6 +184,9 @@ export function DesktopShell(): JSX.Element {
     useState<AppWorkspaceIndexBridgeView>(() =>
       buildWorkspaceIndexBridgeView()
     );
+  const [contextAssemblyPreview, setContextAssemblyPreview] = useState<
+    AppContextAssemblyPreviewView | undefined
+  >();
   const loadedWorkspaceIndexRef =
     workspaceIndexBridge.status === "loaded" ||
     workspaceIndexBridge.status === "warning"
@@ -340,6 +348,33 @@ export function DesktopShell(): JSX.Element {
       selectedIntent
     ]
   );
+  const contextAssemblyCandidate = useMemo<AppContextAssemblyPreviewView>(
+    () =>
+      buildContextAssemblyPreviewView({
+        runDraft: displayedRunDraft,
+        workspaceIndexBridge: loadedWorkspaceIndexRef,
+        memoryRecallPreview,
+        patchSurface: baseWorkbenchSurfaces.diff,
+        agentRoutePreview,
+        capabilityPlanPreview,
+        controlProjection: controlPlanePanel,
+        eventSummary,
+        previousPreview: contextAssemblyPreview
+      }),
+    [
+      agentRoutePreview,
+      baseWorkbenchSurfaces.diff,
+      capabilityPlanPreview,
+      contextAssemblyPreview,
+      controlPlanePanel,
+      displayedRunDraft,
+      eventSummary,
+      loadedWorkspaceIndexRef,
+      memoryRecallPreview
+    ]
+  );
+  const displayedContextAssembly =
+    contextAssemblyPreview ?? contextAssemblyCandidate;
   const workbenchSurfaces = useMemo<AppWorkbenchSurfaceView>(
     () =>
       buildWorkbenchSurfacesView({
@@ -427,12 +462,29 @@ export function DesktopShell(): JSX.Element {
     setRunDraftEventStatus("idle");
     setRunDraftEventResult(undefined);
     setRunDraftEventError(undefined);
+    setContextAssemblyPreview(undefined);
   }, [acceptanceCriteriaDraft, objectiveDraft, selectedIntent, workspaceRoot]);
+
+  useEffect(() => {
+    setContextAssemblyPreview(undefined);
+  }, [
+    agentRoutePreview.routeId,
+    baseWorkbenchSurfaces.diff.items.length,
+    capabilityPlanPreview.itemCount,
+    displayedRunDraft.draftId,
+    eventSummary?.eventCount,
+    loadedWorkspaceIndexRef?.hashPrefix,
+    memoryRecallPreview.itemCount
+  ]);
 
   function handlePreviewDraftRun(): void {
     if (runDraftCandidate.canPreview) {
       setRunDraftPreview(runDraftCandidate);
     }
+  }
+
+  function handlePreviewContextAssembly(): void {
+    setContextAssemblyPreview(contextAssemblyCandidate);
   }
 
   async function handleRecordRunDraftEvent(): Promise<void> {
@@ -1629,6 +1681,145 @@ export function DesktopShell(): JSX.Element {
               Shows context placement, hashes, token estimates, and no-compress
               zones. Raw prompt and segment content are not displayed.
             </p>
+
+            <section
+              className="surfaceBox"
+              aria-label="Context Assembly Preview"
+            >
+              <div className="panelHeader compactHeader">
+                <h2>Context Assembly Preview</h2>
+                <span className="muted">Preview only</span>
+              </div>
+              <p className="fieldHelp">
+                Builds a local context summary from Run Draft and Workspace
+                Index refs. No prompt is assembled and no model request is sent.
+              </p>
+              <div className="buttonRow">
+                <button
+                  type="button"
+                  className="secondary"
+                  onClick={(event) => {
+                    event.preventDefault();
+                    event.stopPropagation();
+                    handlePreviewContextAssembly();
+                  }}
+                  disabled={displayedRunDraft.status === "empty"}
+                  aria-disabled={displayedRunDraft.status === "empty"}
+                >
+                  Preview Context Summary
+                </button>
+              </div>
+              <dl className="summaryGrid compact">
+                <div>
+                  <dt>Status</dt>
+                  <dd>{displayedContextAssembly.status}</dd>
+                </div>
+                <div>
+                  <dt>Segments</dt>
+                  <dd>{displayedContextAssembly.totalSegments}</dd>
+                </div>
+                <div>
+                  <dt>Approx tokens</dt>
+                  <dd>{displayedContextAssembly.totalTokenEstimate}</dd>
+                </div>
+                <div>
+                  <dt>Frozen segments</dt>
+                  <dd>{displayedContextAssembly.frozenPrefixSegmentCount}</dd>
+                </div>
+                <div>
+                  <dt>Volatile segments</dt>
+                  <dd>{displayedContextAssembly.volatileTailSegmentCount}</dd>
+                </div>
+                <div>
+                  <dt>No-compress</dt>
+                  <dd>{displayedContextAssembly.noCompressSegmentCount}</dd>
+                </div>
+                <div>
+                  <dt>Cache boundary</dt>
+                  <dd>{displayedContextAssembly.cacheBoundary.status}</dd>
+                </div>
+                <div>
+                  <dt>Event writes</dt>
+                  <dd>
+                    {displayedContextAssembly.eventWritesEnabled
+                      ? "enabled"
+                      : "disabled"}
+                  </dd>
+                </div>
+              </dl>
+              <p className="fieldHelp">
+                {summarizeContextAssemblyPreview(displayedContextAssembly)}
+              </p>
+              <div className="surfaceStack">
+                {displayedContextAssembly.layers.map((layer) => (
+                  <section className="surfaceBox" key={layer.layer}>
+                    <div className="panelHeader compactHeader">
+                      <h2>{layer.layer}</h2>
+                      <span className="muted">{layer.placement}</span>
+                    </div>
+                    <dl className="summaryGrid compact">
+                      <div>
+                        <dt>Segments</dt>
+                        <dd>{layer.segmentCount}</dd>
+                      </div>
+                      <div>
+                        <dt>Tokens</dt>
+                        <dd>{layer.tokenEstimate}</dd>
+                      </div>
+                      <div>
+                        <dt>Hash prefix</dt>
+                        <dd>{layer.hashPrefix}</dd>
+                      </div>
+                      <div>
+                        <dt>Source refs</dt>
+                        <dd>{layer.sourceRefCount}</dd>
+                      </div>
+                      <div>
+                        <dt>Warnings</dt>
+                        <dd>
+                          {layer.warningCodes.length > 0
+                            ? layer.warningCodes.join(", ")
+                            : "none"}
+                        </dd>
+                      </div>
+                    </dl>
+                  </section>
+                ))}
+              </div>
+              {displayedContextAssembly.segments.length > 0 ? (
+                <ol className="timeline">
+                  {displayedContextAssembly.segments.map((segment) => (
+                    <li key={segment.segmentId}>
+                      <span className="timelineMeta">
+                        {segment.layer} · {segment.placement} ·{" "}
+                        {segment.sourceKind}
+                      </span>
+                      <span>
+                        {segment.title} · {segment.hashPrefix} · tokens{" "}
+                        {segment.tokenEstimate}
+                      </span>
+                    </li>
+                  ))}
+                </ol>
+              ) : null}
+              {displayedContextAssembly.cacheBoundary.reasonCodes.length > 0 ? (
+                <p className="muted">
+                  cache{" "}
+                  {displayedContextAssembly.cacheBoundary.reasonCodes.join(
+                    ", "
+                  )}
+                </p>
+              ) : null}
+              {displayedContextAssembly.warnings.length > 0 ? (
+                <p className="muted">
+                  warnings{" "}
+                  {displayedContextAssembly.warnings
+                    .map((warning) => warning.code)
+                    .join(", ")}
+                </p>
+              ) : null}
+              <p className="fieldHelp">{displayedContextAssembly.nextAction}</p>
+            </section>
 
             {contextCart.status === "empty" ? (
               <p className="empty">

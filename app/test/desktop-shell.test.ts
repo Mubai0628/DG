@@ -27,6 +27,11 @@ import {
   validateRunDraftEventPayload
 } from "../src/run-draft-event-view.js";
 import { buildContextCartView } from "../src/context-cart-view.js";
+import {
+  buildContextAssemblyPreviewView,
+  summarizeContextAssemblyPreview,
+  validateContextAssemblyPreviewInput
+} from "../src/context-assembly-preview-view.js";
 import { buildAgentRoutePreviewView } from "../src/agent-route-preview-view.js";
 import {
   buildCapabilityPlanPreviewView,
@@ -2434,6 +2439,285 @@ describe("app context cart rules ledger visualization", () => {
   });
 });
 
+describe("app context assembly preview", () => {
+  it("builds an empty local preview without prompt assembly", () => {
+    const view = buildContextAssemblyPreviewView();
+
+    expect(view.status).toBe("empty");
+    expect(view.source).toBe("empty");
+    expect(view.previewOnly).toBe(true);
+    expect(view.promptAssemblyEnabled).toBe(false);
+    expect(view.modelRequestEnabled).toBe(false);
+    expect(view.eventWritesEnabled).toBe(false);
+    expect(view.totalSegments).toBe(0);
+    expect(view.cacheBoundary.status).toBe("unavailable");
+  });
+
+  it("maps a run draft into task_contract without exposing raw objective text", () => {
+    const objective = "Implement context assembly from summary refs.";
+    const runDraft = buildRunDraftView({
+      objectiveDraft: objective,
+      selectedIntent: "code_change",
+      acceptanceCriteriaDraft: "No prompt assembly\nNo model request",
+      workspaceRoot: "D:\\workspace"
+    });
+    const view = buildContextAssemblyPreviewView({ runDraft });
+    const taskContract = view.segments.find(
+      (segment) => segment.layer === "task_contract"
+    );
+    const serialized = JSON.stringify(view);
+
+    expect(view.status).toBe("preview");
+    expect(taskContract).toMatchObject({
+      sourceKind: "run_draft",
+      placement: "task_contract",
+      noCompress: false
+    });
+    expect(view.frozenPrefixSegmentCount).toBe(0);
+    expect(serialized).not.toContain(objective);
+    expect(summarizeContextAssemblyPreview(view)).toContain("preview_only=yes");
+  });
+
+  it("places workspace index and memory recall summaries in volatile_tail", () => {
+    const runDraft = buildRunDraftView({
+      objectiveDraft: "Prepare code change memory recall with workspace index.",
+      selectedIntent: "code_change",
+      acceptanceCriteriaDraft: "Summaries only",
+      workspaceRoot: "D:\\workspace"
+    });
+    const workspaceIndexBridge = buildWorkspaceIndexBridgeView({
+      source: "synthetic_summary",
+      summary: fixedWorkspaceIndexSummary()
+    });
+    const memoryRecallPreview = buildMemoryRecallPreviewView({
+      runDraft,
+      syntheticMemorySummaries: [
+        {
+          memoryId: "mem-project-fact",
+          type: "project_fact",
+          trustLevel: "verified_tool_result",
+          summary: "Workspace index memory recall supports code change.",
+          tags: ["code_change", "workspace"],
+          provenanceRefCount: 1,
+          evidenceRefCount: 1
+        }
+      ]
+    });
+    const view = buildContextAssemblyPreviewView({
+      runDraft,
+      workspaceIndexBridge,
+      memoryRecallPreview
+    });
+    const volatileSegments = view.segments.filter(
+      (segment) => segment.placement === "volatile_tail"
+    );
+    const serialized = JSON.stringify(view);
+
+    expect(
+      volatileSegments.some(
+        (segment) => segment.sourceKind === "workspace_index"
+      )
+    ).toBe(true);
+    expect(
+      volatileSegments.some((segment) => segment.sourceKind === "memory_recall")
+    ).toBe(true);
+    expect(
+      view.layers.find((layer) => layer.layer === "volatile_tail")
+    ).toMatchObject({ segmentCount: 2 });
+    expect(serialized).not.toContain("Workspace index memory recall supports");
+    expect(serialized).not.toContain("source code line");
+  });
+
+  it("places patch proposal and approval refs in no_compress_zone", () => {
+    const runDraft = buildRunDraftView({
+      objectiveDraft: "Prepare a patch proposal preview.",
+      selectedIntent: "code_change",
+      acceptanceCriteriaDraft: "Diff remains summary only",
+      workspaceRoot: "D:\\workspace"
+    });
+    const controlProjection = buildControlPlaneProjectionView(undefined);
+    const patchSurface = buildWorkbenchSurfacesView({
+      controlProjection,
+      patchProposalSummaries: [
+        {
+          proposalId: "patch-1",
+          title: "Update context preview wiring",
+          filesChanged: 2,
+          linesAdded: 12,
+          linesRemoved: 3,
+          pathSummaries: ["app/src/App.tsx"],
+          requiresApproval: true
+        }
+      ]
+    }).diff;
+    const contextCart = buildContextCartView({ runDraft });
+    const agentRoutePreview = buildAgentRoutePreviewView({
+      runDraft,
+      contextCart,
+      patchSurface
+    });
+    const capabilityPlanPreview = buildCapabilityPlanPreviewView({
+      runDraft,
+      agentRoutePreview,
+      contextCart,
+      patchSurface,
+      selectedIntent: "code_change"
+    });
+    const view = buildContextAssemblyPreviewView({
+      runDraft,
+      patchSurface,
+      capabilityPlanPreview
+    });
+    const noCompressSegments = view.segments.filter(
+      (segment) => segment.placement === "no_compress_zone"
+    );
+
+    expect(
+      noCompressSegments.some(
+        (segment) => segment.sourceKind === "patch_proposal"
+      )
+    ).toBe(true);
+    expect(
+      noCompressSegments.some(
+        (segment) => segment.sourceKind === "approval_ref"
+      )
+    ).toBe(true);
+    expect(view.noCompressSegmentCount).toBeGreaterThanOrEqual(2);
+    expect(JSON.stringify(view)).not.toContain("raw diff");
+  });
+
+  it("keeps dynamic summaries out of frozen prefix layers", () => {
+    const runDraft = buildRunDraftView({
+      objectiveDraft: "Keep dynamic context outside frozen prefix.",
+      selectedIntent: "verification",
+      acceptanceCriteriaDraft: "Dynamic summaries stay volatile",
+      workspaceRoot: "D:\\workspace"
+    });
+    const workspaceIndexBridge = buildWorkspaceIndexBridgeView({
+      source: "synthetic_summary",
+      summary: fixedWorkspaceIndexSummary()
+    });
+    const view = buildContextAssemblyPreviewView({
+      runDraft,
+      workspaceIndexBridge
+    });
+
+    expect(
+      view.segments.filter((segment) => segment.placement === "frozen_prefix")
+    ).toHaveLength(0);
+    expect(
+      view.layers.find((layer) => layer.layer === "immutable_rules")
+    ).toMatchObject({ segmentCount: 0, placement: "frozen_prefix" });
+    expect(
+      view.layers.find((layer) => layer.layer === "workspace_rules")
+    ).toMatchObject({ segmentCount: 0, placement: "frozen_prefix" });
+  });
+
+  it("uses deterministic token estimates and summary-only hash prefixes", () => {
+    const runDraft = buildRunDraftView({
+      objectiveDraft: "Estimate context preview tokens deterministically.",
+      selectedIntent: "documentation",
+      acceptanceCriteriaDraft: "Stable token count",
+      workspaceRoot: "D:\\workspace"
+    });
+    const first = buildContextAssemblyPreviewView({ runDraft });
+    const second = buildContextAssemblyPreviewView({ runDraft });
+
+    expect(second.totalTokenEstimate).toBe(first.totalTokenEstimate);
+    expect(second.layers.map((layer) => layer.hashPrefix)).toEqual(
+      first.layers.map((layer) => layer.hashPrefix)
+    );
+    expect(
+      first.layers.every((layer) => /^[a-f0-9]{8,12}$/.test(layer.hashPrefix))
+    ).toBe(true);
+  });
+
+  it("marks volatile cache changes separately from frozen prefix changes", () => {
+    const runDraft = buildRunDraftView({
+      objectiveDraft: "Compare workspace index summaries.",
+      selectedIntent: "code_review",
+      acceptanceCriteriaDraft: "Volatile cache changes only",
+      workspaceRoot: "D:\\workspace"
+    });
+    const previousWorkspaceIndex = buildWorkspaceIndexBridgeView({
+      source: "synthetic_summary",
+      summary: fixedWorkspaceIndexSummary()
+    });
+    const previous = buildContextAssemblyPreviewView({
+      runDraft,
+      workspaceIndexBridge: previousWorkspaceIndex
+    });
+    const nextWorkspaceIndex = buildWorkspaceIndexBridgeView({
+      source: "synthetic_summary",
+      summary: {
+        ...fixedWorkspaceIndexSummary(),
+        fileCount: 4,
+        indexedFileCount: 3,
+        hash: "fedcba6543210000"
+      }
+    });
+    const next = buildContextAssemblyPreviewView({
+      runDraft,
+      workspaceIndexBridge: nextWorkspaceIndex,
+      previousPreview: previous
+    });
+
+    expect(next.cacheBoundary.status).toBe("changed");
+    expect(next.cacheBoundary.frozenPrefixChanged).toBe(false);
+    expect(next.cacheBoundary.taskContractChanged).toBe(false);
+    expect(next.cacheBoundary.volatileTailChanged).toBe(true);
+    expect(next.cacheBoundary.reasonCodes).toContain("VOLATILE_TAIL_CHANGED");
+  });
+
+  it("blocks unsafe markers without retaining raw prompt, DOM, CSV, or API keys", () => {
+    const secret = "sk-test1234567890abcdef";
+    const safeDraft = buildRunDraftView({
+      objectiveDraft: "Safe draft before unsafe override.",
+      selectedIntent: "verification",
+      acceptanceCriteriaDraft: "Safe criteria",
+      workspaceRoot: "D:\\workspace"
+    });
+    const unsafeDraft = {
+      ...safeDraft,
+      objectiveSummary: `rawPrompt rawDom rawCsv ${secret}`,
+      rawPrompt: "do not keep"
+    } as unknown as typeof safeDraft;
+    const validation = validateContextAssemblyPreviewInput({
+      runDraft: unsafeDraft
+    });
+    const view = buildContextAssemblyPreviewView({ runDraft: unsafeDraft });
+    const serialized = JSON.stringify(view);
+
+    expect(validation.ok).toBe(false);
+    expect(view.status).toBe("blocked");
+    expect(view.warnings.map((warning) => warning.code)).toContain(
+      "API_KEY_MARKER"
+    );
+    expect(serialized).not.toContain(secret);
+    expect(serialized).not.toContain("rawPrompt rawDom rawCsv");
+  });
+
+  it("keeps App UI local-only with no prompt assembly execution path", async () => {
+    const appSource = await readFile(
+      path.join(appRoot, "src", "App.tsx"),
+      "utf8"
+    );
+    const desktopFlowSource = await readFile(
+      path.join(appRoot, "src", "desktop-flow.ts"),
+      "utf8"
+    );
+
+    expect(appSource).toContain("Context Assembly Preview");
+    expect(appSource).toContain("No prompt is assembled");
+    expect(appSource).toContain("no model request is sent");
+    expect(appSource).toContain("handlePreviewContextAssembly");
+    expect(desktopFlowSource).not.toContain("context_assembly");
+    expect(appSource).not.toContain("record_context_assembly");
+    expect(appSource).not.toContain("localStorage");
+    expect(appSource).not.toContain("sessionStorage");
+  });
+});
+
 describe("app agent route preview", () => {
   it("builds an empty preview until a local run draft exists", () => {
     const view = buildAgentRoutePreviewView({
@@ -4288,6 +4572,38 @@ describe("desktop source boundaries", () => {
     expect(combined).toContain("No native bridge");
     expect(docsIndex).toContain("app-shell-run-draft-event-v0.3.md");
     expect(appReadme).toContain("summary-only Run Draft Event");
+  });
+
+  it("documents the App Shell Context Assembly Preview as local-only and prompt-free", async () => {
+    const doc = await readFile(
+      path.join(repoRoot, "docs", "app-shell-context-assembly-preview-v0.3.md"),
+      "utf8"
+    );
+    const docsIndex = await readFile(
+      path.join(repoRoot, "docs", "README.md"),
+      "utf8"
+    );
+    const appReadme = await readFile(path.join(appRoot, "README.md"), "utf8");
+    const combined = `${doc}\n${docsIndex}\n${appReadme}`;
+
+    expect(combined).toContain("Context Assembly Preview v0.3");
+    expect(combined).toContain("local App Shell view model");
+    expect(combined).toContain("does not assemble a real prompt");
+    expect(combined).toContain("call DeepSeek");
+    expect(combined).toContain("write events");
+    expect(combined).toContain("frozen prefix");
+    expect(combined).toContain("volatile_tail");
+    expect(combined).toContain("no_compress_zone");
+    expect(combined).toContain("Workspace Index refs");
+    expect(combined).toContain("Memory Recall refs");
+    expect(combined).toContain("Patch proposal summaries");
+    expect(combined).toContain("No actual prompt generation");
+    expect(combined).toContain("No DeepSeek request");
+    expect(combined).toContain("No EventStore write");
+    expect(combined).toContain("No raw content display");
+    expect(docsIndex).toContain("app-shell-context-assembly-preview-v0.3.md");
+    expect(appReadme).toContain("Context Assembly Preview");
+    expect(appReadme).toContain("no App Shell prompt assembly");
   });
 
   it("documents P0G-001 as a read-only workspace index plan", async () => {
