@@ -37,6 +37,12 @@ import {
   buildCapabilityPlanPreviewView,
   capabilityPlanApprovalRefs
 } from "../src/capability-plan-preview-view.js";
+import {
+  buildPatchProposalCreationPreviewView,
+  parsePatchProposalPathRefsInput,
+  patchProposalCreationApprovalRefs,
+  patchProposalCreationSurfaceSummaries
+} from "../src/patch-proposal-creation-preview-view.js";
 import { buildCapabilityPlanPreview } from "../../runtime/src/capabilities/plan-preview.js";
 import { buildMemoryRecallPreviewView } from "../src/memory-recall-preview-view.js";
 import {
@@ -3119,6 +3125,206 @@ describe("app capability plan preview", () => {
   });
 });
 
+describe("app patch proposal creation preview", () => {
+  it("builds an empty local preview before path refs are entered", () => {
+    const view = buildPatchProposalCreationPreviewView({
+      selectedIntent: "code_change"
+    });
+
+    expect(view.status).toBe("empty");
+    expect(view.source).toBe("empty");
+    expect(view.previewOnly).toBe(true);
+    expect(view.applyEnabled).toBe(false);
+    expect(view.fileReadEnabled).toBe(false);
+    expect(view.fileWriteEnabled).toBe(false);
+    expect(view.eventWritesEnabled).toBe(false);
+    expect(view.items).toHaveLength(0);
+  });
+
+  it("creates a local summary-only proposal from safe path refs", () => {
+    const runDraft = buildRunDraftView({
+      objectiveDraft: "Prepare a local patch proposal preview.",
+      selectedIntent: "code_change",
+      acceptanceCriteriaDraft: "Diff surface shows summary only",
+      workspaceRoot: "D:\\workspace"
+    });
+    const view = buildPatchProposalCreationPreviewView({
+      titleDraft: "Update patch preview wiring",
+      changeDescriptionSummary: "Connect safe path refs to summary surfaces.",
+      pathRefsText: "app/src/App.tsx\ndocs/app-preview.md",
+      defaultChangeKind: "update",
+      estimatedLinesAdded: 10,
+      estimatedLinesRemoved: 2,
+      selectedIntent: "code_change",
+      runDraft
+    });
+    const serialized = JSON.stringify(view);
+
+    expect(view.status).toBe("warning");
+    expect(view.source).toBe("runtime_patch_creation_preview");
+    expect(view.fileCount).toBe(2);
+    expect(view.linesAdded).toBe(20);
+    expect(view.linesRemoved).toBe(4);
+    expect(view.pathSummaries).toEqual([
+      "update:app/src/App.tsx",
+      "update:docs/app-preview.md"
+    ]);
+    expect(view.requiresApproval).toBe(true);
+    expect(serialized).not.toContain("beforeContent");
+    expect(serialized).not.toContain("afterContent");
+    expect(serialized).not.toContain("rawDiff");
+  });
+
+  it("rejects raw fields and fake API key markers safely", () => {
+    const secret = "sk-test1234567890abcdef";
+    const rawFieldParsed = parsePatchProposalPathRefsInput(
+      JSON.stringify([
+        {
+          path: "app/src/App.tsx",
+          changeKind: "update",
+          beforeContent: "do not keep"
+        }
+      ])
+    );
+    const markerView = buildPatchProposalCreationPreviewView({
+      pathRefsText: `docs/file.md ${secret}`,
+      selectedIntent: "code_change"
+    });
+    const serialized = JSON.stringify(markerView);
+
+    expect(rawFieldParsed.ok).toBe(false);
+    if (!rawFieldParsed.ok) {
+      expect(rawFieldParsed.errorCode).toBe("PATCH_PREVIEW_RAW_FIELD_REJECTED");
+    }
+    expect(markerView.status).toBe("blocked");
+    expect(markerView.warningCodes).toContain("API_KEY_MARKER");
+    expect(serialized).not.toContain(secret);
+    expect(serialized).not.toContain("do not keep");
+  });
+
+  it("feeds Diff Surface and Approval Surface with summary-only refs", () => {
+    const view = buildPatchProposalCreationPreviewView({
+      titleDraft: "Delete obsolete doc",
+      changeDescriptionSummary: "Delete requires approval summary.",
+      pathRefsText: "README.md",
+      defaultChangeKind: "delete",
+      estimatedLinesAdded: 0,
+      estimatedLinesRemoved: 3,
+      selectedIntent: "code_change"
+    });
+    const surfaces = buildWorkbenchSurfacesView({
+      controlProjection: buildControlPlaneProjectionView(undefined),
+      patchProposalSummaries: patchProposalCreationSurfaceSummaries(view),
+      futureApprovalRefs: patchProposalCreationApprovalRefs(view)
+    });
+    const serialized = JSON.stringify(surfaces);
+
+    expect(view.requiresApproval).toBe(true);
+    expect(surfaces.diff.status).toBe("warning");
+    expect(surfaces.diff.items).toHaveLength(1);
+    expect(surfaces.diff.items[0]?.proposalId).toBe(view.proposalId);
+    expect(surfaces.diff.items[0]?.suggestedNextAction).toContain(
+      "Apply is disabled"
+    );
+    expect(surfaces.approval.status).toBe("pending");
+    expect(surfaces.approval.items[0]).toMatchObject({
+      kind: "patch",
+      status: "dry"
+    });
+    expect(serialized).not.toContain("raw source");
+    expect(serialized).not.toContain("raw diff");
+    expect(serialized).not.toContain("beforeContent");
+  });
+
+  it("places created patch proposals into context no_compress_zone and capability refs", () => {
+    const runDraft = buildRunDraftView({
+      objectiveDraft: "Prepare local patch creation preview.",
+      selectedIntent: "code_change",
+      acceptanceCriteriaDraft: "Patch proposal summary appears",
+      workspaceRoot: "D:\\workspace"
+    });
+    const proposalView = buildPatchProposalCreationPreviewView({
+      titleDraft: "Update route preview",
+      changeDescriptionSummary: "Summary-only patch proposal preview.",
+      pathRefsText: "app/src/agent-route-preview-view.ts",
+      defaultChangeKind: "update",
+      estimatedLinesAdded: 6,
+      estimatedLinesRemoved: 1,
+      selectedIntent: "code_change",
+      runDraft
+    });
+    const surfaces = buildWorkbenchSurfacesView({
+      controlProjection: buildControlPlaneProjectionView(undefined),
+      patchProposalSummaries:
+        patchProposalCreationSurfaceSummaries(proposalView)
+    });
+    const contextPreview = buildContextAssemblyPreviewView({
+      runDraft,
+      patchSurface: surfaces.diff
+    });
+    const agentRoutePreview = buildAgentRoutePreviewView({
+      runDraft,
+      patchSurface: surfaces.diff
+    });
+    const capabilityPlan = buildCapabilityPlanPreviewView({
+      runDraft,
+      agentRoutePreview,
+      patchSurface: surfaces.diff,
+      selectedIntent: "code_change"
+    });
+
+    expect(
+      contextPreview.segments.some(
+        (segment) =>
+          segment.sourceKind === "patch_proposal" &&
+          segment.placement === "no_compress_zone"
+      )
+    ).toBe(true);
+    expect(
+      capabilityPlan.items.find(
+        (item) => item.capabilityId === "native.patch.propose"
+      )?.inputSummary
+    ).toContain("patch-surface-summary");
+    expect(JSON.stringify(contextPreview)).not.toContain(
+      "Summary-only patch proposal preview."
+    );
+  });
+
+  it("keeps App UI preview-only without patch apply or execution handlers", async () => {
+    const appSource = await readFile(
+      path.join(appRoot, "src", "App.tsx"),
+      "utf8"
+    );
+    const adapterSource = await readFile(
+      path.join(appRoot, "src", "patch-proposal-creation-preview-view.ts"),
+      "utf8"
+    );
+    const desktopFlowSource = await readFile(
+      path.join(appRoot, "src", "desktop-flow.ts"),
+      "utf8"
+    );
+    const combined = `${appSource}\n${adapterSource}`;
+
+    expect(appSource).toContain("Patch Proposal Creation Preview");
+    expect(appSource).toContain("Preview only / no apply");
+    expect(appSource).toContain("handlePreviewPatchProposal");
+    expect(appSource).toContain("files are read or written");
+    expect(appSource).toContain("no patch is applied");
+    expect(combined).not.toContain("handleApplyPatch");
+    expect(combined).not.toContain("applyPatch");
+    expect(combined).not.toContain("approvePatch");
+    expect(combined).not.toContain("rejectPatch");
+    expect(combined).not.toContain("executePatch");
+    expect(adapterSource).not.toContain("safeInvoke");
+    expect(adapterSource).not.toContain("EventStore");
+    expect(adapterSource).not.toContain("readFile");
+    expect(adapterSource).not.toContain("writeFile");
+    expect(adapterSource).not.toContain("localStorage");
+    expect(adapterSource).not.toContain("sessionStorage");
+    expect(desktopFlowSource).not.toContain("patch_proposal_creation");
+  });
+});
+
 describe("app memory recall preview", () => {
   it("builds an empty recall preview until a run draft exists", () => {
     const view = buildMemoryRecallPreviewView({
@@ -4224,6 +4430,52 @@ describe("desktop source boundaries", () => {
     expect(combined).toContain("No DeepSeek call");
     expect(combined).toContain("No patch, Git, or shell execution");
     expect(combined).toContain("app-shell-capability-plan-preview-v0.2.md");
+  });
+
+  it("documents patch proposal creation preview as no-apply summary-only", async () => {
+    const docs = await Promise.all(
+      [
+        "app-shell-patch-proposal-creation-preview-v0.3.md",
+        "runtime-patch-proposal-creation-preview-v0.3.md",
+        "README.md"
+      ].map(async (file) => ({
+        file,
+        text: await readFile(path.join(repoRoot, "docs", file), "utf8")
+      }))
+    );
+    const combined = docs.map((doc) => doc.text).join("\n");
+
+    expect(combined).toContain(
+      "App Shell Patch Proposal Creation Preview v0.3"
+    );
+    expect(combined).toContain("Runtime Patch Proposal Creation Preview v0.3");
+    expect(combined).toContain("preview only");
+    expect(combined).toContain("No patch apply");
+    expect(combined).toContain("No filesystem read or write");
+    expect(combined).toContain(
+      "No raw source, raw diff, or patch body display"
+    );
+    expect(combined).toContain("summary-only path refs");
+    expect(combined).toContain("Patch and Diff Audit");
+    expect(combined).toContain("Diff Surface");
+    expect(combined).toContain("Approval Surface");
+    expect(combined).toContain("Context Assembly Preview");
+    expect(combined).toContain("Capability Plan Preview");
+    expect(combined).toContain("proposal validation");
+    expect(combined).toContain("explicit approval");
+    expect(combined).toContain("virtual apply");
+    expect(combined).toContain("real apply");
+    expect(combined).toContain("No Git or shell execution");
+    expect(combined).toContain("No DeepSeek call");
+    expect(combined).toContain("No EventStore write");
+    expect(combined).toContain("No native bridge");
+    expect(combined).toContain("No desktop action");
+    expect(combined).toContain(
+      "app-shell-patch-proposal-creation-preview-v0.3.md"
+    );
+    expect(combined).toContain(
+      "runtime-patch-proposal-creation-preview-v0.3.md"
+    );
   });
 
   it("documents app memory recall preview as volatile-tail preview only", async () => {

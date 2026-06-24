@@ -30,6 +30,8 @@ foundation.
 - [App Shell Context Assembly Preview v0.3](app-shell-context-assembly-preview-v0.3.md)
 - [Runtime Static Agent Route Preview v0.3](runtime-static-agent-route-preview-v0.3.md)
 - [Runtime Capability Plan Preview v0.3](runtime-capability-plan-preview-v0.3.md)
+- [App Shell Patch Proposal Creation Preview v0.3](app-shell-patch-proposal-creation-preview-v0.3.md)
+- [Runtime Patch Proposal Creation Preview v0.3](runtime-patch-proposal-creation-preview-v0.3.md)
 - [v0.3.0 Coding Workflow Preview RC release notes](release-notes-v0.3.0-coding-workflow-preview-rc.1.md)
 - [App Shell Coding Workflow manual QA](app-shell-coding-workflow-manual-qa.md)
 - [App Shell Coding Workflow RC checklist](app-shell-coding-workflow-rc-checklist.md)

@@ -257,6 +257,12 @@ textarea {
   margin-top: 12px;
 }
 
+.inlineFields {
+  display: grid;
+  gap: 12px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
 .timeline {
   border-left: 2px solid #d9e0dc;
   display: grid;

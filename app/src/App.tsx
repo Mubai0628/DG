@@ -68,6 +68,13 @@ import {
   type AppCapabilityPlanPreviewView
 } from "./capability-plan-preview-view.js";
 import {
+  buildPatchProposalCreationPreviewView,
+  patchProposalCreationApprovalRefs,
+  patchProposalCreationSurfaceSummaries,
+  type AppPatchProposalCreationPreviewView,
+  type PatchProposalCreationChangeKind
+} from "./patch-proposal-creation-preview-view.js";
+import {
   buildEventLogPanelModel,
   buildBridgeProposalPreviewModel,
   buildResultPanelModel,
@@ -187,6 +194,18 @@ export function DesktopShell(): JSX.Element {
   const [contextAssemblyPreview, setContextAssemblyPreview] = useState<
     AppContextAssemblyPreviewView | undefined
   >();
+  const [patchProposalTitleDraft, setPatchProposalTitleDraft] = useState("");
+  const [patchProposalDescriptionDraft, setPatchProposalDescriptionDraft] =
+    useState("");
+  const [patchProposalPathRefsDraft, setPatchProposalPathRefsDraft] =
+    useState("");
+  const [patchProposalChangeKind, setPatchProposalChangeKind] =
+    useState<PatchProposalCreationChangeKind>("update");
+  const [patchProposalLinesAdded, setPatchProposalLinesAdded] = useState("0");
+  const [patchProposalLinesRemoved, setPatchProposalLinesRemoved] =
+    useState("0");
+  const [patchProposalCreationPreview, setPatchProposalCreationPreview] =
+    useState<AppPatchProposalCreationPreviewView | undefined>();
   const loadedWorkspaceIndexRef =
     workspaceIndexBridge.status === "loaded" ||
     workspaceIndexBridge.status === "warning"
@@ -214,18 +233,6 @@ export function DesktopShell(): JSX.Element {
   const bridgePanel = useMemo<BridgeProposalPreviewModel>(
     () => buildBridgeProposalPreviewModel(bridgePreview),
     [bridgePreview]
-  );
-  const baseWorkbenchSurfaces = useMemo<AppWorkbenchSurfaceView>(
-    () =>
-      buildWorkbenchSurfacesView({
-        eventSummary,
-        controlProjection: controlPlanePanel,
-        conversionResult: result,
-        conversionError:
-          error === undefined ? undefined : { safeMessage: error },
-        preflight
-      }),
-    [controlPlanePanel, error, eventSummary, preflight, result]
   );
   const memoryInspector = useMemo<AppMemoryInspectorView>(
     () =>
@@ -259,6 +266,69 @@ export function DesktopShell(): JSX.Element {
     ]
   );
   const displayedRunDraft = runDraftPreview ?? runDraftCandidate;
+  const patchProposalCreationCandidate =
+    useMemo<AppPatchProposalCreationPreviewView>(
+      () =>
+        buildPatchProposalCreationPreviewView({
+          titleDraft: patchProposalTitleDraft,
+          changeDescriptionSummary: patchProposalDescriptionDraft,
+          pathRefsText: patchProposalPathRefsDraft,
+          defaultChangeKind: patchProposalChangeKind,
+          estimatedLinesAdded: Number(patchProposalLinesAdded),
+          estimatedLinesRemoved: Number(patchProposalLinesRemoved),
+          selectedIntent,
+          runDraft: displayedRunDraft,
+          workspaceIndexRef: loadedWorkspaceIndexRef
+        }),
+      [
+        displayedRunDraft,
+        loadedWorkspaceIndexRef,
+        patchProposalChangeKind,
+        patchProposalDescriptionDraft,
+        patchProposalLinesAdded,
+        patchProposalLinesRemoved,
+        patchProposalPathRefsDraft,
+        patchProposalTitleDraft,
+        selectedIntent
+      ]
+    );
+  const displayedPatchProposalCreation =
+    patchProposalCreationPreview ??
+    buildPatchProposalCreationPreviewView({
+      selectedIntent,
+      runDraft: displayedRunDraft,
+      workspaceIndexRef: loadedWorkspaceIndexRef
+    });
+  const patchProposalSurfaceSummaries = useMemo(
+    () => patchProposalCreationSurfaceSummaries(displayedPatchProposalCreation),
+    [displayedPatchProposalCreation]
+  );
+  const patchProposalApprovalRefs = useMemo(
+    () => patchProposalCreationApprovalRefs(displayedPatchProposalCreation),
+    [displayedPatchProposalCreation]
+  );
+  const patchWorkbenchSurfaces = useMemo<AppWorkbenchSurfaceView>(
+    () =>
+      buildWorkbenchSurfacesView({
+        eventSummary,
+        controlProjection: controlPlanePanel,
+        conversionResult: result,
+        conversionError:
+          error === undefined ? undefined : { safeMessage: error },
+        preflight,
+        patchProposalSummaries: patchProposalSurfaceSummaries,
+        futureApprovalRefs: patchProposalApprovalRefs
+      }),
+    [
+      controlPlanePanel,
+      error,
+      eventSummary,
+      patchProposalApprovalRefs,
+      patchProposalSurfaceSummaries,
+      preflight,
+      result
+    ]
+  );
   const memoryRecallPreview = useMemo<AppMemoryRecallPreviewView>(
     () =>
       buildMemoryRecallPreviewView({
@@ -286,17 +356,17 @@ export function DesktopShell(): JSX.Element {
         memoryInspector,
         memoryRecallPreview,
         workspaceIndexRef: loadedWorkspaceIndexRef,
-        patchSurface: baseWorkbenchSurfaces.diff,
+        patchSurface: patchWorkbenchSurfaces.diff,
         eventSummary
       }),
     [
-      baseWorkbenchSurfaces.diff,
       controlPlanePanel,
       displayedRunDraft,
       eventSummary,
       loadedWorkspaceIndexRef,
       memoryInspector,
-      memoryRecallPreview
+      memoryRecallPreview,
+      patchWorkbenchSurfaces.diff
     ]
   );
   const agentRoutePreview = useMemo<AppAgentRoutePreviewView>(
@@ -309,15 +379,15 @@ export function DesktopShell(): JSX.Element {
         workspaceRoot,
         contextCart,
         workspaceIndexRef: loadedWorkspaceIndexRef,
-        patchSurface: baseWorkbenchSurfaces.diff,
+        patchSurface: patchWorkbenchSurfaces.diff,
         memoryInspector
       }),
     [
-      baseWorkbenchSurfaces.diff,
       contextCart,
       displayedRunDraft,
       loadedWorkspaceIndexRef,
       memoryInspector,
+      patchWorkbenchSurfaces.diff,
       selectedIntent,
       workspaceRoot
     ]
@@ -328,7 +398,7 @@ export function DesktopShell(): JSX.Element {
         runDraft: displayedRunDraft,
         agentRoutePreview,
         contextCart,
-        patchSurface: baseWorkbenchSurfaces.diff,
+        patchSurface: patchWorkbenchSurfaces.diff,
         workspaceIndexRef: loadedWorkspaceIndexRef,
         memoryInspector,
         selectedIntent,
@@ -338,12 +408,12 @@ export function DesktopShell(): JSX.Element {
       }),
     [
       agentRoutePreview,
-      baseWorkbenchSurfaces.diff,
       contextCart,
       displayedRunDraft,
       error,
       loadedWorkspaceIndexRef,
       memoryInspector,
+      patchWorkbenchSurfaces.diff,
       result,
       selectedIntent
     ]
@@ -354,7 +424,7 @@ export function DesktopShell(): JSX.Element {
         runDraft: displayedRunDraft,
         workspaceIndexBridge: loadedWorkspaceIndexRef,
         memoryRecallPreview,
-        patchSurface: baseWorkbenchSurfaces.diff,
+        patchSurface: patchWorkbenchSurfaces.diff,
         agentRoutePreview,
         capabilityPlanPreview,
         controlProjection: controlPlanePanel,
@@ -363,14 +433,14 @@ export function DesktopShell(): JSX.Element {
       }),
     [
       agentRoutePreview,
-      baseWorkbenchSurfaces.diff,
       capabilityPlanPreview,
       contextAssemblyPreview,
       controlPlanePanel,
       displayedRunDraft,
       eventSummary,
       loadedWorkspaceIndexRef,
-      memoryRecallPreview
+      memoryRecallPreview,
+      patchWorkbenchSurfaces.diff
     ]
   );
   const displayedContextAssembly =
@@ -384,13 +454,19 @@ export function DesktopShell(): JSX.Element {
         conversionError:
           error === undefined ? undefined : { safeMessage: error },
         preflight,
-        futureApprovalRefs: capabilityPlanApprovalRefs(capabilityPlanPreview)
+        patchProposalSummaries: patchProposalSurfaceSummaries,
+        futureApprovalRefs: [
+          ...patchProposalApprovalRefs,
+          ...capabilityPlanApprovalRefs(capabilityPlanPreview)
+        ]
       }),
     [
       capabilityPlanPreview,
       controlPlanePanel,
       error,
       eventSummary,
+      patchProposalApprovalRefs,
+      patchProposalSurfaceSummaries,
       preflight,
       result
     ]
@@ -462,14 +538,27 @@ export function DesktopShell(): JSX.Element {
     setRunDraftEventStatus("idle");
     setRunDraftEventResult(undefined);
     setRunDraftEventError(undefined);
+    setPatchProposalCreationPreview(undefined);
     setContextAssemblyPreview(undefined);
   }, [acceptanceCriteriaDraft, objectiveDraft, selectedIntent, workspaceRoot]);
+
+  useEffect(() => {
+    setPatchProposalCreationPreview(undefined);
+    setContextAssemblyPreview(undefined);
+  }, [
+    patchProposalChangeKind,
+    patchProposalDescriptionDraft,
+    patchProposalLinesAdded,
+    patchProposalLinesRemoved,
+    patchProposalPathRefsDraft,
+    patchProposalTitleDraft
+  ]);
 
   useEffect(() => {
     setContextAssemblyPreview(undefined);
   }, [
     agentRoutePreview.routeId,
-    baseWorkbenchSurfaces.diff.items.length,
+    patchWorkbenchSurfaces.diff.items.length,
     capabilityPlanPreview.itemCount,
     displayedRunDraft.draftId,
     eventSummary?.eventCount,
@@ -485,6 +574,10 @@ export function DesktopShell(): JSX.Element {
 
   function handlePreviewContextAssembly(): void {
     setContextAssemblyPreview(contextAssemblyCandidate);
+  }
+
+  function handlePreviewPatchProposal(): void {
+    setPatchProposalCreationPreview(patchProposalCreationCandidate);
   }
 
   async function handleRecordRunDraftEvent(): Promise<void> {
@@ -1360,6 +1453,214 @@ export function DesktopShell(): JSX.Element {
             ) : null}
 
             <p className="fieldHelp">{workspaceIndexBridge.nextAction}</p>
+          </section>
+
+          <section
+            className="eventPanel"
+            aria-label="Patch Proposal Creation Preview"
+          >
+            <div className="panelHeader">
+              <h2>Patch Proposal Creation Preview</h2>
+              <span className="muted">Preview only / no apply</span>
+            </div>
+            <p className="fieldHelp">
+              Create a local patch proposal summary from safe path refs. No
+              files are read or written, and no patch is applied.
+            </p>
+
+            <label>
+              <span>Proposal title</span>
+              <input
+                value={patchProposalTitleDraft}
+                onChange={(event) => {
+                  setPatchProposalTitleDraft(event.target.value);
+                }}
+                placeholder="Update summary-only preview wiring"
+              />
+            </label>
+
+            <label>
+              <span>Change description summary</span>
+              <textarea
+                className="compactTextarea"
+                value={patchProposalDescriptionDraft}
+                onChange={(event) => {
+                  setPatchProposalDescriptionDraft(event.target.value);
+                }}
+                placeholder="Describe the intended change without source code or diff text"
+              />
+            </label>
+
+            <label>
+              <span>Safe path refs</span>
+              <textarea
+                className="compactTextarea"
+                value={patchProposalPathRefsDraft}
+                onChange={(event) => {
+                  setPatchProposalPathRefsDraft(event.target.value);
+                }}
+                placeholder={"app/src/example.tsx\ndocs/example.md"}
+                spellCheck={false}
+              />
+              <p className="fieldHelp">
+                One workspace-relative path per line, or a small summary-only
+                JSON array. Raw source, raw diff, and patch body fields are
+                rejected.
+              </p>
+            </label>
+
+            <div className="inlineFields">
+              <label>
+                <span>Change kind</span>
+                <select
+                  value={patchProposalChangeKind}
+                  onChange={(event) => {
+                    setPatchProposalChangeKind(
+                      event.target.value as PatchProposalCreationChangeKind
+                    );
+                  }}
+                >
+                  <option value="update">update</option>
+                  <option value="create">create</option>
+                  <option value="delete">delete</option>
+                  <option value="documentation">documentation</option>
+                  <option value="test">test</option>
+                </select>
+              </label>
+              <label>
+                <span>Estimated lines added</span>
+                <input
+                  type="number"
+                  min="0"
+                  value={patchProposalLinesAdded}
+                  onChange={(event) => {
+                    setPatchProposalLinesAdded(event.target.value);
+                  }}
+                />
+              </label>
+              <label>
+                <span>Estimated lines removed</span>
+                <input
+                  type="number"
+                  min="0"
+                  value={patchProposalLinesRemoved}
+                  onChange={(event) => {
+                    setPatchProposalLinesRemoved(event.target.value);
+                  }}
+                />
+              </label>
+            </div>
+
+            <div className="buttonRow">
+              <button
+                type="button"
+                className="secondary"
+                onClick={(event) => {
+                  event.preventDefault();
+                  event.stopPropagation();
+                  handlePreviewPatchProposal();
+                }}
+              >
+                Preview Patch Proposal
+              </button>
+            </div>
+
+            {displayedPatchProposalCreation.status === "empty" ? (
+              <p className="empty">
+                No local patch proposal preview yet. Enter safe path refs to
+                preview summary-only counts before any apply lane exists.
+              </p>
+            ) : null}
+
+            {displayedPatchProposalCreation.status === "blocked" ? (
+              <div className="errorBox">
+                <strong>Patch proposal preview blocked</strong>
+                <p>{displayedPatchProposalCreation.nextAction}</p>
+              </div>
+            ) : null}
+
+            <dl className="summaryGrid compact">
+              <div>
+                <dt>Status</dt>
+                <dd>{displayedPatchProposalCreation.status}</dd>
+              </div>
+              <div>
+                <dt>Proposal</dt>
+                <dd>{displayedPatchProposalCreation.proposalId}</dd>
+              </div>
+              <div>
+                <dt>Files</dt>
+                <dd>{displayedPatchProposalCreation.fileCount}</dd>
+              </div>
+              <div>
+                <dt>Created / updated / deleted</dt>
+                <dd>
+                  {displayedPatchProposalCreation.filesCreated} /{" "}
+                  {displayedPatchProposalCreation.filesUpdated} /{" "}
+                  {displayedPatchProposalCreation.filesDeleted}
+                </dd>
+              </div>
+              <div>
+                <dt>Lines + / -</dt>
+                <dd>
+                  {displayedPatchProposalCreation.linesAdded} /{" "}
+                  {displayedPatchProposalCreation.linesRemoved}
+                </dd>
+              </div>
+              <div>
+                <dt>Risk</dt>
+                <dd>{displayedPatchProposalCreation.riskLevel}</dd>
+              </div>
+              <div>
+                <dt>Requires approval</dt>
+                <dd>
+                  {displayedPatchProposalCreation.requiresApproval
+                    ? "yes"
+                    : "no"}
+                </dd>
+              </div>
+              <div>
+                <dt>Hash</dt>
+                <dd>{displayedPatchProposalCreation.proposalHash}</dd>
+              </div>
+            </dl>
+
+            {displayedPatchProposalCreation.items.length > 0 ? (
+              <ol className="timeline">
+                {displayedPatchProposalCreation.items.map((item) => (
+                  <li key={item.itemId}>
+                    <span className="timelineMeta">
+                      {item.changeKind} · {item.language} ·{" "}
+                      {item.requiresApproval
+                        ? "approval summary required"
+                        : "summary only"}
+                    </span>
+                    <span>
+                      {item.path} · +{item.estimatedLinesAdded} / -
+                      {item.estimatedLinesRemoved}
+                    </span>
+                    {item.warningCodes.length > 0 ? (
+                      <span className="timelineMeta">
+                        Warnings: {item.warningCodes.join(", ")}
+                      </span>
+                    ) : null}
+                  </li>
+                ))}
+              </ol>
+            ) : null}
+
+            {displayedPatchProposalCreation.warnings.length > 0 ? (
+              <p className="muted">
+                warnings{" "}
+                {displayedPatchProposalCreation.warnings
+                  .map((warning) => warning.code)
+                  .join(", ")}
+              </p>
+            ) : null}
+
+            <p className="fieldHelp">
+              {displayedPatchProposalCreation.nextAction}
+            </p>
           </section>
 
           <section className="eventPanel" aria-label="Agent Route Preview">

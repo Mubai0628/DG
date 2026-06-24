@@ -14,9 +14,9 @@ Current scope:
   planning-only summaries: Chat / Run Canvas, local Run Draft Preview, Control
   Plane Projection, Context Cart, Agent Route Preview backed by the runtime
   static router helper, Capability Plan Preview, Patch Proposal / Diff,
-  Approval / Diff / Audit, Memory Inspector, Memory Recall Preview, Workspace
-  Index summary bridge, Context Assembly Preview, and disabled Bridge Proposal
-  Preview
+  Patch Proposal Creation Preview, Approval / Diff / Audit, Memory Inspector,
+  Memory Recall Preview, Workspace Index summary bridge, Context Assembly
+  Preview, and disabled Bridge Proposal Preview
 - show the Workspace Index summary bridge as a read-only summary JSON preview
 - optionally record one local summary-only Run Draft Event to
   `workspace/.deepseek-workbench/events.jsonl`; this is not run creation or
@@ -32,6 +32,8 @@ Current limitations:
 - no App Shell workspace filesystem crawling; Workspace Index accepts
   summary-only JSON previews
 - no App Shell prompt assembly; Context Assembly Preview is local summary-only
+- no App Shell patch apply; Patch Proposal Creation Preview is local
+  summary-only and never reads or writes files
 - no real DeepSeek API call from the desktop shell
 - no real chat, run creation, approval execution, patch apply, Git execution,
   shell execution, capability invocation, PermissionLease issuance, memory
