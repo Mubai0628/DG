@@ -476,6 +476,9 @@ function buildSegments(
     const hasVirtualApplyRef = input.patchSurface.items.some((item) =>
       item.status.startsWith("virtual_apply_")
     );
+    const hasRollbackCheckpointRef = input.patchSurface.items.some((item) =>
+      item.status.startsWith("rollback_checkpoint_")
+    );
     const hasApprovalDraftRef = input.patchSurface.items.some((item) =>
       item.status.startsWith("approval_draft_")
     );
@@ -485,28 +488,32 @@ function buildSegments(
     segments.push(
       segment({
         layer: "no_compress_zone",
-        title: hasVirtualApplyRef
-          ? "Patch virtual apply preview summaries"
-          : hasApprovalDraftRef
-            ? "Patch approval draft summaries"
-            : hasDiffAuditRef
-              ? "Patch diff audit preview summaries"
-              : hasValidationRef
-                ? "Patch proposal validation summaries"
-                : "Patch proposal summaries",
+        title: hasRollbackCheckpointRef
+          ? "Patch rollback checkpoint preview summaries"
+          : hasVirtualApplyRef
+            ? "Patch virtual apply preview summaries"
+            : hasApprovalDraftRef
+              ? "Patch approval draft summaries"
+              : hasDiffAuditRef
+                ? "Patch diff audit preview summaries"
+                : hasValidationRef
+                  ? "Patch proposal validation summaries"
+                  : "Patch proposal summaries",
         sourceKind:
-          hasVirtualApplyRef || hasApprovalDraftRef
+          hasRollbackCheckpointRef || hasVirtualApplyRef || hasApprovalDraftRef
             ? "approval_ref"
             : "patch_proposal",
-        sourceRefId: hasVirtualApplyRef
-          ? "patch-virtual-apply-preview-surface"
-          : hasApprovalDraftRef
-            ? "patch-approval-draft-preview-surface"
-            : hasDiffAuditRef
-              ? "patch-diff-audit-preview-surface"
-              : hasValidationRef
-                ? "patch-validation-preview-surface"
-                : "patch-proposal-surface",
+        sourceRefId: hasRollbackCheckpointRef
+          ? "patch-rollback-checkpoint-preview-surface"
+          : hasVirtualApplyRef
+            ? "patch-virtual-apply-preview-surface"
+            : hasApprovalDraftRef
+              ? "patch-approval-draft-preview-surface"
+              : hasDiffAuditRef
+                ? "patch-diff-audit-preview-surface"
+                : hasValidationRef
+                  ? "patch-validation-preview-surface"
+                  : "patch-proposal-surface",
         summary: [
           `items:${patchItemCount(input.patchSurface)}`,
           `files:${input.patchSurface.fileCount}`,
@@ -515,6 +522,9 @@ function buildSegments(
         ].join(" | "),
         warningCodes: [
           ...input.patchSurface.warnings,
+          ...(hasRollbackCheckpointRef
+            ? ["PATCH_ROLLBACK_CHECKPOINT_NO_COMPRESS"]
+            : []),
           ...(hasVirtualApplyRef ? ["PATCH_VIRTUAL_APPLY_NO_COMPRESS"] : []),
           ...(hasApprovalDraftRef ? ["PATCH_APPROVAL_DRAFT_NO_COMPRESS"] : []),
           ...(hasDiffAuditRef ? ["PATCH_DIFF_AUDIT_NO_COMPRESS"] : []),

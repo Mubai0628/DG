@@ -9,6 +9,7 @@ export * from "./integrations.js";
 export * from "./path-guard.js";
 export * from "./proposal.js";
 export * from "./rollback.js";
+export * from "./rollback-checkpoint-preview.js";
 export * from "./types.js";
 export * from "./validation-preview.js";
 export * from "./virtual-apply-preview.js";

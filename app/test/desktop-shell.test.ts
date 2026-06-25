@@ -67,6 +67,12 @@ import {
   patchVirtualApplySurfaceSummaries,
   patchVirtualApplyWarningCodes
 } from "../src/patch-virtual-apply-preview-view.js";
+import {
+  buildPatchRollbackCheckpointPreviewView,
+  patchRollbackCheckpointApprovalRefs,
+  patchRollbackCheckpointSurfaceSummaries,
+  patchRollbackCheckpointWarningCodes
+} from "../src/patch-rollback-checkpoint-preview-view.js";
 import { buildCapabilityPlanPreview } from "../../runtime/src/capabilities/plan-preview.js";
 import { buildMemoryRecallPreviewView } from "../src/memory-recall-preview-view.js";
 import {
@@ -4371,6 +4377,309 @@ describe("app patch virtual apply preview", () => {
   });
 });
 
+describe("app patch rollback checkpoint preview", () => {
+  function safeWorkspaceIndex() {
+    return buildWorkspaceIndexBridgeView({
+      source: "synthetic_summary",
+      summary: {
+        workspaceIndexId: "workspace-index-rollback",
+        indexHash: "workspacehashrollback",
+        directoryCount: 1,
+        fileSummaries: [
+          {
+            path: "examples/summary.txt",
+            language: "unknown",
+            extension: "txt",
+            sizeBytes: 120,
+            lineCount: 12,
+            symbolCount: 0,
+            hash: "abc12345",
+            indexed: true
+          }
+        ],
+        languageSummary: [
+          {
+            language: "unknown",
+            fileCount: 1,
+            indexedFileCount: 1,
+            lineCount: 12,
+            sizeBytes: 120
+          }
+        ]
+      }
+    });
+  }
+
+  function safeRollbackChain() {
+    const proposalView = buildPatchProposalCreationPreviewView({
+      titleDraft: "Update rollback checkpoint summary",
+      changeDescriptionSummary: "Summary-only rollback checkpoint preview.",
+      pathRefsText: "examples/summary.txt",
+      defaultChangeKind: "update",
+      estimatedLinesAdded: 8,
+      estimatedLinesRemoved: 1,
+      selectedIntent: "documentation"
+    });
+    const validationView = buildPatchProposalValidationPreviewView({
+      proposalPreview: proposalView
+    });
+    const auditView = buildPatchDiffAuditPreviewView({
+      proposalPreview: proposalView,
+      validationPreview: validationView
+    });
+    const approvalView = buildPatchApprovalDraftView({
+      proposalPreview: proposalView,
+      validationPreview: validationView,
+      diffAuditPreview: auditView
+    });
+    const workspaceIndex = safeWorkspaceIndex();
+    const virtualView = buildPatchVirtualApplyPreviewView({
+      proposalPreview: proposalView,
+      validationPreview: validationView,
+      diffAuditPreview: auditView,
+      approvalDraft: approvalView,
+      workspaceIndexRef: workspaceIndex
+    });
+    const rollbackView = buildPatchRollbackCheckpointPreviewView({
+      virtualApplyPreview: virtualView,
+      proposalPreview: proposalView,
+      validationPreview: validationView,
+      diffAuditPreview: auditView,
+      approvalDraft: approvalView,
+      workspaceIndexRef: workspaceIndex
+    });
+    return {
+      proposalView,
+      validationView,
+      auditView,
+      approvalView,
+      workspaceIndex,
+      virtualView,
+      rollbackView
+    };
+  }
+
+  it("builds an empty rollback checkpoint preview until virtual apply summary exists", () => {
+    const view = buildPatchRollbackCheckpointPreviewView();
+
+    expect(view.status).toBe("empty");
+    expect(view.source).toBe("empty");
+    expect(view.previewOnly).toBe(true);
+    expect(view.metadataOnly).toBe(true);
+    expect(view.checkpointFileWriteEnabled).toBe(false);
+    expect(view.rollbackEnabled).toBe(false);
+    expect(view.applyEnabled).toBe(false);
+    expect(view.fileReadEnabled).toBe(false);
+    expect(view.fileWriteEnabled).toBe(false);
+    expect(view.eventWritesEnabled).toBe(false);
+    expect(view.gitExecutionEnabled).toBe(false);
+    expect(view.shellExecutionEnabled).toBe(false);
+  });
+
+  it("generates a metadata-only rollback checkpoint preview from safe virtual apply summaries", () => {
+    const { rollbackView, virtualView } = safeRollbackChain();
+    const serialized = JSON.stringify(rollbackView);
+
+    expect(rollbackView.source).toBe(
+      "runtime_patch_rollback_checkpoint_preview"
+    );
+    expect(rollbackView.virtualApplyId).toBe(virtualView.virtualApplyId);
+    expect(rollbackView.status).not.toBe("empty");
+    expect(rollbackView.affectedFileCount).toBe(1);
+    expect(rollbackView.restoreScope.metadataOnly).toBe(true);
+    expect(rollbackView.restoreScope.filesToRestore).toEqual([
+      "examples/summary.txt"
+    ]);
+    expect(rollbackView.readiness.canProceedToReplayProjectionPreview).toBe(
+      true
+    );
+    expect(rollbackView.readiness.canRollbackReal).toBe(false);
+    expect(rollbackView.readiness.rollbackExecuted).toBe(false);
+    expect(rollbackView.readiness.canWriteFilesystem).toBe(false);
+    expect(rollbackView.readiness.canApplyPatch).toBe(false);
+    expect(rollbackView.readiness.canExecuteGit).toBe(false);
+    expect(rollbackView.readiness.canExecuteShell).toBe(false);
+    expect(serialized).not.toContain("beforeContent");
+    expect(serialized).not.toContain("afterContent");
+    expect(serialized).not.toContain("rawDiff");
+    expect(serialized).not.toContain("function App");
+  });
+
+  it("keeps virtual apply blockers from becoming ready rollback checkpoints", () => {
+    const proposalView = buildPatchProposalCreationPreviewView({
+      titleDraft: "Unsafe rollback checkpoint proposal",
+      pathRefsText: ".env.local",
+      selectedIntent: "code_change"
+    });
+    const validationView = buildPatchProposalValidationPreviewView({
+      proposalPreview: proposalView
+    });
+    const auditView = buildPatchDiffAuditPreviewView({
+      proposalPreview: proposalView,
+      validationPreview: validationView
+    });
+    const approvalView = buildPatchApprovalDraftView({
+      proposalPreview: proposalView,
+      validationPreview: validationView,
+      diffAuditPreview: auditView
+    });
+    const virtualView = buildPatchVirtualApplyPreviewView({
+      proposalPreview: proposalView,
+      validationPreview: validationView,
+      diffAuditPreview: auditView,
+      approvalDraft: approvalView,
+      workspaceIndexRef: safeWorkspaceIndex()
+    });
+    const rollbackView = buildPatchRollbackCheckpointPreviewView({
+      virtualApplyPreview: virtualView,
+      approvalDraft: approvalView,
+      workspaceIndexRef: safeWorkspaceIndex()
+    });
+
+    expect(virtualView.status).toBe("blocked");
+    expect(rollbackView.status).toBe("blocked");
+    expect(rollbackView.warningCodes).toEqual(
+      expect.arrayContaining([
+        "PATCH_ROLLBACK_VIRTUAL_APPLY_BLOCKED",
+        "PATCH_ROLLBACK_VIRTUAL_APPLY_NOT_READY"
+      ])
+    );
+    expect(rollbackView.readiness.canProceedToReplayProjectionPreview).toBe(
+      false
+    );
+  });
+
+  it("rejects or withholds unsafe raw fields and fake API key markers safely", () => {
+    const secret = "sk-test1234567890abcdef";
+    const { virtualView } = safeRollbackChain();
+    const maliciousVirtual = {
+      ...virtualView,
+      virtualApplyId: secret,
+      beforeContent: "do not keep"
+    } as typeof virtualView & Record<string, unknown>;
+    const rollbackView = buildPatchRollbackCheckpointPreviewView({
+      virtualApplyPreview: maliciousVirtual,
+      workspaceIndexRef: safeWorkspaceIndex()
+    });
+    const serialized = JSON.stringify(rollbackView);
+
+    expect(rollbackView.status).toBe("blocked");
+    expect(rollbackView.warningCodes).toEqual(
+      expect.arrayContaining(["API_KEY_MARKER"])
+    );
+    expect(serialized).not.toContain(secret);
+    expect(serialized).not.toContain("do not keep");
+    expect(serialized).not.toContain("beforeContent");
+  });
+
+  it("feeds Diff, Approval, Audit, and Context Assembly with rollback checkpoint summary refs", () => {
+    const runDraft = buildRunDraftView({
+      objectiveDraft: "Preview rollback checkpoint for a local patch proposal.",
+      selectedIntent: "documentation",
+      acceptanceCriteriaDraft: "Rollback checkpoint summary appears",
+      workspaceRoot: "D:\\workspace"
+    });
+    const {
+      proposalView,
+      validationView,
+      auditView,
+      approvalView,
+      virtualView,
+      rollbackView
+    } = safeRollbackChain();
+    const surfaces = buildWorkbenchSurfacesView({
+      controlProjection: buildControlPlaneProjectionView(undefined),
+      patchProposalSummaries: [
+        ...(patchProposalCreationSurfaceSummaries(proposalView) ?? []),
+        ...(patchProposalValidationSurfaceSummaries(validationView) ?? []),
+        ...(patchDiffAuditSurfaceSummaries(auditView) ?? []),
+        ...(patchApprovalDraftSurfaceSummaries(approvalView) ?? []),
+        ...(patchVirtualApplySurfaceSummaries(virtualView) ?? []),
+        ...(patchRollbackCheckpointSurfaceSummaries(rollbackView) ?? [])
+      ],
+      futureApprovalRefs: [
+        ...patchProposalCreationApprovalRefs(proposalView),
+        ...patchProposalValidationApprovalRefs(validationView),
+        ...patchDiffAuditApprovalRefs(auditView),
+        ...patchApprovalDraftApprovalRefs(approvalView),
+        ...patchVirtualApplyApprovalRefs(virtualView),
+        ...patchRollbackCheckpointApprovalRefs(rollbackView)
+      ],
+      futureAuditWarningCodes: [
+        ...patchProposalValidationAuditWarningCodes(validationView),
+        ...patchDiffAuditWarningCodes(auditView),
+        ...patchApprovalDraftWarningCodes(approvalView),
+        ...patchVirtualApplyWarningCodes(virtualView),
+        ...patchRollbackCheckpointWarningCodes(rollbackView)
+      ]
+    });
+    const contextPreview = buildContextAssemblyPreviewView({
+      runDraft,
+      patchSurface: surfaces.diff
+    });
+    const serialized = JSON.stringify({ surfaces, contextPreview });
+
+    expect(surfaces.diff.items).toHaveLength(6);
+    expect(
+      surfaces.diff.items.some((item) =>
+        item.status.startsWith("rollback_checkpoint_")
+      )
+    ).toBe(true);
+    expect(surfaces.audit.warningCodes).toEqual(
+      expect.arrayContaining([
+        `PATCH_ROLLBACK_FINDINGS_${rollbackView.findingCount}`,
+        `PATCH_ROLLBACK_STATUS_${rollbackView.status.toUpperCase()}`
+      ])
+    );
+    expect(
+      contextPreview.segments.some(
+        (segment) =>
+          segment.sourceRefId === "patch-rollback-checkpoint-preview-surface" &&
+          segment.placement === "no_compress_zone"
+      )
+    ).toBe(true);
+    expect(serialized).not.toContain("raw source");
+    expect(serialized).not.toContain("raw diff");
+    expect(serialized).not.toContain("beforeContent");
+  });
+
+  it("keeps App UI checkpoint-only without Tauri, EventStore, fs, rollback, apply, or execution handlers", async () => {
+    const appSource = await readFile(
+      path.join(appRoot, "src", "App.tsx"),
+      "utf8"
+    );
+    const adapterSource = await readFile(
+      path.join(appRoot, "src", "patch-rollback-checkpoint-preview-view.ts"),
+      "utf8"
+    );
+    const desktopFlowSource = await readFile(
+      path.join(appRoot, "src", "desktop-flow.ts"),
+      "utf8"
+    );
+    const combined = `${appSource}\n${adapterSource}`;
+
+    expect(appSource).toContain("Patch Rollback Checkpoint Preview");
+    expect(appSource).toContain("Checkpoint preview / no real rollback");
+    expect(appSource).toContain("handlePreviewRollbackCheckpoint");
+    expect(appSource).toContain("No checkpoint file is written");
+    expect(combined).not.toContain("handleApplyPatch");
+    expect(combined).not.toContain("handleRollback");
+    expect(combined).not.toContain("handleCommit");
+    expect(combined).not.toContain("approvePatch");
+    expect(combined).not.toContain("rejectPatch");
+    expect(combined).not.toContain("executePatch");
+    expect(adapterSource).not.toContain("safeInvoke");
+    expect(adapterSource).not.toContain("EventStore");
+    expect(adapterSource).not.toContain("readFile");
+    expect(adapterSource).not.toContain("writeFile");
+    expect(adapterSource).not.toContain("localStorage");
+    expect(adapterSource).not.toContain("sessionStorage");
+    expect(desktopFlowSource).not.toContain(
+      "patch_rollback_checkpoint_preview"
+    );
+  });
+});
+
 describe("app memory recall preview", () => {
   it("builds an empty recall preview until a run draft exists", () => {
     const view = buildMemoryRecallPreviewView({
@@ -5668,6 +5977,41 @@ describe("desktop source boundaries", () => {
     expect(combined).toContain("no_compress_zone");
     expect(combined).toContain("runtime-patch-virtual-apply-preview-v0.4.md");
     expect(combined).toContain("app-shell-patch-virtual-apply-preview-v0.4.md");
+  });
+
+  it("documents app and runtime patch rollback checkpoint preview as metadata-only and no-rollback", async () => {
+    const docs = await Promise.all(
+      [
+        "runtime-patch-rollback-checkpoint-preview-v0.4.md",
+        "app-shell-patch-rollback-checkpoint-preview-v0.4.md",
+        "README.md"
+      ].map(async (file) => ({
+        file,
+        text: await readFile(path.join(repoRoot, "docs", file), "utf8")
+      }))
+    );
+    const appReadme = await readFile(
+      path.join(repoRoot, "app", "README.md"),
+      "utf8"
+    );
+    const combined = `${docs.map((doc) => doc.text).join("\n")}\n${appReadme}`;
+
+    expect(combined).toContain("Patch Rollback Checkpoint Preview");
+    expect(combined).toContain("metadata-only");
+    expect(combined).toMatch(/no checkpoint file write/i);
+    expect(combined).toMatch(/no filesystem read/i);
+    expect(combined).toMatch(/no filesystem write/i);
+    expect(combined).toMatch(/no real rollback/i);
+    expect(combined).toMatch(/no patch apply/i);
+    expect(combined).toContain("raw source");
+    expect(combined).toContain("raw diff");
+    expect(combined).toContain("no_compress_zone");
+    expect(combined).toContain(
+      "runtime-patch-rollback-checkpoint-preview-v0.4.md"
+    );
+    expect(combined).toContain(
+      "app-shell-patch-rollback-checkpoint-preview-v0.4.md"
+    );
   });
 
   it("documents app and runtime memory recall preview as volatile-tail preview only", async () => {

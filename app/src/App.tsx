@@ -103,6 +103,13 @@ import {
   type AppPatchVirtualApplyPreviewView
 } from "./patch-virtual-apply-preview-view.js";
 import {
+  buildPatchRollbackCheckpointPreviewView,
+  patchRollbackCheckpointApprovalRefs,
+  patchRollbackCheckpointSurfaceSummaries,
+  patchRollbackCheckpointWarningCodes,
+  type AppPatchRollbackCheckpointPreviewView
+} from "./patch-rollback-checkpoint-preview-view.js";
+import {
   buildEventLogPanelModel,
   buildBridgeProposalPreviewModel,
   buildResultPanelModel,
@@ -245,6 +252,8 @@ export function DesktopShell(): JSX.Element {
   const [patchVirtualApplyPreview, setPatchVirtualApplyPreview] = useState<
     AppPatchVirtualApplyPreviewView | undefined
   >();
+  const [patchRollbackCheckpointPreview, setPatchRollbackCheckpointPreview] =
+    useState<AppPatchRollbackCheckpointPreviewView | undefined>();
   const loadedWorkspaceIndexRef =
     workspaceIndexBridge.status === "loaded" ||
     workspaceIndexBridge.status === "warning"
@@ -348,10 +357,14 @@ export function DesktopShell(): JSX.Element {
       ) ?? []),
       ...(patchDiffAuditSurfaceSummaries(patchDiffAuditPreview) ?? []),
       ...(patchApprovalDraftSurfaceSummaries(patchApprovalDraftPreview) ?? []),
-      ...(patchVirtualApplySurfaceSummaries(patchVirtualApplyPreview) ?? [])
+      ...(patchVirtualApplySurfaceSummaries(patchVirtualApplyPreview) ?? []),
+      ...(patchRollbackCheckpointSurfaceSummaries(
+        patchRollbackCheckpointPreview
+      ) ?? [])
     ],
     [
       patchApprovalDraftPreview,
+      patchRollbackCheckpointPreview,
       patchVirtualApplyPreview,
       displayedPatchProposalCreation,
       patchDiffAuditPreview,
@@ -364,10 +377,12 @@ export function DesktopShell(): JSX.Element {
       ...patchProposalValidationApprovalRefs(patchProposalValidationPreview),
       ...patchDiffAuditApprovalRefs(patchDiffAuditPreview),
       ...patchApprovalDraftApprovalRefs(patchApprovalDraftPreview),
-      ...patchVirtualApplyApprovalRefs(patchVirtualApplyPreview)
+      ...patchVirtualApplyApprovalRefs(patchVirtualApplyPreview),
+      ...patchRollbackCheckpointApprovalRefs(patchRollbackCheckpointPreview)
     ],
     [
       patchApprovalDraftPreview,
+      patchRollbackCheckpointPreview,
       patchVirtualApplyPreview,
       displayedPatchProposalCreation,
       patchDiffAuditPreview,
@@ -381,10 +396,12 @@ export function DesktopShell(): JSX.Element {
       ),
       ...patchDiffAuditWarningCodes(patchDiffAuditPreview),
       ...patchApprovalDraftWarningCodes(patchApprovalDraftPreview),
-      ...patchVirtualApplyWarningCodes(patchVirtualApplyPreview)
+      ...patchVirtualApplyWarningCodes(patchVirtualApplyPreview),
+      ...patchRollbackCheckpointWarningCodes(patchRollbackCheckpointPreview)
     ],
     [
       patchApprovalDraftPreview,
+      patchRollbackCheckpointPreview,
       patchVirtualApplyPreview,
       patchDiffAuditPreview,
       patchProposalValidationPreview
@@ -580,6 +597,34 @@ export function DesktopShell(): JSX.Element {
   );
   const displayedPatchVirtualApply =
     patchVirtualApplyPreview ?? buildPatchVirtualApplyPreviewView();
+  const patchRollbackCheckpointCandidate =
+    useMemo<AppPatchRollbackCheckpointPreviewView>(
+      () =>
+        buildPatchRollbackCheckpointPreviewView({
+          virtualApplyPreview: displayedPatchVirtualApply,
+          proposalPreview: displayedPatchProposalCreation,
+          validationPreview: displayedPatchProposalValidation,
+          diffAuditPreview: displayedPatchDiffAudit,
+          approvalDraft: displayedPatchApprovalDraft,
+          workspaceIndexRef: loadedWorkspaceIndexRef,
+          contextAssemblyPreview,
+          capabilityPlanPreview,
+          agentRoutePreview
+        }),
+      [
+        agentRoutePreview,
+        capabilityPlanPreview,
+        contextAssemblyPreview,
+        displayedPatchApprovalDraft,
+        displayedPatchDiffAudit,
+        displayedPatchProposalCreation,
+        displayedPatchProposalValidation,
+        displayedPatchVirtualApply,
+        loadedWorkspaceIndexRef
+      ]
+    );
+  const displayedPatchRollbackCheckpoint =
+    patchRollbackCheckpointPreview ?? buildPatchRollbackCheckpointPreviewView();
   const contextAssemblyCandidate = useMemo<AppContextAssemblyPreviewView>(
     () =>
       buildContextAssemblyPreviewView({
@@ -707,6 +752,7 @@ export function DesktopShell(): JSX.Element {
     setPatchDiffAuditPreview(undefined);
     setPatchApprovalDraftPreview(undefined);
     setPatchVirtualApplyPreview(undefined);
+    setPatchRollbackCheckpointPreview(undefined);
     setContextAssemblyPreview(undefined);
   }, [acceptanceCriteriaDraft, objectiveDraft, selectedIntent, workspaceRoot]);
 
@@ -716,6 +762,7 @@ export function DesktopShell(): JSX.Element {
     setPatchDiffAuditPreview(undefined);
     setPatchApprovalDraftPreview(undefined);
     setPatchVirtualApplyPreview(undefined);
+    setPatchRollbackCheckpointPreview(undefined);
     setContextAssemblyPreview(undefined);
   }, [
     patchProposalChangeKind,
@@ -732,6 +779,7 @@ export function DesktopShell(): JSX.Element {
     agentRoutePreview.routeId,
     patchApprovalDraftPreview?.approvalDraftId,
     patchDiffAuditPreview?.auditId,
+    patchRollbackCheckpointPreview?.checkpointPreviewId,
     patchVirtualApplyPreview?.virtualApplyId,
     patchWorkbenchSurfaces.diff.items.length,
     capabilityPlanPreview.itemCount,
@@ -757,6 +805,7 @@ export function DesktopShell(): JSX.Element {
     setPatchDiffAuditPreview(undefined);
     setPatchApprovalDraftPreview(undefined);
     setPatchVirtualApplyPreview(undefined);
+    setPatchRollbackCheckpointPreview(undefined);
   }
 
   function handleValidatePatchProposal(): void {
@@ -764,21 +813,29 @@ export function DesktopShell(): JSX.Element {
     setPatchDiffAuditPreview(undefined);
     setPatchApprovalDraftPreview(undefined);
     setPatchVirtualApplyPreview(undefined);
+    setPatchRollbackCheckpointPreview(undefined);
   }
 
   function handlePreviewDiffAudit(): void {
     setPatchDiffAuditPreview(patchDiffAuditCandidate);
     setPatchApprovalDraftPreview(undefined);
     setPatchVirtualApplyPreview(undefined);
+    setPatchRollbackCheckpointPreview(undefined);
   }
 
   function handlePreviewApprovalDraft(): void {
     setPatchApprovalDraftPreview(patchApprovalDraftCandidate);
     setPatchVirtualApplyPreview(undefined);
+    setPatchRollbackCheckpointPreview(undefined);
   }
 
   function handlePreviewVirtualApply(): void {
     setPatchVirtualApplyPreview(patchVirtualApplyCandidate);
+    setPatchRollbackCheckpointPreview(undefined);
+  }
+
+  function handlePreviewRollbackCheckpoint(): void {
+    setPatchRollbackCheckpointPreview(patchRollbackCheckpointCandidate);
   }
 
   async function handleRecordRunDraftEvent(): Promise<void> {
@@ -2612,6 +2669,265 @@ export function DesktopShell(): JSX.Element {
             ) : null}
 
             <p className="fieldHelp">{displayedPatchVirtualApply.nextAction}</p>
+          </section>
+
+          <section
+            className="eventPanel"
+            aria-label="Patch Rollback Checkpoint Preview"
+          >
+            <div className="panelHeader">
+              <h2>Patch Rollback Checkpoint Preview</h2>
+              <span className="muted">
+                Checkpoint preview / no real rollback
+              </span>
+            </div>
+            <p className="fieldHelp">
+              Builds a rollback checkpoint summary from the virtual apply
+              preview. No checkpoint file is written and no rollback is
+              executed.
+            </p>
+            <div className="buttonRow">
+              <button
+                type="button"
+                className="secondary"
+                onClick={(event) => {
+                  event.preventDefault();
+                  event.stopPropagation();
+                  handlePreviewRollbackCheckpoint();
+                }}
+                disabled={
+                  !displayedPatchVirtualApply.readiness
+                    .canProceedToRollbackCheckpointPreview
+                }
+                aria-disabled={
+                  !displayedPatchVirtualApply.readiness
+                    .canProceedToRollbackCheckpointPreview
+                }
+              >
+                Preview Rollback Checkpoint
+              </button>
+            </div>
+
+            {displayedPatchRollbackCheckpoint.status === "empty" ? (
+              <p className="empty">
+                Preview a virtual apply summary first. Rollback checkpoint
+                summaries will appear here before replay projection preview.
+              </p>
+            ) : null}
+
+            <dl className="summaryGrid compact">
+              <div>
+                <dt>Status</dt>
+                <dd>{displayedPatchRollbackCheckpoint.status}</dd>
+              </div>
+              <div>
+                <dt>Checkpoint</dt>
+                <dd>{displayedPatchRollbackCheckpoint.checkpointPreviewId}</dd>
+              </div>
+              <div>
+                <dt>Virtual apply</dt>
+                <dd>{displayedPatchRollbackCheckpoint.virtualApplyId}</dd>
+              </div>
+              <div>
+                <dt>Proposal / validation / audit</dt>
+                <dd>
+                  {displayedPatchRollbackCheckpoint.proposalId} /{" "}
+                  {displayedPatchRollbackCheckpoint.validationId} /{" "}
+                  {displayedPatchRollbackCheckpoint.auditId}
+                </dd>
+              </div>
+              <div>
+                <dt>Approval draft</dt>
+                <dd>{displayedPatchRollbackCheckpoint.approvalDraftId}</dd>
+              </div>
+              <div>
+                <dt>Affected files</dt>
+                <dd>{displayedPatchRollbackCheckpoint.affectedFileCount}</dd>
+              </div>
+              <div>
+                <dt>Created / updated / deleted</dt>
+                <dd>
+                  {displayedPatchRollbackCheckpoint.filesCreated} /{" "}
+                  {displayedPatchRollbackCheckpoint.filesUpdated} /{" "}
+                  {displayedPatchRollbackCheckpoint.filesDeleted}
+                </dd>
+              </div>
+              <div>
+                <dt>Blockers / warnings / findings</dt>
+                <dd>
+                  {displayedPatchRollbackCheckpoint.blockerCount} /{" "}
+                  {displayedPatchRollbackCheckpoint.warningCount} /{" "}
+                  {displayedPatchRollbackCheckpoint.findingCount}
+                </dd>
+              </div>
+              <div>
+                <dt>Metadata only</dt>
+                <dd>
+                  {displayedPatchRollbackCheckpoint.restoreScope.metadataOnly
+                    ? "yes"
+                    : "no"}
+                </dd>
+              </div>
+              <div>
+                <dt>No-compress</dt>
+                <dd>
+                  {displayedPatchRollbackCheckpoint.noCompressRequired
+                    ? displayedPatchRollbackCheckpoint.contextPlacement
+                    : "not required"}
+                </dd>
+              </div>
+            </dl>
+
+            <dl className="summaryGrid compact">
+              <div>
+                <dt>Input snapshot</dt>
+                <dd>
+                  {displayedPatchRollbackCheckpoint.inputSnapshot.snapshotHash}
+                </dd>
+              </div>
+              <div>
+                <dt>Output snapshot</dt>
+                <dd>
+                  {displayedPatchRollbackCheckpoint.outputSnapshot.snapshotHash}
+                </dd>
+              </div>
+              <div>
+                <dt>Can real rollback</dt>
+                <dd>
+                  {displayedPatchRollbackCheckpoint.readiness.canRollbackReal
+                    ? "yes"
+                    : "no"}
+                </dd>
+              </div>
+              <div>
+                <dt>Rollback executed</dt>
+                <dd>
+                  {displayedPatchRollbackCheckpoint.readiness.rollbackExecuted
+                    ? "yes"
+                    : "no"}
+                </dd>
+              </div>
+              <div>
+                <dt>Can write filesystem</dt>
+                <dd>
+                  {displayedPatchRollbackCheckpoint.readiness.canWriteFilesystem
+                    ? "yes"
+                    : "no"}
+                </dd>
+              </div>
+              <div>
+                <dt>Can apply</dt>
+                <dd>
+                  {displayedPatchRollbackCheckpoint.readiness.canApplyPatch
+                    ? "yes"
+                    : "no"}
+                </dd>
+              </div>
+              <div>
+                <dt>Can git / shell</dt>
+                <dd>
+                  {displayedPatchRollbackCheckpoint.readiness.canExecuteGit
+                    ? "yes"
+                    : "no"}{" "}
+                  /{" "}
+                  {displayedPatchRollbackCheckpoint.readiness.canExecuteShell
+                    ? "yes"
+                    : "no"}
+                </dd>
+              </div>
+              <div>
+                <dt>Replay projection</dt>
+                <dd>
+                  {displayedPatchRollbackCheckpoint.readiness
+                    .canProceedToReplayProjectionPreview
+                    ? "ready"
+                    : "not ready"}
+                </dd>
+              </div>
+              <div>
+                <dt>Hash</dt>
+                <dd>{displayedPatchRollbackCheckpoint.checkpointHash}</dd>
+              </div>
+            </dl>
+
+            {displayedPatchRollbackCheckpoint.operationSummaries.length > 0 ? (
+              <ol className="timeline">
+                {displayedPatchRollbackCheckpoint.operationSummaries.map(
+                  (operation) => (
+                    <li key={operation.operationId}>
+                      <span className="timelineMeta">
+                        {operation.changeKind} · {operation.path}
+                      </span>
+                      <span>
+                        restore scope:{" "}
+                        {operation.changeKind === "create"
+                          ? "remove-if-created"
+                          : operation.changeKind === "delete"
+                            ? "recreate-if-deleted"
+                            : "restore-metadata"}
+                      </span>
+                      <span className="timelineMeta">
+                        Lines {operation.estimatedLinesAdded} /{" "}
+                        {operation.estimatedLinesRemoved}
+                      </span>
+                    </li>
+                  )
+                )}
+              </ol>
+            ) : null}
+
+            {displayedPatchRollbackCheckpoint.restoreScope.affectedFileCount >
+            0 ? (
+              <dl className="summaryGrid compact">
+                <div>
+                  <dt>Files to restore</dt>
+                  <dd>
+                    {
+                      displayedPatchRollbackCheckpoint.restoreScope
+                        .filesToRestore.length
+                    }
+                  </dd>
+                </div>
+                <div>
+                  <dt>Remove created</dt>
+                  <dd>
+                    {
+                      displayedPatchRollbackCheckpoint.restoreScope
+                        .filesToRemoveIfCreated.length
+                    }
+                  </dd>
+                </div>
+                <div>
+                  <dt>Recreate deleted</dt>
+                  <dd>
+                    {
+                      displayedPatchRollbackCheckpoint.restoreScope
+                        .filesToRecreateIfDeleted.length
+                    }
+                  </dd>
+                </div>
+              </dl>
+            ) : null}
+
+            {displayedPatchRollbackCheckpoint.findings.length > 0 ? (
+              <ol className="timeline">
+                {displayedPatchRollbackCheckpoint.findings.map((finding) => (
+                  <li key={finding.findingId}>
+                    <span className="timelineMeta">
+                      {finding.kind} · {finding.severity} · {finding.code}
+                    </span>
+                    <span>{finding.summary}</span>
+                    {finding.path !== undefined ? (
+                      <span className="timelineMeta">Path: {finding.path}</span>
+                    ) : null}
+                  </li>
+                ))}
+              </ol>
+            ) : null}
+
+            <p className="fieldHelp">
+              {displayedPatchRollbackCheckpoint.nextAction}
+            </p>
           </section>
 
           <section className="eventPanel" aria-label="Agent Route Preview">
