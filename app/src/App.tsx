@@ -1858,7 +1858,8 @@ export function DesktopShell(): JSX.Element {
               <span className="muted">Preview only</span>
             </div>
             <p className="fieldHelp">
-              Shows summary-only memory refs that a future run may recall into
+              Recall generated from runtime Memory Core preview helper. Shows
+              summary-only memory refs that a future run may recall into
               volatile_tail. Recall refs would enter volatile_tail. No memory is
               committed or persisted here.
             </p>

@@ -17,6 +17,9 @@ Current scope:
   Patch Proposal Creation Preview, Approval / Diff / Audit, Memory Inspector,
   Memory Recall Preview, Workspace Index summary bridge, Context Assembly
   Preview, and disabled Bridge Proposal Preview
+- show Memory Recall Preview through the runtime Memory Core preview helper
+  using in-memory summaries only; no memory persistence, commit, revoke, or
+  expire operation is connected
 - show the Workspace Index summary bridge as a read-only summary JSON preview
 - optionally record one local summary-only Run Draft Event to
   `workspace/.deepseek-workbench/events.jsonl`; this is not run creation or

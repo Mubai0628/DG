@@ -3402,6 +3402,7 @@ describe("app memory recall preview", () => {
     });
 
     expect(view.status).toBe("preview");
+    expect(view.source).toBe("runtime_memory_core_preview");
     expect(view.itemCount).toBe(3);
     expect(view.policyCount).toBe(1);
     expect(view.projectFactCount).toBe(1);
@@ -3847,6 +3848,10 @@ describe("desktop source boundaries", () => {
       path.join(appRoot, "src", "capability-plan-preview-view.ts"),
       "utf8"
     );
+    const memoryRecallSource = await readFile(
+      path.join(appRoot, "src", "memory-recall-preview-view.ts"),
+      "utf8"
+    );
 
     expect(appSource).toContain("Local web-table-to-CSV workflow");
     expect(appSource).toContain("Source-tree mode / Preflight OK");
@@ -3934,11 +3939,21 @@ describe("desktop source boundaries", () => {
     );
     expect(appSource).toContain("Memory Recall Preview");
     expect(appSource).toContain("summary-only memory refs");
+    expect(appSource).toContain("runtime Memory Core preview helper");
     expect(appSource).toContain("Recall refs would enter volatile_tail.");
     expect(appSource).toContain("No memory is");
     expect(appSource).toContain("committed or persisted here");
     expect(appSource).toContain("buildMemoryRecallPreviewView");
     expect(appSource).toContain("memoryRecallPreview");
+    expect(memoryRecallSource).toContain("buildMemoryRecallPreview");
+    expect(memoryRecallSource).toContain("runtime_memory_core_preview");
+    expect(memoryRecallSource).not.toContain("safeInvoke");
+    expect(memoryRecallSource).not.toContain("EventStore");
+    expect(memoryRecallSource).not.toContain("new InMemoryMemoryStore");
+    expect(memoryRecallSource).not.toContain("createInMemoryMemoryStore");
+    expect(memoryRecallSource).not.toContain("commitCandidate");
+    expect(memoryRecallSource).not.toContain("revokeMemory");
+    expect(memoryRecallSource).not.toContain("expireMemory");
     expect(appSource).toContain(
       "Preview a local run draft first. Memory recall summaries will"
     );
@@ -4478,29 +4493,38 @@ describe("desktop source boundaries", () => {
     );
   });
 
-  it("documents app memory recall preview as volatile-tail preview only", async () => {
+  it("documents app and runtime memory recall preview as volatile-tail preview only", async () => {
     const docs = await Promise.all(
-      ["app-shell-memory-recall-preview-v0.2.md", "README.md"].map(
-        async (file) => ({
-          file,
-          text: await readFile(path.join(repoRoot, "docs", file), "utf8")
-        })
-      )
+      [
+        "app-shell-memory-recall-preview-v0.2.md",
+        "runtime-memory-recall-preview-v0.3.md",
+        "README.md"
+      ].map(async (file) => ({
+        file,
+        text: await readFile(path.join(repoRoot, "docs", file), "utf8")
+      }))
     );
     const combined = docs.map((doc) => doc.text).join("\n");
 
     expect(combined).toContain("App Shell Memory Recall Preview v0.2");
+    expect(combined).toContain("Runtime Memory Recall Preview v0.3");
+    expect(combined).toContain("pure, browser-safe summary helper");
+    expect(combined).toContain("in-memory memory summaries");
+    expect(combined).toContain("runtime_memory_core_preview");
     expect(combined).toContain("preview-only");
     expect(combined).toContain("does not connect the desktop shell to memory");
     expect(combined).toContain("policy`, `project_fact`, and `pitfall");
     expect(combined).toContain("volatile_tail");
     expect(combined).toContain("do not enter frozen prefix");
+    expect(combined).toContain("No MemoryStore persistence connection");
     expect(combined).toContain("No persistent DB");
     expect(combined).toContain("No vector DB");
     expect(combined).toContain("No memory commit, revoke, or expire UI");
     expect(combined).toContain("No EventStore write");
+    expect(combined).toContain("No prompt assembly");
     expect(combined).toContain("No DeepSeek call");
     expect(combined).toContain("app-shell-memory-recall-preview-v0.2.md");
+    expect(combined).toContain("runtime-memory-recall-preview-v0.3.md");
   });
 
   it("documents the v0.2 App Shell RC release notes without enabling execution", async () => {
