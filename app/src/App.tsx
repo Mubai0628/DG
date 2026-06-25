@@ -89,6 +89,13 @@ import {
   type AppPatchDiffAuditPreviewView
 } from "./patch-diff-audit-preview-view.js";
 import {
+  buildPatchApprovalDraftView,
+  patchApprovalDraftApprovalRefs,
+  patchApprovalDraftSurfaceSummaries,
+  patchApprovalDraftWarningCodes,
+  type AppPatchApprovalDraftView
+} from "./patch-approval-draft-view.js";
+import {
   buildEventLogPanelModel,
   buildBridgeProposalPreviewModel,
   buildResultPanelModel,
@@ -225,6 +232,9 @@ export function DesktopShell(): JSX.Element {
   const [patchDiffAuditPreview, setPatchDiffAuditPreview] = useState<
     AppPatchDiffAuditPreviewView | undefined
   >();
+  const [patchApprovalDraftPreview, setPatchApprovalDraftPreview] = useState<
+    AppPatchApprovalDraftView | undefined
+  >();
   const loadedWorkspaceIndexRef =
     workspaceIndexBridge.status === "loaded" ||
     workspaceIndexBridge.status === "warning"
@@ -326,9 +336,11 @@ export function DesktopShell(): JSX.Element {
       ...(patchProposalValidationSurfaceSummaries(
         patchProposalValidationPreview
       ) ?? []),
-      ...(patchDiffAuditSurfaceSummaries(patchDiffAuditPreview) ?? [])
+      ...(patchDiffAuditSurfaceSummaries(patchDiffAuditPreview) ?? []),
+      ...(patchApprovalDraftSurfaceSummaries(patchApprovalDraftPreview) ?? [])
     ],
     [
+      patchApprovalDraftPreview,
       displayedPatchProposalCreation,
       patchDiffAuditPreview,
       patchProposalValidationPreview
@@ -338,9 +350,11 @@ export function DesktopShell(): JSX.Element {
     () => [
       ...patchProposalCreationApprovalRefs(displayedPatchProposalCreation),
       ...patchProposalValidationApprovalRefs(patchProposalValidationPreview),
-      ...patchDiffAuditApprovalRefs(patchDiffAuditPreview)
+      ...patchDiffAuditApprovalRefs(patchDiffAuditPreview),
+      ...patchApprovalDraftApprovalRefs(patchApprovalDraftPreview)
     ],
     [
+      patchApprovalDraftPreview,
       displayedPatchProposalCreation,
       patchDiffAuditPreview,
       patchProposalValidationPreview
@@ -351,9 +365,14 @@ export function DesktopShell(): JSX.Element {
       ...patchProposalValidationAuditWarningCodes(
         patchProposalValidationPreview
       ),
-      ...patchDiffAuditWarningCodes(patchDiffAuditPreview)
+      ...patchDiffAuditWarningCodes(patchDiffAuditPreview),
+      ...patchApprovalDraftWarningCodes(patchApprovalDraftPreview)
     ],
-    [patchDiffAuditPreview, patchProposalValidationPreview]
+    [
+      patchApprovalDraftPreview,
+      patchDiffAuditPreview,
+      patchProposalValidationPreview
+    ]
   );
   const patchWorkbenchSurfaces = useMemo<AppWorkbenchSurfaceView>(
     () =>
@@ -501,6 +520,27 @@ export function DesktopShell(): JSX.Element {
   );
   const displayedPatchDiffAudit =
     patchDiffAuditPreview ?? buildPatchDiffAuditPreviewView();
+  const patchApprovalDraftCandidate = useMemo<AppPatchApprovalDraftView>(
+    () =>
+      buildPatchApprovalDraftView({
+        proposalPreview: displayedPatchProposalCreation,
+        validationPreview: displayedPatchProposalValidation,
+        diffAuditPreview: displayedPatchDiffAudit,
+        workspaceIndexRef: loadedWorkspaceIndexRef,
+        capabilityPlanPreview,
+        agentRoutePreview
+      }),
+    [
+      agentRoutePreview,
+      capabilityPlanPreview,
+      displayedPatchDiffAudit,
+      displayedPatchProposalCreation,
+      displayedPatchProposalValidation,
+      loadedWorkspaceIndexRef
+    ]
+  );
+  const displayedPatchApprovalDraft =
+    patchApprovalDraftPreview ?? buildPatchApprovalDraftView();
   const contextAssemblyCandidate = useMemo<AppContextAssemblyPreviewView>(
     () =>
       buildContextAssemblyPreviewView({
@@ -626,6 +666,7 @@ export function DesktopShell(): JSX.Element {
     setPatchProposalCreationPreview(undefined);
     setPatchProposalValidationPreview(undefined);
     setPatchDiffAuditPreview(undefined);
+    setPatchApprovalDraftPreview(undefined);
     setContextAssemblyPreview(undefined);
   }, [acceptanceCriteriaDraft, objectiveDraft, selectedIntent, workspaceRoot]);
 
@@ -633,6 +674,7 @@ export function DesktopShell(): JSX.Element {
     setPatchProposalCreationPreview(undefined);
     setPatchProposalValidationPreview(undefined);
     setPatchDiffAuditPreview(undefined);
+    setPatchApprovalDraftPreview(undefined);
     setContextAssemblyPreview(undefined);
   }, [
     patchProposalChangeKind,
@@ -647,6 +689,7 @@ export function DesktopShell(): JSX.Element {
     setContextAssemblyPreview(undefined);
   }, [
     agentRoutePreview.routeId,
+    patchApprovalDraftPreview?.approvalDraftId,
     patchDiffAuditPreview?.auditId,
     patchWorkbenchSurfaces.diff.items.length,
     capabilityPlanPreview.itemCount,
@@ -670,15 +713,22 @@ export function DesktopShell(): JSX.Element {
     setPatchProposalCreationPreview(patchProposalCreationCandidate);
     setPatchProposalValidationPreview(undefined);
     setPatchDiffAuditPreview(undefined);
+    setPatchApprovalDraftPreview(undefined);
   }
 
   function handleValidatePatchProposal(): void {
     setPatchProposalValidationPreview(patchProposalValidationCandidate);
     setPatchDiffAuditPreview(undefined);
+    setPatchApprovalDraftPreview(undefined);
   }
 
   function handlePreviewDiffAudit(): void {
     setPatchDiffAuditPreview(patchDiffAuditCandidate);
+    setPatchApprovalDraftPreview(undefined);
+  }
+
+  function handlePreviewApprovalDraft(): void {
+    setPatchApprovalDraftPreview(patchApprovalDraftCandidate);
   }
 
   async function handleRecordRunDraftEvent(): Promise<void> {
@@ -2078,6 +2128,221 @@ export function DesktopShell(): JSX.Element {
             ) : null}
 
             <p className="fieldHelp">{displayedPatchDiffAudit.nextAction}</p>
+          </section>
+
+          <section className="eventPanel" aria-label="Patch Approval Draft">
+            <div className="panelHeader">
+              <h2>Patch Approval Draft</h2>
+              <span className="muted">Draft only / no approval execution</span>
+            </div>
+            <p className="fieldHelp">
+              Builds a read-only approval request draft from validation and
+              audit summaries. No approval, rejection, lease, or patch apply is
+              executed.
+            </p>
+            <div className="buttonRow">
+              <button
+                type="button"
+                className="secondary"
+                onClick={(event) => {
+                  event.preventDefault();
+                  event.stopPropagation();
+                  handlePreviewApprovalDraft();
+                }}
+                disabled={
+                  !displayedPatchDiffAudit.readiness
+                    .canProceedToApprovalDraftPreview
+                }
+                aria-disabled={
+                  !displayedPatchDiffAudit.readiness
+                    .canProceedToApprovalDraftPreview
+                }
+              >
+                Preview Approval Draft
+              </button>
+            </div>
+
+            {displayedPatchApprovalDraft.status === "empty" ? (
+              <p className="empty">
+                Preview a patch diff audit summary first. Approval draft details
+                will appear here before any approval review or virtual apply
+                preview.
+              </p>
+            ) : null}
+
+            <dl className="summaryGrid compact">
+              <div>
+                <dt>Status</dt>
+                <dd>{displayedPatchApprovalDraft.status}</dd>
+              </div>
+              <div>
+                <dt>Approval draft</dt>
+                <dd>{displayedPatchApprovalDraft.approvalDraftId}</dd>
+              </div>
+              <div>
+                <dt>Proposal / validation / audit</dt>
+                <dd>
+                  {displayedPatchApprovalDraft.proposalId} /{" "}
+                  {displayedPatchApprovalDraft.validationId} /{" "}
+                  {displayedPatchApprovalDraft.auditId}
+                </dd>
+              </div>
+              <div>
+                <dt>Risk / derived</dt>
+                <dd>
+                  {displayedPatchApprovalDraft.riskLevel} /{" "}
+                  {displayedPatchApprovalDraft.derivedRiskLevel}
+                </dd>
+              </div>
+              <div>
+                <dt>Approval required</dt>
+                <dd>
+                  {displayedPatchApprovalDraft.requiresApproval ? "yes" : "no"}
+                </dd>
+              </div>
+              <div>
+                <dt>Blockers / warnings / findings</dt>
+                <dd>
+                  {displayedPatchApprovalDraft.blockerCount} /{" "}
+                  {displayedPatchApprovalDraft.warningCount} /{" "}
+                  {displayedPatchApprovalDraft.findingCount}
+                </dd>
+              </div>
+              <div>
+                <dt>Files</dt>
+                <dd>{displayedPatchApprovalDraft.scopeSummary.fileCount}</dd>
+              </div>
+              <div>
+                <dt>Lines + / -</dt>
+                <dd>
+                  {displayedPatchApprovalDraft.scopeSummary.linesAdded} /{" "}
+                  {displayedPatchApprovalDraft.scopeSummary.linesRemoved}
+                </dd>
+              </div>
+              <div>
+                <dt>Expires preview</dt>
+                <dd>{displayedPatchApprovalDraft.expiryPreview.expiresAt}</dd>
+              </div>
+              <div>
+                <dt>No-compress</dt>
+                <dd>
+                  {displayedPatchApprovalDraft.noCompressRequired
+                    ? displayedPatchApprovalDraft.contextPlacement
+                    : "not required"}
+                </dd>
+              </div>
+            </dl>
+
+            <dl className="summaryGrid compact">
+              <div>
+                <dt>Can approve</dt>
+                <dd>
+                  {displayedPatchApprovalDraft.readiness.canApprove
+                    ? "yes"
+                    : "no"}
+                </dd>
+              </div>
+              <div>
+                <dt>Can reject</dt>
+                <dd>
+                  {displayedPatchApprovalDraft.readiness.canReject
+                    ? "yes"
+                    : "no"}
+                </dd>
+              </div>
+              <div>
+                <dt>Can issue lease</dt>
+                <dd>
+                  {displayedPatchApprovalDraft.readiness.canIssueLease
+                    ? "yes"
+                    : "no"}
+                </dd>
+              </div>
+              <div>
+                <dt>Can apply</dt>
+                <dd>
+                  {displayedPatchApprovalDraft.readiness.canApplyPatch
+                    ? "yes"
+                    : "no"}
+                </dd>
+              </div>
+              <div>
+                <dt>Approval review preview</dt>
+                <dd>
+                  {displayedPatchApprovalDraft.readiness
+                    .canProceedToApprovalReviewPreview
+                    ? "ready"
+                    : "not ready"}
+                </dd>
+              </div>
+              <div>
+                <dt>Hash</dt>
+                <dd>{displayedPatchApprovalDraft.approvalDraftHash}</dd>
+              </div>
+            </dl>
+
+            {displayedPatchApprovalDraft.requiredApprovalReasons.length > 0 ? (
+              <p className="muted">
+                approval reasons{" "}
+                {displayedPatchApprovalDraft.requiredApprovalReasons.join(", ")}
+              </p>
+            ) : null}
+
+            {displayedPatchApprovalDraft.decisionOptions.length > 0 ? (
+              <ol className="timeline">
+                {displayedPatchApprovalDraft.decisionOptions.map((option) => (
+                  <li key={option.optionId}>
+                    <span className="timelineMeta">
+                      {option.optionId} · enabled{" "}
+                      {option.enabled ? "yes" : "no"}
+                    </span>
+                    <span>{option.summary}</span>
+                    <span className="timelineMeta">{option.reason}</span>
+                  </li>
+                ))}
+              </ol>
+            ) : null}
+
+            {displayedPatchApprovalDraft.suggestedConditions.length > 0 ? (
+              <ol className="timeline">
+                {displayedPatchApprovalDraft.suggestedConditions.map(
+                  (condition) => (
+                    <li key={condition.conditionId}>
+                      <span className="timelineMeta">
+                        {condition.conditionId} ·{" "}
+                        {condition.satisfied ? "satisfied" : "pending"}
+                      </span>
+                      <span>{condition.summary}</span>
+                      {condition.warningCodes.length > 0 ? (
+                        <span className="timelineMeta">
+                          Warnings: {condition.warningCodes.join(", ")}
+                        </span>
+                      ) : null}
+                    </li>
+                  )
+                )}
+              </ol>
+            ) : null}
+
+            {displayedPatchApprovalDraft.findings.length > 0 ? (
+              <ol className="timeline">
+                {displayedPatchApprovalDraft.findings.map((finding) => (
+                  <li key={finding.findingId}>
+                    <span className="timelineMeta">
+                      {finding.kind} · {finding.severity} · {finding.code}
+                    </span>
+                    <span>{finding.summary}</span>
+                    {finding.path !== undefined ? (
+                      <span className="timelineMeta">Path: {finding.path}</span>
+                    ) : null}
+                  </li>
+                ))}
+              </ol>
+            ) : null}
+
+            <p className="fieldHelp">
+              {displayedPatchApprovalDraft.nextAction}
+            </p>
           </section>
 
           <section className="eventPanel" aria-label="Agent Route Preview">

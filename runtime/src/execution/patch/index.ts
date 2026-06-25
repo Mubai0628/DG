@@ -1,4 +1,5 @@
 export * from "./audit.js";
+export * from "./approval-draft.js";
 export * from "./creation-preview.js";
 export * from "./diff.js";
 export * from "./diff-audit-preview.js";

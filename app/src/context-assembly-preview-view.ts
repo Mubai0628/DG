@@ -473,23 +473,30 @@ function buildSegments(
     const hasDiffAuditRef = input.patchSurface.items.some((item) =>
       item.status.startsWith("diff_audit_")
     );
+    const hasApprovalDraftRef = input.patchSurface.items.some((item) =>
+      item.status.startsWith("approval_draft_")
+    );
     const hasValidationRef = input.patchSurface.items.some((item) =>
       item.status.startsWith("validation_")
     );
     segments.push(
       segment({
         layer: "no_compress_zone",
-        title: hasDiffAuditRef
-          ? "Patch diff audit preview summaries"
-          : hasValidationRef
-            ? "Patch proposal validation summaries"
-            : "Patch proposal summaries",
-        sourceKind: "patch_proposal",
-        sourceRefId: hasDiffAuditRef
-          ? "patch-diff-audit-preview-surface"
-          : hasValidationRef
-            ? "patch-validation-preview-surface"
-            : "patch-proposal-surface",
+        title: hasApprovalDraftRef
+          ? "Patch approval draft summaries"
+          : hasDiffAuditRef
+            ? "Patch diff audit preview summaries"
+            : hasValidationRef
+              ? "Patch proposal validation summaries"
+              : "Patch proposal summaries",
+        sourceKind: hasApprovalDraftRef ? "approval_ref" : "patch_proposal",
+        sourceRefId: hasApprovalDraftRef
+          ? "patch-approval-draft-preview-surface"
+          : hasDiffAuditRef
+            ? "patch-diff-audit-preview-surface"
+            : hasValidationRef
+              ? "patch-validation-preview-surface"
+              : "patch-proposal-surface",
         summary: [
           `items:${patchItemCount(input.patchSurface)}`,
           `files:${input.patchSurface.fileCount}`,
@@ -498,6 +505,7 @@ function buildSegments(
         ].join(" | "),
         warningCodes: [
           ...input.patchSurface.warnings,
+          ...(hasApprovalDraftRef ? ["PATCH_APPROVAL_DRAFT_NO_COMPRESS"] : []),
           ...(hasDiffAuditRef ? ["PATCH_DIFF_AUDIT_NO_COMPRESS"] : []),
           ...(hasValidationRef ? ["PATCH_VALIDATION_NO_COMPRESS"] : [])
         ]

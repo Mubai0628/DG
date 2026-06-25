@@ -55,6 +55,12 @@ import {
   patchDiffAuditSurfaceSummaries,
   patchDiffAuditWarningCodes
 } from "../src/patch-diff-audit-preview-view.js";
+import {
+  buildPatchApprovalDraftView,
+  patchApprovalDraftApprovalRefs,
+  patchApprovalDraftSurfaceSummaries,
+  patchApprovalDraftWarningCodes
+} from "../src/patch-approval-draft-view.js";
 import { buildCapabilityPlanPreview } from "../../runtime/src/capabilities/plan-preview.js";
 import { buildMemoryRecallPreviewView } from "../src/memory-recall-preview-view.js";
 import {
@@ -3752,6 +3758,272 @@ describe("app patch diff audit preview", () => {
   });
 });
 
+describe("app patch approval draft", () => {
+  it("builds an empty approval draft until proposal, validation, and audit summaries exist", () => {
+    const view = buildPatchApprovalDraftView();
+
+    expect(view.status).toBe("empty");
+    expect(view.source).toBe("empty");
+    expect(view.draftOnly).toBe(true);
+    expect(view.approvalExecutionEnabled).toBe(false);
+    expect(view.rejectionExecutionEnabled).toBe(false);
+    expect(view.permissionLeaseIssuingEnabled).toBe(false);
+    expect(view.applyEnabled).toBe(false);
+    expect(view.virtualApplyEnabled).toBe(false);
+    expect(view.fileReadEnabled).toBe(false);
+    expect(view.fileWriteEnabled).toBe(false);
+    expect(view.eventWritesEnabled).toBe(false);
+  });
+
+  it("generates a summary-only approval draft from safe proposal, validation, and audit views", () => {
+    const proposalView = buildPatchProposalCreationPreviewView({
+      titleDraft: "Update approval docs",
+      changeDescriptionSummary: "Summary-only approval draft preview.",
+      pathRefsText: "docs/approval-draft.md",
+      defaultChangeKind: "documentation",
+      estimatedLinesAdded: 4,
+      estimatedLinesRemoved: 1,
+      selectedIntent: "documentation"
+    });
+    const validationView = buildPatchProposalValidationPreviewView({
+      proposalPreview: proposalView
+    });
+    const auditView = buildPatchDiffAuditPreviewView({
+      proposalPreview: proposalView,
+      validationPreview: validationView
+    });
+    const approvalView = buildPatchApprovalDraftView({
+      proposalPreview: proposalView,
+      validationPreview: validationView,
+      diffAuditPreview: auditView
+    });
+    const serialized = JSON.stringify(approvalView);
+
+    expect(approvalView.source).toBe("runtime_patch_approval_draft");
+    expect(approvalView.proposalId).toBe(proposalView.proposalId);
+    expect(approvalView.validationId).toBe(validationView.validationId);
+    expect(approvalView.auditId).toBe(auditView.auditId);
+    expect(approvalView.status).toBe("needs_manual_review");
+    expect(approvalView.readiness.canProceedToApprovalReviewPreview).toBe(true);
+    expect(approvalView.readiness.canApprove).toBe(false);
+    expect(approvalView.readiness.canReject).toBe(false);
+    expect(approvalView.readiness.canIssueLease).toBe(false);
+    expect(approvalView.readiness.canApplyPatch).toBe(false);
+    expect(approvalView.contextPlacement).toBe("no_compress_zone");
+    expect(serialized).not.toContain("beforeContent");
+    expect(serialized).not.toContain("afterContent");
+    expect(serialized).not.toContain("rawDiff");
+  });
+
+  it("keeps validation blockers from becoming ready approval drafts", () => {
+    const proposalView = buildPatchProposalCreationPreviewView({
+      titleDraft: "Unsafe approval proposal",
+      pathRefsText: ".env.local",
+      selectedIntent: "code_change"
+    });
+    const validationView = buildPatchProposalValidationPreviewView({
+      proposalPreview: proposalView
+    });
+    const auditView = buildPatchDiffAuditPreviewView({
+      proposalPreview: proposalView,
+      validationPreview: validationView
+    });
+    const approvalView = buildPatchApprovalDraftView({
+      proposalPreview: proposalView,
+      validationPreview: validationView,
+      diffAuditPreview: auditView
+    });
+
+    expect(validationView.status).toBe("blocked");
+    expect(approvalView.status).toBe("blocked");
+    expect(approvalView.warningCodes).toEqual(
+      expect.arrayContaining([
+        "PATCH_APPROVAL_VALIDATION_BLOCKED",
+        "PATCH_APPROVAL_AUDIT_BLOCKED"
+      ])
+    );
+    expect(approvalView.readiness.canProceedToApprovalReviewPreview).toBe(
+      false
+    );
+  });
+
+  it("rejects unsafe raw fields and fake API key markers safely", () => {
+    const secret = "sk-test1234567890abcdef";
+    const rawFieldProposal = buildPatchProposalCreationPreviewView({
+      titleDraft: "Unsafe approval raw field",
+      pathRefsText: JSON.stringify([
+        {
+          path: "app/src/App.tsx",
+          changeKind: "update",
+          beforeContent: "do not keep"
+        }
+      ]),
+      selectedIntent: "code_change"
+    });
+    const markerProposal = buildPatchProposalCreationPreviewView({
+      titleDraft: "Unsafe approval marker",
+      pathRefsText: `app/src/App.tsx ${secret}`,
+      selectedIntent: "code_change"
+    });
+    const rawFieldValidation = buildPatchProposalValidationPreviewView({
+      proposalPreview: rawFieldProposal
+    });
+    const markerValidation = buildPatchProposalValidationPreviewView({
+      proposalPreview: markerProposal
+    });
+    const rawFieldAudit = buildPatchDiffAuditPreviewView({
+      proposalPreview: rawFieldProposal,
+      validationPreview: rawFieldValidation
+    });
+    const markerAudit = buildPatchDiffAuditPreviewView({
+      proposalPreview: markerProposal,
+      validationPreview: markerValidation
+    });
+    const rawFieldApproval = buildPatchApprovalDraftView({
+      proposalPreview: rawFieldProposal,
+      validationPreview: rawFieldValidation,
+      diffAuditPreview: rawFieldAudit
+    });
+    const markerApproval = buildPatchApprovalDraftView({
+      proposalPreview: markerProposal,
+      validationPreview: markerValidation,
+      diffAuditPreview: markerAudit
+    });
+    const serialized = JSON.stringify({ rawFieldApproval, markerApproval });
+
+    expect(rawFieldApproval.status).toBe("blocked");
+    expect(rawFieldApproval.warningCodes).toEqual(
+      expect.arrayContaining(["PATCH_PREVIEW_RAW_FIELD_REJECTED"])
+    );
+    expect(markerApproval.status).toBe("blocked");
+    expect(markerApproval.warningCodes).toEqual(
+      expect.arrayContaining(["API_KEY_MARKER"])
+    );
+    expect(serialized).not.toContain(secret);
+    expect(serialized).not.toContain("do not keep");
+  });
+
+  it("feeds Diff, Approval, Audit, and Context Assembly with approval draft summary refs", () => {
+    const runDraft = buildRunDraftView({
+      objectiveDraft: "Draft approval for a local patch proposal preview.",
+      selectedIntent: "code_change",
+      acceptanceCriteriaDraft: "Approval draft summary appears",
+      workspaceRoot: "D:\\workspace"
+    });
+    const proposalView = buildPatchProposalCreationPreviewView({
+      titleDraft: "Update app approval panel",
+      changeDescriptionSummary: "Summary-only approval draft preview.",
+      pathRefsText: "app/src/App.tsx\napp/test/desktop-shell.test.ts",
+      defaultChangeKind: "update",
+      estimatedLinesAdded: 6,
+      estimatedLinesRemoved: 1,
+      selectedIntent: "code_change",
+      runDraft
+    });
+    const validationView = buildPatchProposalValidationPreviewView({
+      proposalPreview: proposalView
+    });
+    const auditView = buildPatchDiffAuditPreviewView({
+      proposalPreview: proposalView,
+      validationPreview: validationView
+    });
+    const approvalView = buildPatchApprovalDraftView({
+      proposalPreview: proposalView,
+      validationPreview: validationView,
+      diffAuditPreview: auditView
+    });
+    const surfaces = buildWorkbenchSurfacesView({
+      controlProjection: buildControlPlaneProjectionView(undefined),
+      patchProposalSummaries: [
+        ...(patchProposalCreationSurfaceSummaries(proposalView) ?? []),
+        ...(patchProposalValidationSurfaceSummaries(validationView) ?? []),
+        ...(patchDiffAuditSurfaceSummaries(auditView) ?? []),
+        ...(patchApprovalDraftSurfaceSummaries(approvalView) ?? [])
+      ],
+      futureApprovalRefs: [
+        ...patchProposalCreationApprovalRefs(proposalView),
+        ...patchProposalValidationApprovalRefs(validationView),
+        ...patchDiffAuditApprovalRefs(auditView),
+        ...patchApprovalDraftApprovalRefs(approvalView)
+      ],
+      futureAuditWarningCodes: [
+        ...patchProposalValidationAuditWarningCodes(validationView),
+        ...patchDiffAuditWarningCodes(auditView),
+        ...patchApprovalDraftWarningCodes(approvalView)
+      ]
+    });
+    const contextPreview = buildContextAssemblyPreviewView({
+      runDraft,
+      patchSurface: surfaces.diff
+    });
+    const serialized = JSON.stringify({ surfaces, contextPreview });
+
+    expect(surfaces.diff.items).toHaveLength(4);
+    expect(
+      surfaces.diff.items.some((item) =>
+        item.status.startsWith("approval_draft_")
+      )
+    ).toBe(true);
+    expect(surfaces.approval.items.some((item) => item.kind === "patch")).toBe(
+      true
+    );
+    expect(surfaces.audit.warningCodes).toEqual(
+      expect.arrayContaining([
+        `PATCH_APPROVAL_DRAFT_FINDINGS_${approvalView.findingCount}`,
+        `PATCH_APPROVAL_DRAFT_STATUS_${approvalView.status.toUpperCase()}`
+      ])
+    );
+    expect(
+      contextPreview.segments.some(
+        (segment) =>
+          segment.sourceRefId === "patch-approval-draft-preview-surface" &&
+          segment.placement === "no_compress_zone"
+      )
+    ).toBe(true);
+    expect(serialized).not.toContain("raw source");
+    expect(serialized).not.toContain("raw diff");
+    expect(serialized).not.toContain("beforeContent");
+  });
+
+  it("keeps App UI draft-only without Tauri, EventStore, fs, or approval execution handlers", async () => {
+    const appSource = await readFile(
+      path.join(appRoot, "src", "App.tsx"),
+      "utf8"
+    );
+    const adapterSource = await readFile(
+      path.join(appRoot, "src", "patch-approval-draft-view.ts"),
+      "utf8"
+    );
+    const desktopFlowSource = await readFile(
+      path.join(appRoot, "src", "desktop-flow.ts"),
+      "utf8"
+    );
+    const combined = `${appSource}\n${adapterSource}`;
+
+    expect(appSource).toContain("Patch Approval Draft");
+    expect(appSource).toContain("Draft only / no approval execution");
+    expect(appSource).toContain("handlePreviewApprovalDraft");
+    expect(appSource).toContain(
+      "No approval, rejection, lease, or patch apply"
+    );
+    expect(combined).not.toContain("handleApprove");
+    expect(combined).not.toContain("handleRejectPatch");
+    expect(combined).not.toContain("handleIssueLease");
+    expect(combined).not.toContain("handleApplyPatch");
+    expect(combined).not.toContain("approvePatch");
+    expect(combined).not.toContain("rejectPatch");
+    expect(combined).not.toContain("issuePermissionLease");
+    expect(combined).not.toContain("executePatch");
+    expect(adapterSource).not.toContain("safeInvoke");
+    expect(adapterSource).not.toContain("EventStore");
+    expect(adapterSource).not.toContain("readFile");
+    expect(adapterSource).not.toContain("writeFile");
+    expect(adapterSource).not.toContain("localStorage");
+    expect(adapterSource).not.toContain("sessionStorage");
+    expect(desktopFlowSource).not.toContain("patch_approval_draft");
+  });
+});
+
 describe("app memory recall preview", () => {
   it("builds an empty recall preview until a run draft exists", () => {
     const view = buildMemoryRecallPreviewView({
@@ -4986,6 +5258,38 @@ describe("desktop source boundaries", () => {
     expect(combined).toContain("no_compress_zone");
     expect(combined).toContain("runtime-patch-diff-audit-preview-v0.4.md");
     expect(combined).toContain("app-shell-patch-diff-audit-preview-v0.4.md");
+  });
+
+  it("documents app and runtime patch approval draft as no approval execution", async () => {
+    const docs = await Promise.all(
+      [
+        "runtime-patch-approval-draft-v0.4.md",
+        "app-shell-patch-approval-draft-v0.4.md",
+        "README.md"
+      ].map(async (file) => ({
+        file,
+        text: await readFile(path.join(repoRoot, "docs", file), "utf8")
+      }))
+    );
+    const appReadme = await readFile(
+      path.join(repoRoot, "app", "README.md"),
+      "utf8"
+    );
+    const combined = `${docs.map((doc) => doc.text).join("\n")}\n${appReadme}`;
+
+    expect(combined).toContain("Patch Approval Draft");
+    expect(combined).toContain("approval draft");
+    expect(combined).toContain("no approval execution");
+    expect(combined).toContain("no reject execution");
+    expect(combined).toContain("no PermissionLease issuing");
+    expect(combined).toContain("no patch apply");
+    expect(combined).toContain("no virtual apply");
+    expect(combined).toContain("no filesystem read or write");
+    expect(combined).toContain("no EventStore write");
+    expect(combined).toContain("no raw source");
+    expect(combined).toContain("no_compress_zone");
+    expect(combined).toContain("runtime-patch-approval-draft-v0.4.md");
+    expect(combined).toContain("app-shell-patch-approval-draft-v0.4.md");
   });
 
   it("documents app and runtime memory recall preview as volatile-tail preview only", async () => {
