@@ -470,19 +470,29 @@ function buildSegments(
     input.patchSurface !== undefined &&
     patchItemCount(input.patchSurface) > 0
   ) {
+    const hasValidationRef = input.patchSurface.items.some((item) =>
+      item.status.startsWith("validation_")
+    );
     segments.push(
       segment({
         layer: "no_compress_zone",
-        title: "Patch proposal summaries",
+        title: hasValidationRef
+          ? "Patch proposal validation summaries"
+          : "Patch proposal summaries",
         sourceKind: "patch_proposal",
-        sourceRefId: "patch-proposal-surface",
+        sourceRefId: hasValidationRef
+          ? "patch-validation-preview-surface"
+          : "patch-proposal-surface",
         summary: [
           `items:${patchItemCount(input.patchSurface)}`,
           `files:${input.patchSurface.fileCount}`,
           `added:${input.patchSurface.linesAdded}`,
           `removed:${input.patchSurface.linesRemoved}`
         ].join(" | "),
-        warningCodes: input.patchSurface.warnings
+        warningCodes: [
+          ...input.patchSurface.warnings,
+          ...(hasValidationRef ? ["PATCH_VALIDATION_NO_COMPRESS"] : [])
+        ]
       })
     );
   }

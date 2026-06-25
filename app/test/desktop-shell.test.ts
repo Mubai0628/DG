@@ -43,6 +43,12 @@ import {
   patchProposalCreationApprovalRefs,
   patchProposalCreationSurfaceSummaries
 } from "../src/patch-proposal-creation-preview-view.js";
+import {
+  buildPatchProposalValidationPreviewView,
+  patchProposalValidationApprovalRefs,
+  patchProposalValidationAuditWarningCodes,
+  patchProposalValidationSurfaceSummaries
+} from "../src/patch-proposal-validation-preview-view.js";
 import { buildCapabilityPlanPreview } from "../../runtime/src/capabilities/plan-preview.js";
 import { buildMemoryRecallPreviewView } from "../src/memory-recall-preview-view.js";
 import {
@@ -3325,6 +3331,192 @@ describe("app patch proposal creation preview", () => {
   });
 });
 
+describe("app patch proposal validation preview", () => {
+  it("builds an empty validation preview until a patch proposal exists", () => {
+    const view = buildPatchProposalValidationPreviewView();
+
+    expect(view.status).toBe("empty");
+    expect(view.source).toBe("empty");
+    expect(view.validationOnly).toBe(true);
+    expect(view.applyEnabled).toBe(false);
+    expect(view.virtualApplyEnabled).toBe(false);
+    expect(view.fileReadEnabled).toBe(false);
+    expect(view.fileWriteEnabled).toBe(false);
+    expect(view.eventWritesEnabled).toBe(false);
+  });
+
+  it("validates a safe patch proposal creation preview through the runtime helper", () => {
+    const proposalView = buildPatchProposalCreationPreviewView({
+      titleDraft: "Update docs and tests",
+      changeDescriptionSummary: "Summary-only validation preview.",
+      pathRefsText: "docs/validation.md\nruntime/test/validation.test.ts",
+      defaultChangeKind: "documentation",
+      estimatedLinesAdded: 4,
+      estimatedLinesRemoved: 1,
+      selectedIntent: "documentation"
+    });
+    const validationView = buildPatchProposalValidationPreviewView({
+      proposalPreview: proposalView
+    });
+    const serialized = JSON.stringify(validationView);
+
+    expect(validationView.source).toBe("runtime_patch_validation_preview");
+    expect(validationView.status).toBe("needs_approval");
+    expect(validationView.proposalId).toBe(proposalView.proposalId);
+    expect(validationView.readiness.canProceedToDiffAuditPreview).toBe(true);
+    expect(validationView.readiness.canApplyPatch).toBe(false);
+    expect(validationView.noCompressRequired).toBe(true);
+    expect(validationView.contextPlacement).toBe("no_compress_zone");
+    expect(serialized).not.toContain("beforeContent");
+    expect(serialized).not.toContain("afterContent");
+    expect(serialized).not.toContain("rawDiff");
+  });
+
+  it("rejects unsafe raw fields and fake API key markers safely", () => {
+    const secret = "sk-test1234567890abcdef";
+    const rawFieldProposal = buildPatchProposalCreationPreviewView({
+      titleDraft: "Unsafe proposal",
+      pathRefsText: JSON.stringify([
+        {
+          path: "app/src/App.tsx",
+          changeKind: "update",
+          beforeContent: "do not keep"
+        }
+      ]),
+      selectedIntent: "code_change"
+    });
+    const markerProposal = buildPatchProposalCreationPreviewView({
+      titleDraft: "Unsafe marker proposal",
+      pathRefsText: `app/src/App.tsx ${secret}`,
+      selectedIntent: "code_change"
+    });
+    const rawFieldValidation = buildPatchProposalValidationPreviewView({
+      proposalPreview: rawFieldProposal
+    });
+    const markerValidation = buildPatchProposalValidationPreviewView({
+      proposalPreview: markerProposal
+    });
+    const serialized = JSON.stringify({
+      rawFieldValidation,
+      markerValidation
+    });
+
+    expect(rawFieldProposal.status).toBe("blocked");
+    expect(rawFieldValidation.status).toBe("blocked");
+    expect(rawFieldValidation.warningCodes).toEqual(
+      expect.arrayContaining(["PATCH_PREVIEW_RAW_FIELD_REJECTED"])
+    );
+    expect(markerProposal.status).toBe("blocked");
+    expect(markerValidation.status).toBe("blocked");
+    expect(markerValidation.warningCodes).toEqual(
+      expect.arrayContaining(["API_KEY_MARKER"])
+    );
+    expect(serialized).not.toContain(secret);
+    expect(serialized).not.toContain("do not keep");
+  });
+
+  it("feeds Diff, Approval, Audit, and Context Assembly surfaces with summary refs", () => {
+    const runDraft = buildRunDraftView({
+      objectiveDraft: "Validate a local patch proposal preview.",
+      selectedIntent: "code_change",
+      acceptanceCriteriaDraft: "Validation summary appears",
+      workspaceRoot: "D:\\workspace"
+    });
+    const proposalView = buildPatchProposalCreationPreviewView({
+      titleDraft: "Update app validation panel",
+      changeDescriptionSummary: "Summary-only validation preview.",
+      pathRefsText: "app/src/App.tsx\nruntime/test/app.test.ts",
+      defaultChangeKind: "update",
+      estimatedLinesAdded: 6,
+      estimatedLinesRemoved: 1,
+      selectedIntent: "code_change",
+      runDraft
+    });
+    const validationView = buildPatchProposalValidationPreviewView({
+      proposalPreview: proposalView
+    });
+    const surfaces = buildWorkbenchSurfacesView({
+      controlProjection: buildControlPlaneProjectionView(undefined),
+      patchProposalSummaries: [
+        ...(patchProposalCreationSurfaceSummaries(proposalView) ?? []),
+        ...(patchProposalValidationSurfaceSummaries(validationView) ?? [])
+      ],
+      futureApprovalRefs: [
+        ...patchProposalCreationApprovalRefs(proposalView),
+        ...patchProposalValidationApprovalRefs(validationView)
+      ],
+      futureAuditWarningCodes:
+        patchProposalValidationAuditWarningCodes(validationView)
+    });
+    const contextPreview = buildContextAssemblyPreviewView({
+      runDraft,
+      patchSurface: surfaces.diff
+    });
+    const serialized = JSON.stringify({
+      surfaces,
+      contextPreview
+    });
+
+    expect(surfaces.diff.items).toHaveLength(2);
+    expect(
+      surfaces.diff.items.some((item) => item.status.startsWith("validation_"))
+    ).toBe(true);
+    expect(surfaces.approval.items.some((item) => item.kind === "patch")).toBe(
+      true
+    );
+    expect(surfaces.audit.warningCodes).toEqual(
+      expect.arrayContaining([
+        `PATCH_VALIDATION_FINDINGS_${validationView.findingCount}`,
+        `PATCH_VALIDATION_WARNINGS_${validationView.warningCount}`
+      ])
+    );
+    expect(
+      contextPreview.segments.some(
+        (segment) =>
+          segment.sourceRefId === "patch-validation-preview-surface" &&
+          segment.placement === "no_compress_zone"
+      )
+    ).toBe(true);
+    expect(serialized).not.toContain("raw source");
+    expect(serialized).not.toContain("raw diff");
+    expect(serialized).not.toContain("beforeContent");
+  });
+
+  it("keeps App UI validation-only without Tauri, EventStore, fs, or execution handlers", async () => {
+    const appSource = await readFile(
+      path.join(appRoot, "src", "App.tsx"),
+      "utf8"
+    );
+    const adapterSource = await readFile(
+      path.join(appRoot, "src", "patch-proposal-validation-preview-view.ts"),
+      "utf8"
+    );
+    const desktopFlowSource = await readFile(
+      path.join(appRoot, "src", "desktop-flow.ts"),
+      "utf8"
+    );
+    const combined = `${appSource}\n${adapterSource}`;
+
+    expect(appSource).toContain("Patch Proposal Validation Preview");
+    expect(appSource).toContain("Validation only / no apply");
+    expect(appSource).toContain("handleValidatePatchProposal");
+    expect(appSource).toContain("Validation");
+    expect(appSource).toContain("diff/audit preview");
+    expect(combined).not.toContain("handleApplyPatch");
+    expect(combined).not.toContain("applyPatch");
+    expect(combined).not.toContain("approvePatch");
+    expect(combined).not.toContain("rejectPatch");
+    expect(combined).not.toContain("executePatch");
+    expect(adapterSource).not.toContain("safeInvoke");
+    expect(adapterSource).not.toContain("EventStore");
+    expect(adapterSource).not.toContain("readFile");
+    expect(adapterSource).not.toContain("writeFile");
+    expect(adapterSource).not.toContain("localStorage");
+    expect(adapterSource).not.toContain("sessionStorage");
+    expect(desktopFlowSource).not.toContain("patch_proposal_validation");
+  });
+});
+
 describe("app memory recall preview", () => {
   it("builds an empty recall preview until a run draft exists", () => {
     const view = buildMemoryRecallPreviewView({
@@ -4493,6 +4685,41 @@ describe("desktop source boundaries", () => {
     );
     expect(combined).toContain(
       "runtime-patch-proposal-creation-preview-v0.3.md"
+    );
+  });
+
+  it("documents patch proposal validation preview as validation-only and no-apply", async () => {
+    const docs = await Promise.all(
+      [
+        "app-shell-patch-proposal-validation-preview-v0.4.md",
+        "runtime-patch-proposal-validation-preview-v0.4.md",
+        "README.md"
+      ].map(async (file) => ({
+        file,
+        text: await readFile(path.join(repoRoot, "docs", file), "utf8")
+      }))
+    );
+    const appReadme = await readFile(
+      path.join(repoRoot, "app", "README.md"),
+      "utf8"
+    );
+    const combined = `${docs.map((doc) => doc.text).join("\n")}\n${appReadme}`;
+
+    expect(combined).toContain("Patch Proposal Validation Preview");
+    expect(combined).toContain("validation preview only");
+    expect(combined).toContain("no apply");
+    expect(combined).toContain("No filesystem read or write");
+    expect(combined).toContain("no raw source/diff display");
+    expect(combined).toContain("path/schema/risk/approval/readiness");
+    expect(combined).toContain("Patch Proposal Creation Preview");
+    expect(combined).toContain("Diff Audit Preview");
+    expect(combined).toContain("Approval Gate Draft");
+    expect(combined).toContain("Context Assembly Preview");
+    expect(combined).toContain(
+      "runtime-patch-proposal-validation-preview-v0.4.md"
+    );
+    expect(combined).toContain(
+      "app-shell-patch-proposal-validation-preview-v0.4.md"
     );
   });
 

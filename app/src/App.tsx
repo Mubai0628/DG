@@ -75,6 +75,13 @@ import {
   type PatchProposalCreationChangeKind
 } from "./patch-proposal-creation-preview-view.js";
 import {
+  buildPatchProposalValidationPreviewView,
+  patchProposalValidationApprovalRefs,
+  patchProposalValidationAuditWarningCodes,
+  patchProposalValidationSurfaceSummaries,
+  type AppPatchProposalValidationPreviewView
+} from "./patch-proposal-validation-preview-view.js";
+import {
   buildEventLogPanelModel,
   buildBridgeProposalPreviewModel,
   buildResultPanelModel,
@@ -206,6 +213,8 @@ export function DesktopShell(): JSX.Element {
     useState("0");
   const [patchProposalCreationPreview, setPatchProposalCreationPreview] =
     useState<AppPatchProposalCreationPreviewView | undefined>();
+  const [patchProposalValidationPreview, setPatchProposalValidationPreview] =
+    useState<AppPatchProposalValidationPreviewView | undefined>();
   const loadedWorkspaceIndexRef =
     workspaceIndexBridge.status === "loaded" ||
     workspaceIndexBridge.status === "warning"
@@ -300,12 +309,27 @@ export function DesktopShell(): JSX.Element {
       workspaceIndexRef: loadedWorkspaceIndexRef
     });
   const patchProposalSurfaceSummaries = useMemo(
-    () => patchProposalCreationSurfaceSummaries(displayedPatchProposalCreation),
-    [displayedPatchProposalCreation]
+    () => [
+      ...(patchProposalCreationSurfaceSummaries(
+        displayedPatchProposalCreation
+      ) ?? []),
+      ...(patchProposalValidationSurfaceSummaries(
+        patchProposalValidationPreview
+      ) ?? [])
+    ],
+    [displayedPatchProposalCreation, patchProposalValidationPreview]
   );
   const patchProposalApprovalRefs = useMemo(
-    () => patchProposalCreationApprovalRefs(displayedPatchProposalCreation),
-    [displayedPatchProposalCreation]
+    () => [
+      ...patchProposalCreationApprovalRefs(displayedPatchProposalCreation),
+      ...patchProposalValidationApprovalRefs(patchProposalValidationPreview)
+    ],
+    [displayedPatchProposalCreation, patchProposalValidationPreview]
+  );
+  const patchProposalAuditWarningCodes = useMemo(
+    () =>
+      patchProposalValidationAuditWarningCodes(patchProposalValidationPreview),
+    [patchProposalValidationPreview]
   );
   const patchWorkbenchSurfaces = useMemo<AppWorkbenchSurfaceView>(
     () =>
@@ -317,13 +341,15 @@ export function DesktopShell(): JSX.Element {
           error === undefined ? undefined : { safeMessage: error },
         preflight,
         patchProposalSummaries: patchProposalSurfaceSummaries,
-        futureApprovalRefs: patchProposalApprovalRefs
+        futureApprovalRefs: patchProposalApprovalRefs,
+        futureAuditWarningCodes: patchProposalAuditWarningCodes
       }),
     [
       controlPlanePanel,
       error,
       eventSummary,
       patchProposalApprovalRefs,
+      patchProposalAuditWarningCodes,
       patchProposalSurfaceSummaries,
       preflight,
       result
@@ -418,6 +444,22 @@ export function DesktopShell(): JSX.Element {
       selectedIntent
     ]
   );
+  const patchProposalValidationCandidate =
+    useMemo<AppPatchProposalValidationPreviewView>(
+      () =>
+        buildPatchProposalValidationPreviewView({
+          proposalPreview: displayedPatchProposalCreation,
+          workspaceIndexRef: loadedWorkspaceIndexRef,
+          capabilityPlanPreview
+        }),
+      [
+        capabilityPlanPreview,
+        displayedPatchProposalCreation,
+        loadedWorkspaceIndexRef
+      ]
+    );
+  const displayedPatchProposalValidation =
+    patchProposalValidationPreview ?? buildPatchProposalValidationPreviewView();
   const contextAssemblyCandidate = useMemo<AppContextAssemblyPreviewView>(
     () =>
       buildContextAssemblyPreviewView({
@@ -458,7 +500,8 @@ export function DesktopShell(): JSX.Element {
         futureApprovalRefs: [
           ...patchProposalApprovalRefs,
           ...capabilityPlanApprovalRefs(capabilityPlanPreview)
-        ]
+        ],
+        futureAuditWarningCodes: patchProposalAuditWarningCodes
       }),
     [
       capabilityPlanPreview,
@@ -466,6 +509,7 @@ export function DesktopShell(): JSX.Element {
       error,
       eventSummary,
       patchProposalApprovalRefs,
+      patchProposalAuditWarningCodes,
       patchProposalSurfaceSummaries,
       preflight,
       result
@@ -539,11 +583,13 @@ export function DesktopShell(): JSX.Element {
     setRunDraftEventResult(undefined);
     setRunDraftEventError(undefined);
     setPatchProposalCreationPreview(undefined);
+    setPatchProposalValidationPreview(undefined);
     setContextAssemblyPreview(undefined);
   }, [acceptanceCriteriaDraft, objectiveDraft, selectedIntent, workspaceRoot]);
 
   useEffect(() => {
     setPatchProposalCreationPreview(undefined);
+    setPatchProposalValidationPreview(undefined);
     setContextAssemblyPreview(undefined);
   }, [
     patchProposalChangeKind,
@@ -578,6 +624,11 @@ export function DesktopShell(): JSX.Element {
 
   function handlePreviewPatchProposal(): void {
     setPatchProposalCreationPreview(patchProposalCreationCandidate);
+    setPatchProposalValidationPreview(undefined);
+  }
+
+  function handleValidatePatchProposal(): void {
+    setPatchProposalValidationPreview(patchProposalValidationCandidate);
   }
 
   async function handleRecordRunDraftEvent(): Promise<void> {
@@ -1662,6 +1713,149 @@ export function DesktopShell(): JSX.Element {
 
             <p className="fieldHelp">
               {displayedPatchProposalCreation.nextAction}
+            </p>
+          </section>
+
+          <section
+            className="eventPanel"
+            aria-label="Patch Proposal Validation Preview"
+          >
+            <div className="panelHeader">
+              <h2>Patch Proposal Validation Preview</h2>
+              <span className="muted">Validation only / no apply</span>
+            </div>
+            <p className="fieldHelp">
+              Validates the patch proposal summary before audit or approval. No
+              files are read or written, and no patch is applied. Validation
+              passing only means ready for diff/audit preview.
+            </p>
+            <div className="buttonRow">
+              <button
+                type="button"
+                className="secondary"
+                onClick={(event) => {
+                  event.preventDefault();
+                  event.stopPropagation();
+                  handleValidatePatchProposal();
+                }}
+                disabled={displayedPatchProposalCreation.status === "empty"}
+                aria-disabled={
+                  displayedPatchProposalCreation.status === "empty"
+                }
+              >
+                Validate Patch Proposal
+              </button>
+            </div>
+
+            {displayedPatchProposalValidation.status === "empty" ? (
+              <p className="empty">
+                Preview a local patch proposal first. Validation findings will
+                appear here before diff audit, approval draft, or virtual apply
+                preview.
+              </p>
+            ) : null}
+
+            <dl className="summaryGrid compact">
+              <div>
+                <dt>Status</dt>
+                <dd>{displayedPatchProposalValidation.status}</dd>
+              </div>
+              <div>
+                <dt>Validation</dt>
+                <dd>{displayedPatchProposalValidation.validationId}</dd>
+              </div>
+              <div>
+                <dt>Proposal</dt>
+                <dd>{displayedPatchProposalValidation.proposalId}</dd>
+              </div>
+              <div>
+                <dt>Risk / derived</dt>
+                <dd>
+                  {displayedPatchProposalValidation.riskLevel} /{" "}
+                  {displayedPatchProposalValidation.derivedRiskLevel}
+                </dd>
+              </div>
+              <div>
+                <dt>Blockers / warnings</dt>
+                <dd>
+                  {displayedPatchProposalValidation.blockerCount} /{" "}
+                  {displayedPatchProposalValidation.warningCount}
+                </dd>
+              </div>
+              <div>
+                <dt>Findings</dt>
+                <dd>{displayedPatchProposalValidation.findingCount}</dd>
+              </div>
+              <div>
+                <dt>No-compress</dt>
+                <dd>
+                  {displayedPatchProposalValidation.noCompressRequired
+                    ? displayedPatchProposalValidation.contextPlacement
+                    : "not required"}
+                </dd>
+              </div>
+              <div>
+                <dt>Can apply</dt>
+                <dd>
+                  {displayedPatchProposalValidation.readiness.canApplyPatch
+                    ? "yes"
+                    : "no"}
+                </dd>
+              </div>
+            </dl>
+
+            <dl className="summaryGrid compact">
+              <div>
+                <dt>Diff/audit preview</dt>
+                <dd>
+                  {displayedPatchProposalValidation.readiness
+                    .canProceedToDiffAuditPreview
+                    ? "ready"
+                    : "not ready"}
+                </dd>
+              </div>
+              <div>
+                <dt>Approval draft</dt>
+                <dd>
+                  {displayedPatchProposalValidation.readiness
+                    .canProceedToApprovalDraftPreview
+                    ? "ready"
+                    : "not ready"}
+                </dd>
+              </div>
+              <div>
+                <dt>Virtual apply</dt>
+                <dd>
+                  {displayedPatchProposalValidation.readiness
+                    .canProceedToVirtualApplyPreview
+                    ? "ready"
+                    : "disabled"}
+                </dd>
+              </div>
+              <div>
+                <dt>Hash</dt>
+                <dd>{displayedPatchProposalValidation.validationHash}</dd>
+              </div>
+            </dl>
+
+            {displayedPatchProposalValidation.findings.length > 0 ? (
+              <ol className="timeline">
+                {displayedPatchProposalValidation.findings.map((finding) => (
+                  <li key={finding.findingId}>
+                    <span className="timelineMeta">
+                      {finding.kind} · {finding.severity} · {finding.code}
+                    </span>
+                    <span>{finding.summary}</span>
+                    {finding.path !== undefined ? (
+                      <span className="timelineMeta">Path: {finding.path}</span>
+                    ) : null}
+                  </li>
+                ))}
+              </ol>
+            ) : null}
+
+            <p className="fieldHelp">
+              {displayedPatchProposalValidation.nextAction}
             </p>
           </section>
 

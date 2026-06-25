@@ -14,9 +14,10 @@ Current scope:
   planning-only summaries: Chat / Run Canvas, local Run Draft Preview, Control
   Plane Projection, Context Cart, Agent Route Preview backed by the runtime
   static router helper, Capability Plan Preview, Patch Proposal / Diff,
-  Patch Proposal Creation Preview, Approval / Diff / Audit, Memory Inspector,
-  Memory Recall Preview, Workspace Index summary bridge, Context Assembly
-  Preview, and disabled Bridge Proposal Preview
+  Patch Proposal Creation Preview, Patch Proposal Validation Preview,
+  Approval / Diff / Audit, Memory Inspector, Memory Recall Preview, Workspace
+  Index summary bridge, Context Assembly Preview, and disabled Bridge Proposal
+  Preview
 - show Memory Recall Preview through the runtime Memory Core preview helper
   using in-memory summaries only; no memory persistence, commit, revoke, or
   expire operation is connected
@@ -38,7 +39,8 @@ Current limitations:
   summary-only JSON previews
 - no App Shell prompt assembly; Context Assembly Preview is local summary-only
 - no App Shell patch apply; Patch Proposal Creation Preview is local
-  summary-only and never reads or writes files
+  summary-only and Patch Proposal Validation Preview validates summaries only;
+  neither reads or writes files
 - no real DeepSeek API call from the desktop shell
 - no real chat, run creation, approval execution, patch apply, Git execution,
   shell execution, capability invocation, PermissionLease issuance, memory

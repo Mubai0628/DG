@@ -8,4 +8,5 @@ export * from "./path-guard.js";
 export * from "./proposal.js";
 export * from "./rollback.js";
 export * from "./types.js";
+export * from "./validation-preview.js";
 export * from "./virtual-workspace.js";

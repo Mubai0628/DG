@@ -136,6 +136,7 @@ export type AppWorkbenchSurfacesInput = {
     | undefined;
   workspaceIndexRef?: AppPatchProposalSurfaceInput["workspaceIndexRef"];
   futureApprovalRefs?: AppWorkbenchApprovalRef[] | undefined;
+  futureAuditWarningCodes?: string[] | undefined;
 };
 
 const emptyApprovalMessage =
@@ -320,12 +321,14 @@ function warningCodesFrom(input: AppWorkbenchSurfacesInput): string[] {
     .filter(isControlWarning)
     .map((warning) => warning.code);
   const summaryWarnings = safeWarningCodes(input.eventSummary?.warnings);
+  const futureAuditWarnings = safeWarningCodes(input.futureAuditWarningCodes);
   return Array.from(
     new Set([
       ...conversionWarning,
       ...preflightWarning,
       ...controlWarnings,
-      ...summaryWarnings
+      ...summaryWarnings,
+      ...futureAuditWarnings
     ])
   );
 }
