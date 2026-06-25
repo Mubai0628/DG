@@ -42,6 +42,8 @@ foundation.
 - [App Shell Patch Virtual Apply Preview v0.4](app-shell-patch-virtual-apply-preview-v0.4.md)
 - [Runtime Patch Rollback Checkpoint Preview v0.4](runtime-patch-rollback-checkpoint-preview-v0.4.md)
 - [App Shell Patch Rollback Checkpoint Preview v0.4](app-shell-patch-rollback-checkpoint-preview-v0.4.md)
+- [Runtime Controlled Creation Replay Projection v0.4](runtime-controlled-creation-replay-projection-v0.4.md)
+- [App Shell Controlled Creation Replay Projection v0.4](app-shell-controlled-creation-replay-projection-v0.4.md)
 - [Runtime Memory Recall Preview v0.3](runtime-memory-recall-preview-v0.3.md)
 - [v0.4.0 Controlled Creation Preview RC release notes](release-notes-v0.4.0-controlled-creation-preview-rc.1.md)
 - [App Shell Controlled Creation manual QA](app-shell-controlled-creation-manual-qa.md)

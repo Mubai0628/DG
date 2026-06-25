@@ -73,6 +73,13 @@ import {
   patchRollbackCheckpointSurfaceSummaries,
   patchRollbackCheckpointWarningCodes
 } from "../src/patch-rollback-checkpoint-preview-view.js";
+import {
+  buildControlledCreationReplayProjectionView,
+  controlledCreationReplayApprovalRefs,
+  controlledCreationReplayPatchSummaries,
+  controlledCreationReplayWarningCodes,
+  summarizeControlledCreationReplayProjectionView
+} from "../src/controlled-creation-replay-projection-view.js";
 import { buildCapabilityPlanPreview } from "../../runtime/src/capabilities/plan-preview.js";
 import { buildMemoryRecallPreviewView } from "../src/memory-recall-preview-view.js";
 import {
@@ -4680,6 +4687,457 @@ describe("app patch rollback checkpoint preview", () => {
   });
 });
 
+describe("app controlled creation replay projection", () => {
+  function safeWorkspaceIndex() {
+    return buildWorkspaceIndexBridgeView({
+      source: "synthetic_summary",
+      summary: {
+        workspaceIndexId: "workspace-index-replay",
+        indexHash: "workspacehashreplay",
+        directoryCount: 1,
+        fileSummaries: [
+          {
+            path: "examples/replay-summary.txt",
+            language: "unknown",
+            extension: "txt",
+            sizeBytes: 120,
+            lineCount: 12,
+            symbolCount: 0,
+            hash: "abc12345",
+            indexed: true
+          }
+        ],
+        languageSummary: [
+          {
+            language: "unknown",
+            fileCount: 1,
+            indexedFileCount: 1,
+            lineCount: 12,
+            sizeBytes: 120
+          }
+        ]
+      }
+    });
+  }
+
+  function safeEventSummary(draftId: string): WorkspaceEventSummary {
+    return {
+      ok: true,
+      eventLogPath: "D:\\workspace\\.deepseek-workbench\\events.jsonl",
+      eventCount: 1,
+      displayedEventCount: 1,
+      taskCount: 1,
+      completedTaskCount: 0,
+      draftCount: 0,
+      lastEventAt: "2026-06-25T00:00:00.000Z",
+      typeCounts: {
+        "control.run.draft_recorded": 1
+      },
+      timeline: [
+        {
+          id: "event-run-draft-replay",
+          type: "control.run.draft_recorded",
+          summary: `Run draft ${draftId} recorded as a summary-only event.`
+        }
+      ],
+      safetyScan: {
+        ok: true,
+        findings: 0,
+        warningCodes: []
+      },
+      warnings: []
+    };
+  }
+
+  function safeReplayChain() {
+    const runDraft = buildRunDraftView({
+      objectiveDraft:
+        "Preview controlled creation replay projection for a local patch chain.",
+      selectedIntent: "documentation",
+      acceptanceCriteriaDraft: "Replay projection summary appears",
+      workspaceRoot: "D:\\workspace"
+    });
+    const runDraftEventResult = {
+      ok: true,
+      eventId: "event-run-draft-replay",
+      eventType: "control.run.draft_recorded" as const,
+      draftId: runDraft.draftId,
+      eventLogPath: "D:\\workspace\\.deepseek-workbench\\events.jsonl",
+      safeMessage: "Draft event recorded locally as a summary-only event.",
+      warnings: []
+    };
+    const eventSummary = safeEventSummary(runDraft.draftId);
+    const proposalView = buildPatchProposalCreationPreviewView({
+      titleDraft: "Update replay projection summary",
+      changeDescriptionSummary:
+        "Summary-only controlled creation replay projection preview.",
+      pathRefsText: "examples/replay-summary.txt",
+      defaultChangeKind: "update",
+      estimatedLinesAdded: 8,
+      estimatedLinesRemoved: 1,
+      selectedIntent: "documentation"
+    });
+    const validationView = buildPatchProposalValidationPreviewView({
+      proposalPreview: proposalView
+    });
+    const auditView = buildPatchDiffAuditPreviewView({
+      proposalPreview: proposalView,
+      validationPreview: validationView
+    });
+    const approvalView = buildPatchApprovalDraftView({
+      proposalPreview: proposalView,
+      validationPreview: validationView,
+      diffAuditPreview: auditView
+    });
+    const workspaceIndex = safeWorkspaceIndex();
+    const virtualView = buildPatchVirtualApplyPreviewView({
+      proposalPreview: proposalView,
+      validationPreview: validationView,
+      diffAuditPreview: auditView,
+      approvalDraft: approvalView,
+      workspaceIndexRef: workspaceIndex
+    });
+    const rollbackView = buildPatchRollbackCheckpointPreviewView({
+      virtualApplyPreview: virtualView,
+      proposalPreview: proposalView,
+      validationPreview: validationView,
+      diffAuditPreview: auditView,
+      approvalDraft: approvalView,
+      workspaceIndexRef: workspaceIndex
+    });
+    const patchSurface = buildWorkbenchSurfacesView({
+      controlProjection: buildControlPlaneProjectionView(eventSummary),
+      patchProposalSummaries: [
+        ...(patchProposalCreationSurfaceSummaries(proposalView) ?? []),
+        ...(patchProposalValidationSurfaceSummaries(validationView) ?? []),
+        ...(patchDiffAuditSurfaceSummaries(auditView) ?? []),
+        ...(patchApprovalDraftSurfaceSummaries(approvalView) ?? []),
+        ...(patchVirtualApplySurfaceSummaries(virtualView) ?? []),
+        ...(patchRollbackCheckpointSurfaceSummaries(rollbackView) ?? [])
+      ]
+    }).diff;
+    const contextPreview = buildContextAssemblyPreviewView({
+      runDraft,
+      runDraftEventSummary: runDraftEventResult,
+      workspaceIndexBridge: workspaceIndex,
+      patchSurface
+    });
+    const controlProjection = buildControlPlaneProjectionView(eventSummary);
+    const replayView = buildControlledCreationReplayProjectionView({
+      eventSummary,
+      runDraftEventResult,
+      patchProposalCreationPreview: proposalView,
+      patchValidationPreview: validationView,
+      patchDiffAuditPreview: auditView,
+      patchApprovalDraft: approvalView,
+      patchVirtualApplyPreview: virtualView,
+      patchRollbackCheckpointPreview: rollbackView,
+      contextAssemblyPreview: contextPreview,
+      controlProjection
+    });
+
+    return {
+      runDraft,
+      runDraftEventResult,
+      eventSummary,
+      proposalView,
+      validationView,
+      auditView,
+      approvalView,
+      workspaceIndex,
+      virtualView,
+      rollbackView,
+      contextPreview,
+      controlProjection,
+      replayView
+    };
+  }
+
+  it("builds an empty replay projection until controlled creation summaries exist", () => {
+    const view = buildControlledCreationReplayProjectionView();
+
+    expect(view.status).toBe("empty");
+    expect(view.source).toBe("empty");
+    expect(view.previewOnly).toBe(true);
+    expect(view.eventWritesEnabled).toBe(false);
+    expect(view.executionEnabled).toBe(false);
+    expect(view.runExecutionEnabled).toBe(false);
+    expect(view.applyEnabled).toBe(false);
+    expect(view.rollbackEnabled).toBe(false);
+    expect(view.fileReadEnabled).toBe(false);
+    expect(view.fileWriteEnabled).toBe(false);
+    expect(view.gitExecutionEnabled).toBe(false);
+    expect(view.shellExecutionEnabled).toBe(false);
+  });
+
+  it("generates a summary-only replay projection from the safe preview chain", () => {
+    const { replayView } = safeReplayChain();
+    const serialized = JSON.stringify(replayView);
+
+    expect(replayView.source).toBe(
+      "runtime_controlled_creation_replay_projection"
+    );
+    expect(replayView.stageCount).toBe(7);
+    expect(replayView.persistedEventCount).toBe(1);
+    expect(replayView.localPreviewStageCount).toBe(6);
+    expect(replayView.stages.map((stage) => stage.kind)).toEqual([
+      "run_draft_event_recorded",
+      "patch_proposal_creation_previewed",
+      "patch_proposal_validation_previewed",
+      "patch_diff_audit_previewed",
+      "patch_approval_draft_previewed",
+      "patch_virtual_apply_previewed",
+      "patch_rollback_checkpoint_previewed"
+    ]);
+    expect(replayView.noCompressRequired).toBe(true);
+    expect(replayView.contextPlacement).toBe("no_compress_zone");
+    expect(replayView.readiness.canReplayProjection).toBe(true);
+    expect(replayView.readiness.canExecuteRun).toBe(false);
+    expect(replayView.readiness.canApplyPatch).toBe(false);
+    expect(replayView.readiness.canRollbackReal).toBe(false);
+    expect(replayView.readiness.canWriteFilesystem).toBe(false);
+    expect(replayView.readiness.canExecuteGit).toBe(false);
+    expect(replayView.readiness.canExecuteShell).toBe(false);
+    expect(summarizeControlledCreationReplayProjectionView(replayView)).toMatch(
+      /stages:7/
+    );
+    expect(serialized).not.toContain("beforeContent");
+    expect(serialized).not.toContain("afterContent");
+    expect(serialized).not.toContain("rawDiff");
+    expect(serialized).not.toContain("function App");
+  });
+
+  it("keeps incomplete chains partial without executing missing stages", () => {
+    const {
+      eventSummary,
+      runDraftEventResult,
+      proposalView,
+      contextPreview,
+      controlProjection
+    } = safeReplayChain();
+    const replayView = buildControlledCreationReplayProjectionView({
+      eventSummary,
+      runDraftEventResult,
+      patchProposalCreationPreview: proposalView,
+      contextAssemblyPreview: contextPreview,
+      controlProjection
+    });
+
+    expect(replayView.status).toBe("partial");
+    expect(replayView.stageCount).toBe(2);
+    expect(replayView.missingStageCount).toBeGreaterThan(0);
+    expect(replayView.readiness.canExecuteRun).toBe(false);
+    expect(replayView.warningCodes).toEqual(
+      expect.arrayContaining([
+        "MISSING_LATER_STAGE_PATCH_PROPOSAL_VALIDATION_PREVIEWED"
+      ])
+    );
+  });
+
+  it("blocks mismatched preview chain IDs safely", () => {
+    const {
+      eventSummary,
+      runDraftEventResult,
+      proposalView,
+      validationView,
+      auditView,
+      approvalView,
+      virtualView,
+      rollbackView,
+      contextPreview,
+      controlProjection
+    } = safeReplayChain();
+    const replayView = buildControlledCreationReplayProjectionView({
+      eventSummary,
+      runDraftEventResult,
+      patchProposalCreationPreview: proposalView,
+      patchValidationPreview: {
+        ...validationView,
+        proposalId: "different-proposal"
+      },
+      patchDiffAuditPreview: auditView,
+      patchApprovalDraft: approvalView,
+      patchVirtualApplyPreview: virtualView,
+      patchRollbackCheckpointPreview: rollbackView,
+      contextAssemblyPreview: contextPreview,
+      controlProjection
+    });
+
+    expect(replayView.status).toBe("blocked");
+    expect(replayView.blockerCount).toBeGreaterThan(0);
+    expect(replayView.warningCodes).toEqual(
+      expect.arrayContaining(["PATCH_VALIDATION_PROPOSAL_ID_MISMATCH"])
+    );
+    expect(replayView.readiness.canReplayProjection).toBe(false);
+  });
+
+  it("rejects unsafe raw fields and fake API key markers without retaining values", () => {
+    const secret = "sk-test1234567890abcdef";
+    const {
+      eventSummary,
+      runDraftEventResult,
+      proposalView,
+      validationView,
+      auditView,
+      approvalView,
+      virtualView,
+      rollbackView,
+      contextPreview,
+      controlProjection
+    } = safeReplayChain();
+    const replayView = buildControlledCreationReplayProjectionView({
+      eventSummary,
+      runDraftEventResult,
+      patchProposalCreationPreview: {
+        ...proposalView,
+        rawPrompt: `do not keep rawPrompt rawDom rawCsv ${secret}`
+      } as typeof proposalView & Record<string, unknown>,
+      patchValidationPreview: validationView,
+      patchDiffAuditPreview: auditView,
+      patchApprovalDraft: approvalView,
+      patchVirtualApplyPreview: virtualView,
+      patchRollbackCheckpointPreview: rollbackView,
+      contextAssemblyPreview: contextPreview,
+      controlProjection
+    });
+    const serialized = JSON.stringify(replayView);
+
+    expect(replayView.status).toBe("blocked");
+    expect(replayView.warningCodes).toEqual(
+      expect.arrayContaining([
+        "API_KEY_MARKER",
+        "RAW_PROMPT_MARKER",
+        "RAW_DOM_MARKER",
+        "RAW_CSV_MARKER"
+      ])
+    );
+    expect(serialized).not.toContain(secret);
+    expect(serialized).not.toContain("do not keep");
+    expect(serialized).not.toContain("rawPrompt rawDom rawCsv");
+  });
+
+  it("feeds Diff, Approval, Audit, and Context Assembly with replay summary refs", () => {
+    const {
+      runDraft,
+      proposalView,
+      validationView,
+      auditView,
+      approvalView,
+      virtualView,
+      rollbackView,
+      replayView
+    } = safeReplayChain();
+    const blockedReplayView = buildControlledCreationReplayProjectionView({
+      patchRollbackCheckpointPreview: {
+        ...rollbackView,
+        canRollbackReal: true
+      } as typeof rollbackView & Record<string, unknown>
+    });
+    const surfaces = buildWorkbenchSurfacesView({
+      controlProjection: buildControlPlaneProjectionView(undefined),
+      patchProposalSummaries: [
+        ...(patchProposalCreationSurfaceSummaries(proposalView) ?? []),
+        ...(patchProposalValidationSurfaceSummaries(validationView) ?? []),
+        ...(patchDiffAuditSurfaceSummaries(auditView) ?? []),
+        ...(patchApprovalDraftSurfaceSummaries(approvalView) ?? []),
+        ...(patchVirtualApplySurfaceSummaries(virtualView) ?? []),
+        ...(patchRollbackCheckpointSurfaceSummaries(rollbackView) ?? []),
+        ...(controlledCreationReplayPatchSummaries(replayView) ?? [])
+      ],
+      futureApprovalRefs: [
+        ...patchApprovalDraftApprovalRefs(approvalView),
+        ...patchVirtualApplyApprovalRefs(virtualView),
+        ...patchRollbackCheckpointApprovalRefs(rollbackView),
+        ...controlledCreationReplayApprovalRefs(blockedReplayView)
+      ],
+      futureAuditWarningCodes: [
+        ...patchApprovalDraftWarningCodes(approvalView),
+        ...patchVirtualApplyWarningCodes(virtualView),
+        ...patchRollbackCheckpointWarningCodes(rollbackView),
+        ...controlledCreationReplayWarningCodes(replayView)
+      ]
+    });
+    const contextPreview = buildContextAssemblyPreviewView({
+      runDraft,
+      patchSurface: surfaces.diff,
+      replayProjection: replayView
+    });
+    const serialized = JSON.stringify({ surfaces, contextPreview });
+
+    expect(
+      surfaces.diff.items.some((item) =>
+        item.status.startsWith("replay_projection_")
+      )
+    ).toBe(true);
+    expect(surfaces.audit.warningCodes).toEqual(
+      expect.arrayContaining([
+        `CONTROLLED_REPLAY_STAGES_${replayView.stageCount}`,
+        `CONTROLLED_REPLAY_STATUS_${replayView.status.toUpperCase()}`
+      ])
+    );
+    expect(surfaces.approval.items).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          id: `controlled-replay-${blockedReplayView.projectionId}`,
+          status: "blocked"
+        })
+      ])
+    );
+    expect(
+      contextPreview.segments.some(
+        (segment) =>
+          segment.sourceRefId === "controlled-creation-replay-projection" &&
+          segment.placement === "no_compress_zone"
+      )
+    ).toBe(true);
+    expect(serialized).not.toContain("raw source");
+    expect(serialized).not.toContain("raw diff");
+    expect(serialized).not.toContain("beforeContent");
+  });
+
+  it("keeps App UI replay-only without Tauri, EventStore, fs, rollback, apply, or execution handlers", async () => {
+    const appSource = await readFile(
+      path.join(appRoot, "src", "App.tsx"),
+      "utf8"
+    );
+    const adapterSource = await readFile(
+      path.join(
+        appRoot,
+        "src",
+        "controlled-creation-replay-projection-view.ts"
+      ),
+      "utf8"
+    );
+    const desktopFlowSource = await readFile(
+      path.join(appRoot, "src", "desktop-flow.ts"),
+      "utf8"
+    );
+    const combined = `${appSource}\n${adapterSource}`;
+
+    expect(appSource).toContain("Controlled Creation Replay Projection");
+    expect(appSource).toContain("Replay preview / no execution");
+    expect(appSource).toContain("handlePreviewControlledReplayProjection");
+    expect(appSource).toContain(
+      "No events are written and no action is executed"
+    );
+    expect(combined).not.toContain("handleExecuteReplay");
+    expect(combined).not.toContain("handleRunReplayProjection");
+    expect(combined).not.toContain("executeReplayProjection");
+    expect(combined).not.toContain("applyReplayProjection");
+    expect(combined).not.toContain("rollbackReplayProjection");
+    expect(adapterSource).not.toContain("safeInvoke");
+    expect(adapterSource).not.toContain("EventStore");
+    expect(adapterSource).not.toContain("readFile");
+    expect(adapterSource).not.toContain("writeFile");
+    expect(adapterSource).not.toContain("localStorage");
+    expect(adapterSource).not.toContain("sessionStorage");
+    expect(adapterSource).not.toContain("fetch(");
+    expect(desktopFlowSource).not.toContain(
+      "controlled_creation_replay_projection"
+    );
+  });
+});
+
 describe("app memory recall preview", () => {
   it("builds an empty recall preview until a run draft exists", () => {
     const view = buildMemoryRecallPreviewView({
@@ -6011,6 +6469,41 @@ describe("desktop source boundaries", () => {
     );
     expect(combined).toContain(
       "app-shell-patch-rollback-checkpoint-preview-v0.4.md"
+    );
+  });
+
+  it("documents app and runtime controlled creation replay projection as summary-only and no-execution", async () => {
+    const docs = await Promise.all(
+      [
+        "runtime-controlled-creation-replay-projection-v0.4.md",
+        "app-shell-controlled-creation-replay-projection-v0.4.md",
+        "README.md"
+      ].map(async (file) => ({
+        file,
+        text: await readFile(path.join(repoRoot, "docs", file), "utf8")
+      }))
+    );
+    const appReadme = await readFile(
+      path.join(repoRoot, "app", "README.md"),
+      "utf8"
+    );
+    const combined = `${docs.map((doc) => doc.text).join("\n")}\n${appReadme}`;
+
+    expect(combined).toContain("Controlled Creation Replay Projection");
+    expect(combined).toContain("summary-only");
+    expect(combined).toContain("Replay preview / no execution");
+    expect(combined).toMatch(/no EventStore write/i);
+    expect(combined).toMatch(/no real ControlPlaneRun creation or execution/i);
+    expect(combined).toMatch(/no patch apply/i);
+    expect(combined).toMatch(/no real rollback/i);
+    expect(combined).toContain("raw source");
+    expect(combined).toContain("raw diff");
+    expect(combined).toContain("no_compress_zone");
+    expect(combined).toContain(
+      "runtime-controlled-creation-replay-projection-v0.4.md"
+    );
+    expect(combined).toContain(
+      "app-shell-controlled-creation-replay-projection-v0.4.md"
     );
   });
 

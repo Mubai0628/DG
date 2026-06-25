@@ -3,6 +3,7 @@ export * from "./errors.js";
 export * from "./event-mapping.js";
 export * from "./integrations.js";
 export * from "./lifecycle.js";
+export * from "./replay-projection-preview.js";
 export * from "./run.js";
 export * from "./run-registry.js";
 export * from "./state-projector.js";

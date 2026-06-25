@@ -1,6 +1,7 @@
 import type { AppAgentRoutePreviewView } from "./agent-route-preview-view.js";
 import type { AppCapabilityPlanPreviewView } from "./capability-plan-preview-view.js";
 import type { AppControlPlaneProjectionView } from "./control-plane-view.js";
+import type { AppControlledCreationReplayProjectionView } from "./controlled-creation-replay-projection-view.js";
 import type { AppMemoryRecallPreviewView } from "./memory-recall-preview-view.js";
 import type { AppRunDraftView } from "./run-draft-view.js";
 import {
@@ -41,6 +42,7 @@ export type AppContextAssemblySourceRef = {
     | "memory_recall"
     | "patch_proposal"
     | "approval_ref"
+    | "replay_projection"
     | "agent_route"
     | "capability_plan"
     | "event_evidence"
@@ -110,6 +112,7 @@ export type AppContextAssemblyPreviewInput = {
   workspaceIndexBridge?: AppWorkspaceIndexBridgeView | undefined;
   memoryRecallPreview?: AppMemoryRecallPreviewView | undefined;
   patchSurface?: AppDiffSurfaceView | undefined;
+  replayProjection?: AppControlledCreationReplayProjectionView | undefined;
   agentRoutePreview?: AppAgentRoutePreviewView | undefined;
   capabilityPlanPreview?: AppCapabilityPlanPreviewView | undefined;
   controlProjection?: AppControlPlaneProjectionView | undefined;
@@ -529,6 +532,31 @@ function buildSegments(
           ...(hasApprovalDraftRef ? ["PATCH_APPROVAL_DRAFT_NO_COMPRESS"] : []),
           ...(hasDiffAuditRef ? ["PATCH_DIFF_AUDIT_NO_COMPRESS"] : []),
           ...(hasValidationRef ? ["PATCH_VALIDATION_NO_COMPRESS"] : [])
+        ]
+      })
+    );
+  }
+
+  if (
+    input.replayProjection !== undefined &&
+    input.replayProjection.status !== "empty"
+  ) {
+    segments.push(
+      segment({
+        layer: "no_compress_zone",
+        title: "Controlled creation replay projection summary",
+        sourceKind: "replay_projection",
+        sourceRefId: "controlled-creation-replay-projection",
+        summary: [
+          input.replayProjection.status,
+          `stages:${input.replayProjection.stageCount}`,
+          `persisted:${input.replayProjection.persistedEventCount}`,
+          `local:${input.replayProjection.localPreviewStageCount}`,
+          `missing:${input.replayProjection.missingStageCount}`
+        ].join(" | "),
+        warningCodes: [
+          "CONTROLLED_REPLAY_NO_COMPRESS",
+          ...input.replayProjection.warningCodes
         ]
       })
     );

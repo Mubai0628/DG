@@ -110,6 +110,14 @@ import {
   type AppPatchRollbackCheckpointPreviewView
 } from "./patch-rollback-checkpoint-preview-view.js";
 import {
+  buildControlledCreationReplayProjectionView,
+  controlledCreationReplayApprovalRefs,
+  controlledCreationReplayPatchSummaries,
+  controlledCreationReplayWarningCodes,
+  summarizeControlledCreationReplayProjectionView,
+  type AppControlledCreationReplayProjectionView
+} from "./controlled-creation-replay-projection-view.js";
+import {
   buildEventLogPanelModel,
   buildBridgeProposalPreviewModel,
   buildResultPanelModel,
@@ -254,6 +262,10 @@ export function DesktopShell(): JSX.Element {
   >();
   const [patchRollbackCheckpointPreview, setPatchRollbackCheckpointPreview] =
     useState<AppPatchRollbackCheckpointPreviewView | undefined>();
+  const [
+    controlledCreationReplayProjection,
+    setControlledCreationReplayProjection
+  ] = useState<AppControlledCreationReplayProjectionView | undefined>();
   const loadedWorkspaceIndexRef =
     workspaceIndexBridge.status === "loaded" ||
     workspaceIndexBridge.status === "warning"
@@ -360,9 +372,13 @@ export function DesktopShell(): JSX.Element {
       ...(patchVirtualApplySurfaceSummaries(patchVirtualApplyPreview) ?? []),
       ...(patchRollbackCheckpointSurfaceSummaries(
         patchRollbackCheckpointPreview
+      ) ?? []),
+      ...(controlledCreationReplayPatchSummaries(
+        controlledCreationReplayProjection
       ) ?? [])
     ],
     [
+      controlledCreationReplayProjection,
       patchApprovalDraftPreview,
       patchRollbackCheckpointPreview,
       patchVirtualApplyPreview,
@@ -378,9 +394,13 @@ export function DesktopShell(): JSX.Element {
       ...patchDiffAuditApprovalRefs(patchDiffAuditPreview),
       ...patchApprovalDraftApprovalRefs(patchApprovalDraftPreview),
       ...patchVirtualApplyApprovalRefs(patchVirtualApplyPreview),
-      ...patchRollbackCheckpointApprovalRefs(patchRollbackCheckpointPreview)
+      ...patchRollbackCheckpointApprovalRefs(patchRollbackCheckpointPreview),
+      ...controlledCreationReplayApprovalRefs(
+        controlledCreationReplayProjection
+      )
     ],
     [
+      controlledCreationReplayProjection,
       patchApprovalDraftPreview,
       patchRollbackCheckpointPreview,
       patchVirtualApplyPreview,
@@ -397,9 +417,13 @@ export function DesktopShell(): JSX.Element {
       ...patchDiffAuditWarningCodes(patchDiffAuditPreview),
       ...patchApprovalDraftWarningCodes(patchApprovalDraftPreview),
       ...patchVirtualApplyWarningCodes(patchVirtualApplyPreview),
-      ...patchRollbackCheckpointWarningCodes(patchRollbackCheckpointPreview)
+      ...patchRollbackCheckpointWarningCodes(patchRollbackCheckpointPreview),
+      ...controlledCreationReplayWarningCodes(
+        controlledCreationReplayProjection
+      )
     ],
     [
+      controlledCreationReplayProjection,
       patchApprovalDraftPreview,
       patchRollbackCheckpointPreview,
       patchVirtualApplyPreview,
@@ -636,6 +660,7 @@ export function DesktopShell(): JSX.Element {
         capabilityPlanPreview,
         controlProjection: controlPlanePanel,
         eventSummary,
+        replayProjection: controlledCreationReplayProjection,
         previousPreview: contextAssemblyPreview
       }),
     [
@@ -643,6 +668,7 @@ export function DesktopShell(): JSX.Element {
       capabilityPlanPreview,
       contextAssemblyPreview,
       controlPlanePanel,
+      controlledCreationReplayProjection,
       displayedRunDraft,
       eventSummary,
       loadedWorkspaceIndexRef,
@@ -652,6 +678,37 @@ export function DesktopShell(): JSX.Element {
   );
   const displayedContextAssembly =
     contextAssemblyPreview ?? contextAssemblyCandidate;
+  const controlledCreationReplayCandidate =
+    useMemo<AppControlledCreationReplayProjectionView>(
+      () =>
+        buildControlledCreationReplayProjectionView({
+          eventSummary,
+          runDraftEventResult,
+          patchProposalCreationPreview: patchProposalCreationPreview,
+          patchValidationPreview: patchProposalValidationPreview,
+          patchDiffAuditPreview,
+          patchApprovalDraft: patchApprovalDraftPreview,
+          patchVirtualApplyPreview,
+          patchRollbackCheckpointPreview,
+          contextAssemblyPreview: displayedContextAssembly,
+          controlProjection: controlPlanePanel
+        }),
+      [
+        controlPlanePanel,
+        displayedContextAssembly,
+        eventSummary,
+        patchApprovalDraftPreview,
+        patchDiffAuditPreview,
+        patchProposalCreationPreview,
+        patchProposalValidationPreview,
+        patchRollbackCheckpointPreview,
+        patchVirtualApplyPreview,
+        runDraftEventResult
+      ]
+    );
+  const displayedControlledCreationReplay =
+    controlledCreationReplayProjection ??
+    buildControlledCreationReplayProjectionView();
   const workbenchSurfaces = useMemo<AppWorkbenchSurfaceView>(
     () =>
       buildWorkbenchSurfacesView({
@@ -753,6 +810,7 @@ export function DesktopShell(): JSX.Element {
     setPatchApprovalDraftPreview(undefined);
     setPatchVirtualApplyPreview(undefined);
     setPatchRollbackCheckpointPreview(undefined);
+    setControlledCreationReplayProjection(undefined);
     setContextAssemblyPreview(undefined);
   }, [acceptanceCriteriaDraft, objectiveDraft, selectedIntent, workspaceRoot]);
 
@@ -763,6 +821,7 @@ export function DesktopShell(): JSX.Element {
     setPatchApprovalDraftPreview(undefined);
     setPatchVirtualApplyPreview(undefined);
     setPatchRollbackCheckpointPreview(undefined);
+    setControlledCreationReplayProjection(undefined);
     setContextAssemblyPreview(undefined);
   }, [
     patchProposalChangeKind,
@@ -781,6 +840,7 @@ export function DesktopShell(): JSX.Element {
     patchDiffAuditPreview?.auditId,
     patchRollbackCheckpointPreview?.checkpointPreviewId,
     patchVirtualApplyPreview?.virtualApplyId,
+    controlledCreationReplayProjection?.projectionId,
     patchWorkbenchSurfaces.diff.items.length,
     capabilityPlanPreview.itemCount,
     displayedRunDraft.draftId,
@@ -806,6 +866,7 @@ export function DesktopShell(): JSX.Element {
     setPatchApprovalDraftPreview(undefined);
     setPatchVirtualApplyPreview(undefined);
     setPatchRollbackCheckpointPreview(undefined);
+    setControlledCreationReplayProjection(undefined);
   }
 
   function handleValidatePatchProposal(): void {
@@ -814,6 +875,7 @@ export function DesktopShell(): JSX.Element {
     setPatchApprovalDraftPreview(undefined);
     setPatchVirtualApplyPreview(undefined);
     setPatchRollbackCheckpointPreview(undefined);
+    setControlledCreationReplayProjection(undefined);
   }
 
   function handlePreviewDiffAudit(): void {
@@ -821,21 +883,29 @@ export function DesktopShell(): JSX.Element {
     setPatchApprovalDraftPreview(undefined);
     setPatchVirtualApplyPreview(undefined);
     setPatchRollbackCheckpointPreview(undefined);
+    setControlledCreationReplayProjection(undefined);
   }
 
   function handlePreviewApprovalDraft(): void {
     setPatchApprovalDraftPreview(patchApprovalDraftCandidate);
     setPatchVirtualApplyPreview(undefined);
     setPatchRollbackCheckpointPreview(undefined);
+    setControlledCreationReplayProjection(undefined);
   }
 
   function handlePreviewVirtualApply(): void {
     setPatchVirtualApplyPreview(patchVirtualApplyCandidate);
     setPatchRollbackCheckpointPreview(undefined);
+    setControlledCreationReplayProjection(undefined);
   }
 
   function handlePreviewRollbackCheckpoint(): void {
     setPatchRollbackCheckpointPreview(patchRollbackCheckpointCandidate);
+    setControlledCreationReplayProjection(undefined);
+  }
+
+  function handlePreviewControlledReplayProjection(): void {
+    setControlledCreationReplayProjection(controlledCreationReplayCandidate);
   }
 
   async function handleRecordRunDraftEvent(): Promise<void> {
@@ -858,6 +928,7 @@ export function DesktopShell(): JSX.Element {
         payload: runDraftEventPreview.payload
       });
       setRunDraftEventResult(recordResult);
+      setControlledCreationReplayProjection(undefined);
       setRunDraftEventStatus("recorded");
       await refreshEvents(workspaceRoot);
     } catch (caught) {
@@ -2930,6 +3001,189 @@ export function DesktopShell(): JSX.Element {
             </p>
           </section>
 
+          <section
+            className="eventPanel"
+            aria-label="Controlled Creation Replay Projection"
+          >
+            <div className="panelHeader">
+              <h2>Controlled Creation Replay Projection</h2>
+              <span className="muted">Replay preview / no execution</span>
+            </div>
+            <p className="fieldHelp">
+              Projects the controlled-creation preview chain into a summary-only
+              replay timeline. No events are written and no action is executed.
+            </p>
+            <div className="buttonRow">
+              <button
+                type="button"
+                className="secondary"
+                onClick={(event) => {
+                  event.preventDefault();
+                  event.stopPropagation();
+                  handlePreviewControlledReplayProjection();
+                }}
+                disabled={controlledCreationReplayCandidate.status === "empty"}
+                aria-disabled={
+                  controlledCreationReplayCandidate.status === "empty"
+                }
+              >
+                Preview Replay Projection
+              </button>
+            </div>
+
+            {displayedControlledCreationReplay.status === "empty" ? (
+              <p className="empty">
+                Build controlled-creation preview stages first. Replay
+                projection summaries will appear here before any execution.
+              </p>
+            ) : null}
+
+            <dl className="summaryGrid compact">
+              <div>
+                <dt>Status</dt>
+                <dd>{displayedControlledCreationReplay.status}</dd>
+              </div>
+              <div>
+                <dt>Projection</dt>
+                <dd>{displayedControlledCreationReplay.projectionId}</dd>
+              </div>
+              <div>
+                <dt>Chain</dt>
+                <dd>{displayedControlledCreationReplay.chainId}</dd>
+              </div>
+              <div>
+                <dt>Stages</dt>
+                <dd>{displayedControlledCreationReplay.stageCount}</dd>
+              </div>
+              <div>
+                <dt>Persisted / local / missing</dt>
+                <dd>
+                  {displayedControlledCreationReplay.persistedEventCount} /{" "}
+                  {displayedControlledCreationReplay.localPreviewStageCount} /{" "}
+                  {displayedControlledCreationReplay.missingStageCount}
+                </dd>
+              </div>
+              <div>
+                <dt>Blockers / warnings / findings</dt>
+                <dd>
+                  {displayedControlledCreationReplay.blockerCount} /{" "}
+                  {displayedControlledCreationReplay.warningCount} /{" "}
+                  {displayedControlledCreationReplay.findingCount}
+                </dd>
+              </div>
+              <div>
+                <dt>Hash chain</dt>
+                <dd>
+                  {displayedControlledCreationReplay.hashChainSummary.chainHash}
+                </dd>
+              </div>
+              <div>
+                <dt>No-compress</dt>
+                <dd>
+                  {displayedControlledCreationReplay.noCompressRequired
+                    ? displayedControlledCreationReplay.contextPlacement
+                    : "not required"}
+                </dd>
+              </div>
+            </dl>
+
+            <dl className="summaryGrid compact">
+              <div>
+                <dt>Can replay projection</dt>
+                <dd>
+                  {displayedControlledCreationReplay.readiness
+                    .canReplayProjection
+                    ? "yes"
+                    : "no"}
+                </dd>
+              </div>
+              <div>
+                <dt>Can execute run</dt>
+                <dd>
+                  {displayedControlledCreationReplay.readiness.canExecuteRun
+                    ? "yes"
+                    : "no"}
+                </dd>
+              </div>
+              <div>
+                <dt>Can apply</dt>
+                <dd>
+                  {displayedControlledCreationReplay.readiness.canApplyPatch
+                    ? "yes"
+                    : "no"}
+                </dd>
+              </div>
+              <div>
+                <dt>Can rollback</dt>
+                <dd>
+                  {displayedControlledCreationReplay.readiness.canRollbackReal
+                    ? "yes"
+                    : "no"}
+                </dd>
+              </div>
+              <div>
+                <dt>Can write filesystem</dt>
+                <dd>
+                  {displayedControlledCreationReplay.readiness
+                    .canWriteFilesystem
+                    ? "yes"
+                    : "no"}
+                </dd>
+              </div>
+              <div>
+                <dt>Can git / shell</dt>
+                <dd>
+                  {displayedControlledCreationReplay.readiness.canExecuteGit
+                    ? "yes"
+                    : "no"}{" "}
+                  /{" "}
+                  {displayedControlledCreationReplay.readiness.canExecuteShell
+                    ? "yes"
+                    : "no"}
+                </dd>
+              </div>
+              <div>
+                <dt>Projection hash</dt>
+                <dd>{displayedControlledCreationReplay.projectionHash}</dd>
+              </div>
+            </dl>
+
+            {displayedControlledCreationReplay.stages.length > 0 ? (
+              <ol className="timeline">
+                {displayedControlledCreationReplay.stages.map((stage) => (
+                  <li key={stage.stageId}>
+                    <span className="timelineMeta">
+                      {stage.order}. {stage.kind} · {stage.source} ·{" "}
+                      {stage.status}
+                    </span>
+                    <span>{stage.summary}</span>
+                    <span className="timelineMeta">
+                      hash {stage.hashPrefix} · blockers {stage.blockerCount} ·
+                      warnings {stage.warningCount}
+                    </span>
+                  </li>
+                ))}
+              </ol>
+            ) : null}
+
+            {displayedControlledCreationReplay.findings.length > 0 ? (
+              <ol className="timeline">
+                {displayedControlledCreationReplay.findings.map((finding) => (
+                  <li key={finding.findingId}>
+                    <span className="timelineMeta">
+                      {finding.kind} · {finding.severity} · {finding.code}
+                    </span>
+                    <span>{finding.summary}</span>
+                  </li>
+                ))}
+              </ol>
+            ) : null}
+
+            <p className="fieldHelp">
+              {displayedControlledCreationReplay.nextAction}
+            </p>
+          </section>
+
           <section className="eventPanel" aria-label="Agent Route Preview">
             <div className="panelHeader">
               <h2>Agent Route Preview</h2>
@@ -3678,6 +3932,16 @@ export function DesktopShell(): JSX.Element {
             {controlPlanePanel.latestDraftEventSummary !== undefined ? (
               <p className="fieldHelp">
                 Latest draft event: {controlPlanePanel.latestDraftEventSummary}
+              </p>
+            ) : null}
+
+            {displayedControlledCreationReplay.status !== "empty" ? (
+              <p className="fieldHelp">
+                Controlled creation replay projection:{" "}
+                {summarizeControlledCreationReplayProjectionView(
+                  displayedControlledCreationReplay
+                )}
+                . This is a summary-only preview and not an executed run.
               </p>
             ) : null}
 

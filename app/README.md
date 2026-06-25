@@ -16,9 +16,10 @@ Current scope:
   static router helper, Capability Plan Preview, Patch Proposal / Diff,
   Patch Proposal Creation Preview, Patch Proposal Validation Preview, Patch
   Diff Audit Preview, Patch Approval Draft, Patch Virtual Apply Preview, Patch
-  Rollback Checkpoint Preview, Approval / Diff / Audit, Memory Inspector,
-  Memory Recall Preview, Workspace Index summary bridge, Context Assembly
-  Preview, and disabled Bridge Proposal Preview
+  Rollback Checkpoint Preview, Controlled Creation Replay Projection, Approval
+  / Diff / Audit, Memory Inspector, Memory Recall Preview, Workspace Index
+  summary bridge, Context Assembly Preview, and disabled Bridge Proposal
+  Preview
 - show Memory Recall Preview through the runtime Memory Core preview helper
   using in-memory summaries only; no memory persistence, commit, revoke, or
   expire operation is connected
@@ -47,8 +48,10 @@ Current limitations:
   Apply Preview simulates metadata against an in-memory summary snapshot only,
   without filesystem read/write, real rollback, or patch apply; Patch Rollback
   Checkpoint Preview builds metadata-only restore scope summaries without
-  writing checkpoint files or executing rollback; none of these reads or writes
-  files
+  writing checkpoint files or executing rollback; Controlled Creation Replay
+  Projection links the persisted run draft event and local patch previews into a
+  summary-only timeline without writing events or executing actions; none of
+  these reads or writes files
 - no real DeepSeek API call from the desktop shell
 - no real chat, run creation, approval execution, patch apply, Git execution,
   shell execution, capability invocation, PermissionLease issuance, memory
