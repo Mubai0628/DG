@@ -90,6 +90,28 @@ v0.3 Coding Workflow Preview RC references:
 - [App Shell Coding Workflow manual QA](docs/app-shell-coding-workflow-manual-qa.md)
 - [App Shell Coding Workflow RC checklist](docs/app-shell-coding-workflow-rc-checklist.md)
 
+## v0.4 Controlled Creation Preview RC status
+
+Recommended tag: `v0.4.0-controlled-creation-preview-rc.1`.
+
+The P0H controlled creation preview connects safe summaries to local creation
+previews: Workspace Index summary bridge, summary-only Run Draft Event,
+Context Assembly Preview, runtime Agent Route and Capability Plan previews,
+Patch Proposal Creation Preview, and runtime Memory Recall Preview.
+
+The only newly allowed side effect is the explicit local Record Draft Event,
+which appends one summary-only draft event. The App Shell still does not run
+DeepSeek chat, execute real runs, apply patches, execute Git or shell, invoke
+capabilities, issue permission leases, commit memory, connect persistence,
+enable MCP/plugin/skills runtime, enable a native bridge, or perform desktop
+actions.
+
+v0.4 Controlled Creation Preview RC references:
+
+- [v0.4.0 Controlled Creation Preview RC release notes](docs/release-notes-v0.4.0-controlled-creation-preview-rc.1.md)
+- [App Shell Controlled Creation manual QA](docs/app-shell-controlled-creation-manual-qa.md)
+- [App Shell Controlled Creation RC checklist](docs/app-shell-controlled-creation-rc-checklist.md)
+
 ## Current roadmap
 
 P0F is complete after `v0.2.0-app-shell-rc.1`, and P0G is complete after

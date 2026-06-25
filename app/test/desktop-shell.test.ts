@@ -3901,9 +3901,10 @@ describe("desktop source boundaries", () => {
     expect(appSource).toContain("Preview Draft Run");
     expect(appSource).toContain("Run Draft Preview");
     expect(appSource).toContain("Record Draft Event (local)");
+    expect(appSource).toContain("Local-only opt-in.");
     expect(appSource).toContain("recordControlRunDraftEvent");
     expect(appSource).toContain("handleRecordRunDraftEvent");
-    expect(appSource).toContain("does not create or execute a run");
+    expect(appSource).toContain("create or execute a run");
     expect(appSource).toContain("summary-only draft event");
     expect(appSource).toContain("Context Cart / Rules Ledger");
     expect(appSource).toContain("Read-only summary");
@@ -3914,7 +3915,7 @@ describe("desktop source boundaries", () => {
     expect(appSource).toContain("contextCart");
     expect(appSource).toContain("No context assembly report is connected yet");
     expect(appSource).toContain("Agent Route Preview");
-    expect(appSource).toContain("Preview only");
+    expect(appSource).toContain("Runtime static router preview");
     expect(appSource).toContain("runtime static router helper");
     expect(appSource).toContain("No agent");
     expect(appSource).toContain("no model request is sent");
@@ -3925,7 +3926,7 @@ describe("desktop source boundaries", () => {
       "Preview a local run draft first. Agent routes will appear here"
     );
     expect(appSource).toContain("Capability Plan Preview");
-    expect(appSource).toContain("Planning only");
+    expect(appSource).toContain("Runtime Capability Broker preview");
     expect(appSource).toContain("Capability Broker preview helper");
     expect(appSource).toContain("No capability");
     expect(appSource).toContain("permission lease is issued");
@@ -3938,6 +3939,7 @@ describe("desktop source boundaries", () => {
       "Preview a local run draft and agent route first"
     );
     expect(appSource).toContain("Memory Recall Preview");
+    expect(appSource).toContain("Runtime Memory Core preview");
     expect(appSource).toContain("summary-only memory refs");
     expect(appSource).toContain("runtime Memory Core preview helper");
     expect(appSource).toContain("Recall refs would enter volatile_tail.");
@@ -3966,6 +3968,7 @@ describe("desktop source boundaries", () => {
     expect(appSource).toContain("handleWorkspaceIndexSummaryFile");
     expect(appSource).toContain("Raw file content");
     expect(appSource).toContain("does not crawl the workspace");
+    expect(appSource).toContain("No filesystem crawl is performed.");
     expect(appSource).toContain("workspaceIndexBridge");
     expect(appSource).toContain("loadedWorkspaceIndexRef");
     expect(appSource).toContain("displayedRunDraft");
@@ -4692,6 +4695,83 @@ describe("desktop source boundaries", () => {
     );
     expect(combined).toContain("app-shell-coding-workflow-manual-qa.md");
     expect(combined).toContain("app-shell-coding-workflow-rc-checklist.md");
+  });
+
+  it("documents the v0.4 controlled creation preview RC without enabling execution", async () => {
+    const releaseNotes = await readFile(
+      path.join(
+        repoRoot,
+        "docs",
+        "release-notes-v0.4.0-controlled-creation-preview-rc.1.md"
+      ),
+      "utf8"
+    );
+    const manualQa = await readFile(
+      path.join(repoRoot, "docs", "app-shell-controlled-creation-manual-qa.md"),
+      "utf8"
+    );
+    const checklist = await readFile(
+      path.join(
+        repoRoot,
+        "docs",
+        "app-shell-controlled-creation-rc-checklist.md"
+      ),
+      "utf8"
+    );
+    const docsIndex = await readFile(
+      path.join(repoRoot, "docs", "README.md"),
+      "utf8"
+    );
+    const rootReadme = await readFile(path.join(repoRoot, "README.md"), "utf8");
+    const appReadme = await readFile(path.join(appRoot, "README.md"), "utf8");
+    const combined = `${releaseNotes}\n${manualQa}\n${checklist}\n${docsIndex}\n${rootReadme}\n${appReadme}`;
+
+    expect(combined).toContain("v0.4.0-controlled-creation-preview-rc.1");
+    expect(combined).toContain(
+      "Controlled creation preview, summary-only side effects"
+    );
+    expect(combined).toContain("v0.3 coding workflow preview surfaces");
+    expect(combined).toContain("Workspace Index summary bridge");
+    expect(combined).toContain("Run Draft summary event");
+    expect(combined).toContain("Context Assembly Preview");
+    expect(combined).toContain("runtime static Agent Route Preview helper");
+    expect(combined).toContain("runtime Capability Plan Preview helper");
+    expect(combined).toContain("Patch Proposal Creation Preview");
+    expect(combined).toContain("runtime Memory Recall Preview helper");
+    expect(combined).toContain("web_table_to_csv");
+    expect(combined).toContain("Event Log / Replay");
+    expect(combined).toContain("Record Draft Event");
+    expect(combined).toContain("one summary-only local draft event");
+    expect(combined).toContain("No real DeepSeek chat");
+    expect(combined).toContain("No real ControlPlaneRun execution");
+    expect(combined).toContain("No patch apply");
+    expect(combined).toContain("No Git execution");
+    expect(combined).toContain("No shell execution");
+    expect(combined).toContain("No capability invocation");
+    expect(combined).toContain("No PermissionLease issuance");
+    expect(combined).toContain("No memory commit, revoke, or expire UI");
+    expect(combined).toContain("No MCP/plugin/skills runtime");
+    expect(combined).toContain("No `nativeMessaging` or live bridge");
+    expect(combined).toContain("No desktop action");
+    expect(combined).toContain("volatile_tail");
+    expect(combined).toContain("no_compress_zone");
+    expect(combined).toContain("pnpm verify:ci");
+    expect(combined).toContain("pnpm release:smoke");
+    expect(combined).toContain("pnpm app:qa:check");
+    expect(combined).toContain("git status --short");
+    expect(combined).toContain("pnpm app:dev");
+    expect(combined).toContain("D:\\workspaces\\demo");
+    expect(combined).toContain("web-table-export-p0h.csv");
+    expect(combined).toContain("FILE_EXISTS");
+    expect(combined).toContain("PASSWORD_VALUE_MARKER");
+    expect(combined).toContain("GitHub Actions");
+    expect(combined).toContain("Generated Artifacts");
+    expect(combined).toContain("Rollback Guidance");
+    expect(combined).toContain(
+      "release-notes-v0.4.0-controlled-creation-preview-rc.1.md"
+    );
+    expect(combined).toContain("app-shell-controlled-creation-manual-qa.md");
+    expect(combined).toContain("app-shell-controlled-creation-rc-checklist.md");
   });
 
   it("documents the v0.2 App Shell RC post-release review and locks P0F", async () => {

@@ -24,6 +24,8 @@ Current scope:
 - optionally record one local summary-only Run Draft Event to
   `workspace/.deepseek-workbench/events.jsonl`; this is not run creation or
   execution
+- prepare the v0.4 controlled creation preview RC with local-only,
+  summary-only, preview-only, read-only, and planning-only surfaces
 
 Current limitations:
 

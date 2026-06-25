@@ -1104,8 +1104,9 @@ export function DesktopShell(): JSX.Element {
               this preview.
             </p>
             <p className="fieldHelp">
-              Record Draft Event (local) writes one summary-only draft event to
-              the workspace event log. It does not create or execute a run.
+              Local-only opt-in. Record Draft Event (local) writes one
+              summary-only draft event to the workspace event log. It does not
+              create or execute a run.
             </p>
 
             <section className="surfaceBox" aria-label="Run Draft Preview">
@@ -1277,7 +1278,7 @@ export function DesktopShell(): JSX.Element {
             </div>
             <p className="fieldHelp">
               Load or paste a safe WorkspaceIndex summary JSON. Raw file content
-              is not accepted or displayed.
+              is not accepted or displayed. No filesystem crawl is performed.
             </p>
 
             <label>
@@ -1465,7 +1466,8 @@ export function DesktopShell(): JSX.Element {
             </div>
             <p className="fieldHelp">
               Create a local patch proposal summary from safe path refs. No
-              files are read or written, and no patch is applied.
+              files are read or written, and no patch is applied. Raw source and
+              raw diff are not displayed.
             </p>
 
             <label>
@@ -1666,7 +1668,7 @@ export function DesktopShell(): JSX.Element {
           <section className="eventPanel" aria-label="Agent Route Preview">
             <div className="panelHeader">
               <h2>Agent Route Preview</h2>
-              <span className="muted">Preview only</span>
+              <span className="muted">Runtime static router preview</span>
             </div>
             <p className="fieldHelp">
               Route generated from runtime static router helper. Shows the fixed
@@ -1756,7 +1758,7 @@ export function DesktopShell(): JSX.Element {
           <section className="eventPanel" aria-label="Capability Plan Preview">
             <div className="panelHeader">
               <h2>Capability Plan Preview</h2>
-              <span className="muted">Planning only</span>
+              <span className="muted">Runtime Capability Broker preview</span>
             </div>
             <p className="fieldHelp">
               Shows future capability needs as descriptors from the runtime
@@ -1855,7 +1857,7 @@ export function DesktopShell(): JSX.Element {
           <section className="eventPanel" aria-label="Memory Recall Preview">
             <div className="panelHeader">
               <h2>Memory Recall Preview</h2>
-              <span className="muted">Preview only</span>
+              <span className="muted">Runtime Memory Core preview</span>
             </div>
             <p className="fieldHelp">
               Recall generated from runtime Memory Core preview helper. Shows
