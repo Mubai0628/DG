@@ -61,6 +61,12 @@ import {
   patchApprovalDraftSurfaceSummaries,
   patchApprovalDraftWarningCodes
 } from "../src/patch-approval-draft-view.js";
+import {
+  buildPatchVirtualApplyPreviewView,
+  patchVirtualApplyApprovalRefs,
+  patchVirtualApplySurfaceSummaries,
+  patchVirtualApplyWarningCodes
+} from "../src/patch-virtual-apply-preview-view.js";
 import { buildCapabilityPlanPreview } from "../../runtime/src/capabilities/plan-preview.js";
 import { buildMemoryRecallPreviewView } from "../src/memory-recall-preview-view.js";
 import {
@@ -4024,6 +4030,347 @@ describe("app patch approval draft", () => {
   });
 });
 
+describe("app patch virtual apply preview", () => {
+  function safeWorkspaceIndex() {
+    return buildWorkspaceIndexBridgeView({
+      source: "synthetic_summary",
+      summary: {
+        workspaceIndexId: "workspace-index-virtual",
+        indexHash: "workspacehashvirtual",
+        directoryCount: 1,
+        fileSummaries: [
+          {
+            path: "examples/summary.txt",
+            language: "unknown",
+            extension: "txt",
+            sizeBytes: 120,
+            lineCount: 12,
+            symbolCount: 0,
+            hash: "abc12345",
+            indexed: true
+          }
+        ],
+        languageSummary: [
+          {
+            language: "unknown",
+            fileCount: 1,
+            indexedFileCount: 1,
+            lineCount: 12,
+            sizeBytes: 120
+          }
+        ]
+      }
+    });
+  }
+
+  function safeVirtualChain() {
+    const proposalView = buildPatchProposalCreationPreviewView({
+      titleDraft: "Update virtual apply summary",
+      changeDescriptionSummary: "Summary-only virtual apply preview.",
+      pathRefsText: "examples/summary.txt",
+      defaultChangeKind: "update",
+      estimatedLinesAdded: 8,
+      estimatedLinesRemoved: 1,
+      selectedIntent: "documentation"
+    });
+    const validationView = buildPatchProposalValidationPreviewView({
+      proposalPreview: proposalView
+    });
+    const auditView = buildPatchDiffAuditPreviewView({
+      proposalPreview: proposalView,
+      validationPreview: validationView
+    });
+    const approvalView = buildPatchApprovalDraftView({
+      proposalPreview: proposalView,
+      validationPreview: validationView,
+      diffAuditPreview: auditView
+    });
+    const workspaceIndex = safeWorkspaceIndex();
+    const virtualView = buildPatchVirtualApplyPreviewView({
+      proposalPreview: proposalView,
+      validationPreview: validationView,
+      diffAuditPreview: auditView,
+      approvalDraft: approvalView,
+      workspaceIndexRef: workspaceIndex
+    });
+    return {
+      proposalView,
+      validationView,
+      auditView,
+      approvalView,
+      workspaceIndex,
+      virtualView
+    };
+  }
+
+  it("builds an empty virtual apply preview until approval draft summaries exist", () => {
+    const view = buildPatchVirtualApplyPreviewView();
+
+    expect(view.status).toBe("empty");
+    expect(view.source).toBe("empty");
+    expect(view.previewOnly).toBe(true);
+    expect(view.inMemoryOnly).toBe(true);
+    expect(view.applyEnabled).toBe(false);
+    expect(view.rollbackEnabled).toBe(false);
+    expect(view.fileReadEnabled).toBe(false);
+    expect(view.fileWriteEnabled).toBe(false);
+    expect(view.eventWritesEnabled).toBe(false);
+    expect(view.gitExecutionEnabled).toBe(false);
+    expect(view.shellExecutionEnabled).toBe(false);
+  });
+
+  it("generates a summary-only virtual apply preview from safe patch previews and workspace summary", () => {
+    const {
+      virtualView,
+      proposalView,
+      validationView,
+      auditView,
+      approvalView
+    } = safeVirtualChain();
+    const serialized = JSON.stringify(virtualView);
+
+    expect(virtualView.source).toBe("runtime_patch_virtual_apply_preview");
+    expect(virtualView.proposalId).toBe(proposalView.proposalId);
+    expect(virtualView.validationId).toBe(validationView.validationId);
+    expect(virtualView.auditId).toBe(auditView.auditId);
+    expect(virtualView.approvalDraftId).toBe(approvalView.approvalDraftId);
+    expect(virtualView.status).toBe("needs_approval");
+    expect(virtualView.inputSnapshot.snapshotId).toBe(
+      "workspace-index-virtual"
+    );
+    expect(virtualView.operations).toHaveLength(1);
+    expect(virtualView.operations[0]?.existsBefore).toBe(true);
+    expect(virtualView.readiness.canProceedToRollbackCheckpointPreview).toBe(
+      true
+    );
+    expect(virtualView.readiness.canWriteFilesystem).toBe(false);
+    expect(virtualView.readiness.canApplyPatch).toBe(false);
+    expect(virtualView.readiness.canExecuteGit).toBe(false);
+    expect(virtualView.readiness.canExecuteShell).toBe(false);
+    expect(virtualView.rollbackPreview.canRollbackReal).toBe(false);
+    expect(virtualView.rollbackPreview.rollbackExecuted).toBe(false);
+    expect(serialized).not.toContain("beforeContent");
+    expect(serialized).not.toContain("afterContent");
+    expect(serialized).not.toContain("rawDiff");
+    expect(serialized).not.toContain("function App");
+  });
+
+  it("keeps validation, audit, and approval blockers from becoming ready virtual apply previews", () => {
+    const proposalView = buildPatchProposalCreationPreviewView({
+      titleDraft: "Unsafe virtual apply proposal",
+      pathRefsText: ".env.local",
+      selectedIntent: "code_change"
+    });
+    const validationView = buildPatchProposalValidationPreviewView({
+      proposalPreview: proposalView
+    });
+    const auditView = buildPatchDiffAuditPreviewView({
+      proposalPreview: proposalView,
+      validationPreview: validationView
+    });
+    const approvalView = buildPatchApprovalDraftView({
+      proposalPreview: proposalView,
+      validationPreview: validationView,
+      diffAuditPreview: auditView
+    });
+    const virtualView = buildPatchVirtualApplyPreviewView({
+      proposalPreview: proposalView,
+      validationPreview: validationView,
+      diffAuditPreview: auditView,
+      approvalDraft: approvalView,
+      workspaceIndexRef: safeWorkspaceIndex()
+    });
+
+    expect(validationView.status).toBe("blocked");
+    expect(auditView.status).toBe("blocked");
+    expect(approvalView.status).toBe("blocked");
+    expect(virtualView.status).toBe("blocked");
+    expect(virtualView.warningCodes).toEqual(
+      expect.arrayContaining([
+        "PATCH_VIRTUAL_APPLY_VALIDATION_BLOCKED",
+        "PATCH_VIRTUAL_APPLY_AUDIT_BLOCKED",
+        "PATCH_VIRTUAL_APPLY_APPROVAL_BLOCKED"
+      ])
+    );
+    expect(virtualView.readiness.canProceedToRollbackCheckpointPreview).toBe(
+      false
+    );
+  });
+
+  it("rejects unsafe raw fields and fake API key markers safely", () => {
+    const secret = "sk-test1234567890abcdef";
+    const rawFieldProposal = buildPatchProposalCreationPreviewView({
+      titleDraft: "Unsafe virtual raw field",
+      pathRefsText: JSON.stringify([
+        {
+          path: "examples/summary.txt",
+          changeKind: "update",
+          beforeContent: "do not keep"
+        }
+      ]),
+      selectedIntent: "code_change"
+    });
+    const markerProposal = buildPatchProposalCreationPreviewView({
+      titleDraft: "Unsafe virtual marker",
+      pathRefsText: `examples/summary.txt ${secret}`,
+      selectedIntent: "code_change"
+    });
+    const rawValidation = buildPatchProposalValidationPreviewView({
+      proposalPreview: rawFieldProposal
+    });
+    const markerValidation = buildPatchProposalValidationPreviewView({
+      proposalPreview: markerProposal
+    });
+    const rawAudit = buildPatchDiffAuditPreviewView({
+      proposalPreview: rawFieldProposal,
+      validationPreview: rawValidation
+    });
+    const markerAudit = buildPatchDiffAuditPreviewView({
+      proposalPreview: markerProposal,
+      validationPreview: markerValidation
+    });
+    const rawApproval = buildPatchApprovalDraftView({
+      proposalPreview: rawFieldProposal,
+      validationPreview: rawValidation,
+      diffAuditPreview: rawAudit
+    });
+    const markerApproval = buildPatchApprovalDraftView({
+      proposalPreview: markerProposal,
+      validationPreview: markerValidation,
+      diffAuditPreview: markerAudit
+    });
+    const rawVirtual = buildPatchVirtualApplyPreviewView({
+      proposalPreview: rawFieldProposal,
+      validationPreview: rawValidation,
+      diffAuditPreview: rawAudit,
+      approvalDraft: rawApproval,
+      workspaceIndexRef: safeWorkspaceIndex()
+    });
+    const markerVirtual = buildPatchVirtualApplyPreviewView({
+      proposalPreview: markerProposal,
+      validationPreview: markerValidation,
+      diffAuditPreview: markerAudit,
+      approvalDraft: markerApproval,
+      workspaceIndexRef: safeWorkspaceIndex()
+    });
+    const serialized = JSON.stringify({ rawVirtual, markerVirtual });
+
+    expect(rawVirtual.status).toBe("blocked");
+    expect(rawVirtual.warningCodes).toEqual(
+      expect.arrayContaining(["PATCH_PREVIEW_RAW_FIELD_REJECTED"])
+    );
+    expect(markerVirtual.status).toBe("blocked");
+    expect(markerVirtual.warningCodes).toEqual(
+      expect.arrayContaining(["API_KEY_MARKER"])
+    );
+    expect(serialized).not.toContain(secret);
+    expect(serialized).not.toContain("do not keep");
+  });
+
+  it("feeds Diff, Approval, Audit, and Context Assembly with virtual apply summary refs", () => {
+    const runDraft = buildRunDraftView({
+      objectiveDraft: "Preview virtual apply for a local patch proposal.",
+      selectedIntent: "documentation",
+      acceptanceCriteriaDraft: "Virtual apply summary appears",
+      workspaceRoot: "D:\\workspace"
+    });
+    const {
+      proposalView,
+      validationView,
+      auditView,
+      approvalView,
+      virtualView
+    } = safeVirtualChain();
+    const surfaces = buildWorkbenchSurfacesView({
+      controlProjection: buildControlPlaneProjectionView(undefined),
+      patchProposalSummaries: [
+        ...(patchProposalCreationSurfaceSummaries(proposalView) ?? []),
+        ...(patchProposalValidationSurfaceSummaries(validationView) ?? []),
+        ...(patchDiffAuditSurfaceSummaries(auditView) ?? []),
+        ...(patchApprovalDraftSurfaceSummaries(approvalView) ?? []),
+        ...(patchVirtualApplySurfaceSummaries(virtualView) ?? [])
+      ],
+      futureApprovalRefs: [
+        ...patchProposalCreationApprovalRefs(proposalView),
+        ...patchProposalValidationApprovalRefs(validationView),
+        ...patchDiffAuditApprovalRefs(auditView),
+        ...patchApprovalDraftApprovalRefs(approvalView),
+        ...patchVirtualApplyApprovalRefs(virtualView)
+      ],
+      futureAuditWarningCodes: [
+        ...patchProposalValidationAuditWarningCodes(validationView),
+        ...patchDiffAuditWarningCodes(auditView),
+        ...patchApprovalDraftWarningCodes(approvalView),
+        ...patchVirtualApplyWarningCodes(virtualView)
+      ]
+    });
+    const contextPreview = buildContextAssemblyPreviewView({
+      runDraft,
+      patchSurface: surfaces.diff
+    });
+    const serialized = JSON.stringify({ surfaces, contextPreview });
+
+    expect(surfaces.diff.items).toHaveLength(5);
+    expect(
+      surfaces.diff.items.some((item) =>
+        item.status.startsWith("virtual_apply_")
+      )
+    ).toBe(true);
+    expect(surfaces.audit.warningCodes).toEqual(
+      expect.arrayContaining([
+        `PATCH_VIRTUAL_APPLY_FINDINGS_${virtualView.findingCount}`,
+        `PATCH_VIRTUAL_APPLY_STATUS_${virtualView.status.toUpperCase()}`
+      ])
+    );
+    expect(
+      contextPreview.segments.some(
+        (segment) =>
+          segment.sourceRefId === "patch-virtual-apply-preview-surface" &&
+          segment.placement === "no_compress_zone"
+      )
+    ).toBe(true);
+    expect(serialized).not.toContain("raw source");
+    expect(serialized).not.toContain("raw diff");
+    expect(serialized).not.toContain("beforeContent");
+  });
+
+  it("keeps App UI in-memory-only without Tauri, EventStore, fs, apply, rollback, or execution handlers", async () => {
+    const appSource = await readFile(
+      path.join(appRoot, "src", "App.tsx"),
+      "utf8"
+    );
+    const adapterSource = await readFile(
+      path.join(appRoot, "src", "patch-virtual-apply-preview-view.ts"),
+      "utf8"
+    );
+    const desktopFlowSource = await readFile(
+      path.join(appRoot, "src", "desktop-flow.ts"),
+      "utf8"
+    );
+    const combined = `${appSource}\n${adapterSource}`;
+
+    expect(appSource).toContain("Patch Virtual Apply Preview");
+    expect(appSource).toContain("In-memory only / no filesystem write");
+    expect(appSource).toContain("handlePreviewVirtualApply");
+    expect(appSource).toContain(
+      "No files are read or written, no rollback is executed"
+    );
+    expect(combined).not.toContain("handleApplyPatch");
+    expect(combined).not.toContain("handleRollback");
+    expect(combined).not.toContain("handleCommit");
+    expect(combined).not.toContain("approvePatch");
+    expect(combined).not.toContain("rejectPatch");
+    expect(combined).not.toContain("executePatch");
+    expect(adapterSource).not.toContain("safeInvoke");
+    expect(adapterSource).not.toContain("EventStore");
+    expect(adapterSource).not.toContain("readFile");
+    expect(adapterSource).not.toContain("writeFile");
+    expect(adapterSource).not.toContain("localStorage");
+    expect(adapterSource).not.toContain("sessionStorage");
+    expect(desktopFlowSource).not.toContain("patch_virtual_apply_preview");
+  });
+});
+
 describe("app memory recall preview", () => {
   it("builds an empty recall preview until a run draft exists", () => {
     const view = buildMemoryRecallPreviewView({
@@ -5290,6 +5637,37 @@ describe("desktop source boundaries", () => {
     expect(combined).toContain("no_compress_zone");
     expect(combined).toContain("runtime-patch-approval-draft-v0.4.md");
     expect(combined).toContain("app-shell-patch-approval-draft-v0.4.md");
+  });
+
+  it("documents app and runtime patch virtual apply preview as in-memory and no-apply", async () => {
+    const docs = await Promise.all(
+      [
+        "runtime-patch-virtual-apply-preview-v0.4.md",
+        "app-shell-patch-virtual-apply-preview-v0.4.md",
+        "README.md"
+      ].map(async (file) => ({
+        file,
+        text: await readFile(path.join(repoRoot, "docs", file), "utf8")
+      }))
+    );
+    const appReadme = await readFile(
+      path.join(repoRoot, "app", "README.md"),
+      "utf8"
+    );
+    const combined = `${docs.map((doc) => doc.text).join("\n")}\n${appReadme}`;
+
+    expect(combined).toContain("Patch Virtual Apply Preview");
+    expect(combined).toContain("in-memory");
+    expect(combined).toContain("summary-only");
+    expect(combined).toMatch(/no filesystem read/i);
+    expect(combined).toMatch(/no filesystem write/i);
+    expect(combined).toMatch(/no real rollback/i);
+    expect(combined).toMatch(/no patch apply/i);
+    expect(combined).toContain("raw source");
+    expect(combined).toContain("raw diff");
+    expect(combined).toContain("no_compress_zone");
+    expect(combined).toContain("runtime-patch-virtual-apply-preview-v0.4.md");
+    expect(combined).toContain("app-shell-patch-virtual-apply-preview-v0.4.md");
   });
 
   it("documents app and runtime memory recall preview as volatile-tail preview only", async () => {

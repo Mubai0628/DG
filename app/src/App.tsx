@@ -96,6 +96,13 @@ import {
   type AppPatchApprovalDraftView
 } from "./patch-approval-draft-view.js";
 import {
+  buildPatchVirtualApplyPreviewView,
+  patchVirtualApplyApprovalRefs,
+  patchVirtualApplySurfaceSummaries,
+  patchVirtualApplyWarningCodes,
+  type AppPatchVirtualApplyPreviewView
+} from "./patch-virtual-apply-preview-view.js";
+import {
   buildEventLogPanelModel,
   buildBridgeProposalPreviewModel,
   buildResultPanelModel,
@@ -235,6 +242,9 @@ export function DesktopShell(): JSX.Element {
   const [patchApprovalDraftPreview, setPatchApprovalDraftPreview] = useState<
     AppPatchApprovalDraftView | undefined
   >();
+  const [patchVirtualApplyPreview, setPatchVirtualApplyPreview] = useState<
+    AppPatchVirtualApplyPreviewView | undefined
+  >();
   const loadedWorkspaceIndexRef =
     workspaceIndexBridge.status === "loaded" ||
     workspaceIndexBridge.status === "warning"
@@ -337,10 +347,12 @@ export function DesktopShell(): JSX.Element {
         patchProposalValidationPreview
       ) ?? []),
       ...(patchDiffAuditSurfaceSummaries(patchDiffAuditPreview) ?? []),
-      ...(patchApprovalDraftSurfaceSummaries(patchApprovalDraftPreview) ?? [])
+      ...(patchApprovalDraftSurfaceSummaries(patchApprovalDraftPreview) ?? []),
+      ...(patchVirtualApplySurfaceSummaries(patchVirtualApplyPreview) ?? [])
     ],
     [
       patchApprovalDraftPreview,
+      patchVirtualApplyPreview,
       displayedPatchProposalCreation,
       patchDiffAuditPreview,
       patchProposalValidationPreview
@@ -351,10 +363,12 @@ export function DesktopShell(): JSX.Element {
       ...patchProposalCreationApprovalRefs(displayedPatchProposalCreation),
       ...patchProposalValidationApprovalRefs(patchProposalValidationPreview),
       ...patchDiffAuditApprovalRefs(patchDiffAuditPreview),
-      ...patchApprovalDraftApprovalRefs(patchApprovalDraftPreview)
+      ...patchApprovalDraftApprovalRefs(patchApprovalDraftPreview),
+      ...patchVirtualApplyApprovalRefs(patchVirtualApplyPreview)
     ],
     [
       patchApprovalDraftPreview,
+      patchVirtualApplyPreview,
       displayedPatchProposalCreation,
       patchDiffAuditPreview,
       patchProposalValidationPreview
@@ -366,10 +380,12 @@ export function DesktopShell(): JSX.Element {
         patchProposalValidationPreview
       ),
       ...patchDiffAuditWarningCodes(patchDiffAuditPreview),
-      ...patchApprovalDraftWarningCodes(patchApprovalDraftPreview)
+      ...patchApprovalDraftWarningCodes(patchApprovalDraftPreview),
+      ...patchVirtualApplyWarningCodes(patchVirtualApplyPreview)
     ],
     [
       patchApprovalDraftPreview,
+      patchVirtualApplyPreview,
       patchDiffAuditPreview,
       patchProposalValidationPreview
     ]
@@ -541,6 +557,29 @@ export function DesktopShell(): JSX.Element {
   );
   const displayedPatchApprovalDraft =
     patchApprovalDraftPreview ?? buildPatchApprovalDraftView();
+  const patchVirtualApplyCandidate = useMemo<AppPatchVirtualApplyPreviewView>(
+    () =>
+      buildPatchVirtualApplyPreviewView({
+        proposalPreview: displayedPatchProposalCreation,
+        validationPreview: displayedPatchProposalValidation,
+        diffAuditPreview: displayedPatchDiffAudit,
+        approvalDraft: displayedPatchApprovalDraft,
+        workspaceIndexRef: loadedWorkspaceIndexRef,
+        capabilityPlanPreview,
+        agentRoutePreview
+      }),
+    [
+      agentRoutePreview,
+      capabilityPlanPreview,
+      displayedPatchApprovalDraft,
+      displayedPatchDiffAudit,
+      displayedPatchProposalCreation,
+      displayedPatchProposalValidation,
+      loadedWorkspaceIndexRef
+    ]
+  );
+  const displayedPatchVirtualApply =
+    patchVirtualApplyPreview ?? buildPatchVirtualApplyPreviewView();
   const contextAssemblyCandidate = useMemo<AppContextAssemblyPreviewView>(
     () =>
       buildContextAssemblyPreviewView({
@@ -667,6 +706,7 @@ export function DesktopShell(): JSX.Element {
     setPatchProposalValidationPreview(undefined);
     setPatchDiffAuditPreview(undefined);
     setPatchApprovalDraftPreview(undefined);
+    setPatchVirtualApplyPreview(undefined);
     setContextAssemblyPreview(undefined);
   }, [acceptanceCriteriaDraft, objectiveDraft, selectedIntent, workspaceRoot]);
 
@@ -675,6 +715,7 @@ export function DesktopShell(): JSX.Element {
     setPatchProposalValidationPreview(undefined);
     setPatchDiffAuditPreview(undefined);
     setPatchApprovalDraftPreview(undefined);
+    setPatchVirtualApplyPreview(undefined);
     setContextAssemblyPreview(undefined);
   }, [
     patchProposalChangeKind,
@@ -691,6 +732,7 @@ export function DesktopShell(): JSX.Element {
     agentRoutePreview.routeId,
     patchApprovalDraftPreview?.approvalDraftId,
     patchDiffAuditPreview?.auditId,
+    patchVirtualApplyPreview?.virtualApplyId,
     patchWorkbenchSurfaces.diff.items.length,
     capabilityPlanPreview.itemCount,
     displayedRunDraft.draftId,
@@ -714,21 +756,29 @@ export function DesktopShell(): JSX.Element {
     setPatchProposalValidationPreview(undefined);
     setPatchDiffAuditPreview(undefined);
     setPatchApprovalDraftPreview(undefined);
+    setPatchVirtualApplyPreview(undefined);
   }
 
   function handleValidatePatchProposal(): void {
     setPatchProposalValidationPreview(patchProposalValidationCandidate);
     setPatchDiffAuditPreview(undefined);
     setPatchApprovalDraftPreview(undefined);
+    setPatchVirtualApplyPreview(undefined);
   }
 
   function handlePreviewDiffAudit(): void {
     setPatchDiffAuditPreview(patchDiffAuditCandidate);
     setPatchApprovalDraftPreview(undefined);
+    setPatchVirtualApplyPreview(undefined);
   }
 
   function handlePreviewApprovalDraft(): void {
     setPatchApprovalDraftPreview(patchApprovalDraftCandidate);
+    setPatchVirtualApplyPreview(undefined);
+  }
+
+  function handlePreviewVirtualApply(): void {
+    setPatchVirtualApplyPreview(patchVirtualApplyCandidate);
   }
 
   async function handleRecordRunDraftEvent(): Promise<void> {
@@ -2343,6 +2393,225 @@ export function DesktopShell(): JSX.Element {
             <p className="fieldHelp">
               {displayedPatchApprovalDraft.nextAction}
             </p>
+          </section>
+
+          <section
+            className="eventPanel"
+            aria-label="Patch Virtual Apply Preview"
+          >
+            <div className="panelHeader">
+              <h2>Patch Virtual Apply Preview</h2>
+              <span className="muted">
+                In-memory only / no filesystem write
+              </span>
+            </div>
+            <p className="fieldHelp">
+              Simulates the patch proposal against a summary-only in-memory
+              snapshot. No files are read or written, no rollback is executed,
+              and no patch is applied.
+            </p>
+            <div className="buttonRow">
+              <button
+                type="button"
+                className="secondary"
+                onClick={(event) => {
+                  event.preventDefault();
+                  event.stopPropagation();
+                  handlePreviewVirtualApply();
+                }}
+                disabled={
+                  !displayedPatchApprovalDraft.readiness
+                    .canProceedToApprovalReviewPreview
+                }
+                aria-disabled={
+                  !displayedPatchApprovalDraft.readiness
+                    .canProceedToApprovalReviewPreview
+                }
+              >
+                Preview Virtual Apply
+              </button>
+            </div>
+
+            {displayedPatchVirtualApply.status === "empty" ? (
+              <p className="empty">
+                Preview an approval draft first. Virtual apply details will
+                appear here before rollback checkpoint preview.
+              </p>
+            ) : null}
+
+            <dl className="summaryGrid compact">
+              <div>
+                <dt>Status</dt>
+                <dd>{displayedPatchVirtualApply.status}</dd>
+              </div>
+              <div>
+                <dt>Virtual apply</dt>
+                <dd>{displayedPatchVirtualApply.virtualApplyId}</dd>
+              </div>
+              <div>
+                <dt>Proposal / validation / audit</dt>
+                <dd>
+                  {displayedPatchVirtualApply.proposalId} /{" "}
+                  {displayedPatchVirtualApply.validationId} /{" "}
+                  {displayedPatchVirtualApply.auditId}
+                </dd>
+              </div>
+              <div>
+                <dt>Approval draft</dt>
+                <dd>{displayedPatchVirtualApply.approvalDraftId}</dd>
+              </div>
+              <div>
+                <dt>Risk / derived</dt>
+                <dd>
+                  {displayedPatchVirtualApply.riskLevel} /{" "}
+                  {displayedPatchVirtualApply.derivedRiskLevel}
+                </dd>
+              </div>
+              <div>
+                <dt>Operations</dt>
+                <dd>{displayedPatchVirtualApply.operations.length}</dd>
+              </div>
+              <div>
+                <dt>Created / updated / deleted</dt>
+                <dd>
+                  {displayedPatchVirtualApply.filesCreated} /{" "}
+                  {displayedPatchVirtualApply.filesUpdated} /{" "}
+                  {displayedPatchVirtualApply.filesDeleted}
+                </dd>
+              </div>
+              <div>
+                <dt>Lines + / -</dt>
+                <dd>
+                  {displayedPatchVirtualApply.estimatedLinesAdded} /{" "}
+                  {displayedPatchVirtualApply.estimatedLinesRemoved}
+                </dd>
+              </div>
+              <div>
+                <dt>Blockers / warnings / findings</dt>
+                <dd>
+                  {displayedPatchVirtualApply.blockerCount} /{" "}
+                  {displayedPatchVirtualApply.warningCount} /{" "}
+                  {displayedPatchVirtualApply.findingCount}
+                </dd>
+              </div>
+              <div>
+                <dt>No-compress</dt>
+                <dd>
+                  {displayedPatchVirtualApply.noCompressRequired
+                    ? displayedPatchVirtualApply.contextPlacement
+                    : "not required"}
+                </dd>
+              </div>
+            </dl>
+
+            <dl className="summaryGrid compact">
+              <div>
+                <dt>Input snapshot</dt>
+                <dd>{displayedPatchVirtualApply.inputSnapshot.snapshotHash}</dd>
+              </div>
+              <div>
+                <dt>Output snapshot</dt>
+                <dd>
+                  {displayedPatchVirtualApply.outputSnapshot.snapshotHash}
+                </dd>
+              </div>
+              <div>
+                <dt>Rollback checkpoint</dt>
+                <dd>
+                  {
+                    displayedPatchVirtualApply.rollbackPreview
+                      .checkpointPreviewId
+                  }
+                </dd>
+              </div>
+              <div>
+                <dt>Rollback real</dt>
+                <dd>
+                  {displayedPatchVirtualApply.rollbackPreview.canRollbackReal
+                    ? "yes"
+                    : "no"}
+                </dd>
+              </div>
+              <div>
+                <dt>Can write filesystem</dt>
+                <dd>
+                  {displayedPatchVirtualApply.readiness.canWriteFilesystem
+                    ? "yes"
+                    : "no"}
+                </dd>
+              </div>
+              <div>
+                <dt>Can apply</dt>
+                <dd>
+                  {displayedPatchVirtualApply.readiness.canApplyPatch
+                    ? "yes"
+                    : "no"}
+                </dd>
+              </div>
+              <div>
+                <dt>Can git / shell</dt>
+                <dd>
+                  {displayedPatchVirtualApply.readiness.canExecuteGit
+                    ? "yes"
+                    : "no"}{" "}
+                  /{" "}
+                  {displayedPatchVirtualApply.readiness.canExecuteShell
+                    ? "yes"
+                    : "no"}
+                </dd>
+              </div>
+              <div>
+                <dt>Rollback preview</dt>
+                <dd>
+                  {displayedPatchVirtualApply.readiness
+                    .canProceedToRollbackCheckpointPreview
+                    ? "ready"
+                    : "not ready"}
+                </dd>
+              </div>
+              <div>
+                <dt>Hash</dt>
+                <dd>{displayedPatchVirtualApply.virtualApplyHash}</dd>
+              </div>
+            </dl>
+
+            {displayedPatchVirtualApply.operations.length > 0 ? (
+              <ol className="timeline">
+                {displayedPatchVirtualApply.operations.map((operation) => (
+                  <li key={operation.operationId}>
+                    <span className="timelineMeta">
+                      {operation.changeKind} · {operation.path}
+                    </span>
+                    <span>
+                      exists {operation.existsBefore ? "before" : "not before"}{" "}
+                      → {operation.existsAfter ? "after" : "not after"}
+                    </span>
+                    <span className="timelineMeta">
+                      Lines {operation.estimatedLinesAdded} /{" "}
+                      {operation.estimatedLinesRemoved}
+                    </span>
+                  </li>
+                ))}
+              </ol>
+            ) : null}
+
+            {displayedPatchVirtualApply.findings.length > 0 ? (
+              <ol className="timeline">
+                {displayedPatchVirtualApply.findings.map((finding) => (
+                  <li key={finding.findingId}>
+                    <span className="timelineMeta">
+                      {finding.kind} · {finding.severity} · {finding.code}
+                    </span>
+                    <span>{finding.summary}</span>
+                    {finding.path !== undefined ? (
+                      <span className="timelineMeta">Path: {finding.path}</span>
+                    ) : null}
+                  </li>
+                ))}
+              </ol>
+            ) : null}
+
+            <p className="fieldHelp">{displayedPatchVirtualApply.nextAction}</p>
           </section>
 
           <section className="eventPanel" aria-label="Agent Route Preview">

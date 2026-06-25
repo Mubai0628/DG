@@ -38,6 +38,8 @@ foundation.
 - [App Shell Patch Diff Audit Preview v0.4](app-shell-patch-diff-audit-preview-v0.4.md)
 - [Runtime Patch Approval Draft v0.4](runtime-patch-approval-draft-v0.4.md)
 - [App Shell Patch Approval Draft v0.4](app-shell-patch-approval-draft-v0.4.md)
+- [Runtime Patch Virtual Apply Preview v0.4](runtime-patch-virtual-apply-preview-v0.4.md)
+- [App Shell Patch Virtual Apply Preview v0.4](app-shell-patch-virtual-apply-preview-v0.4.md)
 - [Runtime Memory Recall Preview v0.3](runtime-memory-recall-preview-v0.3.md)
 - [v0.4.0 Controlled Creation Preview RC release notes](release-notes-v0.4.0-controlled-creation-preview-rc.1.md)
 - [App Shell Controlled Creation manual QA](app-shell-controlled-creation-manual-qa.md)
