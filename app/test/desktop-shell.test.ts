@@ -4942,6 +4942,110 @@ describe("desktop source boundaries", () => {
     );
   });
 
+  it("documents the v0.4 post-release review and P0I roadmap lock", async () => {
+    const review = await readFile(
+      path.join(
+        repoRoot,
+        "docs",
+        "v0.4-controlled-creation-preview-postrelease-review.md"
+      ),
+      "utf8"
+    );
+    const roadmap = await readFile(
+      path.join(
+        repoRoot,
+        "docs",
+        "p0i-validation-approval-virtual-apply-roadmap.md"
+      ),
+      "utf8"
+    );
+    const plan = await readFile(
+      path.join(
+        repoRoot,
+        "docs",
+        "p0i-001-patch-proposal-validation-preview-plan.md"
+      ),
+      "utf8"
+    );
+    const docsIndex = await readFile(
+      path.join(repoRoot, "docs", "README.md"),
+      "utf8"
+    );
+    const rootReadme = await readFile(path.join(repoRoot, "README.md"), "utf8");
+    const combined = `${review}\n${roadmap}\n${plan}\n${docsIndex}\n${rootReadme}`;
+
+    expect(combined).toContain("v0.4.0-controlled-creation-preview-rc.1");
+    expect(combined).toContain(
+      "Controlled creation preview, summary-only side effects"
+    );
+    expect(combined).toContain(
+      "Tag: `v0.4.0-controlled-creation-preview-rc.1`"
+    );
+    expect(combined).toContain("Commit: `7a1ac07`");
+    expect(combined).toContain("release tag CI succeeded");
+    expect(combined).toContain("P0H is complete");
+    expect(combined).toContain("P0I Validation / Approval / Virtual Apply");
+    expect(combined).toContain("web_table_to_csv");
+    expect(combined).toContain("Event Log / Replay");
+    expect(combined).toContain("Workspace Index summary bridge");
+    expect(combined).toContain("Record Draft Event");
+    expect(combined).toContain("Context Assembly Preview");
+    expect(combined).toContain("Runtime Agent Route Preview helper");
+    expect(combined).toContain("Runtime Capability Plan Preview helper");
+    expect(combined).toContain("Patch Proposal Creation Preview");
+    expect(combined).toContain("Patch Proposal / Diff UI Bridge");
+    expect(combined).toContain("Approval / Diff / Audit Surfaces");
+    expect(combined).toContain("Runtime Memory Recall Preview helper");
+    expect(combined).toContain("Bridge Proposal Preview");
+    expect(combined).toContain("Real DeepSeek chat");
+    expect(combined).toContain("Real run execution");
+    expect(combined).toContain("Patch apply");
+    expect(combined).toContain("Git execution");
+    expect(combined).toContain("Shell execution");
+    expect(combined).toContain("Capability invocation");
+    expect(combined).toContain("PermissionLease issuing");
+    expect(combined).toContain("Memory commit, revoke, or expire UI");
+    expect(combined).toContain("MCP, plugin, or skills runtime");
+    expect(combined).toContain("Native bridge");
+    expect(combined).toContain("Desktop action");
+    expect(combined).toContain("pnpm verify:ci");
+    expect(combined).toContain("pnpm release:smoke");
+    expect(combined).toContain("pnpm app:qa:check");
+    expect(combined).toContain("manual GUI QA");
+    expect(combined).toContain("GitHub Actions Node warning");
+    expect(combined).toContain("Tauri bundle identifier warning");
+    expect(combined).toContain("No raw payload uploads");
+    expect(combined).toContain("No raw CSV uploads");
+    expect(combined).toContain("No raw source uploads");
+    expect(combined).toContain("No raw prompt uploads");
+    expect(combined).toContain("No API key uploads");
+    expect(combined).toContain("No ignored `conformance/results/`");
+    expect(combined).toContain("P0I-001 Patch Proposal Validation Preview");
+    expect(combined).toContain("P0I-002 Patch Diff Audit Preview");
+    expect(combined).toContain("P0I-003 Approval Gate Draft");
+    expect(combined).toContain("P0I-004 Virtual Apply Preview");
+    expect(combined).toContain("P0I-005 Rollback Checkpoint Preview");
+    expect(combined).toContain("P0I-006 Replay Projection");
+    expect(combined).toContain(
+      "P0I-007 App Shell Validation / Approval / Virtual Apply RC Polish"
+    );
+    expect(combined).toContain("P0I-008 Post-Release Review");
+    expect(combined).toContain("Do not implement this plan in P0H-009");
+    expect(combined).toContain("Input Model");
+    expect(combined).toContain("Validation Rules");
+    expect(combined).toContain("Risk Output");
+    expect(combined).toContain("App UI Summary Mapping");
+    expect(combined).toContain(
+      "v0.4-controlled-creation-preview-postrelease-review.md"
+    );
+    expect(combined).toContain(
+      "p0i-validation-approval-virtual-apply-roadmap.md"
+    );
+    expect(combined).toContain(
+      "p0i-001-patch-proposal-validation-preview-plan.md"
+    );
+  });
+
   it("documents P0H-001 as a read-only Workspace Index to App bridge plan", async () => {
     const plan = await readFile(
       path.join(

@@ -114,13 +114,14 @@ v0.4 Controlled Creation Preview RC references:
 
 ## Current roadmap
 
-P0F is complete after `v0.2.0-app-shell-rc.1`, and P0G is complete after
-`v0.3.0-coding-workflow-preview-rc.1`. The next phase is P0H Coding Workflow
-Controlled Creation MVP: connect safe summaries and controlled proposal
-creation before any execution work. Real chat, run execution, patch apply, Git
-execution, shell execution, capability invocation, PermissionLease issuing,
-memory persistence UI, MCP/plugin/skills runtime, native bridge, and desktop
-action remain deferred.
+P0F is complete after `v0.2.0-app-shell-rc.1`, P0G is complete after
+`v0.3.0-coding-workflow-preview-rc.1`, and P0H is complete after
+`v0.4.0-controlled-creation-preview-rc.1`. The next phase is P0I Validation /
+Approval / Virtual Apply Preview: validate controlled proposals and preview
+approval and virtual apply safety before any execution work. Real chat, run
+execution, patch apply, Git execution, shell execution, capability invocation,
+PermissionLease issuing, memory persistence UI, MCP/plugin/skills runtime,
+native bridge, and desktop action remain deferred.
 
 - [v0.2 App Shell RC post-release review](docs/v0.2-app-shell-rc-postrelease-review.md)
 - [P0G Coding Workflow roadmap](docs/p0g-coding-workflow-roadmap.md)
@@ -128,6 +129,9 @@ action remain deferred.
 - [v0.3 Coding Workflow Preview post-release review](docs/v0.3-coding-workflow-preview-postrelease-review.md)
 - [P0H Coding Workflow Controlled Creation roadmap](docs/p0h-coding-workflow-controlled-creation-roadmap.md)
 - [P0H-001 Workspace Index to App Bridge plan](docs/p0h-001-workspace-index-to-app-bridge-plan.md)
+- [v0.4 Controlled Creation Preview post-release review](docs/v0.4-controlled-creation-preview-postrelease-review.md)
+- [P0I Validation / Approval / Virtual Apply roadmap](docs/p0i-validation-approval-virtual-apply-roadmap.md)
+- [P0I-001 Patch Proposal Validation Preview plan](docs/p0i-001-patch-proposal-validation-preview-plan.md)
 
 ## What v0.1.0 does not support
 
