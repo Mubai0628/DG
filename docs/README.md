@@ -34,6 +34,8 @@ foundation.
 - [Runtime Patch Proposal Creation Preview v0.3](runtime-patch-proposal-creation-preview-v0.3.md)
 - [Runtime Patch Proposal Validation Preview v0.4](runtime-patch-proposal-validation-preview-v0.4.md)
 - [App Shell Patch Proposal Validation Preview v0.4](app-shell-patch-proposal-validation-preview-v0.4.md)
+- [Runtime Patch Diff Audit Preview v0.4](runtime-patch-diff-audit-preview-v0.4.md)
+- [App Shell Patch Diff Audit Preview v0.4](app-shell-patch-diff-audit-preview-v0.4.md)
 - [Runtime Memory Recall Preview v0.3](runtime-memory-recall-preview-v0.3.md)
 - [v0.4.0 Controlled Creation Preview RC release notes](release-notes-v0.4.0-controlled-creation-preview-rc.1.md)
 - [App Shell Controlled Creation manual QA](app-shell-controlled-creation-manual-qa.md)

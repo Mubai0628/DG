@@ -82,6 +82,13 @@ import {
   type AppPatchProposalValidationPreviewView
 } from "./patch-proposal-validation-preview-view.js";
 import {
+  buildPatchDiffAuditPreviewView,
+  patchDiffAuditApprovalRefs,
+  patchDiffAuditSurfaceSummaries,
+  patchDiffAuditWarningCodes,
+  type AppPatchDiffAuditPreviewView
+} from "./patch-diff-audit-preview-view.js";
+import {
   buildEventLogPanelModel,
   buildBridgeProposalPreviewModel,
   buildResultPanelModel,
@@ -215,6 +222,9 @@ export function DesktopShell(): JSX.Element {
     useState<AppPatchProposalCreationPreviewView | undefined>();
   const [patchProposalValidationPreview, setPatchProposalValidationPreview] =
     useState<AppPatchProposalValidationPreviewView | undefined>();
+  const [patchDiffAuditPreview, setPatchDiffAuditPreview] = useState<
+    AppPatchDiffAuditPreviewView | undefined
+  >();
   const loadedWorkspaceIndexRef =
     workspaceIndexBridge.status === "loaded" ||
     workspaceIndexBridge.status === "warning"
@@ -315,21 +325,35 @@ export function DesktopShell(): JSX.Element {
       ) ?? []),
       ...(patchProposalValidationSurfaceSummaries(
         patchProposalValidationPreview
-      ) ?? [])
+      ) ?? []),
+      ...(patchDiffAuditSurfaceSummaries(patchDiffAuditPreview) ?? [])
     ],
-    [displayedPatchProposalCreation, patchProposalValidationPreview]
+    [
+      displayedPatchProposalCreation,
+      patchDiffAuditPreview,
+      patchProposalValidationPreview
+    ]
   );
   const patchProposalApprovalRefs = useMemo(
     () => [
       ...patchProposalCreationApprovalRefs(displayedPatchProposalCreation),
-      ...patchProposalValidationApprovalRefs(patchProposalValidationPreview)
+      ...patchProposalValidationApprovalRefs(patchProposalValidationPreview),
+      ...patchDiffAuditApprovalRefs(patchDiffAuditPreview)
     ],
-    [displayedPatchProposalCreation, patchProposalValidationPreview]
+    [
+      displayedPatchProposalCreation,
+      patchDiffAuditPreview,
+      patchProposalValidationPreview
+    ]
   );
   const patchProposalAuditWarningCodes = useMemo(
-    () =>
-      patchProposalValidationAuditWarningCodes(patchProposalValidationPreview),
-    [patchProposalValidationPreview]
+    () => [
+      ...patchProposalValidationAuditWarningCodes(
+        patchProposalValidationPreview
+      ),
+      ...patchDiffAuditWarningCodes(patchDiffAuditPreview)
+    ],
+    [patchDiffAuditPreview, patchProposalValidationPreview]
   );
   const patchWorkbenchSurfaces = useMemo<AppWorkbenchSurfaceView>(
     () =>
@@ -460,6 +484,23 @@ export function DesktopShell(): JSX.Element {
     );
   const displayedPatchProposalValidation =
     patchProposalValidationPreview ?? buildPatchProposalValidationPreviewView();
+  const patchDiffAuditCandidate = useMemo<AppPatchDiffAuditPreviewView>(
+    () =>
+      buildPatchDiffAuditPreviewView({
+        proposalPreview: displayedPatchProposalCreation,
+        validationPreview: displayedPatchProposalValidation,
+        workspaceIndexRef: loadedWorkspaceIndexRef,
+        capabilityPlanPreview
+      }),
+    [
+      capabilityPlanPreview,
+      displayedPatchProposalCreation,
+      displayedPatchProposalValidation,
+      loadedWorkspaceIndexRef
+    ]
+  );
+  const displayedPatchDiffAudit =
+    patchDiffAuditPreview ?? buildPatchDiffAuditPreviewView();
   const contextAssemblyCandidate = useMemo<AppContextAssemblyPreviewView>(
     () =>
       buildContextAssemblyPreviewView({
@@ -584,12 +625,14 @@ export function DesktopShell(): JSX.Element {
     setRunDraftEventError(undefined);
     setPatchProposalCreationPreview(undefined);
     setPatchProposalValidationPreview(undefined);
+    setPatchDiffAuditPreview(undefined);
     setContextAssemblyPreview(undefined);
   }, [acceptanceCriteriaDraft, objectiveDraft, selectedIntent, workspaceRoot]);
 
   useEffect(() => {
     setPatchProposalCreationPreview(undefined);
     setPatchProposalValidationPreview(undefined);
+    setPatchDiffAuditPreview(undefined);
     setContextAssemblyPreview(undefined);
   }, [
     patchProposalChangeKind,
@@ -604,6 +647,7 @@ export function DesktopShell(): JSX.Element {
     setContextAssemblyPreview(undefined);
   }, [
     agentRoutePreview.routeId,
+    patchDiffAuditPreview?.auditId,
     patchWorkbenchSurfaces.diff.items.length,
     capabilityPlanPreview.itemCount,
     displayedRunDraft.draftId,
@@ -625,10 +669,16 @@ export function DesktopShell(): JSX.Element {
   function handlePreviewPatchProposal(): void {
     setPatchProposalCreationPreview(patchProposalCreationCandidate);
     setPatchProposalValidationPreview(undefined);
+    setPatchDiffAuditPreview(undefined);
   }
 
   function handleValidatePatchProposal(): void {
     setPatchProposalValidationPreview(patchProposalValidationCandidate);
+    setPatchDiffAuditPreview(undefined);
+  }
+
+  function handlePreviewDiffAudit(): void {
+    setPatchDiffAuditPreview(patchDiffAuditCandidate);
   }
 
   async function handleRecordRunDraftEvent(): Promise<void> {
@@ -1857,6 +1907,177 @@ export function DesktopShell(): JSX.Element {
             <p className="fieldHelp">
               {displayedPatchProposalValidation.nextAction}
             </p>
+          </section>
+
+          <section className="eventPanel" aria-label="Patch Diff Audit Preview">
+            <div className="panelHeader">
+              <h2>Patch Diff Audit Preview</h2>
+              <span className="muted">Audit preview / no raw diff</span>
+            </div>
+            <p className="fieldHelp">
+              Audits the patch proposal summary after validation. No raw diff is
+              generated, no files are read, and no patch is applied. Passing
+              audit only means ready for approval draft preview.
+            </p>
+            <div className="buttonRow">
+              <button
+                type="button"
+                className="secondary"
+                onClick={(event) => {
+                  event.preventDefault();
+                  event.stopPropagation();
+                  handlePreviewDiffAudit();
+                }}
+                disabled={
+                  displayedPatchProposalValidation.status === "empty" ||
+                  displayedPatchProposalValidation.status === "blocked"
+                }
+                aria-disabled={
+                  displayedPatchProposalValidation.status === "empty" ||
+                  displayedPatchProposalValidation.status === "blocked"
+                }
+              >
+                Preview Diff Audit
+              </button>
+            </div>
+
+            {displayedPatchDiffAudit.status === "empty" ? (
+              <p className="empty">
+                Validate a patch proposal summary first. Diff audit findings
+                will appear here before approval draft or virtual apply preview.
+              </p>
+            ) : null}
+
+            <dl className="summaryGrid compact">
+              <div>
+                <dt>Status</dt>
+                <dd>{displayedPatchDiffAudit.status}</dd>
+              </div>
+              <div>
+                <dt>Audit</dt>
+                <dd>{displayedPatchDiffAudit.auditId}</dd>
+              </div>
+              <div>
+                <dt>Proposal / validation</dt>
+                <dd>
+                  {displayedPatchDiffAudit.proposalId} /{" "}
+                  {displayedPatchDiffAudit.validationId}
+                </dd>
+              </div>
+              <div>
+                <dt>Risk / derived</dt>
+                <dd>
+                  {displayedPatchDiffAudit.riskLevel} /{" "}
+                  {displayedPatchDiffAudit.derivedRiskLevel}
+                </dd>
+              </div>
+              <div>
+                <dt>Files</dt>
+                <dd>{displayedPatchDiffAudit.fileCount}</dd>
+              </div>
+              <div>
+                <dt>Created / updated / deleted</dt>
+                <dd>
+                  {displayedPatchDiffAudit.filesCreated} /{" "}
+                  {displayedPatchDiffAudit.filesUpdated} /{" "}
+                  {displayedPatchDiffAudit.filesDeleted}
+                </dd>
+              </div>
+              <div>
+                <dt>Lines + / -</dt>
+                <dd>
+                  {displayedPatchDiffAudit.linesAdded} /{" "}
+                  {displayedPatchDiffAudit.linesRemoved}
+                </dd>
+              </div>
+              <div>
+                <dt>Blockers / warnings</dt>
+                <dd>
+                  {displayedPatchDiffAudit.blockerCount} /{" "}
+                  {displayedPatchDiffAudit.warningCount}
+                </dd>
+              </div>
+              <div>
+                <dt>No-compress</dt>
+                <dd>
+                  {displayedPatchDiffAudit.noCompressRequired
+                    ? displayedPatchDiffAudit.contextPlacement
+                    : "not required"}
+                </dd>
+              </div>
+              <div>
+                <dt>Raw diff generated</dt>
+                <dd>{displayedPatchDiffAudit.diffGenerated ? "yes" : "no"}</dd>
+              </div>
+              <div>
+                <dt>Can apply</dt>
+                <dd>
+                  {displayedPatchDiffAudit.readiness.canApplyPatch
+                    ? "yes"
+                    : "no"}
+                </dd>
+              </div>
+              <div>
+                <dt>Approval draft</dt>
+                <dd>
+                  {displayedPatchDiffAudit.readiness
+                    .canProceedToApprovalDraftPreview
+                    ? "ready"
+                    : "not ready"}
+                </dd>
+              </div>
+            </dl>
+
+            <dl className="summaryGrid compact">
+              <div>
+                <dt>Docs / tests / source</dt>
+                <dd>
+                  {displayedPatchDiffAudit.pathCategorySummary.docs} /{" "}
+                  {displayedPatchDiffAudit.pathCategorySummary.tests} /{" "}
+                  {displayedPatchDiffAudit.pathCategorySummary.source}
+                </dd>
+              </div>
+              <div>
+                <dt>Config / deletes / generated</dt>
+                <dd>
+                  {displayedPatchDiffAudit.pathCategorySummary.config} /{" "}
+                  {displayedPatchDiffAudit.pathCategorySummary.deletes} /{" "}
+                  {displayedPatchDiffAudit.pathCategorySummary.generated}
+                </dd>
+              </div>
+              <div>
+                <dt>Validation findings</dt>
+                <dd>
+                  {
+                    displayedPatchDiffAudit.validationFindingSummary
+                      .totalFindingCount
+                  }{" "}
+                  total
+                </dd>
+              </div>
+              <div>
+                <dt>Hash</dt>
+                <dd>{displayedPatchDiffAudit.auditHash}</dd>
+              </div>
+            </dl>
+
+            {displayedPatchDiffAudit.findings.length > 0 ? (
+              <ol className="timeline">
+                {displayedPatchDiffAudit.findings.map((finding) => (
+                  <li key={finding.findingId}>
+                    <span className="timelineMeta">
+                      {finding.kind} · {finding.severity} · {finding.code}
+                    </span>
+                    <span>{finding.summary}</span>
+                    {finding.path !== undefined ? (
+                      <span className="timelineMeta">Path: {finding.path}</span>
+                    ) : null}
+                  </li>
+                ))}
+              </ol>
+            ) : null}
+
+            <p className="fieldHelp">{displayedPatchDiffAudit.nextAction}</p>
           </section>
 
           <section className="eventPanel" aria-label="Agent Route Preview">

@@ -49,6 +49,12 @@ import {
   patchProposalValidationAuditWarningCodes,
   patchProposalValidationSurfaceSummaries
 } from "../src/patch-proposal-validation-preview-view.js";
+import {
+  buildPatchDiffAuditPreviewView,
+  patchDiffAuditApprovalRefs,
+  patchDiffAuditSurfaceSummaries,
+  patchDiffAuditWarningCodes
+} from "../src/patch-diff-audit-preview-view.js";
 import { buildCapabilityPlanPreview } from "../../runtime/src/capabilities/plan-preview.js";
 import { buildMemoryRecallPreviewView } from "../src/memory-recall-preview-view.js";
 import {
@@ -3517,6 +3523,235 @@ describe("app patch proposal validation preview", () => {
   });
 });
 
+describe("app patch diff audit preview", () => {
+  it("builds an empty diff audit preview until proposal and validation summaries exist", () => {
+    const view = buildPatchDiffAuditPreviewView();
+
+    expect(view.status).toBe("empty");
+    expect(view.source).toBe("empty");
+    expect(view.previewOnly).toBe(true);
+    expect(view.diffGenerated).toBe(false);
+    expect(view.applyEnabled).toBe(false);
+    expect(view.virtualApplyEnabled).toBe(false);
+    expect(view.fileReadEnabled).toBe(false);
+    expect(view.fileWriteEnabled).toBe(false);
+    expect(view.eventWritesEnabled).toBe(false);
+  });
+
+  it("generates a summary-only diff audit preview from safe proposal and validation views", () => {
+    const proposalView = buildPatchProposalCreationPreviewView({
+      titleDraft: "Update safe summary path",
+      changeDescriptionSummary: "Summary-only diff audit preview.",
+      pathRefsText: "examples/summary.txt",
+      defaultChangeKind: "update",
+      estimatedLinesAdded: 4,
+      estimatedLinesRemoved: 1,
+      selectedIntent: "documentation"
+    });
+    const validationView = buildPatchProposalValidationPreviewView({
+      proposalPreview: proposalView
+    });
+    const auditView = buildPatchDiffAuditPreviewView({
+      proposalPreview: proposalView,
+      validationPreview: validationView
+    });
+    const serialized = JSON.stringify(auditView);
+
+    expect(auditView.source).toBe("runtime_patch_diff_audit_preview");
+    expect(auditView.proposalId).toBe(proposalView.proposalId);
+    expect(auditView.validationId).toBe(validationView.validationId);
+    expect(auditView.status).toBe("needs_approval");
+    expect(auditView.diffGenerated).toBe(false);
+    expect(auditView.readiness.canProceedToApprovalDraftPreview).toBe(true);
+    expect(auditView.readiness.canProceedToVirtualApplyPreview).toBe(false);
+    expect(auditView.readiness.canApplyPatch).toBe(false);
+    expect(auditView.contextPlacement).toBe("no_compress_zone");
+    expect(serialized).not.toContain("beforeContent");
+    expect(serialized).not.toContain("afterContent");
+    expect(serialized).not.toContain("rawDiff");
+  });
+
+  it("keeps validation blockers from becoming ready audit previews", () => {
+    const proposalView = buildPatchProposalCreationPreviewView({
+      titleDraft: "Unsafe validation blocker",
+      pathRefsText: ".env.local",
+      selectedIntent: "code_change"
+    });
+    const validationView = buildPatchProposalValidationPreviewView({
+      proposalPreview: proposalView
+    });
+    const auditView = buildPatchDiffAuditPreviewView({
+      proposalPreview: proposalView,
+      validationPreview: validationView
+    });
+
+    expect(validationView.status).toBe("blocked");
+    expect(auditView.status).toBe("blocked");
+    expect(auditView.warningCodes).toEqual(
+      expect.arrayContaining([
+        "PATCH_DIFF_AUDIT_VALIDATION_BLOCKED",
+        "PATCH_DIFF_AUDIT_VALIDATION_NOT_READY"
+      ])
+    );
+    expect(auditView.readiness.canProceedToApprovalDraftPreview).toBe(false);
+  });
+
+  it("rejects unsafe raw fields and fake API key markers safely", () => {
+    const secret = "sk-test1234567890abcdef";
+    const rawFieldProposal = buildPatchProposalCreationPreviewView({
+      titleDraft: "Unsafe audit proposal",
+      pathRefsText: JSON.stringify([
+        {
+          path: "app/src/App.tsx",
+          changeKind: "update",
+          beforeContent: "do not keep"
+        }
+      ]),
+      selectedIntent: "code_change"
+    });
+    const markerProposal = buildPatchProposalCreationPreviewView({
+      titleDraft: "Unsafe marker audit proposal",
+      pathRefsText: `app/src/App.tsx ${secret}`,
+      selectedIntent: "code_change"
+    });
+    const rawFieldValidation = buildPatchProposalValidationPreviewView({
+      proposalPreview: rawFieldProposal
+    });
+    const markerValidation = buildPatchProposalValidationPreviewView({
+      proposalPreview: markerProposal
+    });
+    const rawFieldAudit = buildPatchDiffAuditPreviewView({
+      proposalPreview: rawFieldProposal,
+      validationPreview: rawFieldValidation
+    });
+    const markerAudit = buildPatchDiffAuditPreviewView({
+      proposalPreview: markerProposal,
+      validationPreview: markerValidation
+    });
+    const serialized = JSON.stringify({ rawFieldAudit, markerAudit });
+
+    expect(rawFieldAudit.status).toBe("blocked");
+    expect(rawFieldAudit.warningCodes).toEqual(
+      expect.arrayContaining(["PATCH_PREVIEW_RAW_FIELD_REJECTED"])
+    );
+    expect(markerAudit.status).toBe("blocked");
+    expect(markerAudit.warningCodes).toEqual(
+      expect.arrayContaining(["API_KEY_MARKER"])
+    );
+    expect(serialized).not.toContain(secret);
+    expect(serialized).not.toContain("do not keep");
+  });
+
+  it("feeds Diff, Approval, Audit, and Context Assembly with audit summary refs", () => {
+    const runDraft = buildRunDraftView({
+      objectiveDraft: "Audit a local patch proposal preview.",
+      selectedIntent: "code_change",
+      acceptanceCriteriaDraft: "Diff audit summary appears",
+      workspaceRoot: "D:\\workspace"
+    });
+    const proposalView = buildPatchProposalCreationPreviewView({
+      titleDraft: "Update app audit panel",
+      changeDescriptionSummary: "Summary-only diff audit preview.",
+      pathRefsText: "app/src/App.tsx\napp/test/desktop-shell.test.ts",
+      defaultChangeKind: "update",
+      estimatedLinesAdded: 6,
+      estimatedLinesRemoved: 1,
+      selectedIntent: "code_change",
+      runDraft
+    });
+    const validationView = buildPatchProposalValidationPreviewView({
+      proposalPreview: proposalView
+    });
+    const auditView = buildPatchDiffAuditPreviewView({
+      proposalPreview: proposalView,
+      validationPreview: validationView
+    });
+    const surfaces = buildWorkbenchSurfacesView({
+      controlProjection: buildControlPlaneProjectionView(undefined),
+      patchProposalSummaries: [
+        ...(patchProposalCreationSurfaceSummaries(proposalView) ?? []),
+        ...(patchProposalValidationSurfaceSummaries(validationView) ?? []),
+        ...(patchDiffAuditSurfaceSummaries(auditView) ?? [])
+      ],
+      futureApprovalRefs: [
+        ...patchProposalCreationApprovalRefs(proposalView),
+        ...patchProposalValidationApprovalRefs(validationView),
+        ...patchDiffAuditApprovalRefs(auditView)
+      ],
+      futureAuditWarningCodes: [
+        ...patchProposalValidationAuditWarningCodes(validationView),
+        ...patchDiffAuditWarningCodes(auditView)
+      ]
+    });
+    const contextPreview = buildContextAssemblyPreviewView({
+      runDraft,
+      patchSurface: surfaces.diff
+    });
+    const serialized = JSON.stringify({
+      surfaces,
+      contextPreview
+    });
+
+    expect(surfaces.diff.items).toHaveLength(3);
+    expect(
+      surfaces.diff.items.some((item) => item.status.startsWith("diff_audit_"))
+    ).toBe(true);
+    expect(surfaces.approval.items.some((item) => item.kind === "patch")).toBe(
+      true
+    );
+    expect(surfaces.audit.warningCodes).toEqual(
+      expect.arrayContaining([
+        `PATCH_DIFF_AUDIT_FINDINGS_${auditView.findingCount}`,
+        `PATCH_DIFF_AUDIT_WARNINGS_${auditView.warningCount}`
+      ])
+    );
+    expect(
+      contextPreview.segments.some(
+        (segment) =>
+          segment.sourceRefId === "patch-diff-audit-preview-surface" &&
+          segment.placement === "no_compress_zone"
+      )
+    ).toBe(true);
+    expect(serialized).not.toContain("raw source");
+    expect(serialized).not.toContain("raw diff");
+    expect(serialized).not.toContain("beforeContent");
+  });
+
+  it("keeps App UI audit-preview-only without Tauri, EventStore, fs, or execution handlers", async () => {
+    const appSource = await readFile(
+      path.join(appRoot, "src", "App.tsx"),
+      "utf8"
+    );
+    const adapterSource = await readFile(
+      path.join(appRoot, "src", "patch-diff-audit-preview-view.ts"),
+      "utf8"
+    );
+    const desktopFlowSource = await readFile(
+      path.join(appRoot, "src", "desktop-flow.ts"),
+      "utf8"
+    );
+    const combined = `${appSource}\n${adapterSource}`;
+
+    expect(appSource).toContain("Patch Diff Audit Preview");
+    expect(appSource).toContain("Audit preview / no raw diff");
+    expect(appSource).toContain("handlePreviewDiffAudit");
+    expect(appSource).toContain("Preview Diff Audit");
+    expect(appSource).toContain("no patch is applied");
+    expect(combined).not.toContain("handleApplyPatch");
+    expect(combined).not.toContain("applyPatch");
+    expect(combined).not.toContain("approvePatch");
+    expect(combined).not.toContain("rejectPatch");
+    expect(combined).not.toContain("executePatch");
+    expect(adapterSource).not.toContain("safeInvoke");
+    expect(adapterSource).not.toContain("EventStore");
+    expect(adapterSource).not.toContain("readFile");
+    expect(adapterSource).not.toContain("writeFile");
+    expect(adapterSource).not.toContain("localStorage");
+    expect(adapterSource).not.toContain("sessionStorage");
+    expect(desktopFlowSource).not.toContain("patch_diff_audit_preview");
+  });
+});
+
 describe("app memory recall preview", () => {
   it("builds an empty recall preview until a run draft exists", () => {
     const view = buildMemoryRecallPreviewView({
@@ -4721,6 +4956,36 @@ describe("desktop source boundaries", () => {
     expect(combined).toContain(
       "app-shell-patch-proposal-validation-preview-v0.4.md"
     );
+  });
+
+  it("documents patch diff audit preview as no-raw-diff and no-apply", async () => {
+    const docs = await Promise.all(
+      [
+        "app-shell-patch-diff-audit-preview-v0.4.md",
+        "runtime-patch-diff-audit-preview-v0.4.md",
+        "README.md"
+      ].map(async (file) => ({
+        file,
+        text: await readFile(path.join(repoRoot, "docs", file), "utf8")
+      }))
+    );
+    const appReadme = await readFile(
+      path.join(repoRoot, "app", "README.md"),
+      "utf8"
+    );
+    const combined = `${docs.map((doc) => doc.text).join("\n")}\n${appReadme}`;
+
+    expect(combined).toContain("Patch Diff Audit Preview");
+    expect(combined).toContain("without generating a raw diff");
+    expect(combined).toContain("no patch apply");
+    expect(combined).toContain("no virtual apply");
+    expect(combined).toContain("no filesystem read or write");
+    expect(combined).toContain("no EventStore write");
+    expect(combined).toContain("Approval Gate Draft");
+    expect(combined).toContain("Context Assembly Preview");
+    expect(combined).toContain("no_compress_zone");
+    expect(combined).toContain("runtime-patch-diff-audit-preview-v0.4.md");
+    expect(combined).toContain("app-shell-patch-diff-audit-preview-v0.4.md");
   });
 
   it("documents app and runtime memory recall preview as volatile-tail preview only", async () => {
