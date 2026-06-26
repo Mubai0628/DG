@@ -137,12 +137,13 @@ v0.5 Validation / Approval / Virtual Apply Preview RC references:
 ## Current roadmap
 
 P0F is complete after `v0.2.0-app-shell-rc.1`, P0G is complete after
-`v0.3.0-coding-workflow-preview-rc.1`, and P0H is complete after
-`v0.4.0-controlled-creation-preview-rc.1`. P0I is in Validation / Approval /
-Virtual Apply Preview RC polish. Real chat, run execution, patch apply, Git
-execution, shell execution, capability invocation, PermissionLease issuing,
-memory persistence UI, MCP/plugin/skills runtime, native bridge, and desktop
-action remain deferred.
+`v0.3.0-coding-workflow-preview-rc.1`, P0H is complete after
+`v0.4.0-controlled-creation-preview-rc.1`, and P0I is complete after
+`v0.5.0-validation-approval-virtual-apply-preview-rc.1`. The next phase is P0J
+Sandboxed Real Apply Path Design. Real user workspace patch apply, run
+execution, Git execution, shell execution, broad capability invocation,
+PermissionLease issuing for production mutation, memory persistence UI,
+MCP/plugin/skills runtime, native bridge, and desktop action remain deferred.
 
 - [v0.2 App Shell RC post-release review](docs/v0.2-app-shell-rc-postrelease-review.md)
 - [P0G Coding Workflow roadmap](docs/p0g-coding-workflow-roadmap.md)
@@ -154,6 +155,9 @@ action remain deferred.
 - [P0I Validation / Approval / Virtual Apply roadmap](docs/p0i-validation-approval-virtual-apply-roadmap.md)
 - [P0I-001 Patch Proposal Validation Preview plan](docs/p0i-001-patch-proposal-validation-preview-plan.md)
 - [v0.5.0 Validation / Approval / Virtual Apply Preview RC release notes](docs/release-notes-v0.5.0-validation-approval-virtual-apply-preview-rc.1.md)
+- [v0.5 Validation / Approval / Virtual Apply post-release review](docs/v0.5-validation-approval-virtual-apply-postrelease-review.md)
+- [P0J Sandboxed Real Apply Path roadmap](docs/p0j-sandboxed-real-apply-roadmap.md)
+- [P0J-001 Sandboxed Real Apply Strategy ADR plan](docs/p0j-001-sandbox-apply-strategy-adr-plan.md)
 
 ## What v0.1.0 does not support
 

@@ -6913,6 +6913,85 @@ describe("desktop source boundaries", () => {
     );
   });
 
+  it("documents the v0.5 post-release review and P0J sandbox apply roadmap without implementation", async () => {
+    const review = await readFile(
+      path.join(
+        repoRoot,
+        "docs",
+        "v0.5-validation-approval-virtual-apply-postrelease-review.md"
+      ),
+      "utf8"
+    );
+    const roadmap = await readFile(
+      path.join(repoRoot, "docs", "p0j-sandboxed-real-apply-roadmap.md"),
+      "utf8"
+    );
+    const plan = await readFile(
+      path.join(repoRoot, "docs", "p0j-001-sandbox-apply-strategy-adr-plan.md"),
+      "utf8"
+    );
+    const docsIndex = await readFile(
+      path.join(repoRoot, "docs", "README.md"),
+      "utf8"
+    );
+    const rootReadme = await readFile(path.join(repoRoot, "README.md"), "utf8");
+    const combined = `${review}\n${roadmap}\n${plan}\n${docsIndex}\n${rootReadme}`;
+
+    expect(combined).toContain(
+      "v0.5.0-validation-approval-virtual-apply-preview-rc.1"
+    );
+    expect(combined).toContain(
+      "Validation, approval, and virtual-apply previews, no execution"
+    );
+    expect(combined).toContain("910cb324498e6451981f2bc9b1891a091a2a1ff9");
+    expect(combined).toContain("local gates passed");
+    expect(combined).toContain("P0I is complete");
+    expect(combined).toMatch(
+      /Do\s+not\s+keep\s+adding\s+preview\s+panels\s+in\s+P0I/
+    );
+    expect(combined).toContain("P0J Sandboxed Real Apply Path");
+    expect(combined).toContain("Sandboxed Real Apply Strategy ADR");
+    expect(combined).toContain("Disposable Workspace Snapshot Contract");
+    expect(combined).toContain(
+      "Real Patch Apply Prototype In Disposable Workspace"
+    );
+    expect(combined).toContain(
+      "Real Rollback Prototype In Disposable Workspace"
+    );
+    expect(combined).toContain("Apply / Rollback Event Projection");
+    expect(combined).toContain("Approval-Gated Apply Path");
+    expect(combined).toContain("Sandbox Apply RC Polish");
+    expect(combined).toContain("design only");
+    expect(combined).toContain("disposable workspace");
+    expect(combined).toContain("no direct user workspace mutation");
+    expect(combined).toMatch(
+      /Real\s+apply\s+remains\s+disabled\s+by\s+default/
+    );
+    expect(combined).toContain("No patch apply implementation");
+    expect(combined).toContain("No user workspace mutation");
+    expect(combined).toContain("Real DeepSeek chat");
+    expect(combined).toContain("No real ControlPlaneRun execution");
+    expect(combined).toContain("No Git execution");
+    expect(combined).toContain("No shell execution");
+    expect(combined).toContain("No capability invocation");
+    expect(combined).toContain("No PermissionLease issuing");
+    expect(combined).toContain("No native bridge");
+    expect(combined).toContain("No desktop action");
+    expect(combined).toContain("pnpm verify:ci");
+    expect(combined).toContain("pnpm release:smoke");
+    expect(combined).toContain("pnpm app:qa:check");
+    expect(combined).toContain("git status --short");
+    expect(combined).toContain("git status -sb");
+    expect(combined).toContain("git log --oneline origin/main..HEAD");
+    expect(combined).toContain("Do not push.");
+    expect(combined).toContain("Do not tag.");
+    expect(combined).toContain(
+      "v0.5-validation-approval-virtual-apply-postrelease-review.md"
+    );
+    expect(combined).toContain("p0j-sandboxed-real-apply-roadmap.md");
+    expect(combined).toContain("p0j-001-sandbox-apply-strategy-adr-plan.md");
+  });
+
   it("documents the v0.2 App Shell RC post-release review and locks P0F", async () => {
     const review = await readFile(
       path.join(repoRoot, "docs", "v0.2-app-shell-rc-postrelease-review.md"),
