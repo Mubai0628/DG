@@ -91,6 +91,7 @@ import {
   buildDisposableWorkspaceSnapshotView,
   disposableWorkspaceSnapshotWarningCodes
 } from "../src/disposable-workspace-snapshot-view.js";
+import { buildDisposablePatchApplyView } from "../src/disposable-patch-apply-view.js";
 import {
   buildEventLogPanelModel,
   buildBridgeProposalPreviewModel,
@@ -5811,6 +5812,98 @@ describe("app disposable workspace snapshot contract", () => {
   });
 });
 
+describe("app disposable patch apply prototype", () => {
+  it("shows disabled-by-default state without app execution", () => {
+    const view = buildDisposablePatchApplyView();
+
+    expect(view.source).toBe("app_disposable_patch_apply_disabled");
+    expect(view.status).toBe("disabled");
+    expect(view.disabledByDefault).toBe(true);
+    expect(view.disposableOnly).toBe(true);
+    expect(view.runtimeHelperAvailable).toBe(true);
+    expect(view.appExecutionConnected).toBe(false);
+    expect(view.userWorkspaceMutationEnabled).toBe(false);
+    expect(view.applyButtonEnabled).toBe(false);
+    expect(view.eventWritesEnabled).toBe(false);
+    expect(view.tauriCommandEnabled).toBe(false);
+    expect(view.gitExecutionEnabled).toBe(false);
+    expect(view.shellExecutionEnabled).toBe(false);
+    expect(view.warningCodes).toEqual(
+      expect.arrayContaining([
+        "DISPOSABLE_PATCH_SNAPSHOT_CONTRACT_MISSING",
+        "DISPOSABLE_PATCH_PROPOSAL_MISSING",
+        "DISPOSABLE_PATCH_APP_APPLY_DISABLED"
+      ])
+    );
+  });
+
+  it("summarizes the preview chain while keeping apply disabled", () => {
+    const view = buildDisposablePatchApplyView({
+      snapshotContract: { contractId: "snapshot-contract-1" },
+      patchProposalPreview: { proposalId: "proposal-1" },
+      patchValidationPreview: { validationId: "validation-1" },
+      patchDiffAuditPreview: { auditId: "audit-1" },
+      patchApprovalDraft: { approvalDraftId: "approval-1" },
+      patchVirtualApplyPreview: {
+        virtualApplyId: "virtual-1",
+        operations: [{ path: "docs/a.md" }]
+      },
+      patchRollbackCheckpointPreview: { checkpointPreviewId: "checkpoint-1" }
+    });
+    const serialized = JSON.stringify(view);
+
+    expect(view.status).toBe("disabled");
+    expect(view.snapshotContractId).toBe("snapshot-contract-1");
+    expect(view.proposalId).toBe("proposal-1");
+    expect(view.validationId).toBe("validation-1");
+    expect(view.auditId).toBe("audit-1");
+    expect(view.approvalDraftId).toBe("approval-1");
+    expect(view.virtualApplyId).toBe("virtual-1");
+    expect(view.checkpointPreviewId).toBe("checkpoint-1");
+    expect(view.operationCount).toBe(1);
+    expect(view.blockerCount).toBe(0);
+    expect(view.warningCodes).toEqual(["DISPOSABLE_PATCH_APP_APPLY_DISABLED"]);
+    expect(serialized).not.toContain("rawSource");
+    expect(serialized).not.toContain("rawDiff");
+    expect(serialized).not.toContain("beforeContent");
+  });
+
+  it("keeps App Shell disconnected from disposable patch apply execution", async () => {
+    const appSource = await readFile(
+      path.join(appRoot, "src", "App.tsx"),
+      "utf8"
+    );
+    const adapterSource = await readFile(
+      path.join(appRoot, "src", "disposable-patch-apply-view.ts"),
+      "utf8"
+    );
+    const desktopFlowSource = await readFile(
+      path.join(appRoot, "src", "desktop-flow.ts"),
+      "utf8"
+    );
+    const combined = `${appSource}\n${adapterSource}`;
+
+    expect(appSource).toContain("Disposable Patch Apply Prototype");
+    expect(appSource).toContain(
+      "Disabled by default / disposable workspace only"
+    );
+    expect(appSource).toContain(
+      "The App Shell does not mutate the user workspace."
+    );
+    expect(appSource).toContain("Apply to Disposable Workspace (disabled)");
+    expect(combined).not.toContain("applyPatchToDisposableWorkspace");
+    expect(combined).not.toContain("handleApplyDisposablePatch");
+    expect(combined).not.toContain("disposablePatchContent");
+    expect(adapterSource).not.toContain("safeInvoke");
+    expect(adapterSource).not.toContain("EventStore");
+    expect(adapterSource).not.toContain("readFile");
+    expect(adapterSource).not.toContain("writeFile");
+    expect(adapterSource).not.toContain("localStorage");
+    expect(adapterSource).not.toContain("sessionStorage");
+    expect(desktopFlowSource).not.toContain("disposable_patch_apply");
+  });
+});
+
 describe("desktop source boundaries", () => {
   it("keeps refresh events and docs actions from navigating or resetting UI state", async () => {
     const appSource = await readFile(
@@ -5982,6 +6075,12 @@ describe("desktop source boundaries", () => {
     expect(appSource).toContain("Metadata only / no apply");
     expect(appSource).toContain("Preview Snapshot Contract");
     expect(appSource).toContain("not a real filesystem path");
+    expect(appSource).toContain("Disposable Patch Apply Prototype");
+    expect(appSource).toContain(
+      "Disabled by default / disposable workspace only"
+    );
+    expect(appSource).toContain("Apply to Disposable Workspace (disabled)");
+    expect(appSource).toContain("buildDisposablePatchApplyView");
     expect(appSource).toContain("Controlled Creation Replay Projection");
     expect(appSource).toContain("Replay preview / no execution");
     expect(appSource).toContain(
@@ -7290,6 +7389,48 @@ describe("desktop source boundaries", () => {
     );
     expect(docsIndex).toContain(
       "app-shell-disposable-workspace-snapshot-contract-v0.5.md"
+    );
+  });
+
+  it("documents the disposable patch apply prototype as disabled by default", async () => {
+    const runtimeDoc = await readFile(
+      path.join(
+        repoRoot,
+        "docs",
+        "runtime-disposable-patch-apply-prototype-v0.5.md"
+      ),
+      "utf8"
+    );
+    const appDoc = await readFile(
+      path.join(
+        repoRoot,
+        "docs",
+        "app-shell-disposable-patch-apply-prototype-v0.5.md"
+      ),
+      "utf8"
+    );
+    const docsIndex = await readFile(
+      path.join(repoRoot, "docs", "README.md"),
+      "utf8"
+    );
+    const appReadme = await readFile(path.join(appRoot, "README.md"), "utf8");
+    const combined = `${runtimeDoc}\n${appDoc}\n${docsIndex}\n${appReadme}`;
+
+    expect(combined).toContain("disabled by default");
+    expect(combined).toContain("disposable workspace");
+    expect(combined).toContain("no user workspace");
+    expect(combined).toContain("no Git");
+    expect(combined).toContain("no shell");
+    expect(combined).toContain("raw content");
+    expect(combined).toContain("raw source");
+    expect(combined).toContain("eventPreview");
+    expect(combined).toContain("notWritten: true");
+    expect(combined).toContain("P0J-004");
+    expect(docsIndex).toContain(
+      "runtime-disposable-patch-apply-prototype-v0.5.md"
+    );
+    expect(docsIndex).toContain(
+      "app-shell-disposable-patch-apply-prototype-v0.5.md"
     );
   });
 

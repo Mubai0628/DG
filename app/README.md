@@ -19,7 +19,8 @@ Current scope:
   Rollback Checkpoint Preview, Controlled Creation Replay Projection, Approval
   / Diff / Audit, Memory Inspector, Memory Recall Preview, Workspace Index
   summary bridge, Disposable Workspace Snapshot Contract, Context Assembly
-  Preview, and disabled Bridge Proposal Preview
+  Preview, disabled Disposable Patch Apply Prototype status, and disabled
+  Bridge Proposal Preview
 - show Memory Recall Preview through the runtime Memory Core preview helper
   using in-memory summaries only; no memory persistence, commit, revoke, or
   expire operation is connected
@@ -55,8 +56,10 @@ Current limitations:
   Projection links the persisted run draft event and local patch previews into a
   summary-only timeline without writing events or executing actions; Disposable
   Workspace Snapshot Contract builds a metadata-only future sandbox target
-  contract without creating or copying a disposable workspace; none of these
-  reads or writes files
+  contract without creating or copying a disposable workspace; Disposable Patch
+  Apply Prototype is disabled in the App Shell and is not connected to the
+  runtime filesystem-writing helper; none of these App surfaces reads or writes
+  files
 - no validation, audit, approval, virtual apply, rollback, or replay preview is
   an apply/approval/rollback/execution lane
 - no real DeepSeek API call from the desktop shell

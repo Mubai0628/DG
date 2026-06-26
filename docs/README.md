@@ -56,6 +56,8 @@ foundation.
 - [P0J-002 Disposable Workspace Snapshot Contract plan](p0j-002-disposable-workspace-snapshot-contract-plan.md)
 - [Runtime Disposable Workspace Snapshot Contract v0.5](runtime-disposable-workspace-snapshot-contract-v0.5.md)
 - [App Shell Disposable Workspace Snapshot Contract v0.5](app-shell-disposable-workspace-snapshot-contract-v0.5.md)
+- [Runtime Disposable Patch Apply Prototype v0.5](runtime-disposable-patch-apply-prototype-v0.5.md)
+- [App Shell Disposable Patch Apply Prototype v0.5](app-shell-disposable-patch-apply-prototype-v0.5.md)
 - [Runtime Memory Recall Preview v0.3](runtime-memory-recall-preview-v0.3.md)
 - [v0.4.0 Controlled Creation Preview RC release notes](release-notes-v0.4.0-controlled-creation-preview-rc.1.md)
 - [App Shell Controlled Creation manual QA](app-shell-controlled-creation-manual-qa.md)

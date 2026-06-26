@@ -123,6 +123,10 @@ import {
   type AppDisposableWorkspaceSnapshotView
 } from "./disposable-workspace-snapshot-view.js";
 import {
+  buildDisposablePatchApplyView,
+  type AppDisposablePatchApplyView
+} from "./disposable-patch-apply-view.js";
+import {
   buildEventLogPanelModel,
   buildBridgeProposalPreviewModel,
   buildResultPanelModel,
@@ -682,6 +686,27 @@ export function DesktopShell(): JSX.Element {
   const displayedDisposableWorkspaceSnapshot =
     disposableWorkspaceSnapshotPreview ??
     buildDisposableWorkspaceSnapshotView();
+  const disposablePatchApplyView = useMemo<AppDisposablePatchApplyView>(
+    () =>
+      buildDisposablePatchApplyView({
+        snapshotContract: disposableWorkspaceSnapshotPreview,
+        patchProposalPreview: patchProposalCreationPreview,
+        patchValidationPreview: patchProposalValidationPreview,
+        patchDiffAuditPreview,
+        patchApprovalDraft: patchApprovalDraftPreview,
+        patchVirtualApplyPreview,
+        patchRollbackCheckpointPreview
+      }),
+    [
+      disposableWorkspaceSnapshotPreview,
+      patchApprovalDraftPreview,
+      patchDiffAuditPreview,
+      patchProposalCreationPreview,
+      patchProposalValidationPreview,
+      patchRollbackCheckpointPreview,
+      patchVirtualApplyPreview
+    ]
+  );
   const contextAssemblyCandidate = useMemo<AppContextAssemblyPreviewView>(
     () =>
       buildContextAssemblyPreviewView({
@@ -3309,6 +3334,100 @@ export function DesktopShell(): JSX.Element {
             <p className="fieldHelp">
               {displayedDisposableWorkspaceSnapshot.nextAction}
             </p>
+          </section>
+
+          <section
+            className="eventPanel"
+            aria-label="Disposable Patch Apply Prototype"
+          >
+            <div className="panelHeader">
+              <h2>Disposable Patch Apply Prototype</h2>
+              <span className="muted">
+                Disabled by default / disposable workspace only
+              </span>
+            </div>
+            <p className="fieldHelp">
+              Prototype apply is only allowed for explicit disposable workspace
+              tests. The App Shell does not mutate the user workspace.
+            </p>
+            <div className="buttonRow">
+              <button
+                type="button"
+                className="secondary"
+                disabled
+                aria-disabled="true"
+              >
+                Apply to Disposable Workspace (disabled)
+              </button>
+            </div>
+            <dl className="summaryGrid compact">
+              <div>
+                <dt>Status</dt>
+                <dd>{disposablePatchApplyView.status}</dd>
+              </div>
+              <div>
+                <dt>Runtime helper</dt>
+                <dd>
+                  {disposablePatchApplyView.runtimeHelperAvailable
+                    ? "available for tests"
+                    : "not connected"}
+                </dd>
+              </div>
+              <div>
+                <dt>App execution connected</dt>
+                <dd>
+                  {disposablePatchApplyView.appExecutionConnected
+                    ? "yes"
+                    : "no"}
+                </dd>
+              </div>
+              <div>
+                <dt>User workspace mutation</dt>
+                <dd>
+                  {disposablePatchApplyView.userWorkspaceMutationEnabled
+                    ? "enabled"
+                    : "disabled"}
+                </dd>
+              </div>
+              <div>
+                <dt>Snapshot contract</dt>
+                <dd>{disposablePatchApplyView.snapshotContractId || "n/a"}</dd>
+              </div>
+              <div>
+                <dt>Proposal / validation / audit</dt>
+                <dd>
+                  {disposablePatchApplyView.proposalId || "n/a"} /{" "}
+                  {disposablePatchApplyView.validationId || "n/a"} /{" "}
+                  {disposablePatchApplyView.auditId || "n/a"}
+                </dd>
+              </div>
+              <div>
+                <dt>Approval / virtual / checkpoint</dt>
+                <dd>
+                  {disposablePatchApplyView.approvalDraftId || "n/a"} /{" "}
+                  {disposablePatchApplyView.virtualApplyId || "n/a"} /{" "}
+                  {disposablePatchApplyView.checkpointPreviewId || "n/a"}
+                </dd>
+              </div>
+              <div>
+                <dt>Operations</dt>
+                <dd>{disposablePatchApplyView.operationCount}</dd>
+              </div>
+              <div>
+                <dt>Blockers / warnings</dt>
+                <dd>
+                  {disposablePatchApplyView.blockerCount} /{" "}
+                  {disposablePatchApplyView.warningCount}
+                </dd>
+              </div>
+            </dl>
+            {disposablePatchApplyView.warningCodes.length > 0 ? (
+              <p className="fieldHelp">
+                Warning codes:{" "}
+                {disposablePatchApplyView.warningCodes.join(", ")}
+              </p>
+            ) : null}
+            <p className="fieldHelp">{disposablePatchApplyView.nextAction}</p>
           </section>
 
           <section
