@@ -6963,7 +6963,7 @@ describe("desktop source boundaries", () => {
     expect(combined).toContain("Sandbox Apply RC Polish");
     expect(combined).toContain("design only");
     expect(combined).toContain("disposable workspace");
-    expect(combined).toContain("no direct user workspace mutation");
+    expect(combined).toMatch(/no\s+direct\s+user\s+workspace\s+mutation/);
     expect(combined).toMatch(
       /Real\s+apply\s+remains\s+disabled\s+by\s+default/
     );
@@ -6990,6 +6990,94 @@ describe("desktop source boundaries", () => {
     );
     expect(combined).toContain("p0j-sandboxed-real-apply-roadmap.md");
     expect(combined).toContain("p0j-001-sandbox-apply-strategy-adr-plan.md");
+  });
+
+  it("documents the P0J sandboxed real apply ADR and gates without implementation", async () => {
+    const adr = await readFile(
+      path.join(
+        repoRoot,
+        "docs",
+        "adr",
+        "0005-sandboxed-real-apply-strategy.md"
+      ),
+      "utf8"
+    );
+    const threatModel = await readFile(
+      path.join(repoRoot, "docs", "sandboxed-real-apply-threat-model-v0.5.md"),
+      "utf8"
+    );
+    const implementationGate = await readFile(
+      path.join(
+        repoRoot,
+        "docs",
+        "sandboxed-real-apply-implementation-gate-v0.5.md"
+      ),
+      "utf8"
+    );
+    const p0j002Plan = await readFile(
+      path.join(
+        repoRoot,
+        "docs",
+        "p0j-002-disposable-workspace-snapshot-contract-plan.md"
+      ),
+      "utf8"
+    );
+    const docsIndex = await readFile(
+      path.join(repoRoot, "docs", "README.md"),
+      "utf8"
+    );
+    const rootReadme = await readFile(path.join(repoRoot, "README.md"), "utf8");
+    const combined = `${adr}\n${threatModel}\n${implementationGate}\n${p0j002Plan}\n${docsIndex}\n${rootReadme}`;
+
+    expect(adr).toContain("ADR 0005: Sandboxed Real Apply Strategy");
+    expect(adr).toContain("Proposed / Accepted for P0J design gate");
+    expect(combined).toContain("P0I completed the validation");
+    expect(combined).toContain("sandboxed real apply strategy");
+    expect(combined).toContain("disposable workspace");
+    expect(combined).toContain("no user workspace apply");
+    expect(combined).toMatch(/no\s+direct\s+user\s+workspace\s+mutation/);
+    expect(combined).toMatch(
+      /Direct\s+mutation\s+of\s+the\s+user's\s+source\s+workspace\s+is\s+not\s+allowed/
+    );
+    expect(combined).toContain(
+      "Do not implement until all P0J-001/P0J-002 gates are satisfied"
+    );
+    expect(combined).toContain("path guard");
+    expect(combined).toContain("symlink, junction, and reparse point policy");
+    expect(combined).toContain("secret scan");
+    expect(combined).toContain("generated artifact exclusion");
+    expect(combined).toContain("patch proposal validation");
+    expect(combined).toContain("diff audit preview");
+    expect(combined).toContain("approval draft");
+    expect(combined).toContain("virtual apply preview");
+    expect(combined).toContain("rollback checkpoint preview");
+    expect(combined).toContain("replay projection");
+    expect(combined).toContain("explicit user confirmation");
+    expect(combined).toContain("summary-only event");
+    expect(combined).toContain(
+      "Replay must reconstruct apply and rollback state"
+    );
+    expect(combined).toContain("No Git execution");
+    expect(combined).toContain("No shell execution");
+    expect(combined).toContain("No native bridge");
+    expect(combined).toContain("No desktop action");
+    expect(combined).toContain("metadata-only");
+    expect(combined).toContain("No real patch apply");
+    expect(combined).toContain("No filesystem read or write implementation");
+    expect(combined).toContain("No Tauri command");
+    expect(combined).toContain("pnpm verify:ci");
+    expect(combined).toContain("pnpm release:smoke");
+    expect(combined).toContain("git log --oneline origin/main..HEAD");
+    expect(combined).toContain("Do not push.");
+    expect(combined).toContain("Do not tag.");
+    expect(combined).toContain("0005-sandboxed-real-apply-strategy.md");
+    expect(combined).toContain("sandboxed-real-apply-threat-model-v0.5.md");
+    expect(combined).toContain(
+      "sandboxed-real-apply-implementation-gate-v0.5.md"
+    );
+    expect(combined).toContain(
+      "p0j-002-disposable-workspace-snapshot-contract-plan.md"
+    );
   });
 
   it("documents the v0.2 App Shell RC post-release review and locks P0F", async () => {

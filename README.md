@@ -158,6 +158,10 @@ MCP/plugin/skills runtime, native bridge, and desktop action remain deferred.
 - [v0.5 Validation / Approval / Virtual Apply post-release review](docs/v0.5-validation-approval-virtual-apply-postrelease-review.md)
 - [P0J Sandboxed Real Apply Path roadmap](docs/p0j-sandboxed-real-apply-roadmap.md)
 - [P0J-001 Sandboxed Real Apply Strategy ADR plan](docs/p0j-001-sandbox-apply-strategy-adr-plan.md)
+- [ADR 0005: Sandboxed Real Apply Strategy](docs/adr/0005-sandboxed-real-apply-strategy.md)
+- [Sandboxed Real Apply Threat Model v0.5](docs/sandboxed-real-apply-threat-model-v0.5.md)
+- [Sandboxed Real Apply Implementation Gate v0.5](docs/sandboxed-real-apply-implementation-gate-v0.5.md)
+- [P0J-002 Disposable Workspace Snapshot Contract plan](docs/p0j-002-disposable-workspace-snapshot-contract-plan.md)
 
 ## What v0.1.0 does not support
 
