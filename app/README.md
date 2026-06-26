@@ -29,6 +29,9 @@ Current scope:
   execution
 - prepare the v0.4 controlled creation preview RC with local-only,
   summary-only, preview-only, read-only, and planning-only surfaces
+- prepare the v0.5 validation / approval / virtual apply preview RC with
+  validation-only, audit-preview, draft-only, in-memory-summary-only,
+  checkpoint-preview, and replay-preview copy
 
 Current limitations:
 
@@ -52,6 +55,8 @@ Current limitations:
   Projection links the persisted run draft event and local patch previews into a
   summary-only timeline without writing events or executing actions; none of
   these reads or writes files
+- no validation, audit, approval, virtual apply, rollback, or replay preview is
+  an apply/approval/rollback/execution lane
 - no real DeepSeek API call from the desktop shell
 - no real chat, run creation, approval execution, patch apply, Git execution,
   shell execution, capability invocation, PermissionLease issuance, memory

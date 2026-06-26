@@ -3532,7 +3532,9 @@ describe("app patch proposal validation preview", () => {
     expect(appSource).toContain("Validation only / no apply");
     expect(appSource).toContain("handleValidatePatchProposal");
     expect(appSource).toContain("Validation");
-    expect(appSource).toContain("diff/audit preview");
+    expect(appSource).toMatch(
+      /Validation\s+passing\s+does\s+not\s+mean\s+apply\s+is\s+enabled\./
+    );
     expect(combined).not.toContain("handleApplyPatch");
     expect(combined).not.toContain("applyPatch");
     expect(combined).not.toContain("approvePatch");
@@ -4022,8 +4024,8 @@ describe("app patch approval draft", () => {
     expect(appSource).toContain("Patch Approval Draft");
     expect(appSource).toContain("Draft only / no approval execution");
     expect(appSource).toContain("handlePreviewApprovalDraft");
-    expect(appSource).toContain(
-      "No approval, rejection, lease, or patch apply"
+    expect(appSource).toMatch(
+      /No\s+approval,\s+rejection,\s+or\s+lease\s+is\s+issued,\s+and\s+patch\s+apply\s+stays\s+disabled\./
     );
     expect(combined).not.toContain("handleApprove");
     expect(combined).not.toContain("handleRejectPatch");
@@ -4363,7 +4365,7 @@ describe("app patch virtual apply preview", () => {
     const combined = `${appSource}\n${adapterSource}`;
 
     expect(appSource).toContain("Patch Virtual Apply Preview");
-    expect(appSource).toContain("In-memory only / no filesystem write");
+    expect(appSource).toContain("In-memory summary only / no filesystem write");
     expect(appSource).toContain("handlePreviewVirtualApply");
     expect(appSource).toContain(
       "No files are read or written, no rollback is executed"
@@ -5688,8 +5690,10 @@ describe("desktop source boundaries", () => {
     expect(appSource).toContain("No execution is");
     expect(appSource).toContain("buildControlPlaneProjectionView");
     expect(appSource).toContain("Approval / Diff / Audit Surfaces");
-    expect(appSource).toContain("Read-only skeleton. No execution controls.");
-    expect(appSource).toContain("No approval, apply, or");
+    expect(appSource).toMatch(
+      /Read-only\s+skeleton\.\s+No\s+approval,\s+apply,\s+rollback,\s+commit,\s+or\s+execution\s+controls\./
+    );
+    expect(appSource).toMatch(/No\s+approval,\s+apply,\s+rollback,\s+commit/);
     expect(appSource).toContain("Approval Surface");
     expect(appSource).toContain("Diff Surface");
     expect(appSource).toContain("Audit Surface");
@@ -5788,8 +5792,43 @@ describe("desktop source boundaries", () => {
     expect(appSource).toContain("runDraftCandidate");
     expect(appSource).toContain("setRunDraftPreview");
     expect(appSource).toContain("handlePreviewDraftRun");
+    expect(appSource).toMatch(
+      /Preview\s+only\.\s+No\s+run\s+is\s+created\s+and\s+no\s+LLM\s+request\s+is\s+sent\./
+    );
+    expect(appSource).toContain("Patch Proposal Creation Preview");
+    expect(appSource).toContain("Preview only / no apply");
+    expect(appSource).toContain("No files are read or written");
+    expect(appSource).toContain("Patch Proposal Validation Preview");
+    expect(appSource).toContain("Validation only / no apply");
+    expect(appSource).toMatch(
+      /Validation\s+passing\s+does\s+not\s+mean\s+apply\s+is\s+enabled\./
+    );
+    expect(appSource).toContain("Patch Diff Audit Preview");
+    expect(appSource).toContain("Audit preview / no raw diff");
+    expect(appSource).toContain("No raw diff is");
+    expect(appSource).toContain("Patch Approval Draft");
+    expect(appSource).toContain("Draft only / no approval execution");
+    expect(appSource).toContain("No approval, rejection, or lease is issued");
+    expect(appSource).toContain("Patch Virtual Apply Preview");
+    expect(appSource).toContain("In-memory summary only / no filesystem write");
+    expect(appSource).toContain("Patch Rollback Checkpoint Preview");
+    expect(appSource).toContain("Checkpoint preview / no real rollback");
+    expect(appSource).toMatch(
+      /No\s+checkpoint\s+file\s+is\s+written\s+and\s+no\s+rollback\s+is/
+    );
+    expect(appSource).toContain("Controlled Creation Replay Projection");
+    expect(appSource).toContain("Replay preview / no execution");
     expect(appSource).toContain(
-      "Preview only. No run is created and no LLM request is sent."
+      "No events are written and no action is executed"
+    );
+    expect(appSource).toMatch(
+      /No\s+approval,\s+apply,\s+rollback,\s+commit,\s+or\s+execution\s+controls/
+    );
+    expect(appSource).toContain(
+      "No prompt is assembled and no model request is sent."
+    );
+    expect(appSource).toMatch(
+      /No\s+capability\s+is\s+invoked\s+and\s+no\s+permission\s+lease\s+is\s+issued\./
     );
     expect(appSource).toContain('aria-disabled="true"');
     expect(appSource).toContain("chatRunCanvas");
@@ -5832,6 +5871,9 @@ describe("desktop source boundaries", () => {
     expect(appSource).not.toContain("Issue Lease");
     expect(appSource).not.toContain("Execute Capability");
     expect(appSource).not.toContain("Apply Patch");
+    expect(appSource).not.toMatch(
+      />\s*(Apply|Rollback|Commit|Approve|Reject|Execute)\s*</
+    );
     expect(appSource).not.toContain("Run Git");
     expect(appSource).not.toContain("Run Shell");
     expect(appSource).not.toContain("Enable native bridge");
@@ -6783,6 +6825,92 @@ describe("desktop source boundaries", () => {
     );
     expect(combined).toContain("app-shell-controlled-creation-manual-qa.md");
     expect(combined).toContain("app-shell-controlled-creation-rc-checklist.md");
+  });
+
+  it("documents the v0.5 validation approval virtual apply preview RC without enabling execution", async () => {
+    const releaseNotes = await readFile(
+      path.join(
+        repoRoot,
+        "docs",
+        "release-notes-v0.5.0-validation-approval-virtual-apply-preview-rc.1.md"
+      ),
+      "utf8"
+    );
+    const manualQa = await readFile(
+      path.join(
+        repoRoot,
+        "docs",
+        "app-shell-validation-approval-virtual-apply-manual-qa.md"
+      ),
+      "utf8"
+    );
+    const checklist = await readFile(
+      path.join(
+        repoRoot,
+        "docs",
+        "app-shell-validation-approval-virtual-apply-rc-checklist.md"
+      ),
+      "utf8"
+    );
+    const docsIndex = await readFile(
+      path.join(repoRoot, "docs", "README.md"),
+      "utf8"
+    );
+    const rootReadme = await readFile(path.join(repoRoot, "README.md"), "utf8");
+    const appReadme = await readFile(path.join(appRoot, "README.md"), "utf8");
+    const combined = `${releaseNotes}\n${manualQa}\n${checklist}\n${docsIndex}\n${rootReadme}\n${appReadme}`;
+
+    expect(combined).toContain(
+      "v0.5.0-validation-approval-virtual-apply-preview-rc.1"
+    );
+    expect(combined).toContain(
+      "Validation, approval, and virtual-apply previews, no execution"
+    );
+    expect(combined).toContain("Patch Proposal Validation Preview");
+    expect(combined).toContain("Patch Diff Audit Preview");
+    expect(combined).toContain("Patch Approval Draft");
+    expect(combined).toContain("Patch Virtual Apply Preview");
+    expect(combined).toContain("Patch Rollback Checkpoint Preview");
+    expect(combined).toContain("Controlled Creation Replay Projection");
+    expect(combined).toContain("web_table_to_csv");
+    expect(combined).toContain("Record Draft Event");
+    expect(combined).toContain("local summary-event write path");
+    expect(combined).toContain("No real DeepSeek chat");
+    expect(combined).toContain("No real ControlPlaneRun execution");
+    expect(combined).toContain("No patch apply");
+    expect(combined).toContain("No filesystem write");
+    expect(combined).toContain("No real rollback");
+    expect(combined).toContain("No Git execution");
+    expect(combined).toContain("No shell execution");
+    expect(combined).toContain("No capability invocation");
+    expect(combined).toContain("No PermissionLease issuance");
+    expect(combined).toContain("No memory commit, revoke, or expire UI");
+    expect(combined).toContain("No MCP/plugin/skills runtime");
+    expect(combined).toContain("No `nativeMessaging` or live bridge");
+    expect(combined).toContain("No desktop action");
+    expect(combined).toContain("volatile_tail");
+    expect(combined).toContain("no_compress_zone");
+    expect(combined).toContain("pnpm verify:ci");
+    expect(combined).toContain("pnpm release:smoke");
+    expect(combined).toContain("pnpm app:qa:check");
+    expect(combined).toContain("git status --short");
+    expect(combined).toContain("pnpm app:dev");
+    expect(combined).toContain("D:\\workspaces\\demo");
+    expect(combined).toContain("web-table-export-p0i.csv");
+    expect(combined).toContain("FILE_EXISTS");
+    expect(combined).toContain("PASSWORD_VALUE_MARKER");
+    expect(combined).toContain("GitHub Actions");
+    expect(combined).toContain("Generated Artifacts");
+    expect(combined).toContain("Rollback Guidance");
+    expect(combined).toContain(
+      "release-notes-v0.5.0-validation-approval-virtual-apply-preview-rc.1.md"
+    );
+    expect(combined).toContain(
+      "app-shell-validation-approval-virtual-apply-manual-qa.md"
+    );
+    expect(combined).toContain(
+      "app-shell-validation-approval-virtual-apply-rc-checklist.md"
+    );
   });
 
   it("documents the v0.2 App Shell RC post-release review and locks P0F", async () => {

@@ -2005,7 +2005,7 @@ export function DesktopShell(): JSX.Element {
             <p className="fieldHelp">
               Validates the patch proposal summary before audit or approval. No
               files are read or written, and no patch is applied. Validation
-              passing only means ready for diff/audit preview.
+              passing does not mean apply is enabled.
             </p>
             <div className="buttonRow">
               <button
@@ -2315,8 +2315,8 @@ export function DesktopShell(): JSX.Element {
             </div>
             <p className="fieldHelp">
               Builds a read-only approval request draft from validation and
-              audit summaries. No approval, rejection, lease, or patch apply is
-              executed.
+              audit summaries. No approval, rejection, or lease is issued, and
+              patch apply stays disabled.
             </p>
             <div className="buttonRow">
               <button
@@ -2530,7 +2530,7 @@ export function DesktopShell(): JSX.Element {
             <div className="panelHeader">
               <h2>Patch Virtual Apply Preview</h2>
               <span className="muted">
-                In-memory only / no filesystem write
+                In-memory summary only / no filesystem write
               </span>
             </div>
             <p className="fieldHelp">
@@ -3978,12 +3978,13 @@ export function DesktopShell(): JSX.Element {
             <div className="panelHeader">
               <h2>Approval / Diff / Audit Surfaces</h2>
               <span className="muted">
-                Read-only skeleton. No execution controls.
+                Read-only skeleton. No approval, apply, rollback, commit, or
+                execution controls.
               </span>
             </div>
             <p className="fieldHelp">
-              Read-only surfaces for future proposals. No approval, apply, or
-              execution controls are available here.
+              Read-only surfaces for future proposals. No approval, apply,
+              rollback, commit, or execution controls are available here.
             </p>
 
             <div className="surfaceStack">

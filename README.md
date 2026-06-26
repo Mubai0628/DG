@@ -112,16 +112,37 @@ v0.4 Controlled Creation Preview RC references:
 - [App Shell Controlled Creation manual QA](docs/app-shell-controlled-creation-manual-qa.md)
 - [App Shell Controlled Creation RC checklist](docs/app-shell-controlled-creation-rc-checklist.md)
 
+## v0.5 Validation / Approval / Virtual Apply Preview RC status
+
+Recommended tag:
+`v0.5.0-validation-approval-virtual-apply-preview-rc.1`.
+
+The P0I preview line polishes validation, diff audit, approval draft, virtual
+apply, rollback checkpoint, and replay projection surfaces. These surfaces are
+validation-only, audit-preview, draft-only, in-memory-summary-only,
+checkpoint-preview, or replay-preview. They do not apply patches, execute
+approval or rejection, write files, execute rollback, run Git or shell, invoke
+capabilities, issue permission leases, call DeepSeek, or execute runs.
+
+The real working flow remains the v0.1 local `web_table_to_csv` Convert path.
+The only controlled-creation side effect remains the explicit local Record Draft
+Event summary write.
+
+v0.5 Validation / Approval / Virtual Apply Preview RC references:
+
+- [v0.5.0 Validation / Approval / Virtual Apply Preview RC release notes](docs/release-notes-v0.5.0-validation-approval-virtual-apply-preview-rc.1.md)
+- [App Shell Validation / Approval / Virtual Apply manual QA](docs/app-shell-validation-approval-virtual-apply-manual-qa.md)
+- [App Shell Validation / Approval / Virtual Apply RC checklist](docs/app-shell-validation-approval-virtual-apply-rc-checklist.md)
+
 ## Current roadmap
 
 P0F is complete after `v0.2.0-app-shell-rc.1`, P0G is complete after
 `v0.3.0-coding-workflow-preview-rc.1`, and P0H is complete after
-`v0.4.0-controlled-creation-preview-rc.1`. The next phase is P0I Validation /
-Approval / Virtual Apply Preview: validate controlled proposals and preview
-approval and virtual apply safety before any execution work. Real chat, run
-execution, patch apply, Git execution, shell execution, capability invocation,
-PermissionLease issuing, memory persistence UI, MCP/plugin/skills runtime,
-native bridge, and desktop action remain deferred.
+`v0.4.0-controlled-creation-preview-rc.1`. P0I is in Validation / Approval /
+Virtual Apply Preview RC polish. Real chat, run execution, patch apply, Git
+execution, shell execution, capability invocation, PermissionLease issuing,
+memory persistence UI, MCP/plugin/skills runtime, native bridge, and desktop
+action remain deferred.
 
 - [v0.2 App Shell RC post-release review](docs/v0.2-app-shell-rc-postrelease-review.md)
 - [P0G Coding Workflow roadmap](docs/p0g-coding-workflow-roadmap.md)
@@ -132,6 +153,7 @@ native bridge, and desktop action remain deferred.
 - [v0.4 Controlled Creation Preview post-release review](docs/v0.4-controlled-creation-preview-postrelease-review.md)
 - [P0I Validation / Approval / Virtual Apply roadmap](docs/p0i-validation-approval-virtual-apply-roadmap.md)
 - [P0I-001 Patch Proposal Validation Preview plan](docs/p0i-001-patch-proposal-validation-preview-plan.md)
+- [v0.5.0 Validation / Approval / Virtual Apply Preview RC release notes](docs/release-notes-v0.5.0-validation-approval-virtual-apply-preview-rc.1.md)
 
 ## What v0.1.0 does not support
 
