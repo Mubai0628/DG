@@ -92,6 +92,7 @@ import {
   disposableWorkspaceSnapshotWarningCodes
 } from "../src/disposable-workspace-snapshot-view.js";
 import { buildDisposablePatchApplyView } from "../src/disposable-patch-apply-view.js";
+import { buildDisposablePatchRollbackView } from "../src/disposable-patch-rollback-view.js";
 import {
   buildEventLogPanelModel,
   buildBridgeProposalPreviewModel,
@@ -5904,6 +5905,120 @@ describe("app disposable patch apply prototype", () => {
   });
 });
 
+describe("app disposable patch rollback prototype", () => {
+  it("shows disabled-by-default state without app rollback execution", () => {
+    const view = buildDisposablePatchRollbackView();
+
+    expect(view.source).toBe("app_disposable_patch_rollback_disabled");
+    expect(view.status).toBe("disabled");
+    expect(view.disabledByDefault).toBe(true);
+    expect(view.disposableOnly).toBe(true);
+    expect(view.runtimeHelperAvailable).toBe(true);
+    expect(view.appExecutionConnected).toBe(false);
+    expect(view.userWorkspaceMutationEnabled).toBe(false);
+    expect(view.rollbackButtonEnabled).toBe(false);
+    expect(view.preimageInputEnabled).toBe(false);
+    expect(view.eventWritesEnabled).toBe(false);
+    expect(view.tauriCommandEnabled).toBe(false);
+    expect(view.gitExecutionEnabled).toBe(false);
+    expect(view.shellExecutionEnabled).toBe(false);
+    expect(view.warningCodes).toEqual(
+      expect.arrayContaining([
+        "DISPOSABLE_ROLLBACK_SNAPSHOT_CONTRACT_MISSING",
+        "DISPOSABLE_ROLLBACK_APPLY_RESULT_MISSING",
+        "DISPOSABLE_ROLLBACK_APP_ROLLBACK_DISABLED"
+      ])
+    );
+  });
+
+  it("summarizes the preview chain while keeping rollback disabled", () => {
+    const applyView = buildDisposablePatchApplyView({
+      snapshotContract: { contractId: "snapshot-contract-1" },
+      patchProposalPreview: { proposalId: "proposal-1" },
+      patchValidationPreview: { validationId: "validation-1" },
+      patchDiffAuditPreview: { auditId: "audit-1" },
+      patchApprovalDraft: { approvalDraftId: "approval-1" },
+      patchVirtualApplyPreview: {
+        virtualApplyId: "virtual-1",
+        operations: [{ path: "docs/a.md" }]
+      },
+      patchRollbackCheckpointPreview: {
+        checkpointPreviewId: "checkpoint-preview-1"
+      }
+    });
+    const view = buildDisposablePatchRollbackView({
+      snapshotContract: { contractId: "snapshot-contract-1" },
+      disposablePatchApplyView: applyView,
+      patchProposalPreview: { proposalId: "proposal-1" },
+      patchValidationPreview: { validationId: "validation-1" },
+      patchDiffAuditPreview: { auditId: "audit-1" },
+      patchApprovalDraft: { approvalDraftId: "approval-1" },
+      patchVirtualApplyPreview: {
+        virtualApplyId: "virtual-1",
+        operations: [{ path: "docs/a.md" }]
+      },
+      patchRollbackCheckpointPreview: {
+        checkpointPreviewId: "checkpoint-preview-1"
+      }
+    });
+    const serialized = JSON.stringify(view);
+
+    expect(view.status).toBe("disabled");
+    expect(view.snapshotContractId).toBe("snapshot-contract-1");
+    expect(view.proposalId).toBe("proposal-1");
+    expect(view.validationId).toBe("validation-1");
+    expect(view.auditId).toBe("audit-1");
+    expect(view.approvalDraftId).toBe("approval-1");
+    expect(view.virtualApplyId).toBe("virtual-1");
+    expect(view.checkpointPreviewId).toBe("checkpoint-preview-1");
+    expect(view.operationCount).toBe(1);
+    expect(view.warningCodes).toEqual(
+      expect.arrayContaining([
+        "DISPOSABLE_ROLLBACK_APPLY_RESULT_MISSING",
+        "DISPOSABLE_ROLLBACK_APP_ROLLBACK_DISABLED"
+      ])
+    );
+    expect(serialized).not.toContain("rawSource");
+    expect(serialized).not.toContain("rawDiff");
+    expect(serialized).not.toContain("preimageContent");
+  });
+
+  it("keeps App Shell disconnected from disposable patch rollback execution", async () => {
+    const appSource = await readFile(
+      path.join(appRoot, "src", "App.tsx"),
+      "utf8"
+    );
+    const adapterSource = await readFile(
+      path.join(appRoot, "src", "disposable-patch-rollback-view.ts"),
+      "utf8"
+    );
+    const desktopFlowSource = await readFile(
+      path.join(appRoot, "src", "desktop-flow.ts"),
+      "utf8"
+    );
+    const combined = `${appSource}\n${adapterSource}`;
+
+    expect(appSource).toContain("Disposable Patch Rollback Prototype");
+    expect(appSource).toContain(
+      "Disabled by default / disposable workspace only"
+    );
+    expect(appSource).toMatch(
+      /The\s+App\s+Shell\s+does\s+not\s+rollback\s+the\s+user\s+workspace\./
+    );
+    expect(appSource).toContain("Rollback Disposable Patch (disabled)");
+    expect(combined).not.toContain("rollbackDisposablePatchApply");
+    expect(combined).not.toContain("handleRollbackDisposablePatch");
+    expect(combined).not.toContain("disposableRollbackPreimage");
+    expect(adapterSource).not.toContain("safeInvoke");
+    expect(adapterSource).not.toContain("EventStore");
+    expect(adapterSource).not.toContain("readFile");
+    expect(adapterSource).not.toContain("writeFile");
+    expect(adapterSource).not.toContain("localStorage");
+    expect(adapterSource).not.toContain("sessionStorage");
+    expect(desktopFlowSource).not.toContain("disposable_patch_rollback");
+  });
+});
+
 describe("desktop source boundaries", () => {
   it("keeps refresh events and docs actions from navigating or resetting UI state", async () => {
     const appSource = await readFile(
@@ -6081,6 +6196,12 @@ describe("desktop source boundaries", () => {
     );
     expect(appSource).toContain("Apply to Disposable Workspace (disabled)");
     expect(appSource).toContain("buildDisposablePatchApplyView");
+    expect(appSource).toContain("Disposable Patch Rollback Prototype");
+    expect(appSource).toContain("Rollback Disposable Patch (disabled)");
+    expect(appSource).toMatch(
+      /The\s+App\s+Shell\s+does\s+not\s+rollback\s+the\s+user\s+workspace\./
+    );
+    expect(appSource).toContain("buildDisposablePatchRollbackView");
     expect(appSource).toContain("Controlled Creation Replay Projection");
     expect(appSource).toContain("Replay preview / no execution");
     expect(appSource).toContain(
@@ -7431,6 +7552,50 @@ describe("desktop source boundaries", () => {
     );
     expect(docsIndex).toContain(
       "app-shell-disposable-patch-apply-prototype-v0.5.md"
+    );
+  });
+
+  it("documents the disposable patch rollback prototype as disabled by default", async () => {
+    const runtimeDoc = await readFile(
+      path.join(
+        repoRoot,
+        "docs",
+        "runtime-disposable-patch-rollback-prototype-v0.5.md"
+      ),
+      "utf8"
+    );
+    const appDoc = await readFile(
+      path.join(
+        repoRoot,
+        "docs",
+        "app-shell-disposable-patch-rollback-prototype-v0.5.md"
+      ),
+      "utf8"
+    );
+    const docsIndex = await readFile(
+      path.join(repoRoot, "docs", "README.md"),
+      "utf8"
+    );
+    const appReadme = await readFile(path.join(appRoot, "README.md"), "utf8");
+    const combined = `${runtimeDoc}\n${appDoc}\n${docsIndex}\n${appReadme}`;
+
+    expect(combined).toContain("disabled by default");
+    expect(combined).toContain("disposable workspace");
+    expect(combined).toContain("no user workspace rollback");
+    expect(combined).toContain("checkpoint preimage");
+    expect(combined).toContain("no raw output");
+    expect(combined).toContain("eventPreview");
+    expect(combined).toContain("notWritten: true");
+    expect(combined).toContain("no Git");
+    expect(combined).toContain("no shell");
+    expect(combined).toContain("no native bridge");
+    expect(combined).toContain("no desktop action");
+    expect(combined).toContain("P0J-005");
+    expect(docsIndex).toContain(
+      "runtime-disposable-patch-rollback-prototype-v0.5.md"
+    );
+    expect(docsIndex).toContain(
+      "app-shell-disposable-patch-rollback-prototype-v0.5.md"
     );
   });
 

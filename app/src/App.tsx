@@ -127,6 +127,10 @@ import {
   type AppDisposablePatchApplyView
 } from "./disposable-patch-apply-view.js";
 import {
+  buildDisposablePatchRollbackView,
+  type AppDisposablePatchRollbackView
+} from "./disposable-patch-rollback-view.js";
+import {
   buildEventLogPanelModel,
   buildBridgeProposalPreviewModel,
   buildResultPanelModel,
@@ -698,6 +702,29 @@ export function DesktopShell(): JSX.Element {
         patchRollbackCheckpointPreview
       }),
     [
+      disposableWorkspaceSnapshotPreview,
+      patchApprovalDraftPreview,
+      patchDiffAuditPreview,
+      patchProposalCreationPreview,
+      patchProposalValidationPreview,
+      patchRollbackCheckpointPreview,
+      patchVirtualApplyPreview
+    ]
+  );
+  const disposablePatchRollbackView = useMemo<AppDisposablePatchRollbackView>(
+    () =>
+      buildDisposablePatchRollbackView({
+        snapshotContract: disposableWorkspaceSnapshotPreview,
+        disposablePatchApplyView,
+        patchProposalPreview: patchProposalCreationPreview,
+        patchValidationPreview: patchProposalValidationPreview,
+        patchDiffAuditPreview,
+        patchApprovalDraft: patchApprovalDraftPreview,
+        patchVirtualApplyPreview,
+        patchRollbackCheckpointPreview
+      }),
+    [
+      disposablePatchApplyView,
       disposableWorkspaceSnapshotPreview,
       patchApprovalDraftPreview,
       patchDiffAuditPreview,
@@ -3428,6 +3455,119 @@ export function DesktopShell(): JSX.Element {
               </p>
             ) : null}
             <p className="fieldHelp">{disposablePatchApplyView.nextAction}</p>
+          </section>
+
+          <section
+            className="eventPanel"
+            aria-label="Disposable Patch Rollback Prototype"
+          >
+            <div className="panelHeader">
+              <h2>Disposable Patch Rollback Prototype</h2>
+              <span className="muted">
+                Disabled by default / disposable workspace only
+              </span>
+            </div>
+            <p className="fieldHelp">
+              Prototype rollback is only allowed for explicit disposable
+              workspace tests. The App Shell does not rollback the user
+              workspace.
+            </p>
+            <div className="buttonRow">
+              <button
+                type="button"
+                className="secondary"
+                disabled
+                aria-disabled="true"
+              >
+                Rollback Disposable Patch (disabled)
+              </button>
+            </div>
+            <dl className="summaryGrid compact">
+              <div>
+                <dt>Status</dt>
+                <dd>{disposablePatchRollbackView.status}</dd>
+              </div>
+              <div>
+                <dt>Runtime helper</dt>
+                <dd>
+                  {disposablePatchRollbackView.runtimeHelperAvailable
+                    ? "available for tests"
+                    : "not connected"}
+                </dd>
+              </div>
+              <div>
+                <dt>App execution connected</dt>
+                <dd>
+                  {disposablePatchRollbackView.appExecutionConnected
+                    ? "yes"
+                    : "no"}
+                </dd>
+              </div>
+              <div>
+                <dt>User workspace rollback</dt>
+                <dd>
+                  {disposablePatchRollbackView.userWorkspaceMutationEnabled
+                    ? "enabled"
+                    : "disabled"}
+                </dd>
+              </div>
+              <div>
+                <dt>Preimage input</dt>
+                <dd>
+                  {disposablePatchRollbackView.preimageInputEnabled
+                    ? "enabled"
+                    : "disabled"}
+                </dd>
+              </div>
+              <div>
+                <dt>Apply / checkpoint</dt>
+                <dd>
+                  {disposablePatchRollbackView.applyId || "n/a"} /{" "}
+                  {disposablePatchRollbackView.checkpointPreviewId || "n/a"}
+                </dd>
+              </div>
+              <div>
+                <dt>Snapshot contract</dt>
+                <dd>
+                  {disposablePatchRollbackView.snapshotContractId || "n/a"}
+                </dd>
+              </div>
+              <div>
+                <dt>Proposal / validation / audit</dt>
+                <dd>
+                  {disposablePatchRollbackView.proposalId || "n/a"} /{" "}
+                  {disposablePatchRollbackView.validationId || "n/a"} /{" "}
+                  {disposablePatchRollbackView.auditId || "n/a"}
+                </dd>
+              </div>
+              <div>
+                <dt>Approval / virtual</dt>
+                <dd>
+                  {disposablePatchRollbackView.approvalDraftId || "n/a"} /{" "}
+                  {disposablePatchRollbackView.virtualApplyId || "n/a"}
+                </dd>
+              </div>
+              <div>
+                <dt>Operations</dt>
+                <dd>{disposablePatchRollbackView.operationCount}</dd>
+              </div>
+              <div>
+                <dt>Blockers / warnings</dt>
+                <dd>
+                  {disposablePatchRollbackView.blockerCount} /{" "}
+                  {disposablePatchRollbackView.warningCount}
+                </dd>
+              </div>
+            </dl>
+            {disposablePatchRollbackView.warningCodes.length > 0 ? (
+              <p className="fieldHelp">
+                Warning codes:{" "}
+                {disposablePatchRollbackView.warningCodes.join(", ")}
+              </p>
+            ) : null}
+            <p className="fieldHelp">
+              {disposablePatchRollbackView.nextAction}
+            </p>
           </section>
 
           <section
