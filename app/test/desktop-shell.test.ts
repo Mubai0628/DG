@@ -98,6 +98,7 @@ import {
   disposableWorkspaceSnapshotWarningCodes
 } from "../src/disposable-workspace-snapshot-view.js";
 import { buildDisposablePatchApplyView } from "../src/disposable-patch-apply-view.js";
+import { buildApprovalGatedDisposableApplyView } from "../src/approval-gated-disposable-apply-view.js";
 import { buildDisposablePatchRollbackView } from "../src/disposable-patch-rollback-view.js";
 import {
   buildEventLogPanelModel,
@@ -5911,6 +5912,101 @@ describe("app disposable patch apply prototype", () => {
   });
 });
 
+describe("app approval-gated disposable apply", () => {
+  it("shows disabled-by-default state without app apply execution", () => {
+    const view = buildApprovalGatedDisposableApplyView();
+
+    expect(view.source).toBe("app_approval_gated_disposable_apply_disabled");
+    expect(view.status).toBe("disabled");
+    expect(view.disabledByDefault).toBe(true);
+    expect(view.disposableOnly).toBe(true);
+    expect(view.runtimeHelperAvailable).toBe(true);
+    expect(view.appExecutionConnected).toBe(false);
+    expect(view.userWorkspaceMutationEnabled).toBe(false);
+    expect(view.applyButtonEnabled).toBe(false);
+    expect(view.approvalReceiptInputEnabled).toBe(false);
+    expect(view.permissionLeaseIssuingEnabled).toBe(false);
+    expect(view.eventWritesEnabled).toBe(false);
+    expect(view.tauriCommandEnabled).toBe(false);
+    expect(view.gitExecutionEnabled).toBe(false);
+    expect(view.shellExecutionEnabled).toBe(false);
+    expect(view.warningCodes).toEqual(
+      expect.arrayContaining([
+        "APPROVAL_GATED_APPLY_SNAPSHOT_CONTRACT_MISSING",
+        "APPROVAL_GATED_APPLY_APPROVAL_DRAFT_MISSING",
+        "APPROVAL_GATED_APPLY_APP_APPLY_DISABLED"
+      ])
+    );
+  });
+
+  it("maps summary refs without enabling approval receipt input", () => {
+    const view = buildApprovalGatedDisposableApplyView({
+      snapshotContract: { contractId: "snapshot-1" },
+      patchProposalPreview: { proposalId: "proposal-1" },
+      patchValidationPreview: { validationId: "validation-1" },
+      patchDiffAuditPreview: { auditId: "audit-1" },
+      patchApprovalDraft: { approvalDraftId: "approval-1" },
+      patchVirtualApplyPreview: {
+        virtualApplyId: "virtual-1",
+        operations: [{ operationId: "op-1" }]
+      },
+      patchRollbackCheckpointPreview: {
+        checkpointPreviewId: "checkpoint-1"
+      },
+      disposablePatchApplyView: buildDisposablePatchApplyView()
+    });
+    const serialized = JSON.stringify(view);
+
+    expect(view.status).toBe("disabled");
+    expect(view.snapshotContractId).toBe("snapshot-1");
+    expect(view.proposalId).toBe("proposal-1");
+    expect(view.validationId).toBe("validation-1");
+    expect(view.auditId).toBe("audit-1");
+    expect(view.approvalDraftId).toBe("approval-1");
+    expect(view.virtualApplyId).toBe("virtual-1");
+    expect(view.checkpointPreviewId).toBe("checkpoint-1");
+    expect(view.operationCount).toBe(1);
+    expect(view.approvalReceiptInputEnabled).toBe(false);
+    expect(serialized).not.toContain("rawSource");
+    expect(serialized).not.toContain("rawDiff");
+    expect(serialized).not.toContain("beforeContent");
+  });
+
+  it("keeps App Shell disconnected from approval-gated apply execution", async () => {
+    const appSource = await readFile(
+      path.join(appRoot, "src", "App.tsx"),
+      "utf8"
+    );
+    const adapterSource = await readFile(
+      path.join(appRoot, "src", "approval-gated-disposable-apply-view.ts"),
+      "utf8"
+    );
+    const desktopFlowSource = await readFile(
+      path.join(appRoot, "src", "desktop-flow.ts"),
+      "utf8"
+    );
+    const combined = `${appSource}\n${adapterSource}`;
+
+    expect(appSource).toContain("Approval-Gated Disposable Apply");
+    expect(appSource).toContain(
+      "Disabled by default / no user workspace apply"
+    );
+    expect(appSource).toContain("The App Shell cannot execute");
+    expect(appSource).toContain("Apply with Approval Gate (disabled)");
+    expect(combined).not.toContain("applyWithDisposableApprovalGate");
+    expect(combined).not.toContain("applyPatchToDisposableWorkspace");
+    expect(combined).not.toContain("approvalReceiptDraft");
+    expect(combined).not.toContain("disposableApplyContent");
+    expect(adapterSource).not.toContain("safeInvoke");
+    expect(adapterSource).not.toContain("EventStore");
+    expect(adapterSource).not.toContain("readFile");
+    expect(adapterSource).not.toContain("writeFile");
+    expect(adapterSource).not.toContain("localStorage");
+    expect(adapterSource).not.toContain("sessionStorage");
+    expect(desktopFlowSource).not.toContain("approval_gated_disposable_apply");
+  });
+});
+
 describe("app disposable patch rollback prototype", () => {
   it("shows disabled-by-default state without app rollback execution", () => {
     const view = buildDisposablePatchRollbackView();
@@ -8346,6 +8442,49 @@ describe("desktop source boundaries", () => {
     );
     expect(docsIndex).toContain(
       "app-shell-sandbox-apply-rollback-event-projection-v0.5.md"
+    );
+  });
+
+  it("documents approval-gated disposable apply as disabled in App", async () => {
+    const runtimeDoc = await readFile(
+      path.join(
+        repoRoot,
+        "docs",
+        "runtime-approval-gated-disposable-apply-v0.5.md"
+      ),
+      "utf8"
+    );
+    const appDoc = await readFile(
+      path.join(
+        repoRoot,
+        "docs",
+        "app-shell-approval-gated-disposable-apply-v0.5.md"
+      ),
+      "utf8"
+    );
+    const docsIndex = await readFile(
+      path.join(repoRoot, "docs", "README.md"),
+      "utf8"
+    );
+    const combined = `${runtimeDoc}\n${appDoc}\n${docsIndex}`;
+
+    expect(combined).toContain("disabled by default");
+    expect(combined).toContain("Runtime tests only");
+    expect(combined).toContain("explicit disposable workspace");
+    expect(combined).toContain("not a production PermissionLease");
+    expect(combined).toContain("No user workspace apply");
+    expect(combined).toContain("No EventStore write");
+    expect(combined).toContain("No Git");
+    expect(combined).toContain("No shell");
+    expect(combined).toContain("No Tauri command");
+    expect(combined).toContain("P0J-003");
+    expect(combined).toContain("P0J-004");
+    expect(combined).toContain("P0J-005");
+    expect(docsIndex).toContain(
+      "runtime-approval-gated-disposable-apply-v0.5.md"
+    );
+    expect(docsIndex).toContain(
+      "app-shell-approval-gated-disposable-apply-v0.5.md"
     );
   });
 });

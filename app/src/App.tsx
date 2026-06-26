@@ -135,6 +135,10 @@ import {
   type AppDisposablePatchApplyView
 } from "./disposable-patch-apply-view.js";
 import {
+  buildApprovalGatedDisposableApplyView,
+  type AppApprovalGatedDisposableApplyView
+} from "./approval-gated-disposable-apply-view.js";
+import {
   buildDisposablePatchRollbackView,
   type AppDisposablePatchRollbackView
 } from "./disposable-patch-rollback-view.js";
@@ -735,6 +739,30 @@ export function DesktopShell(): JSX.Element {
       patchVirtualApplyPreview
     ]
   );
+  const approvalGatedDisposableApplyView =
+    useMemo<AppApprovalGatedDisposableApplyView>(
+      () =>
+        buildApprovalGatedDisposableApplyView({
+          snapshotContract: disposableWorkspaceSnapshotPreview,
+          patchProposalPreview: patchProposalCreationPreview,
+          patchValidationPreview: patchProposalValidationPreview,
+          patchDiffAuditPreview,
+          patchApprovalDraft: patchApprovalDraftPreview,
+          patchVirtualApplyPreview,
+          patchRollbackCheckpointPreview,
+          disposablePatchApplyView
+        }),
+      [
+        disposablePatchApplyView,
+        disposableWorkspaceSnapshotPreview,
+        patchApprovalDraftPreview,
+        patchDiffAuditPreview,
+        patchProposalCreationPreview,
+        patchProposalValidationPreview,
+        patchRollbackCheckpointPreview,
+        patchVirtualApplyPreview
+      ]
+    );
   const disposablePatchRollbackView = useMemo<AppDisposablePatchRollbackView>(
     () =>
       buildDisposablePatchRollbackView({
@@ -3523,6 +3551,122 @@ export function DesktopShell(): JSX.Element {
               </p>
             ) : null}
             <p className="fieldHelp">{disposablePatchApplyView.nextAction}</p>
+          </section>
+
+          <section
+            className="eventPanel"
+            aria-label="Approval-Gated Disposable Apply"
+          >
+            <div className="panelHeader">
+              <h2>Approval-Gated Disposable Apply</h2>
+              <span className="muted">
+                Disabled by default / no user workspace apply
+              </span>
+            </div>
+            <p className="fieldHelp">
+              Approval-gated apply is only available to runtime tests for
+              explicit disposable workspaces. The App Shell cannot execute
+              apply.
+            </p>
+            <div className="buttonRow">
+              <button
+                type="button"
+                className="secondary"
+                disabled
+                aria-disabled="true"
+              >
+                Apply with Approval Gate (disabled)
+              </button>
+            </div>
+            <dl className="summaryGrid compact">
+              <div>
+                <dt>Status</dt>
+                <dd>{approvalGatedDisposableApplyView.status}</dd>
+              </div>
+              <div>
+                <dt>Runtime helper</dt>
+                <dd>
+                  {approvalGatedDisposableApplyView.runtimeHelperAvailable
+                    ? "available for tests"
+                    : "not connected"}
+                </dd>
+              </div>
+              <div>
+                <dt>App execution connected</dt>
+                <dd>
+                  {approvalGatedDisposableApplyView.appExecutionConnected
+                    ? "yes"
+                    : "no"}
+                </dd>
+              </div>
+              <div>
+                <dt>User workspace apply</dt>
+                <dd>
+                  {approvalGatedDisposableApplyView.userWorkspaceMutationEnabled
+                    ? "enabled"
+                    : "disabled"}
+                </dd>
+              </div>
+              <div>
+                <dt>Receipt input</dt>
+                <dd>
+                  {approvalGatedDisposableApplyView.approvalReceiptInputEnabled
+                    ? "enabled"
+                    : "disabled"}
+                </dd>
+              </div>
+              <div>
+                <dt>PermissionLease issuing</dt>
+                <dd>
+                  {approvalGatedDisposableApplyView.permissionLeaseIssuingEnabled
+                    ? "enabled"
+                    : "disabled"}
+                </dd>
+              </div>
+              <div>
+                <dt>Snapshot contract</dt>
+                <dd>
+                  {approvalGatedDisposableApplyView.snapshotContractId || "n/a"}
+                </dd>
+              </div>
+              <div>
+                <dt>Proposal / validation / audit</dt>
+                <dd>
+                  {approvalGatedDisposableApplyView.proposalId || "n/a"} /{" "}
+                  {approvalGatedDisposableApplyView.validationId || "n/a"} /{" "}
+                  {approvalGatedDisposableApplyView.auditId || "n/a"}
+                </dd>
+              </div>
+              <div>
+                <dt>Approval / virtual / checkpoint</dt>
+                <dd>
+                  {approvalGatedDisposableApplyView.approvalDraftId || "n/a"} /{" "}
+                  {approvalGatedDisposableApplyView.virtualApplyId || "n/a"} /{" "}
+                  {approvalGatedDisposableApplyView.checkpointPreviewId ||
+                    "n/a"}
+                </dd>
+              </div>
+              <div>
+                <dt>Operations</dt>
+                <dd>{approvalGatedDisposableApplyView.operationCount}</dd>
+              </div>
+              <div>
+                <dt>Blockers / warnings</dt>
+                <dd>
+                  {approvalGatedDisposableApplyView.blockerCount} /{" "}
+                  {approvalGatedDisposableApplyView.warningCount}
+                </dd>
+              </div>
+            </dl>
+            {approvalGatedDisposableApplyView.warningCodes.length > 0 ? (
+              <p className="fieldHelp">
+                Warning codes:{" "}
+                {approvalGatedDisposableApplyView.warningCodes.join(", ")}
+              </p>
+            ) : null}
+            <p className="fieldHelp">
+              {approvalGatedDisposableApplyView.nextAction}
+            </p>
           </section>
 
           <section
