@@ -118,6 +118,14 @@ import {
   type AppControlledCreationReplayProjectionView
 } from "./controlled-creation-replay-projection-view.js";
 import {
+  buildSandboxApplyRollbackEventProjectionView,
+  sandboxApplyRollbackEventProjectionApprovalRefs,
+  sandboxApplyRollbackEventProjectionSurfaceSummaries,
+  sandboxApplyRollbackEventProjectionWarningCodes,
+  summarizeSandboxApplyRollbackEventProjectionView,
+  type AppSandboxApplyRollbackEventProjectionView
+} from "./sandbox-apply-rollback-event-projection-view.js";
+import {
   buildDisposableWorkspaceSnapshotView,
   disposableWorkspaceSnapshotWarningCodes,
   type AppDisposableWorkspaceSnapshotView
@@ -279,6 +287,10 @@ export function DesktopShell(): JSX.Element {
     controlledCreationReplayProjection,
     setControlledCreationReplayProjection
   ] = useState<AppControlledCreationReplayProjectionView | undefined>();
+  const [
+    sandboxApplyRollbackEventProjection,
+    setSandboxApplyRollbackEventProjection
+  ] = useState<AppSandboxApplyRollbackEventProjectionView | undefined>();
   const [snapshotDisposableRootRef, setSnapshotDisposableRootRef] =
     useState("");
   const [snapshotSourceFingerprint, setSnapshotSourceFingerprint] =
@@ -397,10 +409,14 @@ export function DesktopShell(): JSX.Element {
       ) ?? []),
       ...(controlledCreationReplayPatchSummaries(
         controlledCreationReplayProjection
+      ) ?? []),
+      ...(sandboxApplyRollbackEventProjectionSurfaceSummaries(
+        sandboxApplyRollbackEventProjection
       ) ?? [])
     ],
     [
       controlledCreationReplayProjection,
+      sandboxApplyRollbackEventProjection,
       patchApprovalDraftPreview,
       patchRollbackCheckpointPreview,
       patchVirtualApplyPreview,
@@ -419,10 +435,14 @@ export function DesktopShell(): JSX.Element {
       ...patchRollbackCheckpointApprovalRefs(patchRollbackCheckpointPreview),
       ...controlledCreationReplayApprovalRefs(
         controlledCreationReplayProjection
+      ),
+      ...sandboxApplyRollbackEventProjectionApprovalRefs(
+        sandboxApplyRollbackEventProjection
       )
     ],
     [
       controlledCreationReplayProjection,
+      sandboxApplyRollbackEventProjection,
       patchApprovalDraftPreview,
       patchRollbackCheckpointPreview,
       patchVirtualApplyPreview,
@@ -442,10 +462,14 @@ export function DesktopShell(): JSX.Element {
       ...patchRollbackCheckpointWarningCodes(patchRollbackCheckpointPreview),
       ...controlledCreationReplayWarningCodes(
         controlledCreationReplayProjection
+      ),
+      ...sandboxApplyRollbackEventProjectionWarningCodes(
+        sandboxApplyRollbackEventProjection
       )
     ],
     [
       controlledCreationReplayProjection,
+      sandboxApplyRollbackEventProjection,
       patchApprovalDraftPreview,
       patchRollbackCheckpointPreview,
       patchVirtualApplyPreview,
@@ -734,6 +758,31 @@ export function DesktopShell(): JSX.Element {
       patchVirtualApplyPreview
     ]
   );
+  const sandboxApplyRollbackEventProjectionCandidate =
+    useMemo<AppSandboxApplyRollbackEventProjectionView>(
+      () =>
+        buildSandboxApplyRollbackEventProjectionView({
+          snapshotContract: disposableWorkspaceSnapshotPreview,
+          patchProposalPreview: patchProposalCreationPreview,
+          patchValidationPreview: patchProposalValidationPreview,
+          patchDiffAuditPreview,
+          patchApprovalDraft: patchApprovalDraftPreview,
+          patchVirtualApplyPreview,
+          patchRollbackCheckpointPreview
+        }),
+      [
+        disposableWorkspaceSnapshotPreview,
+        patchApprovalDraftPreview,
+        patchDiffAuditPreview,
+        patchProposalCreationPreview,
+        patchProposalValidationPreview,
+        patchRollbackCheckpointPreview,
+        patchVirtualApplyPreview
+      ]
+    );
+  const displayedSandboxApplyRollbackEventProjection =
+    sandboxApplyRollbackEventProjection ??
+    sandboxApplyRollbackEventProjectionCandidate;
   const contextAssemblyCandidate = useMemo<AppContextAssemblyPreviewView>(
     () =>
       buildContextAssemblyPreviewView({
@@ -746,6 +795,8 @@ export function DesktopShell(): JSX.Element {
         controlProjection: controlPlanePanel,
         eventSummary,
         replayProjection: controlledCreationReplayProjection,
+        sandboxApplyRollbackEventProjection:
+          displayedSandboxApplyRollbackEventProjection,
         snapshotContract: displayedDisposableWorkspaceSnapshot,
         previousPreview: contextAssemblyPreview
       }),
@@ -756,6 +807,7 @@ export function DesktopShell(): JSX.Element {
       controlPlanePanel,
       controlledCreationReplayProjection,
       displayedDisposableWorkspaceSnapshot,
+      displayedSandboxApplyRollbackEventProjection,
       displayedRunDraft,
       eventSummary,
       loadedWorkspaceIndexRef,
@@ -921,6 +973,7 @@ export function DesktopShell(): JSX.Element {
     setPatchVirtualApplyPreview(undefined);
     setPatchRollbackCheckpointPreview(undefined);
     setControlledCreationReplayProjection(undefined);
+    setSandboxApplyRollbackEventProjection(undefined);
     setContextAssemblyPreview(undefined);
   }, [
     patchProposalChangeKind,
@@ -941,6 +994,7 @@ export function DesktopShell(): JSX.Element {
     patchRollbackCheckpointPreview?.checkpointPreviewId,
     patchVirtualApplyPreview?.virtualApplyId,
     controlledCreationReplayProjection?.projectionId,
+    sandboxApplyRollbackEventProjection?.projectionId,
     patchWorkbenchSurfaces.diff.items.length,
     capabilityPlanPreview.itemCount,
     displayedRunDraft.draftId,
@@ -977,6 +1031,7 @@ export function DesktopShell(): JSX.Element {
     setPatchVirtualApplyPreview(undefined);
     setPatchRollbackCheckpointPreview(undefined);
     setControlledCreationReplayProjection(undefined);
+    setSandboxApplyRollbackEventProjection(undefined);
   }
 
   function handleValidatePatchProposal(): void {
@@ -986,6 +1041,7 @@ export function DesktopShell(): JSX.Element {
     setPatchVirtualApplyPreview(undefined);
     setPatchRollbackCheckpointPreview(undefined);
     setControlledCreationReplayProjection(undefined);
+    setSandboxApplyRollbackEventProjection(undefined);
   }
 
   function handlePreviewDiffAudit(): void {
@@ -994,6 +1050,7 @@ export function DesktopShell(): JSX.Element {
     setPatchVirtualApplyPreview(undefined);
     setPatchRollbackCheckpointPreview(undefined);
     setControlledCreationReplayProjection(undefined);
+    setSandboxApplyRollbackEventProjection(undefined);
   }
 
   function handlePreviewApprovalDraft(): void {
@@ -1001,26 +1058,37 @@ export function DesktopShell(): JSX.Element {
     setPatchVirtualApplyPreview(undefined);
     setPatchRollbackCheckpointPreview(undefined);
     setControlledCreationReplayProjection(undefined);
+    setSandboxApplyRollbackEventProjection(undefined);
   }
 
   function handlePreviewVirtualApply(): void {
     setPatchVirtualApplyPreview(patchVirtualApplyCandidate);
     setPatchRollbackCheckpointPreview(undefined);
     setControlledCreationReplayProjection(undefined);
+    setSandboxApplyRollbackEventProjection(undefined);
   }
 
   function handlePreviewRollbackCheckpoint(): void {
     setPatchRollbackCheckpointPreview(patchRollbackCheckpointCandidate);
     setControlledCreationReplayProjection(undefined);
+    setSandboxApplyRollbackEventProjection(undefined);
   }
 
   function handlePreviewDisposableWorkspaceSnapshot(): void {
     setDisposableWorkspaceSnapshotPreview(disposableWorkspaceSnapshotCandidate);
+    setSandboxApplyRollbackEventProjection(undefined);
     setContextAssemblyPreview(undefined);
   }
 
   function handlePreviewControlledReplayProjection(): void {
     setControlledCreationReplayProjection(controlledCreationReplayCandidate);
+    setSandboxApplyRollbackEventProjection(undefined);
+  }
+
+  function handlePreviewSandboxApplyRollbackEventProjection(): void {
+    setSandboxApplyRollbackEventProjection(
+      sandboxApplyRollbackEventProjectionCandidate
+    );
   }
 
   async function handleRecordRunDraftEvent(): Promise<void> {
@@ -3750,6 +3818,209 @@ export function DesktopShell(): JSX.Element {
 
             <p className="fieldHelp">
               {displayedControlledCreationReplay.nextAction}
+            </p>
+          </section>
+
+          <section
+            className="eventPanel"
+            aria-label="Sandbox Apply / Rollback Event Projection"
+          >
+            <div className="panelHeader">
+              <h2>Sandbox Apply / Rollback Event Projection</h2>
+              <span className="muted">Projection only / not written</span>
+            </div>
+            <p className="fieldHelp">
+              Builds summary-only event previews for disposable apply and
+              rollback results. The App Shell does not write these events or
+              execute apply/rollback.
+            </p>
+            <div className="buttonRow">
+              <button
+                type="button"
+                className="secondary"
+                onClick={(event) => {
+                  event.preventDefault();
+                  event.stopPropagation();
+                  handlePreviewSandboxApplyRollbackEventProjection();
+                }}
+              >
+                Preview Apply/Rollback Events
+              </button>
+            </div>
+
+            {displayedSandboxApplyRollbackEventProjection.status === "empty" ? (
+              <p className="empty">
+                Connect disposable apply and rollback result summaries first.
+                Event projection previews will appear here before any event
+                write or execution.
+              </p>
+            ) : null}
+
+            <dl className="summaryGrid compact">
+              <div>
+                <dt>Status</dt>
+                <dd>{displayedSandboxApplyRollbackEventProjection.status}</dd>
+              </div>
+              <div>
+                <dt>Projection</dt>
+                <dd>
+                  {displayedSandboxApplyRollbackEventProjection.projectionId ||
+                    "n/a"}
+                </dd>
+              </div>
+              <div>
+                <dt>Events</dt>
+                <dd>
+                  {displayedSandboxApplyRollbackEventProjection.eventCount}
+                </dd>
+              </div>
+              <div>
+                <dt>Not-written events</dt>
+                <dd>
+                  {
+                    displayedSandboxApplyRollbackEventProjection.notWrittenEventCount
+                  }
+                </dd>
+              </div>
+              <div>
+                <dt>Apply / rollback events</dt>
+                <dd>
+                  {displayedSandboxApplyRollbackEventProjection.applyEventCount}{" "}
+                  /{" "}
+                  {
+                    displayedSandboxApplyRollbackEventProjection.rollbackEventCount
+                  }
+                </dd>
+              </div>
+              <div>
+                <dt>Existing persisted</dt>
+                <dd>
+                  {
+                    displayedSandboxApplyRollbackEventProjection.existingPersistedEventCount
+                  }
+                </dd>
+              </div>
+              <div>
+                <dt>Blockers / warnings / findings</dt>
+                <dd>
+                  {displayedSandboxApplyRollbackEventProjection.blockerCount} /{" "}
+                  {displayedSandboxApplyRollbackEventProjection.warningCount} /{" "}
+                  {displayedSandboxApplyRollbackEventProjection.findingCount}
+                </dd>
+              </div>
+              <div>
+                <dt>Hash chain</dt>
+                <dd>
+                  {
+                    displayedSandboxApplyRollbackEventProjection
+                      .hashChainSummary.chainHash
+                  }
+                </dd>
+              </div>
+            </dl>
+
+            <dl className="summaryGrid compact">
+              <div>
+                <dt>Can write events</dt>
+                <dd>
+                  {displayedSandboxApplyRollbackEventProjection.eventWritesEnabled
+                    ? "yes"
+                    : "no"}
+                </dd>
+              </div>
+              <div>
+                <dt>Can execute apply</dt>
+                <dd>
+                  {displayedSandboxApplyRollbackEventProjection.readiness
+                    .canExecuteApply
+                    ? "yes"
+                    : "no"}
+                </dd>
+              </div>
+              <div>
+                <dt>Can execute rollback</dt>
+                <dd>
+                  {displayedSandboxApplyRollbackEventProjection.readiness
+                    .canExecuteRollback
+                    ? "yes"
+                    : "no"}
+                </dd>
+              </div>
+              <div>
+                <dt>Can user workspace</dt>
+                <dd>
+                  {displayedSandboxApplyRollbackEventProjection.readiness
+                    .canApplyToUserWorkspace
+                    ? "yes"
+                    : "no"}
+                </dd>
+              </div>
+              <div>
+                <dt>Can git / shell</dt>
+                <dd>
+                  {displayedSandboxApplyRollbackEventProjection.readiness
+                    .canExecuteGit
+                    ? "yes"
+                    : "no"}{" "}
+                  /{" "}
+                  {displayedSandboxApplyRollbackEventProjection.readiness
+                    .canExecuteShell
+                    ? "yes"
+                    : "no"}
+                </dd>
+              </div>
+              <div>
+                <dt>Projection hash</dt>
+                <dd>
+                  {displayedSandboxApplyRollbackEventProjection.projectionHash}
+                </dd>
+              </div>
+            </dl>
+
+            <p className="fieldHelp">
+              {summarizeSandboxApplyRollbackEventProjectionView(
+                displayedSandboxApplyRollbackEventProjection
+              )}
+            </p>
+
+            {displayedSandboxApplyRollbackEventProjection.eventPreviews.length >
+            0 ? (
+              <ol className="timeline">
+                {displayedSandboxApplyRollbackEventProjection.eventPreviews.map(
+                  (event) => (
+                    <li key={event.eventId}>
+                      <span className="timelineMeta">
+                        {event.type} · notWritten{" "}
+                        {event.notWritten ? "yes" : "no"}
+                      </span>
+                      <span>
+                        ops {event.payloadSummary.operationCount ?? 0} · hash{" "}
+                        {event.eventHash}
+                      </span>
+                    </li>
+                  )
+                )}
+              </ol>
+            ) : null}
+
+            {displayedSandboxApplyRollbackEventProjection.findings.length >
+            0 ? (
+              <ol className="timeline">
+                {displayedSandboxApplyRollbackEventProjection.findings.map(
+                  (finding) => (
+                    <li key={finding.findingId}>
+                      <span className="timelineMeta">
+                        {finding.kind} · {finding.severity} · {finding.code}
+                      </span>
+                      <span>{finding.summary}</span>
+                    </li>
+                  )
+                )}
+              </ol>
+            ) : null}
+
+            <p className="fieldHelp">
+              {displayedSandboxApplyRollbackEventProjection.nextAction}
             </p>
           </section>
 

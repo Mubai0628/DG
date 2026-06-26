@@ -80,6 +80,12 @@ import {
   controlledCreationReplayWarningCodes,
   summarizeControlledCreationReplayProjectionView
 } from "../src/controlled-creation-replay-projection-view.js";
+import {
+  buildSandboxApplyRollbackEventProjectionView,
+  sandboxApplyRollbackEventProjectionApprovalRefs,
+  sandboxApplyRollbackEventProjectionSurfaceSummaries,
+  sandboxApplyRollbackEventProjectionWarningCodes
+} from "../src/sandbox-apply-rollback-event-projection-view.js";
 import { buildCapabilityPlanPreview } from "../../runtime/src/capabilities/plan-preview.js";
 import { buildMemoryRecallPreviewView } from "../src/memory-recall-preview-view.js";
 import {
@@ -6019,6 +6025,210 @@ describe("app disposable patch rollback prototype", () => {
   });
 });
 
+describe("app sandbox apply rollback event projection", () => {
+  function safeApplyResult(overrides: Record<string, unknown> = {}) {
+    return {
+      status: "applied_to_disposable",
+      applyId: "apply-1",
+      disposableRootRef: "disposable-root-ref",
+      proposalId: "proposal-1",
+      validationId: "validation-1",
+      auditId: "audit-1",
+      approvalDraftId: "approval-1",
+      virtualApplyId: "virtual-1",
+      checkpointPreviewId: "checkpoint-preview-1",
+      operationCount: 1,
+      filesCreated: 1,
+      filesUpdated: 0,
+      filesDeleted: 0,
+      bytesWritten: 12,
+      blockerCount: 0,
+      warningCount: 0,
+      resultHash: "apply-result-hash",
+      eventPreview: {
+        type: "sandbox.patch_apply.preview_result",
+        applyId: "apply-1",
+        disposableRootRef: "disposable-root-ref",
+        notWritten: true
+      },
+      readiness: {
+        appliedToDisposable: true,
+        canApplyToUserWorkspace: false,
+        canCommitGit: false,
+        canExecuteShell: false
+      },
+      ...overrides
+    };
+  }
+
+  function safeRollbackResult(overrides: Record<string, unknown> = {}) {
+    return {
+      status: "rolled_back_disposable",
+      rollbackId: "rollback-1",
+      applyId: "apply-1",
+      checkpointId: "checkpoint-1",
+      disposableRootRef: "disposable-root-ref",
+      operationCount: 1,
+      filesRestored: 0,
+      filesRemoved: 1,
+      filesRecreated: 0,
+      bytesRestored: 0,
+      blockerCount: 0,
+      warningCount: 0,
+      resultHash: "rollback-result-hash",
+      eventPreview: {
+        type: "sandbox.patch_rollback.preview_result",
+        rollbackId: "rollback-1",
+        applyId: "apply-1",
+        checkpointId: "checkpoint-1",
+        disposableRootRef: "disposable-root-ref",
+        notWritten: true
+      },
+      readiness: {
+        rolledBackDisposable: true,
+        canRollbackUserWorkspace: false,
+        canApplyToUserWorkspace: false,
+        canCommitGit: false,
+        canExecuteShell: false
+      },
+      ...overrides
+    };
+  }
+
+  function safeProjectionView() {
+    return buildSandboxApplyRollbackEventProjectionView({
+      disposablePatchApplyResult: safeApplyResult(),
+      disposablePatchRollbackResult: safeRollbackResult(),
+      snapshotContract: {
+        contractId: "snapshot-contract-1",
+        status: "contract_ready"
+      },
+      patchProposalPreview: { proposalId: "proposal-1" },
+      patchValidationPreview: { validationId: "validation-1" },
+      patchDiffAuditPreview: { auditId: "audit-1" },
+      patchApprovalDraft: { approvalDraftId: "approval-1" },
+      patchVirtualApplyPreview: { virtualApplyId: "virtual-1" },
+      patchRollbackCheckpointPreview: { checkpointPreviewId: "checkpoint-1" },
+      existingEventSummary: { eventCount: 1 }
+    });
+  }
+
+  it("shows empty projection state with all execution readiness disabled", () => {
+    const view = buildSandboxApplyRollbackEventProjectionView();
+
+    expect(view.source).toBe("empty");
+    expect(view.status).toBe("empty");
+    expect(view.eventCount).toBe(0);
+    expect(view.eventWritesEnabled).toBe(false);
+    expect(view.applyExecutionEnabled).toBe(false);
+    expect(view.rollbackExecutionEnabled).toBe(false);
+    expect(view.userWorkspaceMutationEnabled).toBe(false);
+    expect(view.tauriCommandEnabled).toBe(false);
+    expect(view.fileReadEnabled).toBe(false);
+    expect(view.fileWriteEnabled).toBe(false);
+    expect(view.gitExecutionEnabled).toBe(false);
+    expect(view.shellExecutionEnabled).toBe(false);
+  });
+
+  it("maps apply and rollback summaries into not-written event previews", () => {
+    const view = safeProjectionView();
+    const serialized = JSON.stringify(view);
+
+    expect(view.status).toBe("projection_ready");
+    expect(view.eventCount).toBe(5);
+    expect(view.applyEventCount).toBe(2);
+    expect(view.rollbackEventCount).toBe(2);
+    expect(view.notWrittenEventCount).toBe(5);
+    expect(view.eventPreviews.every((event) => event.notWritten)).toBe(true);
+    expect(view.readiness.canWriteEventStore).toBe(false);
+    expect(view.readiness.canExecuteApply).toBe(false);
+    expect(view.readiness.canExecuteRollback).toBe(false);
+    expect(serialized).not.toContain("rawSource");
+    expect(serialized).not.toContain("rawDiff");
+    expect(serialized).not.toContain("preimageContent");
+  });
+
+  it("places event projection refs into Context Assembly no_compress_zone and Audit summaries", () => {
+    const view = safeProjectionView();
+    const runDraft = buildRunDraftView({
+      objectiveDraft: "Preview sandbox apply rollback event projection.",
+      selectedIntent: "code_change",
+      acceptanceCriteriaDraft: "Summary-only projection exists.",
+      workspaceRoot: "D:\\workspaces\\demo"
+    });
+    const contextPreview = buildContextAssemblyPreviewView({
+      runDraft,
+      sandboxApplyRollbackEventProjection: view
+    });
+    const surfaces = buildWorkbenchSurfacesView({
+      controlProjection: buildControlPlaneProjectionView(undefined),
+      patchProposalSummaries:
+        sandboxApplyRollbackEventProjectionSurfaceSummaries(view),
+      futureApprovalRefs: sandboxApplyRollbackEventProjectionApprovalRefs({
+        ...view,
+        warningCount: 1
+      }),
+      futureAuditWarningCodes:
+        sandboxApplyRollbackEventProjectionWarningCodes(view)
+    });
+
+    expect(
+      contextPreview.segments.some(
+        (segment) =>
+          segment.sourceKind === "sandbox_event_projection" &&
+          segment.placement === "no_compress_zone"
+      )
+    ).toBe(true);
+    expect(surfaces.diff.items.map((item) => item.status)).toContain(
+      `sandbox_event_projection_${view.status}`
+    );
+    expect(surfaces.audit.warningCodes).toEqual(
+      expect.arrayContaining([
+        `SANDBOX_EVENT_PROJECTION_EVENTS_${view.eventCount}`,
+        `SANDBOX_EVENT_PROJECTION_NOT_WRITTEN_${view.notWrittenEventCount}`
+      ])
+    );
+    expect(surfaces.approval.items[0]?.summary).toContain("read-only");
+  });
+
+  it("keeps App Shell projection local without EventStore, Tauri, filesystem, apply, or rollback execution", async () => {
+    const appSource = await readFile(
+      path.join(appRoot, "src", "App.tsx"),
+      "utf8"
+    );
+    const adapterSource = await readFile(
+      path.join(
+        appRoot,
+        "src",
+        "sandbox-apply-rollback-event-projection-view.ts"
+      ),
+      "utf8"
+    );
+    const desktopFlowSource = await readFile(
+      path.join(appRoot, "src", "desktop-flow.ts"),
+      "utf8"
+    );
+    const combined = `${appSource}\n${adapterSource}`;
+
+    expect(appSource).toContain("Sandbox Apply / Rollback Event Projection");
+    expect(appSource).toContain("Projection only / not written");
+    expect(appSource).toContain("Preview Apply/Rollback Events");
+    expect(appSource).not.toContain("Write Events</button>");
+    expect(appSource).not.toContain("Commit</button>");
+    expect(appSource).not.toContain("Execute</button>");
+    expect(combined).not.toContain("applyPatchToDisposableWorkspace");
+    expect(combined).not.toContain("rollbackDisposablePatchApply");
+    expect(combined).not.toContain("handleWriteSandboxEvents");
+    expect(adapterSource).not.toContain("safeInvoke");
+    expect(adapterSource).not.toContain("readFile");
+    expect(adapterSource).not.toContain("writeFile");
+    expect(adapterSource).not.toContain("localStorage");
+    expect(adapterSource).not.toContain("sessionStorage");
+    expect(desktopFlowSource).not.toContain("sandbox.patch_apply");
+    expect(desktopFlowSource).not.toContain("sandbox.patch_rollback");
+  });
+});
+
 describe("desktop source boundaries", () => {
   it("keeps refresh events and docs actions from navigating or resetting UI state", async () => {
     const appSource = await readFile(
@@ -8092,6 +8302,51 @@ describe("desktop source boundaries", () => {
     expect(script).not.toContain("app:dev");
     expect(script).not.toContain("DEEPSEEK_API_KEY");
     expect(script).not.toContain("OPENAI_API_KEY");
+  });
+
+  it("documents sandbox apply rollback event projection as not-written projection only", async () => {
+    const runtimeDoc = await readFile(
+      path.join(
+        repoRoot,
+        "docs",
+        "runtime-sandbox-apply-rollback-event-projection-v0.5.md"
+      ),
+      "utf8"
+    );
+    const appDoc = await readFile(
+      path.join(
+        repoRoot,
+        "docs",
+        "app-shell-sandbox-apply-rollback-event-projection-v0.5.md"
+      ),
+      "utf8"
+    );
+    const docsIndex = await readFile(
+      path.join(repoRoot, "docs", "README.md"),
+      "utf8"
+    );
+    const combined = `${runtimeDoc}\n${appDoc}\n${docsIndex}`;
+
+    expect(combined).toContain("projection-only");
+    expect(combined).toContain("notWritten: true");
+    expect(combined).toContain("no EventStore write");
+    expect(combined).toContain("no apply execution");
+    expect(combined).toContain("no rollback execution");
+    expect(combined).toContain("no user workspace");
+    expect(combined).toContain("summary-only event");
+    expect(combined).toContain("P0J-003");
+    expect(combined).toContain("P0J-004");
+    expect(combined).toContain("P0J-006");
+    expect(combined).toContain("no Git");
+    expect(combined).toContain("no shell");
+    expect(combined).toContain("no native bridge");
+    expect(combined).toContain("no desktop action");
+    expect(docsIndex).toContain(
+      "runtime-sandbox-apply-rollback-event-projection-v0.5.md"
+    );
+    expect(docsIndex).toContain(
+      "app-shell-sandbox-apply-rollback-event-projection-v0.5.md"
+    );
   });
 });
 

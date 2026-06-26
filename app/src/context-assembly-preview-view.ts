@@ -5,6 +5,7 @@ import type { AppControlledCreationReplayProjectionView } from "./controlled-cre
 import type { AppDisposableWorkspaceSnapshotView } from "./disposable-workspace-snapshot-view.js";
 import type { AppMemoryRecallPreviewView } from "./memory-recall-preview-view.js";
 import type { AppRunDraftView } from "./run-draft-view.js";
+import type { AppSandboxApplyRollbackEventProjectionView } from "./sandbox-apply-rollback-event-projection-view.js";
 import {
   safeArray,
   safeErrorMessage,
@@ -44,6 +45,7 @@ export type AppContextAssemblySourceRef = {
     | "patch_proposal"
     | "approval_ref"
     | "replay_projection"
+    | "sandbox_event_projection"
     | "snapshot_contract"
     | "agent_route"
     | "capability_plan"
@@ -115,6 +117,9 @@ export type AppContextAssemblyPreviewInput = {
   memoryRecallPreview?: AppMemoryRecallPreviewView | undefined;
   patchSurface?: AppDiffSurfaceView | undefined;
   replayProjection?: AppControlledCreationReplayProjectionView | undefined;
+  sandboxApplyRollbackEventProjection?:
+    | AppSandboxApplyRollbackEventProjectionView
+    | undefined;
   snapshotContract?: AppDisposableWorkspaceSnapshotView | undefined;
   agentRoutePreview?: AppAgentRoutePreviewView | undefined;
   capabilityPlanPreview?: AppCapabilityPlanPreviewView | undefined;
@@ -254,7 +259,8 @@ export function validateContextAssemblyPreviewInput(
     ...rawKeyWarnings(input.runDraft),
     ...rawKeyWarnings(input.workspaceIndexBridge),
     ...rawKeyWarnings(input.memoryRecallPreview),
-    ...rawKeyWarnings(input.patchSurface)
+    ...rawKeyWarnings(input.patchSurface),
+    ...rawKeyWarnings(input.sandboxApplyRollbackEventProjection)
   ]);
   return {
     ok: !warningCodes.some(
@@ -560,6 +566,33 @@ function buildSegments(
         warningCodes: [
           "CONTROLLED_REPLAY_NO_COMPRESS",
           ...input.replayProjection.warningCodes
+        ]
+      })
+    );
+  }
+
+  if (
+    input.sandboxApplyRollbackEventProjection !== undefined &&
+    input.sandboxApplyRollbackEventProjection.status !== "empty"
+  ) {
+    segments.push(
+      segment({
+        layer: "no_compress_zone",
+        title: "Sandbox apply rollback event projection summary",
+        sourceKind: "sandbox_event_projection",
+        sourceRefId:
+          input.sandboxApplyRollbackEventProjection.projectionId ||
+          "sandbox-apply-rollback-event-projection",
+        summary: [
+          input.sandboxApplyRollbackEventProjection.status,
+          `events:${input.sandboxApplyRollbackEventProjection.eventCount}`,
+          `not_written:${input.sandboxApplyRollbackEventProjection.notWrittenEventCount}`,
+          `existing:${input.sandboxApplyRollbackEventProjection.existingPersistedEventCount}`,
+          `hash:${input.sandboxApplyRollbackEventProjection.hashChainSummary.chainHash}`
+        ].join(" | "),
+        warningCodes: [
+          "SANDBOX_APPLY_ROLLBACK_EVENT_PROJECTION_NO_COMPRESS",
+          ...input.sandboxApplyRollbackEventProjection.warningCodes
         ]
       })
     );

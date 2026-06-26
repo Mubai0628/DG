@@ -60,6 +60,8 @@ foundation.
 - [App Shell Disposable Patch Apply Prototype v0.5](app-shell-disposable-patch-apply-prototype-v0.5.md)
 - [Runtime Disposable Patch Rollback Prototype v0.5](runtime-disposable-patch-rollback-prototype-v0.5.md)
 - [App Shell Disposable Patch Rollback Prototype v0.5](app-shell-disposable-patch-rollback-prototype-v0.5.md)
+- [Runtime Sandbox Apply / Rollback Event Projection v0.5](runtime-sandbox-apply-rollback-event-projection-v0.5.md)
+- [App Shell Sandbox Apply / Rollback Event Projection v0.5](app-shell-sandbox-apply-rollback-event-projection-v0.5.md)
 - [Runtime Memory Recall Preview v0.3](runtime-memory-recall-preview-v0.3.md)
 - [v0.4.0 Controlled Creation Preview RC release notes](release-notes-v0.4.0-controlled-creation-preview-rc.1.md)
 - [App Shell Controlled Creation manual QA](app-shell-controlled-creation-manual-qa.md)
