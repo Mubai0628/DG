@@ -18,8 +18,8 @@ Current scope:
   Diff Audit Preview, Patch Approval Draft, Patch Virtual Apply Preview, Patch
   Rollback Checkpoint Preview, Controlled Creation Replay Projection, Approval
   / Diff / Audit, Memory Inspector, Memory Recall Preview, Workspace Index
-  summary bridge, Context Assembly Preview, and disabled Bridge Proposal
-  Preview
+  summary bridge, Disposable Workspace Snapshot Contract, Context Assembly
+  Preview, and disabled Bridge Proposal Preview
 - show Memory Recall Preview through the runtime Memory Core preview helper
   using in-memory summaries only; no memory persistence, commit, revoke, or
   expire operation is connected
@@ -53,8 +53,10 @@ Current limitations:
   Checkpoint Preview builds metadata-only restore scope summaries without
   writing checkpoint files or executing rollback; Controlled Creation Replay
   Projection links the persisted run draft event and local patch previews into a
-  summary-only timeline without writing events or executing actions; none of
-  these reads or writes files
+  summary-only timeline without writing events or executing actions; Disposable
+  Workspace Snapshot Contract builds a metadata-only future sandbox target
+  contract without creating or copying a disposable workspace; none of these
+  reads or writes files
 - no validation, audit, approval, virtual apply, rollback, or replay preview is
   an apply/approval/rollback/execution lane
 - no real DeepSeek API call from the desktop shell

@@ -88,6 +88,10 @@ import {
   validateWorkspaceIndexSummaryInput
 } from "../src/workspace-index-bridge-view.js";
 import {
+  buildDisposableWorkspaceSnapshotView,
+  disposableWorkspaceSnapshotWarningCodes
+} from "../src/disposable-workspace-snapshot-view.js";
+import {
   buildEventLogPanelModel,
   buildBridgeProposalPreviewModel,
   buildResultPanelModel,
@@ -5649,6 +5653,164 @@ describe("app workspace index bridge", () => {
   });
 });
 
+describe("app disposable workspace snapshot contract", () => {
+  function loadedWorkspaceIndex() {
+    return buildWorkspaceIndexBridgeView({
+      source: "synthetic_summary",
+      summary: fixedWorkspaceIndexSummary()
+    });
+  }
+
+  it("builds an empty metadata-only snapshot contract state", () => {
+    const view = buildDisposableWorkspaceSnapshotView();
+
+    expect(view.status).toBe("empty");
+    expect(view.source).toBe("empty");
+    expect(view.metadataOnly).toBe(true);
+    expect(view.applyEnabled).toBe(false);
+    expect(view.rollbackEnabled).toBe(false);
+    expect(view.fileReadEnabled).toBe(false);
+    expect(view.fileWriteEnabled).toBe(false);
+    expect(view.eventWritesEnabled).toBe(false);
+    expect(view.gitExecutionEnabled).toBe(false);
+    expect(view.shellExecutionEnabled).toBe(false);
+  });
+
+  it("builds a summary-only contract from a safe Workspace Index summary", () => {
+    const view = buildDisposableWorkspaceSnapshotView({
+      disposableRootRef: "sandbox-ref-p0j-001",
+      sourceWorkspaceFingerprint: "workspace-fingerprint-p0j-001",
+      workspaceIndexRef: loadedWorkspaceIndex()
+    });
+    const serialized = JSON.stringify(view);
+
+    expect(view.source).toBe("runtime_disposable_workspace_snapshot_contract");
+    expect(view.status).not.toBe("empty");
+    expect(view.fileCount).toBeGreaterThan(0);
+    expect(view.totalBytes).toBeGreaterThan(0);
+    expect(view.workspaceIndexRef).toBe("workspace-index-test-1");
+    expect(view.readiness.canReadFilesystem).toBe(false);
+    expect(view.readiness.canWriteFilesystem).toBe(false);
+    expect(view.readiness.canApplyPatch).toBe(false);
+    expect(view.readiness.canRollbackReal).toBe(false);
+    expect(view.readiness.canExecuteGit).toBe(false);
+    expect(view.readiness.canExecuteShell).toBe(false);
+    expect(serialized).not.toContain("source code line");
+    expect(serialized).not.toContain("rawDiff");
+    expect(serialized).not.toContain("beforeContent");
+  });
+
+  it("rejects unsafe raw fields and fake API key markers safely", () => {
+    const secret = "sk-test1234567890abcdef";
+    const view = buildDisposableWorkspaceSnapshotView({
+      disposableRootRef: "sandbox-ref-p0j-unsafe",
+      sourceWorkspaceFingerprint: "workspace-fingerprint-p0j-unsafe",
+      fileSummaryJsonText: JSON.stringify({
+        files: [
+          {
+            path: "docs/unsafe.md",
+            sizeBytes: 1,
+            hashPrefix: "abc12345",
+            exists: true,
+            content: "do not keep"
+          }
+        ],
+        rawPrompt: `rawPrompt rawDom rawCsv ${secret}`
+      })
+    });
+    const serialized = JSON.stringify(view);
+
+    expect(view.status).toBe("blocked");
+    expect(view.warningCodes).toEqual(
+      expect.arrayContaining([
+        "DISPOSABLE_SNAPSHOT_RAW_FIELD_REJECTED",
+        "RAW_PROMPT_MARKER",
+        "RAW_DOM_MARKER",
+        "RAW_CSV_MARKER",
+        "API_KEY_MARKER"
+      ])
+    );
+    expect(serialized).not.toContain(secret);
+    expect(serialized).not.toContain("do not keep");
+  });
+
+  it("feeds Context Assembly and Audit Surface with summary-only snapshot refs", () => {
+    const runDraft = buildRunDraftView({
+      objectiveDraft: "Preview disposable workspace snapshot metadata.",
+      selectedIntent: "code_change",
+      acceptanceCriteriaDraft: "Snapshot contract summary is visible",
+      workspaceRoot: "D:\\workspace"
+    });
+    const snapshotView = buildDisposableWorkspaceSnapshotView({
+      disposableRootRef: "sandbox-ref-p0j-001",
+      sourceWorkspaceFingerprint: "workspace-fingerprint-p0j-001",
+      workspaceIndexRef: loadedWorkspaceIndex()
+    });
+    const contextPreview = buildContextAssemblyPreviewView({
+      runDraft,
+      snapshotContract: snapshotView
+    });
+    const surfaces = buildWorkbenchSurfacesView({
+      controlProjection: buildControlPlaneProjectionView(undefined),
+      futureAuditWarningCodes:
+        disposableWorkspaceSnapshotWarningCodes(snapshotView)
+    });
+    const serialized = JSON.stringify({ contextPreview, surfaces });
+
+    expect(
+      contextPreview.segments.some(
+        (segment) =>
+          segment.sourceKind === "snapshot_contract" &&
+          segment.sourceRefId === "disposable-workspace-snapshot-contract" &&
+          segment.placement === "no_compress_zone"
+      )
+    ).toBe(true);
+    expect(surfaces.audit.warningCodes).toEqual(
+      expect.arrayContaining([
+        `DISPOSABLE_SNAPSHOT_STATUS_${snapshotView.status.toUpperCase()}`,
+        `DISPOSABLE_SNAPSHOT_FINDINGS_${snapshotView.findingCount}`
+      ])
+    );
+    expect(serialized).not.toContain("raw source");
+    expect(serialized).not.toContain("raw diff");
+    expect(serialized).not.toContain("beforeContent");
+  });
+
+  it("keeps App UI metadata-only without Tauri, EventStore, fs, apply, rollback, or execution handlers", async () => {
+    const appSource = await readFile(
+      path.join(appRoot, "src", "App.tsx"),
+      "utf8"
+    );
+    const adapterSource = await readFile(
+      path.join(appRoot, "src", "disposable-workspace-snapshot-view.ts"),
+      "utf8"
+    );
+    const desktopFlowSource = await readFile(
+      path.join(appRoot, "src", "desktop-flow.ts"),
+      "utf8"
+    );
+    const combined = `${appSource}\n${adapterSource}`;
+
+    expect(appSource).toContain("Disposable Workspace Snapshot Contract");
+    expect(appSource).toContain("Metadata only / no apply");
+    expect(appSource).toContain("Preview Snapshot Contract");
+    expect(appSource).toContain(
+      "opaque display ref, not a real filesystem path"
+    );
+    expect(combined).not.toContain("handleApplySnapshot");
+    expect(combined).not.toContain("handleWriteSnapshot");
+    expect(combined).not.toContain("handleCreateDisposableWorkspace");
+    expect(combined).not.toContain("handleRollbackSnapshot");
+    expect(adapterSource).not.toContain("safeInvoke");
+    expect(adapterSource).not.toContain("EventStore");
+    expect(adapterSource).not.toContain("readFile");
+    expect(adapterSource).not.toContain("writeFile");
+    expect(adapterSource).not.toContain("localStorage");
+    expect(adapterSource).not.toContain("sessionStorage");
+    expect(desktopFlowSource).not.toContain("disposable_workspace_snapshot");
+  });
+});
+
 describe("desktop source boundaries", () => {
   it("keeps refresh events and docs actions from navigating or resetting UI state", async () => {
     const appSource = await readFile(
@@ -5816,6 +5978,10 @@ describe("desktop source boundaries", () => {
     expect(appSource).toMatch(
       /No\s+checkpoint\s+file\s+is\s+written\s+and\s+no\s+rollback\s+is/
     );
+    expect(appSource).toContain("Disposable Workspace Snapshot Contract");
+    expect(appSource).toContain("Metadata only / no apply");
+    expect(appSource).toContain("Preview Snapshot Contract");
+    expect(appSource).toContain("not a real filesystem path");
     expect(appSource).toContain("Controlled Creation Replay Projection");
     expect(appSource).toContain("Replay preview / no execution");
     expect(appSource).toContain(
@@ -7077,6 +7243,53 @@ describe("desktop source boundaries", () => {
     );
     expect(combined).toContain(
       "p0j-002-disposable-workspace-snapshot-contract-plan.md"
+    );
+  });
+
+  it("documents the disposable workspace snapshot contract as metadata-only and no-apply", async () => {
+    const runtimeDoc = await readFile(
+      path.join(
+        repoRoot,
+        "docs",
+        "runtime-disposable-workspace-snapshot-contract-v0.5.md"
+      ),
+      "utf8"
+    );
+    const appDoc = await readFile(
+      path.join(
+        repoRoot,
+        "docs",
+        "app-shell-disposable-workspace-snapshot-contract-v0.5.md"
+      ),
+      "utf8"
+    );
+    const docsIndex = await readFile(
+      path.join(repoRoot, "docs", "README.md"),
+      "utf8"
+    );
+    const appReadme = await readFile(path.join(appRoot, "README.md"), "utf8");
+    const combined = `${runtimeDoc}\n${appDoc}\n${docsIndex}\n${appReadme}`;
+
+    expect(combined).toContain("metadata-only");
+    expect(combined).toContain("Disposable Workspace Snapshot Contract");
+    expect(combined).toContain("opaque display reference");
+    expect(combined).toMatch(/not\s+a\s+real\s+filesystem\s+path/);
+    expect(combined).toContain("No disposable workspace creation");
+    expect(combined).toContain("No filesystem read or write");
+    expect(combined).toContain("No patch apply");
+    expect(combined).toContain("No rollback");
+    expect(combined).toContain("No Git or shell execution");
+    expect(combined).toContain("No Tauri command");
+    expect(combined).toContain("No native bridge");
+    expect(combined).toContain("No desktop action");
+    expect(combined).toContain("Context Assembly Preview");
+    expect(combined).toContain("no_compress_zone");
+    expect(combined).toContain("P0J-003 sandbox apply prototype");
+    expect(docsIndex).toContain(
+      "runtime-disposable-workspace-snapshot-contract-v0.5.md"
+    );
+    expect(docsIndex).toContain(
+      "app-shell-disposable-workspace-snapshot-contract-v0.5.md"
     );
   });
 

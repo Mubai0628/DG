@@ -118,6 +118,11 @@ import {
   type AppControlledCreationReplayProjectionView
 } from "./controlled-creation-replay-projection-view.js";
 import {
+  buildDisposableWorkspaceSnapshotView,
+  disposableWorkspaceSnapshotWarningCodes,
+  type AppDisposableWorkspaceSnapshotView
+} from "./disposable-workspace-snapshot-view.js";
+import {
   buildEventLogPanelModel,
   buildBridgeProposalPreviewModel,
   buildResultPanelModel,
@@ -266,6 +271,15 @@ export function DesktopShell(): JSX.Element {
     controlledCreationReplayProjection,
     setControlledCreationReplayProjection
   ] = useState<AppControlledCreationReplayProjectionView | undefined>();
+  const [snapshotDisposableRootRef, setSnapshotDisposableRootRef] =
+    useState("");
+  const [snapshotSourceFingerprint, setSnapshotSourceFingerprint] =
+    useState("");
+  const [snapshotFileSummaryJson, setSnapshotFileSummaryJson] = useState("");
+  const [
+    disposableWorkspaceSnapshotPreview,
+    setDisposableWorkspaceSnapshotPreview
+  ] = useState<AppDisposableWorkspaceSnapshotView | undefined>();
   const loadedWorkspaceIndexRef =
     workspaceIndexBridge.status === "loaded" ||
     workspaceIndexBridge.status === "warning"
@@ -649,6 +663,25 @@ export function DesktopShell(): JSX.Element {
     );
   const displayedPatchRollbackCheckpoint =
     patchRollbackCheckpointPreview ?? buildPatchRollbackCheckpointPreviewView();
+  const disposableWorkspaceSnapshotCandidate =
+    useMemo<AppDisposableWorkspaceSnapshotView>(
+      () =>
+        buildDisposableWorkspaceSnapshotView({
+          disposableRootRef: snapshotDisposableRootRef,
+          sourceWorkspaceFingerprint: snapshotSourceFingerprint,
+          fileSummaryJsonText: snapshotFileSummaryJson,
+          workspaceIndexRef: loadedWorkspaceIndexRef
+        }),
+      [
+        loadedWorkspaceIndexRef,
+        snapshotDisposableRootRef,
+        snapshotFileSummaryJson,
+        snapshotSourceFingerprint
+      ]
+    );
+  const displayedDisposableWorkspaceSnapshot =
+    disposableWorkspaceSnapshotPreview ??
+    buildDisposableWorkspaceSnapshotView();
   const contextAssemblyCandidate = useMemo<AppContextAssemblyPreviewView>(
     () =>
       buildContextAssemblyPreviewView({
@@ -661,6 +694,7 @@ export function DesktopShell(): JSX.Element {
         controlProjection: controlPlanePanel,
         eventSummary,
         replayProjection: controlledCreationReplayProjection,
+        snapshotContract: displayedDisposableWorkspaceSnapshot,
         previousPreview: contextAssemblyPreview
       }),
     [
@@ -669,6 +703,7 @@ export function DesktopShell(): JSX.Element {
       contextAssemblyPreview,
       controlPlanePanel,
       controlledCreationReplayProjection,
+      displayedDisposableWorkspaceSnapshot,
       displayedRunDraft,
       eventSummary,
       loadedWorkspaceIndexRef,
@@ -709,6 +744,13 @@ export function DesktopShell(): JSX.Element {
   const displayedControlledCreationReplay =
     controlledCreationReplayProjection ??
     buildControlledCreationReplayProjectionView();
+  const disposableWorkspaceSnapshotAuditWarningCodes = useMemo(
+    () =>
+      disposableWorkspaceSnapshotWarningCodes(
+        disposableWorkspaceSnapshotPreview
+      ),
+    [disposableWorkspaceSnapshotPreview]
+  );
   const workbenchSurfaces = useMemo<AppWorkbenchSurfaceView>(
     () =>
       buildWorkbenchSurfacesView({
@@ -723,11 +765,15 @@ export function DesktopShell(): JSX.Element {
           ...patchProposalApprovalRefs,
           ...capabilityPlanApprovalRefs(capabilityPlanPreview)
         ],
-        futureAuditWarningCodes: patchProposalAuditWarningCodes
+        futureAuditWarningCodes: [
+          ...patchProposalAuditWarningCodes,
+          ...disposableWorkspaceSnapshotAuditWarningCodes
+        ]
       }),
     [
       capabilityPlanPreview,
       controlPlanePanel,
+      disposableWorkspaceSnapshotAuditWarningCodes,
       error,
       eventSummary,
       patchProposalApprovalRefs,
@@ -811,6 +857,7 @@ export function DesktopShell(): JSX.Element {
     setPatchVirtualApplyPreview(undefined);
     setPatchRollbackCheckpointPreview(undefined);
     setControlledCreationReplayProjection(undefined);
+    setDisposableWorkspaceSnapshotPreview(undefined);
     setContextAssemblyPreview(undefined);
   }, [acceptanceCriteriaDraft, objectiveDraft, selectedIntent, workspaceRoot]);
 
@@ -836,6 +883,7 @@ export function DesktopShell(): JSX.Element {
     setContextAssemblyPreview(undefined);
   }, [
     agentRoutePreview.routeId,
+    disposableWorkspaceSnapshotPreview?.contractId,
     patchApprovalDraftPreview?.approvalDraftId,
     patchDiffAuditPreview?.auditId,
     patchRollbackCheckpointPreview?.checkpointPreviewId,
@@ -847,6 +895,16 @@ export function DesktopShell(): JSX.Element {
     eventSummary?.eventCount,
     loadedWorkspaceIndexRef?.hashPrefix,
     memoryRecallPreview.itemCount
+  ]);
+
+  useEffect(() => {
+    setDisposableWorkspaceSnapshotPreview(undefined);
+    setContextAssemblyPreview(undefined);
+  }, [
+    loadedWorkspaceIndexRef?.hashPrefix,
+    snapshotDisposableRootRef,
+    snapshotFileSummaryJson,
+    snapshotSourceFingerprint
   ]);
 
   function handlePreviewDraftRun(): void {
@@ -902,6 +960,11 @@ export function DesktopShell(): JSX.Element {
   function handlePreviewRollbackCheckpoint(): void {
     setPatchRollbackCheckpointPreview(patchRollbackCheckpointCandidate);
     setControlledCreationReplayProjection(undefined);
+  }
+
+  function handlePreviewDisposableWorkspaceSnapshot(): void {
+    setDisposableWorkspaceSnapshotPreview(disposableWorkspaceSnapshotCandidate);
+    setContextAssemblyPreview(undefined);
   }
 
   function handlePreviewControlledReplayProjection(): void {
@@ -2998,6 +3061,253 @@ export function DesktopShell(): JSX.Element {
 
             <p className="fieldHelp">
               {displayedPatchRollbackCheckpoint.nextAction}
+            </p>
+          </section>
+
+          <section
+            className="eventPanel"
+            aria-label="Disposable Workspace Snapshot Contract"
+          >
+            <div className="panelHeader">
+              <h2>Disposable Workspace Snapshot Contract</h2>
+              <span className="muted">Metadata only / no apply</span>
+            </div>
+            <p className="fieldHelp">
+              Builds a summary-only contract for a future disposable workspace
+              apply target. No files are read or written, and no patch is
+              applied.
+            </p>
+            <label className="fieldLabel" htmlFor="snapshotDisposableRootRef">
+              Disposable root ref
+            </label>
+            <input
+              id="snapshotDisposableRootRef"
+              value={snapshotDisposableRootRef}
+              onChange={(event) =>
+                setSnapshotDisposableRootRef(event.currentTarget.value)
+              }
+              placeholder="sandbox-ref-p0j-001"
+            />
+            <p className="fieldHelp">
+              This is an opaque display ref, not a real filesystem path.
+            </p>
+            <label className="fieldLabel" htmlFor="snapshotSourceFingerprint">
+              Source workspace fingerprint
+            </label>
+            <input
+              id="snapshotSourceFingerprint"
+              value={snapshotSourceFingerprint}
+              onChange={(event) =>
+                setSnapshotSourceFingerprint(event.currentTarget.value)
+              }
+              placeholder="workspace-fingerprint-summary"
+            />
+            <label className="fieldLabel" htmlFor="snapshotFileSummaryJson">
+              File summary JSON
+            </label>
+            <textarea
+              id="snapshotFileSummaryJson"
+              value={snapshotFileSummaryJson}
+              onChange={(event) =>
+                setSnapshotFileSummaryJson(event.currentTarget.value)
+              }
+              rows={5}
+              placeholder='[{"path":"app/src/App.tsx","sizeBytes":1200,"hashPrefix":"abc12345","exists":true}]'
+            />
+            <p className="fieldHelp">
+              Leave blank to use the loaded Workspace Index summary. Raw file
+              content, raw diffs, and secret markers are rejected.
+            </p>
+            <div className="buttonRow">
+              <button
+                type="button"
+                className="secondary"
+                onClick={(event) => {
+                  event.preventDefault();
+                  event.stopPropagation();
+                  handlePreviewDisposableWorkspaceSnapshot();
+                }}
+              >
+                Preview Snapshot Contract
+              </button>
+            </div>
+
+            {displayedDisposableWorkspaceSnapshot.status === "empty" ? (
+              <p className="empty">
+                Load a Workspace Index summary or paste metadata-only file
+                summaries to preview the disposable workspace snapshot contract.
+              </p>
+            ) : null}
+
+            <dl className="summaryGrid compact">
+              <div>
+                <dt>Status</dt>
+                <dd>{displayedDisposableWorkspaceSnapshot.status}</dd>
+              </div>
+              <div>
+                <dt>Contract</dt>
+                <dd>{displayedDisposableWorkspaceSnapshot.contractId}</dd>
+              </div>
+              <div>
+                <dt>Disposable root ref</dt>
+                <dd>
+                  {displayedDisposableWorkspaceSnapshot.disposableRootRef}
+                </dd>
+              </div>
+              <div>
+                <dt>Source fingerprint</dt>
+                <dd>
+                  {
+                    displayedDisposableWorkspaceSnapshot.sourceWorkspaceFingerprint
+                  }
+                </dd>
+              </div>
+              <div>
+                <dt>Files / directories</dt>
+                <dd>
+                  {displayedDisposableWorkspaceSnapshot.fileCount} /{" "}
+                  {displayedDisposableWorkspaceSnapshot.directoryCount}
+                </dd>
+              </div>
+              <div>
+                <dt>Total bytes</dt>
+                <dd>{displayedDisposableWorkspaceSnapshot.totalBytes}</dd>
+              </div>
+              <div>
+                <dt>Generated / binary / symlink-like</dt>
+                <dd>
+                  {displayedDisposableWorkspaceSnapshot.generatedFileCount} /{" "}
+                  {displayedDisposableWorkspaceSnapshot.binaryFileCount} /{" "}
+                  {displayedDisposableWorkspaceSnapshot.symlinkLikeCount}
+                </dd>
+              </div>
+              <div>
+                <dt>Planned mutations</dt>
+                <dd>
+                  {displayedDisposableWorkspaceSnapshot.plannedMutationCount}
+                </dd>
+              </div>
+              <div>
+                <dt>Blockers / warnings / findings</dt>
+                <dd>
+                  {displayedDisposableWorkspaceSnapshot.blockerCount} /{" "}
+                  {displayedDisposableWorkspaceSnapshot.warningCount} /{" "}
+                  {displayedDisposableWorkspaceSnapshot.findingCount}
+                </dd>
+              </div>
+              <div>
+                <dt>Hash</dt>
+                <dd>{displayedDisposableWorkspaceSnapshot.contractHash}</dd>
+              </div>
+            </dl>
+
+            <dl className="summaryGrid compact">
+              <div>
+                <dt>Can sandbox prototype</dt>
+                <dd>
+                  {displayedDisposableWorkspaceSnapshot.readiness
+                    .canProceedToSandboxApplyPrototype
+                    ? "yes"
+                    : "no"}
+                </dd>
+              </div>
+              <div>
+                <dt>Can read filesystem</dt>
+                <dd>
+                  {displayedDisposableWorkspaceSnapshot.readiness
+                    .canReadFilesystem
+                    ? "yes"
+                    : "no"}
+                </dd>
+              </div>
+              <div>
+                <dt>Can write filesystem</dt>
+                <dd>
+                  {displayedDisposableWorkspaceSnapshot.readiness
+                    .canWriteFilesystem
+                    ? "yes"
+                    : "no"}
+                </dd>
+              </div>
+              <div>
+                <dt>Can apply / rollback</dt>
+                <dd>
+                  {displayedDisposableWorkspaceSnapshot.readiness.canApplyPatch
+                    ? "yes"
+                    : "no"}{" "}
+                  /{" "}
+                  {displayedDisposableWorkspaceSnapshot.readiness
+                    .canRollbackReal
+                    ? "yes"
+                    : "no"}
+                </dd>
+              </div>
+              <div>
+                <dt>Can git / shell</dt>
+                <dd>
+                  {displayedDisposableWorkspaceSnapshot.readiness.canExecuteGit
+                    ? "yes"
+                    : "no"}{" "}
+                  /{" "}
+                  {displayedDisposableWorkspaceSnapshot.readiness
+                    .canExecuteShell
+                    ? "yes"
+                    : "no"}
+                </dd>
+              </div>
+              <div>
+                <dt>Policy</dt>
+                <dd>
+                  {displayedDisposableWorkspaceSnapshot.policy.pathPolicy} ·
+                  symlink{" "}
+                  {displayedDisposableWorkspaceSnapshot.policy.symlinkPolicy} ·
+                  reparse{" "}
+                  {
+                    displayedDisposableWorkspaceSnapshot.policy
+                      .reparsePointPolicy
+                  }
+                </dd>
+              </div>
+            </dl>
+
+            {displayedDisposableWorkspaceSnapshot.files.length > 0 ? (
+              <ol className="timeline">
+                {displayedDisposableWorkspaceSnapshot.files.map((file) => (
+                  <li key={file.path}>
+                    <span className="timelineMeta">
+                      {file.path} · {file.language ?? "unknown"} ·{" "}
+                      {file.plannedMutation ?? "none"}
+                    </span>
+                    <span>
+                      {file.sizeBytes} bytes · hash {file.hashPrefix}
+                    </span>
+                  </li>
+                ))}
+              </ol>
+            ) : null}
+
+            {displayedDisposableWorkspaceSnapshot.findings.length > 0 ? (
+              <ol className="timeline">
+                {displayedDisposableWorkspaceSnapshot.findings.map(
+                  (finding) => (
+                    <li key={finding.findingId}>
+                      <span className="timelineMeta">
+                        {finding.kind} · {finding.severity} · {finding.code}
+                      </span>
+                      <span>{finding.summary}</span>
+                      {finding.path !== undefined ? (
+                        <span className="timelineMeta">
+                          Path: {finding.path}
+                        </span>
+                      ) : null}
+                    </li>
+                  )
+                )}
+              </ol>
+            ) : null}
+
+            <p className="fieldHelp">
+              {displayedDisposableWorkspaceSnapshot.nextAction}
             </p>
           </section>
 

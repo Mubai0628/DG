@@ -2,6 +2,7 @@ import type { AppAgentRoutePreviewView } from "./agent-route-preview-view.js";
 import type { AppCapabilityPlanPreviewView } from "./capability-plan-preview-view.js";
 import type { AppControlPlaneProjectionView } from "./control-plane-view.js";
 import type { AppControlledCreationReplayProjectionView } from "./controlled-creation-replay-projection-view.js";
+import type { AppDisposableWorkspaceSnapshotView } from "./disposable-workspace-snapshot-view.js";
 import type { AppMemoryRecallPreviewView } from "./memory-recall-preview-view.js";
 import type { AppRunDraftView } from "./run-draft-view.js";
 import {
@@ -43,6 +44,7 @@ export type AppContextAssemblySourceRef = {
     | "patch_proposal"
     | "approval_ref"
     | "replay_projection"
+    | "snapshot_contract"
     | "agent_route"
     | "capability_plan"
     | "event_evidence"
@@ -113,6 +115,7 @@ export type AppContextAssemblyPreviewInput = {
   memoryRecallPreview?: AppMemoryRecallPreviewView | undefined;
   patchSurface?: AppDiffSurfaceView | undefined;
   replayProjection?: AppControlledCreationReplayProjectionView | undefined;
+  snapshotContract?: AppDisposableWorkspaceSnapshotView | undefined;
   agentRoutePreview?: AppAgentRoutePreviewView | undefined;
   capabilityPlanPreview?: AppCapabilityPlanPreviewView | undefined;
   controlProjection?: AppControlPlaneProjectionView | undefined;
@@ -557,6 +560,32 @@ function buildSegments(
         warningCodes: [
           "CONTROLLED_REPLAY_NO_COMPRESS",
           ...input.replayProjection.warningCodes
+        ]
+      })
+    );
+  }
+
+  if (
+    input.snapshotContract !== undefined &&
+    input.snapshotContract.status !== "empty"
+  ) {
+    segments.push(
+      segment({
+        layer: "no_compress_zone",
+        title: "Disposable workspace snapshot contract summary",
+        sourceKind: "snapshot_contract",
+        sourceRefId: "disposable-workspace-snapshot-contract",
+        summary: [
+          input.snapshotContract.status,
+          `files:${input.snapshotContract.fileCount}`,
+          `bytes:${input.snapshotContract.totalBytes}`,
+          `blockers:${input.snapshotContract.blockerCount}`,
+          `warnings:${input.snapshotContract.warningCount}`,
+          `hash:${input.snapshotContract.contractHash}`
+        ].join(" | "),
+        warningCodes: [
+          "DISPOSABLE_WORKSPACE_SNAPSHOT_NO_COMPRESS",
+          ...input.snapshotContract.warningCodes
         ]
       })
     );
