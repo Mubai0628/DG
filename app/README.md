@@ -20,8 +20,9 @@ Current scope:
   / Diff / Audit, Memory Inspector, Memory Recall Preview, Workspace Index
   summary bridge, Disposable Workspace Snapshot Contract, Context Assembly
   Preview, disabled Disposable Patch Apply Prototype status, disabled
-  Disposable Patch Rollback Prototype status, and disabled Bridge Proposal
-  Preview
+  Disposable Patch Rollback Prototype status, Sandbox Apply / Rollback Event
+  Projection, disabled Approval-Gated Disposable Apply status, and disabled
+  Bridge Proposal Preview
 - show Memory Recall Preview through the runtime Memory Core preview helper
   using in-memory summaries only; no memory persistence, commit, revoke, or
   expire operation is connected
@@ -34,6 +35,8 @@ Current scope:
 - prepare the v0.5 validation / approval / virtual apply preview RC with
   validation-only, audit-preview, draft-only, in-memory-summary-only,
   checkpoint-preview, and replay-preview copy
+- prepare the v0.6 sandbox apply preview RC with runtime-only disposable
+  apply/rollback prototypes while App Shell apply and rollback remain disabled
 
 Current limitations:
 
@@ -61,7 +64,10 @@ Current limitations:
   Apply Prototype is disabled in the App Shell and is not connected to the
   runtime filesystem-writing helper; Disposable Patch Rollback Prototype is
   disabled in the App Shell and is not connected to the runtime rollback helper;
-  none of these App surfaces reads or writes files
+  Sandbox Apply / Rollback Event Projection only previews not-written event
+  envelopes; Approval-Gated Disposable Apply is disabled in the App Shell and
+  does not accept approval receipts or issue PermissionLeases; none of these
+  App surfaces reads or writes files
 - no validation, audit, approval, virtual apply, rollback, or replay preview is
   an apply/approval/rollback/execution lane
 - no real DeepSeek API call from the desktop shell

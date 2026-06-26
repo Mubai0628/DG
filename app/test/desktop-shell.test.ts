@@ -5896,7 +5896,10 @@ describe("app disposable patch apply prototype", () => {
       "Disabled by default / disposable workspace only"
     );
     expect(appSource).toContain(
-      "The App Shell does not mutate the user workspace."
+      "Runtime helper can write only inside explicit"
+    );
+    expect(appSource).toContain(
+      "disposableRoot. The App Shell cannot apply patches."
     );
     expect(appSource).toContain("Apply to Disposable Workspace (disabled)");
     expect(combined).not.toContain("applyPatchToDisposableWorkspace");
@@ -6367,7 +6370,7 @@ describe("desktop source boundaries", () => {
     expect(appSource).toContain("buildControlPlaneProjectionView");
     expect(appSource).toContain("Approval / Diff / Audit Surfaces");
     expect(appSource).toMatch(
-      /Read-only\s+skeleton\.\s+No\s+approval,\s+apply,\s+rollback,\s+commit,\s+or\s+execution\s+controls\./
+      /Read-only\.\s+No\s+approval,\s+apply,\s+rollback,\s+commit,\s+or\s+execution\s+controls\./
     );
     expect(appSource).toMatch(/No\s+approval,\s+apply,\s+rollback,\s+commit/);
     expect(appSource).toContain("Approval Surface");
@@ -6494,11 +6497,20 @@ describe("desktop source boundaries", () => {
     );
     expect(appSource).toContain("Disposable Workspace Snapshot Contract");
     expect(appSource).toContain("Metadata only / no apply");
+    expect(appSource).toContain(
+      "No disposable workspace is created by the App Shell."
+    );
     expect(appSource).toContain("Preview Snapshot Contract");
     expect(appSource).toContain("not a real filesystem path");
     expect(appSource).toContain("Disposable Patch Apply Prototype");
     expect(appSource).toContain(
       "Disabled by default / disposable workspace only"
+    );
+    expect(appSource).toContain(
+      "Runtime helper can write only inside explicit"
+    );
+    expect(appSource).toContain(
+      "disposableRoot. The App Shell cannot apply patches."
     );
     expect(appSource).toContain("Apply to Disposable Workspace (disabled)");
     expect(appSource).toContain("buildDisposablePatchApplyView");
@@ -6508,6 +6520,18 @@ describe("desktop source boundaries", () => {
       /The\s+App\s+Shell\s+does\s+not\s+rollback\s+the\s+user\s+workspace\./
     );
     expect(appSource).toContain("buildDisposablePatchRollbackView");
+    expect(appSource).toContain("Sandbox Apply / Rollback Event Projection");
+    expect(appSource).toContain("Projection only / not written");
+    expect(appSource).toContain("Event previews are not written to");
+    expect(appSource).toContain("EventStore");
+    expect(appSource).toContain("Approval-Gated Disposable Apply");
+    expect(appSource).toContain(
+      "Disabled by default / no user workspace apply"
+    );
+    expect(appSource).toContain(
+      "Approval receipt is summary-only and not a PermissionLease."
+    );
+    expect(appSource).toContain("Apply with Approval Gate (disabled)");
     expect(appSource).toContain("Controlled Creation Replay Projection");
     expect(appSource).toContain("Replay preview / no execution");
     expect(appSource).toContain(
@@ -6548,6 +6572,10 @@ describe("desktop source boundaries", () => {
     expect(appSource).not.toContain("handleSpawnAgent");
     expect(appSource).not.toContain("handleInvokeCapability");
     expect(appSource).not.toContain("handleIssueLease");
+    expect(appSource).not.toContain("Write Events");
+    expect(appSource).not.toContain("handleWriteEvents");
+    expect(appSource).not.toContain("handleRollbackDisposablePatch");
+    expect(appSource).not.toContain("handleCommitSandboxApply");
     expect(appSource).not.toContain("handleDryRunCapability");
     expect(appSource).not.toContain("handleSendToDeepSeek");
     expect(appSource).not.toContain("handleRunGit");
@@ -6596,8 +6624,9 @@ describe("desktop source boundaries", () => {
     expect(appSource).not.toContain("ContextLedger");
     expect(appSource).not.toContain("ContextLedgerV2");
     expect(appSource).not.toContain("PromptAssembler");
-    expect(appSource).not.toContain("EventStore");
-    expect(appSource).not.toContain("writeEvent");
+    expect(appSource).not.toContain("writeEventStore");
+    expect(appSource).not.toContain("appendEventStore");
+    expect(appSource).not.toContain("writeEvent(");
     expect(appSource).not.toContain("git_execute_command");
     expect(appSource).not.toContain("shell_execute_command");
     expect(appSource).not.toContain("native_bridge_command");
@@ -7603,6 +7632,81 @@ describe("desktop source boundaries", () => {
     expect(combined).toContain(
       "app-shell-validation-approval-virtual-apply-rc-checklist.md"
     );
+  });
+
+  it("documents the v0.6 sandbox apply preview RC without enabling App execution", async () => {
+    const releaseNotes = await readFile(
+      path.join(
+        repoRoot,
+        "docs",
+        "release-notes-v0.6.0-sandbox-apply-preview-rc.1.md"
+      ),
+      "utf8"
+    );
+    const manualQa = await readFile(
+      path.join(repoRoot, "docs", "app-shell-sandbox-apply-manual-qa.md"),
+      "utf8"
+    );
+    const checklist = await readFile(
+      path.join(repoRoot, "docs", "app-shell-sandbox-apply-rc-checklist.md"),
+      "utf8"
+    );
+    const docsIndex = await readFile(
+      path.join(repoRoot, "docs", "README.md"),
+      "utf8"
+    );
+    const rootReadme = await readFile(path.join(repoRoot, "README.md"), "utf8");
+    const appReadme = await readFile(path.join(appRoot, "README.md"), "utf8");
+    const combined = `${releaseNotes}\n${manualQa}\n${checklist}\n${docsIndex}\n${rootReadme}\n${appReadme}`;
+
+    expect(combined).toContain("v0.6.0-sandbox-apply-preview-rc.1");
+    expect(combined).toContain(
+      "Sandboxed disposable apply and rollback prototypes, App execution disabled"
+    );
+    expect(combined).toContain("v0.5 validation / approval / virtual apply");
+    expect(combined).toContain("P0J sandbox strategy ADR");
+    expect(combined).toContain("Disposable Workspace Snapshot Contract");
+    expect(combined).toContain("Disposable Patch Apply Prototype");
+    expect(combined).toContain("Disposable Patch Rollback Prototype");
+    expect(combined).toContain("Apply / Rollback Event Projection");
+    expect(combined).toContain("Approval-Gated Disposable Apply");
+    expect(combined).toContain("web_table_to_csv");
+    expect(combined).toContain("Record Draft Event");
+    expect(combined).toMatch(/explicit\s+disposableRoot/);
+    expect(combined).toContain("App Shell does not execute apply or rollback");
+    expect(combined).toContain("No real DeepSeek chat");
+    expect(combined).toContain("No real ControlPlaneRun execution");
+    expect(combined).toContain("No user workspace patch apply");
+    expect(combined).toContain("No App-side patch apply");
+    expect(combined).toContain("No App-side rollback");
+    expect(combined).toContain("No Git commit or push");
+    expect(combined).toContain("No shell execution");
+    expect(combined).toContain("No capability invocation");
+    expect(combined).toContain("No PermissionLease issuance");
+    expect(combined).toContain("No memory commit, revoke, or expire UI");
+    expect(combined).toContain("No MCP/plugin/skills runtime");
+    expect(combined).toContain("No `nativeMessaging` or live bridge");
+    expect(combined).toContain("No desktop action");
+    expect(combined).toMatch(/[Cc]anonical\s+path\s+guard/);
+    expect(combined).toContain("Symlink, junction, and reparse point");
+    expect(combined).toContain("notWritten: true");
+    expect(combined).toContain("git status --short");
+    expect(combined).toContain("pnpm verify:ci");
+    expect(combined).toContain("pnpm release:smoke");
+    expect(combined).toContain("pnpm app:qa:check");
+    expect(combined).toContain("pnpm app:dev");
+    expect(combined).toContain("D:\\workspaces\\demo");
+    expect(combined).toContain("web-table-export-p0j.csv");
+    expect(combined).toContain("FILE_EXISTS");
+    expect(combined).toContain("PASSWORD_VALUE_MARKER");
+    expect(combined).toContain("GitHub Actions");
+    expect(combined).toContain("Generated Artifacts");
+    expect(combined).toContain("Rollback Guidance");
+    expect(combined).toContain(
+      "release-notes-v0.6.0-sandbox-apply-preview-rc.1.md"
+    );
+    expect(combined).toContain("app-shell-sandbox-apply-manual-qa.md");
+    expect(combined).toContain("app-shell-sandbox-apply-rc-checklist.md");
   });
 
   it("documents the v0.5 post-release review and P0J sandbox apply roadmap without implementation", async () => {

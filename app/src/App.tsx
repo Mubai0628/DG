@@ -3223,7 +3223,7 @@ export function DesktopShell(): JSX.Element {
             <p className="fieldHelp">
               Builds a summary-only contract for a future disposable workspace
               apply target. No files are read or written, and no patch is
-              applied.
+              applied. No disposable workspace is created by the App Shell.
             </p>
             <label className="fieldLabel" htmlFor="snapshotDisposableRootRef">
               Disposable root ref
@@ -3471,7 +3471,8 @@ export function DesktopShell(): JSX.Element {
             </div>
             <p className="fieldHelp">
               Prototype apply is only allowed for explicit disposable workspace
-              tests. The App Shell does not mutate the user workspace.
+              tests. Runtime helper can write only inside explicit
+              disposableRoot. The App Shell cannot apply patches.
             </p>
             <div className="buttonRow">
               <button
@@ -3566,7 +3567,7 @@ export function DesktopShell(): JSX.Element {
             <p className="fieldHelp">
               Approval-gated apply is only available to runtime tests for
               explicit disposable workspaces. The App Shell cannot execute
-              apply.
+              apply. Approval receipt is summary-only and not a PermissionLease.
             </p>
             <div className="buttonRow">
               <button
@@ -3976,7 +3977,8 @@ export function DesktopShell(): JSX.Element {
             <p className="fieldHelp">
               Builds summary-only event previews for disposable apply and
               rollback results. The App Shell does not write these events or
-              execute apply/rollback.
+              execute apply/rollback. Event previews are not written to
+              EventStore.
             </p>
             <div className="buttonRow">
               <button
@@ -4962,8 +4964,8 @@ export function DesktopShell(): JSX.Element {
             <div className="panelHeader">
               <h2>Approval / Diff / Audit Surfaces</h2>
               <span className="muted">
-                Read-only skeleton. No approval, apply, rollback, commit, or
-                execution controls.
+                Read-only. No approval, apply, rollback, commit, or execution
+                controls.
               </span>
             </div>
             <p className="fieldHelp">

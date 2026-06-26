@@ -134,6 +134,25 @@ v0.5 Validation / Approval / Virtual Apply Preview RC references:
 - [App Shell Validation / Approval / Virtual Apply manual QA](docs/app-shell-validation-approval-virtual-apply-manual-qa.md)
 - [App Shell Validation / Approval / Virtual Apply RC checklist](docs/app-shell-validation-approval-virtual-apply-rc-checklist.md)
 
+## v0.6 Sandbox Apply Preview RC status
+
+Recommended tag:
+`v0.6.0-sandbox-apply-preview-rc.1`.
+
+The P0J sandbox apply line adds runtime-only disposable apply and rollback
+prototypes behind explicit disposable roots, plus approval-gated disposable
+apply with a summary-only receipt. The App Shell remains disabled-only for
+apply and rollback and does not mutate the user workspace.
+
+The real working flow remains the v0.1 local `web_table_to_csv` Convert path.
+Record Draft Event remains the only App/Tauri local summary-event write path.
+
+v0.6 Sandbox Apply Preview RC references:
+
+- [v0.6.0 Sandbox Apply Preview RC release notes](docs/release-notes-v0.6.0-sandbox-apply-preview-rc.1.md)
+- [App Shell Sandbox Apply manual QA](docs/app-shell-sandbox-apply-manual-qa.md)
+- [App Shell Sandbox Apply RC checklist](docs/app-shell-sandbox-apply-rc-checklist.md)
+
 ## Current roadmap
 
 P0F is complete after `v0.2.0-app-shell-rc.1`, P0G is complete after
@@ -162,6 +181,7 @@ MCP/plugin/skills runtime, native bridge, and desktop action remain deferred.
 - [Sandboxed Real Apply Threat Model v0.5](docs/sandboxed-real-apply-threat-model-v0.5.md)
 - [Sandboxed Real Apply Implementation Gate v0.5](docs/sandboxed-real-apply-implementation-gate-v0.5.md)
 - [P0J-002 Disposable Workspace Snapshot Contract plan](docs/p0j-002-disposable-workspace-snapshot-contract-plan.md)
+- [v0.6.0 Sandbox Apply Preview RC release notes](docs/release-notes-v0.6.0-sandbox-apply-preview-rc.1.md)
 
 ## What v0.1.0 does not support
 
