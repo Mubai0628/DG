@@ -105,6 +105,7 @@ import {
   buildUserWorkspacePromotionReadinessView,
   userWorkspacePromotionReadinessWarningCodes
 } from "../src/user-workspace-promotion-readiness-view.js";
+import { buildUserWorkspaceApplyPrototypeView } from "../src/user-workspace-apply-prototype-view.js";
 import { buildDisposablePatchApplyView } from "../src/disposable-patch-apply-view.js";
 import { buildApprovalGatedDisposableApplyView } from "../src/approval-gated-disposable-apply-view.js";
 import { buildDisposablePatchRollbackView } from "../src/disposable-patch-rollback-view.js";
@@ -6304,6 +6305,117 @@ describe("app user workspace promotion readiness", () => {
   });
 });
 
+describe("app user workspace apply prototype", () => {
+  it("shows disabled-by-default runtime prototype state", () => {
+    const view = buildUserWorkspaceApplyPrototypeView();
+
+    expect(view.source).toBe("app_user_workspace_apply_prototype_disabled");
+    expect(view.status).toBe("disabled");
+    expect(view.disabledByDefault).toBe(true);
+    expect(view.runtimePrototypeOnly).toBe(true);
+    expect(view.runtimeHelperAvailable).toBe(true);
+    expect(view.appExecutionConnected).toBe(false);
+    expect(view.userWorkspaceMutationEnabled).toBe(false);
+    expect(view.applyButtonEnabled).toBe(false);
+    expect(view.contentInputEnabled).toBe(false);
+    expect(view.preimageInputEnabled).toBe(false);
+    expect(view.approvalReceiptInputEnabled).toBe(false);
+    expect(view.eventWritesEnabled).toBe(false);
+    expect(view.tauriCommandEnabled).toBe(false);
+    expect(view.gitExecutionEnabled).toBe(false);
+    expect(view.shellExecutionEnabled).toBe(false);
+    expect(view.warningCodes).toEqual(
+      expect.arrayContaining([
+        "USER_WORKSPACE_APPLY_PROMOTION_READINESS_MISSING",
+        "USER_WORKSPACE_APPLY_SNAPSHOT_CONTRACT_MISSING",
+        "USER_WORKSPACE_APPLY_APP_APPLY_DISABLED"
+      ])
+    );
+  });
+
+  it("summarizes promotion refs without enabling App apply", () => {
+    const readiness = {
+      status: "readiness_ready",
+      readinessId: "readiness-1",
+      gateCount: 3,
+      blockerCount: 0,
+      warningCount: 0,
+      nextAction: "Future user workspace apply prototype remains disabled"
+    };
+    const userWorkspaceSnapshotBackupContract = {
+      status: "contract_ready",
+      contractId: "contract-1",
+      userWorkspaceRootRef: "user-workspace-root-ref",
+      fileCount: 1,
+      blockerCount: 0,
+      warningCount: 0
+    };
+    const view = buildUserWorkspaceApplyPrototypeView({
+      promotionReadiness: readiness,
+      userWorkspaceSnapshotBackupContract,
+      patchProposalPreview: { proposalId: "proposal-1" },
+      patchValidationPreview: { validationId: "validation-1" },
+      patchDiffAuditPreview: { auditId: "audit-1" },
+      patchApprovalDraft: { approvalDraftId: "approval-1" },
+      patchVirtualApplyPreview: { virtualApplyId: "virtual-1" },
+      patchRollbackCheckpointPreview: {
+        checkpointPreviewId: "checkpoint-preview-1"
+      }
+    });
+    const serialized = JSON.stringify(view);
+
+    expect(view.status).toBe("disabled");
+    expect(view.readinessId).toBe(readiness.readinessId);
+    expect(view.contractId).toBe("contract-1");
+    expect(view.proposalId).toBe("proposal-1");
+    expect(view.applyButtonEnabled).toBe(false);
+    expect(view.contentInputEnabled).toBe(false);
+    expect(view.preimageInputEnabled).toBe(false);
+    expect(view.approvalReceiptInputEnabled).toBe(false);
+    expect(serialized).not.toContain("raw source");
+    expect(serialized).not.toContain("raw diff");
+    expect(serialized).not.toMatch(/"content"\s*:/);
+  });
+
+  it("keeps App Shell disconnected from user workspace apply execution", async () => {
+    const appSource = await readFile(
+      path.join(appRoot, "src", "App.tsx"),
+      "utf8"
+    );
+    const adapterSource = await readFile(
+      path.join(appRoot, "src", "user-workspace-apply-prototype-view.ts"),
+      "utf8"
+    );
+    const desktopFlowSource = await readFile(
+      path.join(appRoot, "src", "desktop-flow.ts"),
+      "utf8"
+    );
+    const combined = `${appSource}\n${adapterSource}`;
+
+    expect(appSource).toContain("User Workspace Apply Prototype");
+    expect(appSource).toContain(
+      "Disabled by default / runtime prototype only"
+    );
+    expect(appSource).toContain("Apply to User Workspace (disabled)");
+    expect(appSource).toMatch(
+      /The App Shell cannot apply\s+patches to the user\s+workspace/
+    );
+    expect(combined).not.toContain("handleApplyUserWorkspace");
+    expect(combined).not.toContain("handlePromoteUserWorkspace");
+    expect(combined).not.toContain("handleRollbackUserWorkspace");
+    expect(combined).not.toContain("handleWriteUserWorkspaceEvents");
+    expect(combined).not.toContain("approvalReceiptId");
+    expect(adapterSource).not.toContain("preimageContent");
+    expect(adapterSource).not.toContain("safeInvoke");
+    expect(adapterSource).not.toContain("EventStore");
+    expect(adapterSource).not.toContain("readFile");
+    expect(adapterSource).not.toContain("writeFile");
+    expect(adapterSource).not.toContain("localStorage");
+    expect(adapterSource).not.toContain("sessionStorage");
+    expect(desktopFlowSource).not.toContain("user_workspace_apply");
+  });
+});
+
 describe("app disposable patch apply prototype", () => {
   it("shows disabled-by-default state without app execution", () => {
     const view = buildDisposablePatchApplyView();
@@ -8405,6 +8517,56 @@ describe("desktop source boundaries", () => {
     );
     expect(docsIndex).toContain(
       "app-shell-user-workspace-promotion-readiness-v0.6.md"
+    );
+  });
+
+  it("documents the user workspace apply prototype as disabled in App", async () => {
+    const runtimeDoc = await readFile(
+      path.join(
+        repoRoot,
+        "docs",
+        "runtime-user-workspace-apply-prototype-v0.6.md"
+      ),
+      "utf8"
+    );
+    const appDoc = await readFile(
+      path.join(
+        repoRoot,
+        "docs",
+        "app-shell-user-workspace-apply-prototype-v0.6.md"
+      ),
+      "utf8"
+    );
+    const docsIndex = await readFile(
+      path.join(repoRoot, "docs", "README.md"),
+      "utf8"
+    );
+    const combined = `${runtimeDoc}\n${appDoc}\n${docsIndex}`;
+
+    expect(combined).toContain("User Workspace Apply Prototype");
+    expect(combined).toContain("disabled by default");
+    expect(combined).toContain("runtime-only");
+    expect(combined).toContain("explicit user workspace fixture roots");
+    expect(combined).toContain("explicit_user_workspace_apply_prototype");
+    expect(combined).toContain("Promotion Readiness");
+    expect(combined).toContain("User Workspace Snapshot / Backup Contract");
+    expect(combined).toContain("approval receipt");
+    expect(combined).toContain("not a production PermissionLease");
+    expect(combined).toContain("notWritten: true");
+    expect(combined).toContain("No App apply");
+    expect(combined).toContain("No Tauri command");
+    expect(combined).toContain("No EventStore write");
+    expect(combined).toContain("No Git commit or push");
+    expect(combined).toContain("No shell execution");
+    expect(combined).toContain("No raw output");
+    expect(combined).toContain("No native bridge");
+    expect(combined).toContain("No desktop action");
+    expect(combined).toContain("User Workspace Rollback Prototype");
+    expect(docsIndex).toContain(
+      "runtime-user-workspace-apply-prototype-v0.6.md"
+    );
+    expect(docsIndex).toContain(
+      "app-shell-user-workspace-apply-prototype-v0.6.md"
     );
   });
 

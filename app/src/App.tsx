@@ -142,6 +142,10 @@ import {
   type AppUserWorkspacePromotionReadinessView
 } from "./user-workspace-promotion-readiness-view.js";
 import {
+  buildUserWorkspaceApplyPrototypeView,
+  type AppUserWorkspaceApplyPrototypeView
+} from "./user-workspace-apply-prototype-view.js";
+import {
   buildDisposablePatchApplyView,
   type AppDisposablePatchApplyView
 } from "./disposable-patch-apply-view.js";
@@ -889,6 +893,31 @@ export function DesktopShell(): JSX.Element {
   const displayedUserWorkspacePromotionReadiness =
     userWorkspacePromotionReadinessPreview ??
     buildUserWorkspacePromotionReadinessView();
+  const userWorkspaceApplyPrototypeView =
+    useMemo<AppUserWorkspaceApplyPrototypeView>(
+      () =>
+        buildUserWorkspaceApplyPrototypeView({
+          promotionReadiness: displayedUserWorkspacePromotionReadiness,
+          userWorkspaceSnapshotBackupContract:
+            displayedUserWorkspaceSnapshotBackup,
+          patchProposalPreview: patchProposalCreationPreview,
+          patchValidationPreview: patchProposalValidationPreview,
+          patchDiffAuditPreview: patchDiffAuditPreview,
+          patchApprovalDraft: patchApprovalDraftPreview,
+          patchVirtualApplyPreview: patchVirtualApplyPreview,
+          patchRollbackCheckpointPreview: patchRollbackCheckpointPreview
+        }),
+      [
+        displayedUserWorkspacePromotionReadiness,
+        displayedUserWorkspaceSnapshotBackup,
+        patchApprovalDraftPreview,
+        patchDiffAuditPreview,
+        patchProposalCreationPreview,
+        patchProposalValidationPreview,
+        patchRollbackCheckpointPreview,
+        patchVirtualApplyPreview
+      ]
+    );
   const contextAssemblyCandidate = useMemo<AppContextAssemblyPreviewView>(
     () =>
       buildContextAssemblyPreviewView({
@@ -4095,6 +4124,130 @@ export function DesktopShell(): JSX.Element {
             </p>
             <p className="fieldHelp">
               {displayedUserWorkspacePromotionReadiness.nextAction}
+            </p>
+          </section>
+
+          <section
+            className="eventPanel"
+            aria-label="User Workspace Apply Prototype"
+          >
+            <div className="panelHeader">
+              <h2>User Workspace Apply Prototype</h2>
+              <span className="muted">
+                Disabled by default / runtime prototype only
+              </span>
+            </div>
+            <p className="fieldHelp">
+              User workspace apply is only available to runtime tests with
+              explicit fixtures. The App Shell cannot apply patches to the user
+              workspace.
+            </p>
+            <div className="buttonRow">
+              <button
+                type="button"
+                className="secondary"
+                disabled
+                aria-disabled="true"
+              >
+                Apply to User Workspace (disabled)
+              </button>
+            </div>
+            <dl className="summaryGrid compact">
+              <div>
+                <dt>Status</dt>
+                <dd>{userWorkspaceApplyPrototypeView.status}</dd>
+              </div>
+              <div>
+                <dt>Runtime helper</dt>
+                <dd>
+                  {userWorkspaceApplyPrototypeView.runtimeHelperAvailable
+                    ? "available for tests"
+                    : "not connected"}
+                </dd>
+              </div>
+              <div>
+                <dt>Runtime prototype only</dt>
+                <dd>
+                  {userWorkspaceApplyPrototypeView.runtimePrototypeOnly
+                    ? "yes"
+                    : "no"}
+                </dd>
+              </div>
+              <div>
+                <dt>App execution connected</dt>
+                <dd>
+                  {userWorkspaceApplyPrototypeView.appExecutionConnected
+                    ? "yes"
+                    : "no"}
+                </dd>
+              </div>
+              <div>
+                <dt>User workspace mutation</dt>
+                <dd>
+                  {userWorkspaceApplyPrototypeView.userWorkspaceMutationEnabled
+                    ? "enabled"
+                    : "disabled"}
+                </dd>
+              </div>
+              <div>
+                <dt>Content / preimage inputs</dt>
+                <dd>
+                  {userWorkspaceApplyPrototypeView.contentInputEnabled
+                    ? "enabled"
+                    : "disabled"}{" "}
+                  /{" "}
+                  {userWorkspaceApplyPrototypeView.preimageInputEnabled
+                    ? "enabled"
+                    : "disabled"}
+                </dd>
+              </div>
+              <div>
+                <dt>Approval receipt input</dt>
+                <dd>
+                  {userWorkspaceApplyPrototypeView.approvalReceiptInputEnabled
+                    ? "enabled"
+                    : "disabled"}
+                </dd>
+              </div>
+              <div>
+                <dt>Readiness / contract</dt>
+                <dd>
+                  {userWorkspaceApplyPrototypeView.readinessId || "n/a"} /{" "}
+                  {userWorkspaceApplyPrototypeView.contractId || "n/a"}
+                </dd>
+              </div>
+              <div>
+                <dt>Proposal / validation / audit</dt>
+                <dd>
+                  {userWorkspaceApplyPrototypeView.proposalId || "n/a"} /{" "}
+                  {userWorkspaceApplyPrototypeView.validationId || "n/a"} /{" "}
+                  {userWorkspaceApplyPrototypeView.auditId || "n/a"}
+                </dd>
+              </div>
+              <div>
+                <dt>Approval / virtual / checkpoint</dt>
+                <dd>
+                  {userWorkspaceApplyPrototypeView.approvalDraftId || "n/a"} /{" "}
+                  {userWorkspaceApplyPrototypeView.virtualApplyId || "n/a"} /{" "}
+                  {userWorkspaceApplyPrototypeView.checkpointPreviewId || "n/a"}
+                </dd>
+              </div>
+              <div>
+                <dt>Blockers / warnings</dt>
+                <dd>
+                  {userWorkspaceApplyPrototypeView.blockerCount} /{" "}
+                  {userWorkspaceApplyPrototypeView.warningCount}
+                </dd>
+              </div>
+            </dl>
+            {userWorkspaceApplyPrototypeView.warningCodes.length > 0 ? (
+              <p className="fieldHelp">
+                Warning codes:{" "}
+                {userWorkspaceApplyPrototypeView.warningCodes.join(", ")}
+              </p>
+            ) : null}
+            <p className="fieldHelp">
+              {userWorkspaceApplyPrototypeView.nextAction}
             </p>
           </section>
 
