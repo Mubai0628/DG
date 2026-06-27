@@ -263,14 +263,32 @@ const forbiddenRawInputKeys = new Set(
 );
 
 const unsafeContentPatterns: Array<{ code: string; pattern: RegExp }> = [
-  { code: "USER_ROLLBACK_SECRET_MARKER_REJECTED", pattern: /sk-[A-Za-z0-9_-]{16,}/ },
-  { code: "USER_ROLLBACK_BEARER_MARKER_REJECTED", pattern: /Bearer\s+[A-Za-z0-9_-]{16,}/i },
-  { code: "USER_ROLLBACK_AUTHORIZATION_MARKER_REJECTED", pattern: /Authorization\s*[:=]/i },
-  { code: "USER_ROLLBACK_PRIVATE_KEY_MARKER_REJECTED", pattern: /BEGIN (?:RSA |OPENSSH |EC |DSA )?PRIVATE KEY/i },
-  { code: "USER_ROLLBACK_RAW_PROMPT_MARKER_REJECTED", pattern: /\brawPrompt\b/i },
+  {
+    code: "USER_ROLLBACK_SECRET_MARKER_REJECTED",
+    pattern: /sk-[A-Za-z0-9_-]{16,}/
+  },
+  {
+    code: "USER_ROLLBACK_BEARER_MARKER_REJECTED",
+    pattern: /Bearer\s+[A-Za-z0-9_-]{16,}/i
+  },
+  {
+    code: "USER_ROLLBACK_AUTHORIZATION_MARKER_REJECTED",
+    pattern: /Authorization\s*[:=]/i
+  },
+  {
+    code: "USER_ROLLBACK_PRIVATE_KEY_MARKER_REJECTED",
+    pattern: /BEGIN (?:RSA |OPENSSH |EC |DSA )?PRIVATE KEY/i
+  },
+  {
+    code: "USER_ROLLBACK_RAW_PROMPT_MARKER_REJECTED",
+    pattern: /\brawPrompt\b/i
+  },
   { code: "USER_ROLLBACK_RAW_DOM_MARKER_REJECTED", pattern: /\brawDom\b/i },
   { code: "USER_ROLLBACK_RAW_CSV_MARKER_REJECTED", pattern: /\brawCsv\b/i },
-  { code: "USER_ROLLBACK_RAW_SCREENSHOT_MARKER_REJECTED", pattern: /\brawScreenshot\b/i },
+  {
+    code: "USER_ROLLBACK_RAW_SCREENSHOT_MARKER_REJECTED",
+    pattern: /\brawScreenshot\b/i
+  },
   { code: "USER_ROLLBACK_CLIPBOARD_MARKER_REJECTED", pattern: /\bclipboard\b/i }
 ];
 
@@ -434,7 +452,9 @@ function resultFromInput(
         normalized.userWorkspaceRootRef,
         normalized.rollbackCheckpoint.applyId,
         normalized.rollbackCheckpoint.checkpointId,
-        normalized.operations.map((operation) => operation.operationId).join(","),
+        normalized.operations
+          .map((operation) => operation.operationId)
+          .join(","),
         input.createdAt ?? "runtime-user-workspace-rollback-prototype"
       ].join("|")
     )}`;
@@ -650,9 +670,7 @@ function normalizeInput(
   };
 }
 
-function normalizeCheckpoint(
-  value: unknown
-): UserWorkspaceRollbackCheckpoint {
+function normalizeCheckpoint(value: unknown): UserWorkspaceRollbackCheckpoint {
   const record = asRecord(value);
   return {
     checkpointId: safeIdentifier(readValue(record, "checkpointId"), ""),
@@ -666,9 +684,7 @@ function normalizeCheckpoint(
   };
 }
 
-function normalizeEntry(
-  value: unknown
-): UserWorkspaceRollbackCheckpointEntry {
+function normalizeEntry(value: unknown): UserWorkspaceRollbackCheckpointEntry {
   const record = asRecord(value);
   return {
     path: safePathText(readValue(record, "path")),
@@ -679,7 +695,9 @@ function normalizeEntry(
         ? safeText(readValue(record, preimageField), "")
         : undefined,
     preimageHash: optionalSafeRef(readValue(record, "preimageHash")),
-    preimageBytes: optionalNonNegativeInteger(readValue(record, "preimageBytes")),
+    preimageBytes: optionalNonNegativeInteger(
+      readValue(record, "preimageBytes")
+    ),
     preimageLineCount: optionalNonNegativeInteger(
       readValue(record, "preimageLineCount")
     ),
@@ -786,7 +804,11 @@ function preconditionFindings(
     Object.keys(normalized.userWorkspaceApplyResult).length > 0
   ) {
     findings.push(
-      finding("precondition", "blocker", "USER_ROLLBACK_APPLY_RESULT_NOT_APPLIED")
+      finding(
+        "precondition",
+        "blocker",
+        "USER_ROLLBACK_APPLY_RESULT_NOT_APPLIED"
+      )
     );
   }
   if (
@@ -794,7 +816,11 @@ function preconditionFindings(
     "blocked"
   ) {
     findings.push(
-      finding("precondition", "blocker", "USER_ROLLBACK_SNAPSHOT_CONTRACT_BLOCKED")
+      finding(
+        "precondition",
+        "blocker",
+        "USER_ROLLBACK_SNAPSHOT_CONTRACT_BLOCKED"
+      )
     );
   }
   if (
@@ -814,7 +840,11 @@ function preconditionFindings(
   }
   if (readString(normalized.promotionReadiness, "status") === "blocked") {
     findings.push(
-      finding("precondition", "blocker", "USER_ROLLBACK_PROMOTION_READINESS_BLOCKED")
+      finding(
+        "precondition",
+        "blocker",
+        "USER_ROLLBACK_PROMOTION_READINESS_BLOCKED"
+      )
     );
   }
 
@@ -830,7 +860,11 @@ function preconditionFindings(
     applyId !== normalized.rollbackCheckpoint.applyId
   ) {
     findings.push(
-      finding("checkpoint", "blocker", "USER_ROLLBACK_CHECKPOINT_APPLY_ID_MISMATCH")
+      finding(
+        "checkpoint",
+        "blocker",
+        "USER_ROLLBACK_CHECKPOINT_APPLY_ID_MISMATCH"
+      )
     );
   }
   if (
@@ -839,7 +873,11 @@ function preconditionFindings(
       normalized.userWorkspaceRootRef
   ) {
     findings.push(
-      finding("checkpoint", "blocker", "USER_ROLLBACK_CHECKPOINT_ROOT_REF_MISMATCH")
+      finding(
+        "checkpoint",
+        "blocker",
+        "USER_ROLLBACK_CHECKPOINT_ROOT_REF_MISMATCH"
+      )
     );
   }
   findings.push(...receiptFindings(normalized, createdAt));
@@ -853,7 +891,9 @@ function receiptFindings(
   const findings: UserWorkspaceRollbackFinding[] = [];
   const receipt = normalized.approvalReceipt;
   if (receipt === undefined) {
-    findings.push(finding("receipt", "blocker", "USER_ROLLBACK_RECEIPT_MISSING"));
+    findings.push(
+      finding("receipt", "blocker", "USER_ROLLBACK_RECEIPT_MISSING")
+    );
     return findings;
   }
   if (
@@ -861,7 +901,11 @@ function receiptFindings(
     "user_workspace_rollback_prototype"
   ) {
     findings.push(
-      finding("receipt", "blocker", "USER_ROLLBACK_RECEIPT_SCOPE_NOT_USER_ROLLBACK")
+      finding(
+        "receipt",
+        "blocker",
+        "USER_ROLLBACK_RECEIPT_SCOPE_NOT_USER_ROLLBACK"
+      )
     );
   }
   if (receipt.scope.userWorkspaceRootRef !== normalized.userWorkspaceRootRef) {
@@ -884,11 +928,17 @@ function receiptFindings(
     receipt.scope.checkpointId !== normalized.rollbackCheckpoint.checkpointId
   ) {
     findings.push(
-      finding("scope", "blocker", "USER_ROLLBACK_RECEIPT_CHECKPOINT_ID_MISMATCH")
+      finding(
+        "scope",
+        "blocker",
+        "USER_ROLLBACK_RECEIPT_CHECKPOINT_ID_MISMATCH"
+      )
     );
   }
   if (receiptExpired(receipt, createdAt)) {
-    findings.push(finding("receipt", "blocker", "USER_ROLLBACK_RECEIPT_EXPIRED"));
+    findings.push(
+      finding("receipt", "blocker", "USER_ROLLBACK_RECEIPT_EXPIRED")
+    );
   }
   if (
     receipt.scope.maxFiles !== undefined &&
@@ -899,7 +949,10 @@ function receiptFindings(
     );
   }
   const totalBytes = totalPreimageBytes(normalized);
-  if (receipt.scope.maxBytes !== undefined && totalBytes > receipt.scope.maxBytes) {
+  if (
+    receipt.scope.maxBytes !== undefined &&
+    totalBytes > receipt.scope.maxBytes
+  ) {
     findings.push(
       finding("scope", "blocker", "USER_ROLLBACK_SCOPE_MAX_BYTES_EXCEEDED")
     );
@@ -954,7 +1007,12 @@ function operationFindings(
     const lowerPath = operation.path.toLowerCase();
     if (seen.has(lowerPath)) {
       findings.push(
-        finding("path", "blocker", "USER_ROLLBACK_DUPLICATE_PATH", operation.path)
+        finding(
+          "path",
+          "blocker",
+          "USER_ROLLBACK_DUPLICATE_PATH",
+          operation.path
+        )
       );
     }
     seen.add(lowerPath);
@@ -982,13 +1040,23 @@ function operationFindings(
     }
     if (entry.contentEncoding !== "utf8") {
       findings.push(
-        finding("content", "blocker", "USER_ROLLBACK_UNSUPPORTED_ENCODING", operation.path)
+        finding(
+          "content",
+          "blocker",
+          "USER_ROLLBACK_UNSUPPORTED_ENCODING",
+          operation.path
+        )
       );
     }
     if (entry.changeKind !== "create") {
       if (entry.preimageContent === undefined) {
         findings.push(
-          finding("content", "blocker", "USER_ROLLBACK_PREIMAGE_MISSING", operation.path)
+          finding(
+            "content",
+            "blocker",
+            "USER_ROLLBACK_PREIMAGE_MISSING",
+            operation.path
+          )
         );
       } else {
         for (const code of unsafeWarningCodes(entry.preimageContent)) {
@@ -996,7 +1064,12 @@ function operationFindings(
         }
         if (entry.preimageContent.includes("\0")) {
           findings.push(
-            finding("content", "blocker", "USER_ROLLBACK_BINARY_CONTENT_REJECTED", operation.path)
+            finding(
+              "content",
+              "blocker",
+              "USER_ROLLBACK_BINARY_CONTENT_REJECTED",
+              operation.path
+            )
           );
         }
         if (
@@ -1004,7 +1077,12 @@ function operationFindings(
           !sha256Hex(entry.preimageContent).startsWith(entry.preimageHash)
         ) {
           findings.push(
-            finding("content", "blocker", "USER_ROLLBACK_PREIMAGE_HASH_MISMATCH", operation.path)
+            finding(
+              "content",
+              "blocker",
+              "USER_ROLLBACK_PREIMAGE_HASH_MISMATCH",
+              operation.path
+            )
           );
         }
       }
@@ -1029,14 +1107,16 @@ function canonicalRootCheck(input: {
     return { rootRealPath: "", findings };
   }
   if (!path.isAbsolute(root)) {
-    findings.push(finding("root", "blocker", "USER_ROLLBACK_ROOT_NOT_ABSOLUTE"));
+    findings.push(
+      finding("root", "blocker", "USER_ROLLBACK_ROOT_NOT_ABSOLUTE")
+    );
     return { rootRealPath: "", findings };
   }
   if (!existsSync(root)) {
     findings.push(finding("root", "blocker", "USER_ROLLBACK_ROOT_NOT_FOUND"));
     return { rootRealPath: "", findings };
   }
-  let rootRealPath = "";
+  let rootRealPath: string;
   try {
     rootRealPath = realpathSync(root);
   } catch {
@@ -1047,7 +1127,9 @@ function canonicalRootCheck(input: {
   }
   const rootStat = statSync(rootRealPath);
   if (!rootStat.isDirectory()) {
-    findings.push(finding("root", "blocker", "USER_ROLLBACK_ROOT_NOT_DIRECTORY"));
+    findings.push(
+      finding("root", "blocker", "USER_ROLLBACK_ROOT_NOT_DIRECTORY")
+    );
   }
   const parsed = path.parse(rootRealPath);
   if (samePath(rootRealPath, parsed.root)) {
@@ -1055,15 +1137,21 @@ function canonicalRootCheck(input: {
   }
   const repoRoot = safeRealpath(process.cwd());
   if (repoRoot !== undefined && samePath(rootRealPath, repoRoot)) {
-    findings.push(finding("root", "blocker", "USER_ROLLBACK_ROOT_IS_REPO_ROOT"));
+    findings.push(
+      finding("root", "blocker", "USER_ROLLBACK_ROOT_IS_REPO_ROOT")
+    );
   }
   const homeRoot = safeRealpath(homedir());
   if (homeRoot !== undefined && samePath(rootRealPath, homeRoot)) {
-    findings.push(finding("root", "blocker", "USER_ROLLBACK_ROOT_IS_HOME_ROOT"));
+    findings.push(
+      finding("root", "blocker", "USER_ROLLBACK_ROOT_IS_HOME_ROOT")
+    );
   }
   const tempRoot = safeRealpath(tmpdir());
   if (tempRoot !== undefined && samePath(rootRealPath, tempRoot)) {
-    findings.push(finding("root", "blocker", "USER_ROLLBACK_ROOT_IS_TEMP_ROOT"));
+    findings.push(
+      finding("root", "blocker", "USER_ROLLBACK_ROOT_IS_TEMP_ROOT")
+    );
   }
   return { rootRealPath, findings };
 }
@@ -1104,12 +1192,22 @@ function prepareOperations(
       !before.existsBeforeRollback
     ) {
       findings.push(
-        finding("checkpoint", "blocker", "USER_ROLLBACK_CREATED_TARGET_MISSING", operation.path)
+        finding(
+          "checkpoint",
+          "blocker",
+          "USER_ROLLBACK_CREATED_TARGET_MISSING",
+          operation.path
+        )
       );
     }
     if (operation.changeKind === "update" && !before.existsBeforeRollback) {
       findings.push(
-        finding("checkpoint", "blocker", "USER_ROLLBACK_UPDATE_TARGET_MISSING", operation.path)
+        finding(
+          "checkpoint",
+          "blocker",
+          "USER_ROLLBACK_UPDATE_TARGET_MISSING",
+          operation.path
+        )
       );
     }
     if (
@@ -1118,7 +1216,12 @@ function prepareOperations(
       before.existsBeforeRollback
     ) {
       findings.push(
-        finding("checkpoint", "blocker", "USER_ROLLBACK_RECREATE_TARGET_EXISTS", operation.path)
+        finding(
+          "checkpoint",
+          "blocker",
+          "USER_ROLLBACK_RECREATE_TARGET_EXISTS",
+          operation.path
+        )
       );
     }
     if (
@@ -1127,7 +1230,12 @@ function prepareOperations(
       !before.beforeRollbackHashPrefix.startsWith(entry.appliedHash)
     ) {
       findings.push(
-        finding("checkpoint", "blocker", "USER_ROLLBACK_APPLIED_HASH_MISMATCH", operation.path)
+        finding(
+          "checkpoint",
+          "blocker",
+          "USER_ROLLBACK_APPLIED_HASH_MISMATCH",
+          operation.path
+        )
       );
     }
     prepared.push({
@@ -1155,7 +1263,12 @@ function resolveTarget(
     samePath(rootRealPath, targetPath)
   ) {
     findings.push(
-      finding("path", "blocker", "USER_ROLLBACK_TARGET_ESCAPES_ROOT", relativePath)
+      finding(
+        "path",
+        "blocker",
+        "USER_ROLLBACK_TARGET_ESCAPES_ROOT",
+        relativePath
+      )
     );
     return { absolutePath: "", findings };
   }
@@ -1175,13 +1288,23 @@ function resolveTarget(
     const currentStat = lstatSync(current);
     if (currentStat.isSymbolicLink()) {
       findings.push(
-        finding("path", "blocker", "USER_ROLLBACK_SYMLINK_PARENT_REJECTED", relativePath)
+        finding(
+          "path",
+          "blocker",
+          "USER_ROLLBACK_SYMLINK_PARENT_REJECTED",
+          relativePath
+        )
       );
       return { absolutePath: "", findings };
     }
     if (!currentStat.isDirectory()) {
       findings.push(
-        finding("path", "blocker", "USER_ROLLBACK_PARENT_NOT_DIRECTORY", relativePath)
+        finding(
+          "path",
+          "blocker",
+          "USER_ROLLBACK_PARENT_NOT_DIRECTORY",
+          relativePath
+        )
       );
       return { absolutePath: "", findings };
     }
@@ -1201,11 +1324,15 @@ function beforeRollbackSummary(absolutePath: string): {
   }
   const targetStat = lstatSync(absolutePath);
   if (targetStat.isSymbolicLink()) {
-    findings.push(finding("path", "blocker", "USER_ROLLBACK_SYMLINK_TARGET_REJECTED"));
+    findings.push(
+      finding("path", "blocker", "USER_ROLLBACK_SYMLINK_TARGET_REJECTED")
+    );
     return { existsBeforeRollback: true, beforeRollbackBytes: 0, findings };
   }
   if (targetStat.isDirectory()) {
-    findings.push(finding("path", "blocker", "USER_ROLLBACK_DIRECTORY_TARGET_REJECTED"));
+    findings.push(
+      finding("path", "blocker", "USER_ROLLBACK_DIRECTORY_TARGET_REJECTED")
+    );
     return { existsBeforeRollback: true, beforeRollbackBytes: 0, findings };
   }
   const content = readFileSync(absolutePath);
@@ -1640,8 +1767,7 @@ function findingSummary(code: string): string {
       "Deleted target already exists before rollback recreate.",
     USER_ROLLBACK_APPLIED_HASH_MISMATCH:
       "Current user workspace fixture hash does not match the checkpoint applied hash.",
-    USER_ROLLBACK_WRITE_FAILED:
-      "User workspace fixture rollback write failed.",
+    USER_ROLLBACK_WRITE_FAILED: "User workspace fixture rollback write failed.",
     USER_ROLLBACK_SYMLINK_PARENT_REJECTED:
       "User workspace rollback refuses symlink parent paths.",
     USER_ROLLBACK_SYMLINK_TARGET_REJECTED:
@@ -1729,11 +1855,15 @@ function safeArray(value: unknown): unknown[] {
 }
 
 function safeStringArray(value: unknown): string[] {
-  return safeArray(value).filter((item): item is string => typeof item === "string");
+  return safeArray(value).filter(
+    (item): item is string => typeof item === "string"
+  );
 }
 
 function safePathArray(value: unknown): string[] {
-  return safeArray(value).filter((item): item is string => typeof item === "string");
+  return safeArray(value).filter(
+    (item): item is string => typeof item === "string"
+  );
 }
 
 function positiveInteger(value: unknown, fallback: number): number {

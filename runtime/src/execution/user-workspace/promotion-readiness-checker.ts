@@ -248,19 +248,6 @@ const unsafePreviewPatterns = [
   }
 ] satisfies Array<{ code: string; pattern: RegExp }>;
 
-const requiredArtifactTypes = new Set<
-  UserWorkspacePromotionReadinessArtifactRef["artifactType"]
->([
-  "user_workspace_snapshot_contract",
-  "disposable_apply_result",
-  "disposable_rollback_result",
-  "apply_rollback_event_projection",
-  "patch_validation",
-  "patch_diff_audit",
-  "patch_approval_draft",
-  "rollback_checkpoint_preview"
-]);
-
 const sourceMutationWithoutTestCode =
   "PROMOTION_SOURCE_MUTATION_WITHOUT_TEST_SUMMARY";
 
@@ -408,11 +395,7 @@ function validateContract(
     ) !== true
   ) {
     findings.push(
-      finding(
-        "readiness",
-        "blocker",
-        "PROMOTION_USER_CONTRACT_NOT_READY"
-      )
+      finding("readiness", "blocker", "PROMOTION_USER_CONTRACT_NOT_READY")
     );
   }
   if (normalized.sourceWorkspaceFingerprint.length === 0) {
@@ -439,11 +422,7 @@ function validateApplyRollback(
     );
   } else if (readString(apply, "status") !== "applied_to_disposable") {
     findings.push(
-      finding(
-        "artifact",
-        "blocker",
-        "PROMOTION_DISPOSABLE_APPLY_NOT_APPLIED"
-      )
+      finding("artifact", "blocker", "PROMOTION_DISPOSABLE_APPLY_NOT_APPLIED")
     );
   }
   if (rollback === undefined) {
@@ -479,11 +458,7 @@ function validateApplyRollback(
       applyRootRef !== rollbackRootRef
     ) {
       findings.push(
-        finding(
-          "gate",
-          "blocker",
-          "PROMOTION_DISPOSABLE_ROOT_REF_MISMATCH"
-        )
+        finding("gate", "blocker", "PROMOTION_DISPOSABLE_ROOT_REF_MISMATCH")
       );
     }
   }
@@ -505,14 +480,16 @@ function validateEventProjection(
     readNumber(projection, "blockerCount") > 0
   ) {
     findings.push(
-      finding("event_projection", "blocker", "PROMOTION_EVENT_PROJECTION_BLOCKED")
+      finding(
+        "event_projection",
+        "blocker",
+        "PROMOTION_EVENT_PROJECTION_BLOCKED"
+      )
     );
   }
   const eventPreviews = safeArray(projection.eventPreviews);
   if (
-    eventPreviews.some(
-      (event) => isRecord(event) && event.notWritten !== true
-    )
+    eventPreviews.some((event) => isRecord(event) && event.notWritten !== true)
   ) {
     findings.push(
       finding(
@@ -550,11 +527,7 @@ function validateExpectedHashes(
     contractExpectedDisposableHash !== applyOutputHash
   ) {
     findings.push(
-      finding(
-        "hash",
-        "blocker",
-        "PROMOTION_DISPOSABLE_OUTPUT_HASH_MISMATCH"
-      )
+      finding("hash", "blocker", "PROMOTION_DISPOSABLE_OUTPUT_HASH_MISMATCH")
     );
   }
   const contractExpectedUserHash = optionalSafeRef(
@@ -721,10 +694,12 @@ function readinessFromNormalized(
 ): UserWorkspacePromotionReadiness {
   const artifactRefs = buildArtifactRefs(normalized);
   const gates = buildGates(normalized, findings, artifactRefs);
-  const blockerCount = findings.filter((item) => item.severity === "blocker")
-    .length;
-  const warningCount = findings.filter((item) => item.severity === "warning")
-    .length;
+  const blockerCount = findings.filter(
+    (item) => item.severity === "blocker"
+  ).length;
+  const warningCount = findings.filter(
+    (item) => item.severity === "warning"
+  ).length;
   const readiness: UserWorkspacePromotionReadinessReadiness = {
     canProceedToUserWorkspaceApplyPrototype:
       blockerCount === 0 && status !== "empty",
@@ -780,7 +755,9 @@ function readinessFromNormalized(
       }))
     })
   );
-  const requiredArtifacts = artifactRefs.filter((artifact) => artifact.required);
+  const requiredArtifacts = artifactRefs.filter(
+    (artifact) => artifact.required
+  );
   const presentArtifacts = artifactRefs.filter(
     (artifact) => artifact.required && artifact.present
   );
@@ -920,7 +897,9 @@ function artifactRef(
       : firstString(record, idKeys) ||
         `${artifactType}-${hashPreview(safeStringify(record))}`;
   const hashPrefix =
-    record === undefined ? undefined : optionalSafeRef(firstString(record, hashKeys));
+    record === undefined
+      ? undefined
+      : optionalSafeRef(firstString(record, hashKeys));
   return {
     artifactId,
     artifactType,
@@ -993,7 +972,10 @@ function buildGates(
       "patch_validation",
       true,
       artifactRefs,
-      ["PROMOTION_PATCH_VALIDATION_MISSING", "PROMOTION_PATCH_VALIDATION_BLOCKED"],
+      [
+        "PROMOTION_PATCH_VALIDATION_MISSING",
+        "PROMOTION_PATCH_VALIDATION_BLOCKED"
+      ],
       [],
       findings
     ),
@@ -1001,7 +983,10 @@ function buildGates(
       "patch_diff_audit",
       true,
       artifactRefs,
-      ["PROMOTION_PATCH_DIFF_AUDIT_MISSING", "PROMOTION_PATCH_DIFF_AUDIT_BLOCKED"],
+      [
+        "PROMOTION_PATCH_DIFF_AUDIT_MISSING",
+        "PROMOTION_PATCH_DIFF_AUDIT_BLOCKED"
+      ],
       [],
       findings
     ),
@@ -1159,7 +1144,9 @@ function normalizeInput(
     contract,
     applyResult: recordOrUndefined(input.disposablePatchApplyResult),
     rollbackResult: recordOrUndefined(input.disposablePatchRollbackResult),
-    eventProjection: recordOrUndefined(input.sandboxApplyRollbackEventProjection),
+    eventProjection: recordOrUndefined(
+      input.sandboxApplyRollbackEventProjection
+    ),
     patchProposalPreview: recordOrUndefined(input.patchProposalPreview),
     patchValidationPreview: recordOrUndefined(input.patchValidationPreview),
     patchDiffAuditPreview: recordOrUndefined(input.patchDiffAuditPreview),

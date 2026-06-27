@@ -155,7 +155,10 @@ function requirementsFrom(
     requirement(
       "rollback_prototype_runtime_only",
       "Rollback prototype must remain runtime-only",
-      disabledRuntimeRequirement(input.userWorkspaceRollbackPrototype, "rollback"),
+      disabledRuntimeRequirement(
+        input.userWorkspaceRollbackPrototype,
+        "rollback"
+      ),
       "The App Shell must not connect user workspace rollback controls.",
       safeRef(input.userWorkspaceRollbackPrototype, "checkpointId")
     ),
@@ -254,7 +257,8 @@ function disabledRuntimeRequirement(
   if (!isRecord(value)) {
     return "missing";
   }
-  const buttonKey = kind === "apply" ? "applyButtonEnabled" : "rollbackButtonEnabled";
+  const buttonKey =
+    kind === "apply" ? "applyButtonEnabled" : "rollbackButtonEnabled";
   if (
     value.appExecutionConnected === true ||
     value.userWorkspaceMutationEnabled === true ||

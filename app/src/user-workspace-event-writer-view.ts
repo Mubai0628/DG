@@ -65,9 +65,15 @@ export function buildUserWorkspaceEventWriterView(
     userWorkspaceRootRef:
       safeRef(input.userWorkspaceApplyResult, "userWorkspaceRootRef") ||
       safeRef(input.userWorkspaceRollbackResult, "userWorkspaceRootRef") ||
-      safeRef(input.userWorkspaceSnapshotBackupContract, "userWorkspaceRootRef"),
+      safeRef(
+        input.userWorkspaceSnapshotBackupContract,
+        "userWorkspaceRootRef"
+      ),
     readinessId: safeRef(input.promotionReadiness, "readinessId"),
-    contractId: safeRef(input.userWorkspaceSnapshotBackupContract, "contractId"),
+    contractId: safeRef(
+      input.userWorkspaceSnapshotBackupContract,
+      "contractId"
+    ),
     blockerCount: missingCount,
     warningCount: warningCodes.length,
     warningCodes,

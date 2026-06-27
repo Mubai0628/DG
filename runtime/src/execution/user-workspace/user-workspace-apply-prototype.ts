@@ -154,7 +154,10 @@ export type UserWorkspaceApplyPrototypeInput = {
   approvalReceipt?: unknown;
   backupEntries?: unknown[] | undefined;
   operations?: unknown[] | undefined;
-  applyMode?: "disabled" | "dry_run" | "explicit_user_workspace_apply_prototype";
+  applyMode?:
+    | "disabled"
+    | "dry_run"
+    | "explicit_user_workspace_apply_prototype";
   maxFiles?: number | undefined;
   maxBytes?: number | undefined;
   createdAt?: string | undefined;
@@ -539,10 +542,16 @@ function resultEnvelope(input: {
   findings: UserWorkspaceApplyFinding[];
   appliedToUserWorkspacePrototype: boolean;
 }): UserWorkspaceApplyPrototypeResult {
-  const readinessId = refFrom(input.normalized.promotionReadiness, "readinessId");
+  const readinessId = refFrom(
+    input.normalized.promotionReadiness,
+    "readinessId"
+  );
   const approvalReceiptId =
     input.normalized.approvalReceipt?.approvalReceiptId ?? "";
-  const proposalId = refFrom(input.normalized.patchProposalPreview, "proposalId");
+  const proposalId = refFrom(
+    input.normalized.patchProposalPreview,
+    "proposalId"
+  );
   const validationId = refFrom(
     input.normalized.patchValidationPreview,
     "validationId"
@@ -585,8 +594,14 @@ function resultEnvelope(input: {
   ).length;
   const inputSnapshotHash =
     optionalSafeRef(
-      readValue(input.normalized.userWorkspaceSnapshotBackupContract, "expectedUserSnapshotHash")
-    ) ?? optionalSafeRef(readValue(input.normalized.promotionReadiness, "expectedUserSnapshotHash"));
+      readValue(
+        input.normalized.userWorkspaceSnapshotBackupContract,
+        "expectedUserSnapshotHash"
+      )
+    ) ??
+    optionalSafeRef(
+      readValue(input.normalized.promotionReadiness, "expectedUserSnapshotHash")
+    );
   const outputSnapshotHash = hashPreview(
     JSON.stringify({
       inputSnapshotHash,
@@ -701,7 +716,9 @@ function normalizeInput(
       input.userWorkspaceSnapshotBackupContract
     ),
     disposablePatchApplyResult: asRecord(input.disposablePatchApplyResult),
-    disposablePatchRollbackResult: asRecord(input.disposablePatchRollbackResult),
+    disposablePatchRollbackResult: asRecord(
+      input.disposablePatchRollbackResult
+    ),
     sandboxApplyRollbackEventProjection: asRecord(
       input.sandboxApplyRollbackEventProjection
     ),
@@ -779,7 +796,9 @@ function normalizeBackupEntry(value: unknown): UserWorkspaceApplyBackupEntry {
     existedBefore: readValue(record, "existedBefore") !== false,
     preimageContent,
     preimageHash: optionalSafeRef(readValue(record, "preimageHash")),
-    preimageBytes: optionalNonNegativeInteger(readValue(record, "preimageBytes")),
+    preimageBytes: optionalNonNegativeInteger(
+      readValue(record, "preimageBytes")
+    ),
     preimageLineCount: optionalNonNegativeInteger(
       readValue(record, "preimageLineCount")
     ),
@@ -892,7 +911,11 @@ function preconditionFindings(
 
   if (readString(normalized.promotionReadiness, "status") === "blocked") {
     findings.push(
-      finding("precondition", "blocker", "USER_APPLY_PROMOTION_READINESS_BLOCKED")
+      finding(
+        "precondition",
+        "blocker",
+        "USER_APPLY_PROMOTION_READINESS_BLOCKED"
+      )
     );
   }
   if (
@@ -903,7 +926,11 @@ function preconditionFindings(
     ) !== true
   ) {
     findings.push(
-      finding("readiness", "blocker", "USER_APPLY_PROMOTION_READINESS_NOT_READY")
+      finding(
+        "readiness",
+        "blocker",
+        "USER_APPLY_PROMOTION_READINESS_NOT_READY"
+      )
     );
   }
   if (
@@ -924,7 +951,11 @@ function preconditionFindings(
     ) === true
   ) {
     findings.push(
-      finding("readiness", "blocker", "USER_APPLY_READINESS_EXECUTION_FLAG_REJECTED")
+      finding(
+        "readiness",
+        "blocker",
+        "USER_APPLY_READINESS_EXECUTION_FLAG_REJECTED"
+      )
     );
   }
   if (
@@ -952,7 +983,11 @@ function preconditionFindings(
     Object.keys(normalized.disposablePatchApplyResult).length > 0
   ) {
     findings.push(
-      finding("precondition", "blocker", "USER_APPLY_DISPOSABLE_APPLY_NOT_APPLIED")
+      finding(
+        "precondition",
+        "blocker",
+        "USER_APPLY_DISPOSABLE_APPLY_NOT_APPLIED"
+      )
     );
   }
   if (
@@ -979,12 +1014,16 @@ function preconditionFindings(
     );
   }
   if (
-    safeArray(normalized.sandboxApplyRollbackEventProjection.eventPreviews).some(
-      (event) => isRecord(event) && event.notWritten !== true
-    )
+    safeArray(
+      normalized.sandboxApplyRollbackEventProjection.eventPreviews
+    ).some((event) => isRecord(event) && event.notWritten !== true)
   ) {
     findings.push(
-      finding("precondition", "blocker", "USER_APPLY_EVENT_PREVIEW_WRITTEN_REJECTED")
+      finding(
+        "precondition",
+        "blocker",
+        "USER_APPLY_EVENT_PREVIEW_WRITTEN_REJECTED"
+      )
     );
   }
   for (const artifact of [
@@ -1006,8 +1045,10 @@ function preconditionFindings(
   if (
     readString(normalized.disposablePatchApplyResult, "disposableRootRef") ===
       normalized.userWorkspaceRootRef ||
-    readString(normalized.disposablePatchRollbackResult, "disposableRootRef") ===
-      normalized.userWorkspaceRootRef
+    readString(
+      normalized.disposablePatchRollbackResult,
+      "disposableRootRef"
+    ) === normalized.userWorkspaceRootRef
   ) {
     findings.push(
       finding("root", "blocker", "USER_APPLY_ROOT_REF_MATCHES_DISPOSABLE_ROOT")
@@ -1027,9 +1068,15 @@ function receiptFindings(
     findings.push(finding("receipt", "blocker", "USER_APPLY_RECEIPT_MISSING"));
     return findings;
   }
-  if (normalized.approvalReceiptApprovedFor !== "user_workspace_apply_prototype") {
+  if (
+    normalized.approvalReceiptApprovedFor !== "user_workspace_apply_prototype"
+  ) {
     findings.push(
-      finding("receipt", "blocker", "USER_APPLY_RECEIPT_SCOPE_NOT_USER_PROTOTYPE")
+      finding(
+        "receipt",
+        "blocker",
+        "USER_APPLY_RECEIPT_SCOPE_NOT_USER_PROTOTYPE"
+      )
     );
   }
   if (
@@ -1041,9 +1088,7 @@ function receiptFindings(
     );
   }
   if (receipt.scope.userWorkspaceRootRef !== normalized.userWorkspaceRootRef) {
-    findings.push(
-      finding("scope", "blocker", "USER_APPLY_ROOT_REF_MISMATCH")
-    );
+    findings.push(finding("scope", "blocker", "USER_APPLY_ROOT_REF_MISMATCH"));
   }
   for (const mismatch of receiptScopeMismatches(normalized, receipt)) {
     findings.push(finding("scope", "blocker", mismatch));
@@ -1060,7 +1105,10 @@ function receiptFindings(
     );
   }
   const totalBytes = totalInputBytes(normalized);
-  if (receipt.scope.maxBytes !== undefined && totalBytes > receipt.scope.maxBytes) {
+  if (
+    receipt.scope.maxBytes !== undefined &&
+    totalBytes > receipt.scope.maxBytes
+  ) {
     findings.push(
       finding("scope", "blocker", "USER_APPLY_SCOPE_MAX_BYTES_EXCEEDED")
     );
@@ -1151,9 +1199,7 @@ function operationFindings(
     );
   }
   if (totalInputBytes(normalized) > normalized.maxBytes) {
-    findings.push(
-      finding("content", "blocker", "USER_APPLY_TOO_MANY_BYTES")
-    );
+    findings.push(finding("content", "blocker", "USER_APPLY_TOO_MANY_BYTES"));
   }
   const seen = new Set<string>();
   for (const operation of normalized.operations) {
@@ -1168,16 +1214,30 @@ function operationFindings(
     }
     seen.add(lowerPath);
     if (
-      (operation.changeKind === "create" || operation.changeKind === "update") &&
+      (operation.changeKind === "create" ||
+        operation.changeKind === "update") &&
       operation.content === undefined
     ) {
       findings.push(
-        finding("content", "blocker", "USER_APPLY_CONTENT_MISSING", operation.path)
+        finding(
+          "content",
+          "blocker",
+          "USER_APPLY_CONTENT_MISSING",
+          operation.path
+        )
       );
     }
-    if (operation.changeKind === "delete" && protectedDeletePattern.test(operation.path)) {
+    if (
+      operation.changeKind === "delete" &&
+      protectedDeletePattern.test(operation.path)
+    ) {
       findings.push(
-        finding("path", "blocker", "USER_APPLY_PROTECTED_DELETE_REJECTED", operation.path)
+        finding(
+          "path",
+          "blocker",
+          "USER_APPLY_PROTECTED_DELETE_REJECTED",
+          operation.path
+        )
       );
     }
     if (operation.content !== undefined) {
@@ -1189,7 +1249,12 @@ function operationFindings(
         !sha256Hex(operation.content).startsWith(operation.contentHash)
       ) {
         findings.push(
-          finding("content", "blocker", "USER_APPLY_CONTENT_HASH_MISMATCH", operation.path)
+          finding(
+            "content",
+            "blocker",
+            "USER_APPLY_CONTENT_HASH_MISMATCH",
+            operation.path
+          )
         );
       }
     }
@@ -1198,7 +1263,12 @@ function operationFindings(
       operation.estimatedLinesAdded < 0
     ) {
       findings.push(
-        finding("content", "blocker", "USER_APPLY_NEGATIVE_LINE_ESTIMATE", operation.path)
+        finding(
+          "content",
+          "blocker",
+          "USER_APPLY_NEGATIVE_LINE_ESTIMATE",
+          operation.path
+        )
       );
     }
     if (
@@ -1206,7 +1276,12 @@ function operationFindings(
       operation.estimatedLinesRemoved < 0
     ) {
       findings.push(
-        finding("content", "blocker", "USER_APPLY_NEGATIVE_LINE_ESTIMATE", operation.path)
+        finding(
+          "content",
+          "blocker",
+          "USER_APPLY_NEGATIVE_LINE_ESTIMATE",
+          operation.path
+        )
       );
     }
   }
@@ -1231,7 +1306,12 @@ function backupEntryFindings(
         !sha256Hex(entry.preimageContent).startsWith(entry.preimageHash)
       ) {
         findings.push(
-          finding("backup", "blocker", "USER_APPLY_PREIMAGE_HASH_MISMATCH", entry.path)
+          finding(
+            "backup",
+            "blocker",
+            "USER_APPLY_PREIMAGE_HASH_MISMATCH",
+            entry.path
+          )
         );
       }
     }
@@ -1243,13 +1323,23 @@ function backupEntryFindings(
     const entry = entries.get(operation.path.toLowerCase());
     if (entry === undefined) {
       findings.push(
-        finding("backup", "blocker", "USER_APPLY_BACKUP_ENTRY_MISSING", operation.path)
+        finding(
+          "backup",
+          "blocker",
+          "USER_APPLY_BACKUP_ENTRY_MISSING",
+          operation.path
+        )
       );
       continue;
     }
     if (entry.preimageContent === undefined && entry.existedBefore) {
       findings.push(
-        finding("backup", "blocker", "USER_APPLY_PREIMAGE_MISSING", operation.path)
+        finding(
+          "backup",
+          "blocker",
+          "USER_APPLY_PREIMAGE_MISSING",
+          operation.path
+        )
       );
     }
   }
@@ -1279,11 +1369,13 @@ function canonicalRootCheck(input: {
     findings.push(finding("root", "blocker", "USER_APPLY_ROOT_NOT_FOUND"));
     return { rootRealPath: "", findings };
   }
-  let rootRealPath = "";
+  let rootRealPath: string;
   try {
     rootRealPath = realpathSync(root);
   } catch {
-    findings.push(finding("root", "blocker", "USER_APPLY_ROOT_CANNOT_CANONICALIZE"));
+    findings.push(
+      finding("root", "blocker", "USER_APPLY_ROOT_CANNOT_CANONICALIZE")
+    );
     return { rootRealPath: "", findings };
   }
   const rootStat = statSync(rootRealPath);
@@ -1324,7 +1416,11 @@ function prepareOperations(
   }
   const entries = backupEntriesByPath(normalized.backupEntries);
   for (const operation of normalized.operations) {
-    const target = safeTargetPath(rootRealPath, operation.path, operation.changeKind);
+    const target = safeTargetPath(
+      rootRealPath,
+      operation.path,
+      operation.changeKind
+    );
     findings.push(...target.findings);
     if (target.absolutePath.length === 0) {
       continue;
@@ -1333,11 +1429,17 @@ function prepareOperations(
     findings.push(...before.findings);
     if (operation.changeKind === "create" && before.existsBefore) {
       findings.push(
-        finding("path", "blocker", "USER_APPLY_CREATE_TARGET_EXISTS", operation.path)
+        finding(
+          "path",
+          "blocker",
+          "USER_APPLY_CREATE_TARGET_EXISTS",
+          operation.path
+        )
       );
     }
     if (
-      (operation.changeKind === "update" || operation.changeKind === "delete") &&
+      (operation.changeKind === "update" ||
+        operation.changeKind === "delete") &&
       !before.existsBefore
     ) {
       findings.push(
@@ -1363,7 +1465,12 @@ function prepareOperations(
       !before.beforeHashPrefix.startsWith(operation.expectedBeforeHashPrefix)
     ) {
       findings.push(
-        finding("path", "blocker", "USER_APPLY_EXPECTED_HASH_MISMATCH", operation.path)
+        finding(
+          "path",
+          "blocker",
+          "USER_APPLY_EXPECTED_HASH_MISMATCH",
+          operation.path
+        )
       );
     }
     const backupEntry = entries.get(operation.path.toLowerCase());
@@ -1427,13 +1534,23 @@ function safeTargetPath(
     const currentStat = lstatSync(current);
     if (currentStat.isSymbolicLink()) {
       findings.push(
-        finding("path", "blocker", "USER_APPLY_SYMLINK_PARENT_REJECTED", relativePath)
+        finding(
+          "path",
+          "blocker",
+          "USER_APPLY_SYMLINK_PARENT_REJECTED",
+          relativePath
+        )
       );
       return { absolutePath: "", findings };
     }
     if (!currentStat.isDirectory()) {
       findings.push(
-        finding("path", "blocker", "USER_APPLY_PARENT_NOT_DIRECTORY", relativePath)
+        finding(
+          "path",
+          "blocker",
+          "USER_APPLY_PARENT_NOT_DIRECTORY",
+          relativePath
+        )
       );
       return { absolutePath: "", findings };
     }
@@ -1453,11 +1570,15 @@ function beforeSummary(absolutePath: string): {
   }
   const targetStat = lstatSync(absolutePath);
   if (targetStat.isSymbolicLink()) {
-    findings.push(finding("path", "blocker", "USER_APPLY_SYMLINK_TARGET_REJECTED"));
+    findings.push(
+      finding("path", "blocker", "USER_APPLY_SYMLINK_TARGET_REJECTED")
+    );
     return { existsBefore: true, beforeBytes: 0, findings };
   }
   if (targetStat.isDirectory()) {
-    findings.push(finding("path", "blocker", "USER_APPLY_DIRECTORY_TARGET_REJECTED"));
+    findings.push(
+      finding("path", "blocker", "USER_APPLY_DIRECTORY_TARGET_REJECTED")
+    );
     return { existsBefore: true, beforeBytes: 0, findings };
   }
   const beforeContent = readFileSync(absolutePath);
@@ -1673,7 +1794,10 @@ function executionAttemptWarningsFrom(value: unknown): string[] {
   return uniqueStrings(warnings);
 }
 
-function sanitizedForInputScan(value: unknown, key?: string | undefined): unknown {
+function sanitizedForInputScan(
+  value: unknown,
+  key?: string | undefined
+): unknown {
   if (Array.isArray(value)) {
     return value.map((item) => sanitizedForInputScan(item));
   }
@@ -1859,8 +1983,7 @@ function findingSummary(code: string): string {
       "User workspace root must already exist and canonicalize.",
     USER_APPLY_ROOT_CANNOT_CANONICALIZE:
       "User workspace root cannot be canonicalized.",
-    USER_APPLY_ROOT_NOT_DIRECTORY:
-      "User workspace root must be a directory.",
+    USER_APPLY_ROOT_NOT_DIRECTORY: "User workspace root must be a directory.",
     USER_APPLY_ROOT_IS_DRIVE:
       "User workspace root cannot be a drive or filesystem root.",
     USER_APPLY_ROOT_IS_REPO_ROOT:
@@ -1891,16 +2014,13 @@ function findingSummary(code: string): string {
       "Current user workspace fixture hash does not match the backup preimage hash.",
     USER_APPLY_TARGET_ESCAPES_ROOT:
       "Target path must remain inside the canonical user workspace root.",
-    USER_APPLY_CREATE_TARGET_EXISTS:
-      "Create operation target already exists.",
-    USER_APPLY_TARGET_MISSING:
-      "Update or delete operation target is missing.",
+    USER_APPLY_CREATE_TARGET_EXISTS: "Create operation target already exists.",
+    USER_APPLY_TARGET_MISSING: "Update or delete operation target is missing.",
     USER_APPLY_EXPECTED_EXISTS_MISMATCH:
       "Operation expected-exists precondition does not match user workspace state.",
     USER_APPLY_EXPECTED_HASH_MISMATCH:
       "Operation before-hash precondition does not match user workspace state.",
-    USER_APPLY_WRITE_FAILED:
-      "User workspace fixture write failed.",
+    USER_APPLY_WRITE_FAILED: "User workspace fixture write failed.",
     USER_APPLY_SYMLINK_PARENT_REJECTED:
       "User workspace apply refuses symlink parent paths.",
     USER_APPLY_SYMLINK_TARGET_REJECTED:
@@ -2102,7 +2222,9 @@ function visitUnknown(
   }
   seen.add(value);
   if (Array.isArray(value)) {
-    value.forEach((item) => visitUnknown(item, visitor, undefined, seen, nextPath));
+    value.forEach((item) =>
+      visitUnknown(item, visitor, undefined, seen, nextPath)
+    );
     return;
   }
   for (const [childKey, childValue] of Object.entries(value)) {

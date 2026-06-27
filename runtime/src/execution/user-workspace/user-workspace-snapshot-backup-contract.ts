@@ -435,11 +435,7 @@ export function validateUserWorkspaceSnapshotBackupContractInput(
   }
   if (normalized.disposableRollbackResultRef === undefined) {
     findings.push(
-      finding(
-        "backup",
-        "warning",
-        "USER_WORKSPACE_DISPOSABLE_ROLLBACK_MISSING"
-      )
+      finding("backup", "warning", "USER_WORKSPACE_DISPOSABLE_ROLLBACK_MISSING")
     );
   }
   if (normalized.expectedDisposableOutputHash === undefined) {
@@ -487,7 +483,12 @@ export function validateUserWorkspaceSnapshotBackupContractInput(
 
     if (file.sizeBytes < 0 || (file.lineCount ?? 0) < 0) {
       findings.push(
-        finding("snapshot", "blocker", "USER_WORKSPACE_NEGATIVE_SIZE", file.path)
+        finding(
+          "snapshot",
+          "blocker",
+          "USER_WORKSPACE_NEGATIVE_SIZE",
+          file.path
+        )
       );
     }
     if (file.sizeBytes > largeFileBytes) {
@@ -550,7 +551,8 @@ export function validateUserWorkspaceSnapshotBackupContractInput(
       );
     }
     if (
-      (file.plannedMutation === "update" || file.plannedMutation === "delete") &&
+      (file.plannedMutation === "update" ||
+        file.plannedMutation === "delete") &&
       !file.preimageHashRequired
     ) {
       findings.push(
@@ -567,7 +569,12 @@ export function validateUserWorkspaceSnapshotBackupContractInput(
       configOrBuildPathPattern.test(file.path)
     ) {
       findings.push(
-        finding("policy", "warning", "USER_WORKSPACE_CONFIG_MUTATION", file.path)
+        finding(
+          "policy",
+          "warning",
+          "USER_WORKSPACE_CONFIG_MUTATION",
+          file.path
+        )
       );
     }
     if (file.plannedMutation === "delete") {
@@ -664,10 +671,12 @@ function contractFromNormalized(
   status: UserWorkspaceSnapshotStatus,
   input: UserWorkspaceSnapshotBackupContractInput
 ): UserWorkspaceSnapshotBackupContract {
-  const blockerCount = findings.filter((item) => item.severity === "blocker")
-    .length;
-  const warningCount = findings.filter((item) => item.severity === "warning")
-    .length;
+  const blockerCount = findings.filter(
+    (item) => item.severity === "blocker"
+  ).length;
+  const warningCount = findings.filter(
+    (item) => item.severity === "warning"
+  ).length;
   const backupRequirements = normalized.files
     .filter((file) => file.plannedMutation !== "none")
     .map((file) => backupRequirementFromFile(file));
@@ -844,7 +853,10 @@ function normalizePolicy(
   };
 }
 
-function normalizeFile(value: unknown, index: number): UserWorkspaceFileSummary {
+function normalizeFile(
+  value: unknown,
+  index: number
+): UserWorkspaceFileSummary {
   const record = isRecord(value) ? value : {};
   const path = safePathForOutput(safeText(record.path, `file-${index + 1}`));
   const plannedMutation = normalizePlannedMutation(record.plannedMutation);

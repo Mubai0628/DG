@@ -1,4 +1,10 @@
-import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import {
+  existsSync,
+  mkdirSync,
+  readFileSync,
+  rmSync,
+  writeFileSync
+} from "node:fs";
 import path from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 
@@ -202,9 +208,9 @@ describe("user workspace apply rollback event writer", () => {
     expect(result.status).toBe("dry_run");
     expect(result.eventCount).toBe(7);
     expect(result.writtenEventIds).toEqual([]);
-    expect(result.eventPreviews.every((event) => event.payload.summaryOnly)).toBe(
-      true
-    );
+    expect(
+      result.eventPreviews.every((event) => event.payload.summaryOnly)
+    ).toBe(true);
     expect(existsSync(eventLogPath(root))).toBe(false);
   });
 
@@ -298,7 +304,9 @@ describe("user workspace apply rollback event writer", () => {
     });
 
     expect(validation.ok).toBe(false);
-    expect(validation.warningCodes).toContain("USER_EVENT_WRITE_RAW_FIELD_REJECTED");
+    expect(validation.warningCodes).toContain(
+      "USER_EVENT_WRITE_RAW_FIELD_REJECTED"
+    );
   });
 
   it("blocks fake API key and raw marker summaries", () => {
@@ -327,12 +335,14 @@ describe("user workspace apply rollback event writer", () => {
     const serializedResult = JSON.stringify(result);
     const eventText = readFileSync(eventLogPath(root), "utf8");
 
-    expect(serializedResult).not.toMatch(/preimageContent|rawSource|rawDiff|apiKey/);
+    expect(serializedResult).not.toMatch(
+      /preimageContent|rawSource|rawDiff|apiKey/
+    );
     expect(eventText).not.toMatch(/preimageContent|rawSource|rawDiff|apiKey/);
     expect(eventText).not.toContain("secret fixture");
-    expect(result.eventPreviews.every((event) => event.payload.summaryOnly)).toBe(
-      true
-    );
+    expect(
+      result.eventPreviews.every((event) => event.payload.summaryOnly)
+    ).toBe(true);
   });
 
   it("keeps execution readiness flags false", () => {
@@ -345,9 +355,9 @@ describe("user workspace apply rollback event writer", () => {
     expect(result.readiness.canExecuteGit).toBe(false);
     expect(result.readiness.canExecuteShell).toBe(false);
     expect(result.readiness.appCanExecute).toBe(false);
-    expect(summarizeUserWorkspaceApplyRollbackEventWrite(result).appCanExecute).toBe(
-      false
-    );
+    expect(
+      summarizeUserWorkspaceApplyRollbackEventWrite(result).appCanExecute
+    ).toBe(false);
   });
 
   it("does not execute apply or rollback while writing events", () => {

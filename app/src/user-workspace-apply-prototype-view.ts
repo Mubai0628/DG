@@ -73,7 +73,10 @@ export function buildUserWorkspaceApplyPrototypeView(
       "userWorkspaceRootRef"
     ),
     readinessId: safeRef(input.promotionReadiness, "readinessId"),
-    contractId: safeRef(input.userWorkspaceSnapshotBackupContract, "contractId"),
+    contractId: safeRef(
+      input.userWorkspaceSnapshotBackupContract,
+      "contractId"
+    ),
     proposalId: safeRef(input.patchProposalPreview, "proposalId"),
     validationId: safeRef(input.patchValidationPreview, "validationId"),
     auditId: safeRef(input.patchDiffAuditPreview, "auditId"),
@@ -94,7 +97,9 @@ export function buildUserWorkspaceApplyPrototypeView(
   };
 }
 
-function warningCodesFrom(input: AppUserWorkspaceApplyPrototypeInput): string[] {
+function warningCodesFrom(
+  input: AppUserWorkspaceApplyPrototypeInput
+): string[] {
   return [
     input.promotionReadiness === undefined
       ? "USER_WORKSPACE_APPLY_PROMOTION_READINESS_MISSING"

@@ -65,7 +65,10 @@ export function buildUserWorkspaceRollbackPrototypeView(
     applyId: safeRef(input.userWorkspaceApplyResult, "applyId"),
     checkpointId: safeRef(input.rollbackCheckpoint, "checkpointId"),
     readinessId: safeRef(input.promotionReadiness, "readinessId"),
-    contractId: safeRef(input.userWorkspaceSnapshotBackupContract, "contractId"),
+    contractId: safeRef(
+      input.userWorkspaceSnapshotBackupContract,
+      "contractId"
+    ),
     operationCount: operationCountFrom(input.rollbackCheckpoint),
     blockerCount: missingCount,
     warningCount: warningCodes.length,

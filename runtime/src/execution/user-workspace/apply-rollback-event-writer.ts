@@ -167,7 +167,8 @@ type NormalizedInput = {
   createdAt: string;
 };
 
-const writerSource = "runtime_user_workspace_apply_rollback_event_writer" as const;
+const writerSource =
+  "runtime_user_workspace_apply_rollback_event_writer" as const;
 const defaultTimestamp = "2026-01-01T00:00:00.000Z";
 const rawPrefix = "raw";
 const preimageField = ["preimage", "Content"].join("");
@@ -326,15 +327,23 @@ export function validateUserWorkspaceApplyRollbackEventWriteInput(
   const findings: UserWorkspaceApplyRollbackEventWriteFinding[] = [];
   const disabled = normalized.recordMode === "disabled";
 
-  if (!disabled && normalized.applyResult === undefined && normalized.rollbackResult === undefined) {
-    findings.push(finding("precondition", "blocker", "USER_EVENT_WRITE_RESULT_MISSING"));
+  if (
+    !disabled &&
+    normalized.applyResult === undefined &&
+    normalized.rollbackResult === undefined
+  ) {
+    findings.push(
+      finding("precondition", "blocker", "USER_EVENT_WRITE_RESULT_MISSING")
+    );
   }
   if (
     normalized.recordMode === "explicit_summary_event_write" &&
     normalized.eventStore === undefined &&
     normalized.eventLogPath.length === 0
   ) {
-    findings.push(finding("event_store", "blocker", "USER_EVENT_WRITE_TARGET_MISSING"));
+    findings.push(
+      finding("event_store", "blocker", "USER_EVENT_WRITE_TARGET_MISSING")
+    );
   }
   if (normalized.applyResult !== undefined) {
     findings.push(...applyResultFindings(normalized.applyResult));
@@ -342,8 +351,13 @@ export function validateUserWorkspaceApplyRollbackEventWriteInput(
   if (normalized.rollbackResult !== undefined) {
     findings.push(...rollbackResultFindings(normalized.rollbackResult));
   }
-  if (normalized.applyResult !== undefined && normalized.rollbackResult !== undefined) {
-    findings.push(...linkFindings(normalized.applyResult, normalized.rollbackResult));
+  if (
+    normalized.applyResult !== undefined &&
+    normalized.rollbackResult !== undefined
+  ) {
+    findings.push(
+      ...linkFindings(normalized.applyResult, normalized.rollbackResult)
+    );
   }
   findings.push(...inputSafetyFindings(input));
   findings.push(...readinessFindings(input));
@@ -375,10 +389,16 @@ function resultFromInput(
       ].join("|")
     )}`;
   const validation = validateUserWorkspaceApplyRollbackEventWriteInput(input);
-  const plannedEvents = buildEventPreviews(normalized, writeId, input.idGenerator);
+  const plannedEvents = buildEventPreviews(
+    normalized,
+    writeId,
+    input.idGenerator
+  );
   const payloadFindings = generatedPayloadFindings(plannedEvents);
   const findings = uniqueFindings([...validation.findings, ...payloadFindings]);
-  const blockerCount = findings.filter((item) => item.severity === "blocker").length;
+  const blockerCount = findings.filter(
+    (item) => item.severity === "blocker"
+  ).length;
 
   if (normalized.recordMode === "disabled") {
     return resultEnvelope({
@@ -441,7 +461,9 @@ function resultFromInput(
       writtenEvents.push(written);
       writtenEventIds.push(written.id);
     } catch {
-      writeFindings.push(finding("write", "blocker", "USER_EVENT_WRITE_FAILED"));
+      writeFindings.push(
+        finding("write", "blocker", "USER_EVENT_WRITE_FAILED")
+      );
       break;
     }
   }
@@ -527,10 +549,30 @@ function buildEventPreviews(
   const events: UserWorkspaceApplyRollbackEventEnvelope[] = [];
   if (input.applyResult !== undefined) {
     events.push(
-      applyEvent(input, "user_workspace.patch_apply.proposed", writeId, idGenerator),
-      applyEvent(input, "user_workspace.patch_apply.validated", writeId, idGenerator),
-      applyEvent(input, "user_workspace.patch_apply.executed", writeId, idGenerator),
-      applyEvent(input, "user_workspace.patch_apply.result", writeId, idGenerator)
+      applyEvent(
+        input,
+        "user_workspace.patch_apply.proposed",
+        writeId,
+        idGenerator
+      ),
+      applyEvent(
+        input,
+        "user_workspace.patch_apply.validated",
+        writeId,
+        idGenerator
+      ),
+      applyEvent(
+        input,
+        "user_workspace.patch_apply.executed",
+        writeId,
+        idGenerator
+      ),
+      applyEvent(
+        input,
+        "user_workspace.patch_apply.result",
+        writeId,
+        idGenerator
+      )
     );
   }
   if (input.rollbackResult !== undefined) {
@@ -569,11 +611,15 @@ function applyEvent(
     eventKind: "apply",
     userWorkspaceRootRef: refFrom(apply, "userWorkspaceRootRef"),
     applyId: optionalRefFrom(apply, "applyId"),
-    proposalId: optionalRefFrom(apply, "proposalId") ?? optionalRefFrom(input.patchProposalPreview, "proposalId"),
+    proposalId:
+      optionalRefFrom(apply, "proposalId") ??
+      optionalRefFrom(input.patchProposalPreview, "proposalId"),
     validationId:
       optionalRefFrom(apply, "validationId") ??
       optionalRefFrom(input.patchValidationPreview, "validationId"),
-    auditId: optionalRefFrom(apply, "auditId") ?? optionalRefFrom(input.patchDiffAuditPreview, "auditId"),
+    auditId:
+      optionalRefFrom(apply, "auditId") ??
+      optionalRefFrom(input.patchDiffAuditPreview, "auditId"),
     approvalDraftId:
       optionalRefFrom(apply, "approvalDraftId") ??
       optionalRefFrom(input.patchApprovalDraft, "approvalDraftId"),
@@ -613,7 +659,10 @@ function rollbackEvent(
     rollbackId: optionalRefFrom(rollback, "rollbackId"),
     checkpointId:
       optionalRefFrom(rollback, "checkpointId") ??
-      optionalRefFrom(input.patchRollbackCheckpointPreview, "checkpointPreviewId"),
+      optionalRefFrom(
+        input.patchRollbackCheckpointPreview,
+        "checkpointPreviewId"
+      ),
     operationCount: numberFrom(rollback, "operationCount"),
     filesRestored: numberFrom(rollback, "filesRestored"),
     filesRemoved: numberFrom(rollback, "filesRemoved"),
@@ -694,7 +743,9 @@ function normalizeInput(
     patchDiffAuditPreview: optionalRecord(input.patchDiffAuditPreview),
     patchApprovalDraft: optionalRecord(input.patchApprovalDraft),
     patchVirtualApplyPreview: optionalRecord(input.patchVirtualApplyPreview),
-    patchRollbackCheckpointPreview: optionalRecord(input.patchRollbackCheckpointPreview),
+    patchRollbackCheckpointPreview: optionalRecord(
+      input.patchRollbackCheckpointPreview
+    ),
     approvalReceiptSummary: optionalRecord(input.approvalReceiptSummary),
     taskId: optionalSafeText(input.taskId),
     createdAt: safeTimestamp(input.createdAt)
@@ -705,14 +756,26 @@ function applyResultFindings(
   applyResult: SummaryRecord
 ): UserWorkspaceApplyRollbackEventWriteFinding[] {
   const findings: UserWorkspaceApplyRollbackEventWriteFinding[] = [];
-  if (refFrom(applyResult, "status") !== "applied_to_user_workspace_prototype") {
-    findings.push(finding("precondition", "blocker", "USER_EVENT_WRITE_APPLY_NOT_APPLIED"));
+  if (
+    refFrom(applyResult, "status") !== "applied_to_user_workspace_prototype"
+  ) {
+    findings.push(
+      finding("precondition", "blocker", "USER_EVENT_WRITE_APPLY_NOT_APPLIED")
+    );
   }
   if (refFrom(applyResult, "applyId").length === 0) {
-    findings.push(finding("precondition", "blocker", "USER_EVENT_WRITE_APPLY_ID_MISSING"));
+    findings.push(
+      finding("precondition", "blocker", "USER_EVENT_WRITE_APPLY_ID_MISSING")
+    );
   }
   if (refFrom(applyResult, "userWorkspaceRootRef").length === 0) {
-    findings.push(finding("precondition", "blocker", "USER_EVENT_WRITE_APPLY_ROOT_REF_MISSING"));
+    findings.push(
+      finding(
+        "precondition",
+        "blocker",
+        "USER_EVENT_WRITE_APPLY_ROOT_REF_MISSING"
+      )
+    );
   }
   return findings;
 }
@@ -721,9 +784,15 @@ function rollbackResultFindings(
   rollbackResult: SummaryRecord
 ): UserWorkspaceApplyRollbackEventWriteFinding[] {
   const findings: UserWorkspaceApplyRollbackEventWriteFinding[] = [];
-  if (refFrom(rollbackResult, "status") !== "rolled_back_user_workspace_prototype") {
+  if (
+    refFrom(rollbackResult, "status") !== "rolled_back_user_workspace_prototype"
+  ) {
     findings.push(
-      finding("precondition", "blocker", "USER_EVENT_WRITE_ROLLBACK_NOT_ROLLED_BACK")
+      finding(
+        "precondition",
+        "blocker",
+        "USER_EVENT_WRITE_ROLLBACK_NOT_ROLLED_BACK"
+      )
     );
   }
   if (refFrom(rollbackResult, "rollbackId").length === 0) {
@@ -733,12 +802,20 @@ function rollbackResultFindings(
   }
   if (refFrom(rollbackResult, "applyId").length === 0) {
     findings.push(
-      finding("precondition", "blocker", "USER_EVENT_WRITE_ROLLBACK_APPLY_ID_MISSING")
+      finding(
+        "precondition",
+        "blocker",
+        "USER_EVENT_WRITE_ROLLBACK_APPLY_ID_MISSING"
+      )
     );
   }
   if (refFrom(rollbackResult, "userWorkspaceRootRef").length === 0) {
     findings.push(
-      finding("precondition", "blocker", "USER_EVENT_WRITE_ROLLBACK_ROOT_REF_MISSING")
+      finding(
+        "precondition",
+        "blocker",
+        "USER_EVENT_WRITE_ROLLBACK_ROOT_REF_MISSING"
+      )
     );
   }
   return findings;
@@ -750,13 +827,17 @@ function linkFindings(
 ): UserWorkspaceApplyRollbackEventWriteFinding[] {
   const findings: UserWorkspaceApplyRollbackEventWriteFinding[] = [];
   if (refFrom(applyResult, "applyId") !== refFrom(rollbackResult, "applyId")) {
-    findings.push(finding("link", "blocker", "USER_EVENT_WRITE_APPLY_ID_MISMATCH"));
+    findings.push(
+      finding("link", "blocker", "USER_EVENT_WRITE_APPLY_ID_MISMATCH")
+    );
   }
   if (
     refFrom(applyResult, "userWorkspaceRootRef") !==
     refFrom(rollbackResult, "userWorkspaceRootRef")
   ) {
-    findings.push(finding("link", "blocker", "USER_EVENT_WRITE_ROOT_REF_MISMATCH"));
+    findings.push(
+      finding("link", "blocker", "USER_EVENT_WRITE_ROOT_REF_MISMATCH")
+    );
   }
   return findings;
 }
@@ -766,28 +847,64 @@ function warningFindings(
 ): UserWorkspaceApplyRollbackEventWriteFinding[] {
   const findings: UserWorkspaceApplyRollbackEventWriteFinding[] = [];
   if (input.recordMode === "dry_run") {
-    findings.push(finding("mode", "warning", "USER_EVENT_WRITE_DRY_RUN_NOT_WRITTEN"));
+    findings.push(
+      finding("mode", "warning", "USER_EVENT_WRITE_DRY_RUN_NOT_WRITTEN")
+    );
   }
   if (input.applyResult !== undefined && input.rollbackResult === undefined) {
-    findings.push(finding("link", "warning", "USER_EVENT_WRITE_ROLLBACK_RESULT_MISSING"));
+    findings.push(
+      finding("link", "warning", "USER_EVENT_WRITE_ROLLBACK_RESULT_MISSING")
+    );
   }
   if (input.rollbackResult !== undefined && input.applyResult === undefined) {
-    findings.push(finding("link", "warning", "USER_EVENT_WRITE_APPLY_RESULT_MISSING"));
+    findings.push(
+      finding("link", "warning", "USER_EVENT_WRITE_APPLY_RESULT_MISSING")
+    );
   }
   if (input.promotionReadiness === undefined) {
-    findings.push(finding("precondition", "warning", "USER_EVENT_WRITE_PROMOTION_READINESS_MISSING"));
+    findings.push(
+      finding(
+        "precondition",
+        "warning",
+        "USER_EVENT_WRITE_PROMOTION_READINESS_MISSING"
+      )
+    );
   }
   if (input.userWorkspaceSnapshotBackupContract === undefined) {
-    findings.push(finding("precondition", "warning", "USER_EVENT_WRITE_SNAPSHOT_CONTRACT_MISSING"));
+    findings.push(
+      finding(
+        "precondition",
+        "warning",
+        "USER_EVENT_WRITE_SNAPSHOT_CONTRACT_MISSING"
+      )
+    );
   }
   if (input.approvalReceiptSummary === undefined) {
-    findings.push(finding("precondition", "warning", "USER_EVENT_WRITE_APPROVAL_RECEIPT_SUMMARY_MISSING"));
+    findings.push(
+      finding(
+        "precondition",
+        "warning",
+        "USER_EVENT_WRITE_APPROVAL_RECEIPT_SUMMARY_MISSING"
+      )
+    );
   }
   if (numberFrom(input.applyResult, "warningCount") > 0) {
-    findings.push(finding("precondition", "warning", "USER_EVENT_WRITE_APPLY_WARNINGS_PRESENT"));
+    findings.push(
+      finding(
+        "precondition",
+        "warning",
+        "USER_EVENT_WRITE_APPLY_WARNINGS_PRESENT"
+      )
+    );
   }
   if (numberFrom(input.rollbackResult, "warningCount") > 0) {
-    findings.push(finding("precondition", "warning", "USER_EVENT_WRITE_ROLLBACK_WARNINGS_PRESENT"));
+    findings.push(
+      finding(
+        "precondition",
+        "warning",
+        "USER_EVENT_WRITE_ROLLBACK_WARNINGS_PRESENT"
+      )
+    );
   }
   return findings;
 }
@@ -823,7 +940,11 @@ function readinessFindings(
         lower.includes("appcanexecute"))
     ) {
       warnings.push(
-        finding("readiness", "blocker", "USER_EVENT_WRITE_EXECUTION_FLAG_REJECTED")
+        finding(
+          "readiness",
+          "blocker",
+          "USER_EVENT_WRITE_EXECUTION_FLAG_REJECTED"
+        )
       );
     }
   });
@@ -848,7 +969,9 @@ function previewFindings(
   }
   const type = refFrom(eventPreview, "type");
   if (type.length > 0 && !allowedInputPreviewTypes.has(type)) {
-    findings.push(finding("schema", "blocker", "USER_EVENT_WRITE_UNKNOWN_PREVIEW_TYPE"));
+    findings.push(
+      finding("schema", "blocker", "USER_EVENT_WRITE_UNKNOWN_PREVIEW_TYPE")
+    );
   }
   return findings;
 }
@@ -859,7 +982,9 @@ function generatedPayloadFindings(
   const findings: UserWorkspaceApplyRollbackEventWriteFinding[] = [];
   for (const event of events) {
     if (!generatedEventTypes.has(event.type)) {
-      findings.push(finding("schema", "blocker", "USER_EVENT_WRITE_UNKNOWN_EVENT_TYPE"));
+      findings.push(
+        finding("schema", "blocker", "USER_EVENT_WRITE_UNKNOWN_EVENT_TYPE")
+      );
     }
     for (const code of rawFieldWarningsFrom(event.payload)) {
       findings.push(finding("schema", "blocker", code));
@@ -881,7 +1006,9 @@ function rawFieldWarningsFrom(value: unknown): string[] {
   return uniqueStrings(warnings);
 }
 
-function nextActionFor(status: UserWorkspaceApplyRollbackEventWriteStatus): string {
+function nextActionFor(
+  status: UserWorkspaceApplyRollbackEventWriteStatus
+): string {
   if (status === "disabled") {
     return "Summary event writer is disabled by default. Use explicit runtime recordMode only in tests or controlled runtime calls.";
   }
@@ -1033,7 +1160,9 @@ function safeTimestamp(value: unknown): string {
     return defaultTimestamp;
   }
   const date = new Date(value);
-  return Number.isFinite(date.getTime()) ? date.toISOString() : defaultTimestamp;
+  return Number.isFinite(date.getTime())
+    ? date.toISOString()
+    : defaultTimestamp;
 }
 
 function optionalSafeText(value: unknown): string | undefined {

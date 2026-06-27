@@ -5869,9 +5869,7 @@ describe("app user workspace snapshot backup contract", () => {
     });
     const serialized = JSON.stringify(view);
 
-    expect(view.source).toBe(
-      "runtime_user_workspace_snapshot_backup_contract"
-    );
+    expect(view.source).toBe("runtime_user_workspace_snapshot_backup_contract");
     expect(view.status).not.toBe("empty");
     expect(view.status).not.toBe("blocked");
     expect(view.fileCount).toBeGreaterThan(0);
@@ -6170,9 +6168,7 @@ describe("app user workspace promotion readiness", () => {
   });
 
   it("builds promotion readiness from a safe summary chain", () => {
-    const view = buildUserWorkspacePromotionReadinessView(
-      safeReadinessInput()
-    );
+    const view = buildUserWorkspacePromotionReadinessView(safeReadinessInput());
     const serialized = JSON.stringify(view);
 
     expect(view.source).toBe("runtime_user_workspace_promotion_readiness");
@@ -6240,9 +6236,8 @@ describe("app user workspace promotion readiness", () => {
   });
 
   it("feeds Context Assembly and Audit Surface with summary-only readiness refs", () => {
-    const readiness = buildUserWorkspacePromotionReadinessView(
-      safeReadinessInput()
-    );
+    const readiness =
+      buildUserWorkspacePromotionReadinessView(safeReadinessInput());
     const contextPreview = buildContextAssemblyPreviewView({
       runDraft: buildRunDraftView({
         objectiveDraft: "Preview user workspace promotion readiness.",
@@ -6399,9 +6394,7 @@ describe("app user workspace apply prototype", () => {
     const combined = `${appSource}\n${adapterSource}`;
 
     expect(appSource).toContain("User Workspace Apply Prototype");
-    expect(appSource).toContain(
-      "Disabled by default / runtime prototype only"
-    );
+    expect(appSource).toContain("Disabled by default / runtime prototype only");
     expect(appSource).toContain("Apply to User Workspace (disabled)");
     expect(appSource).toMatch(
       /The App Shell cannot apply\s+patches to the user\s+workspace/
@@ -6493,9 +6486,7 @@ describe("app user workspace rollback prototype", () => {
     const combined = `${appSource}\n${adapterSource}`;
 
     expect(appSource).toContain("User Workspace Rollback Prototype");
-    expect(appSource).toContain(
-      "Disabled by default / runtime prototype only"
-    );
+    expect(appSource).toContain("Disabled by default / runtime prototype only");
     expect(appSource).toContain("Rollback User Workspace (disabled)");
     expect(appSource).toMatch(
       /The App Shell cannot rollback\s+the user\s+workspace/
@@ -6589,9 +6580,7 @@ describe("app user workspace apply rollback event writer", () => {
     );
     const combined = `${appSource}\n${adapterSource}`;
 
-    expect(appSource).toContain(
-      "User Workspace Apply / Rollback Event Writer"
-    );
+    expect(appSource).toContain("User Workspace Apply / Rollback Event Writer");
     expect(appSource).toContain("Runtime only / App write disabled");
     expect(appSource).toContain("Write Apply/Rollback Events (disabled)");
     expect(appSource).toMatch(
@@ -6737,6 +6726,77 @@ describe("app approval execution design", () => {
     expect(adapterSource).not.toContain("localStorage");
     expect(adapterSource).not.toContain("sessionStorage");
     expect(desktopFlowSource).not.toContain("app_approval_execution");
+  });
+
+  it("locks v0.7 user workspace RC copy to disabled App execution", async () => {
+    const appSource = await readFile(
+      path.join(appRoot, "src", "App.tsx"),
+      "utf8"
+    );
+    const forbiddenExecutionHandlers = [
+      "handleApplyUserWorkspace",
+      "handleRollbackUserWorkspace",
+      "handleWriteUserWorkspaceEvents",
+      "handleApproveApply",
+      "handleRejectApply",
+      "handleIssuePermissionLease",
+      "handleCommitUserWorkspace",
+      "handleExecuteUserWorkspace"
+    ];
+
+    expect(appSource).toContain("Metadata only / no user workspace apply");
+    expect(appSource).toMatch(
+      /No files are read or written,\s+and no backup is\s+created/
+    );
+    expect(appSource).toContain("Readiness only / no write");
+    expect(appSource).toMatch(
+      /Readiness passing does not enable App\s+execution/
+    );
+    expect(appSource).toContain("Disabled by default / runtime prototype only");
+    expect(appSource).toMatch(
+      /The App Shell cannot apply\s+patches to the user\s+workspace/
+    );
+    expect(appSource).toMatch(
+      /The App Shell cannot rollback\s+the user\s+workspace/
+    );
+    expect(appSource).toContain("Runtime only / App write disabled");
+    expect(appSource).toMatch(
+      /The\s+App\s+Shell\s+cannot\s+write\s+these\s+events/
+    );
+    expect(appSource).toContain("Design only / disabled");
+    expect(appSource).toMatch(
+      /The App Shell\s+cannot approve,\s+reject,\s+issue leases,\s+apply patches,\s+rollback,\s+or\s+write apply events/
+    );
+    expect(appSource).toContain(
+      "Read-only. No approval, apply, rollback, commit, or execution"
+    );
+    expect(appSource).toContain(
+      "No prompt is assembled and no model request is sent."
+    );
+    expect(appSource).toMatch(
+      /No capability is invoked and no\s+permission lease is issued/
+    );
+    expect(appSource).toContain("Event log events");
+    expect(appSource).toContain("Source-tree mode");
+    expect(appSource).toContain("No native bridge");
+    expect(appSource).toContain("Apply to User Workspace (disabled)");
+    expect(appSource).toContain("Rollback User Workspace (disabled)");
+    expect(appSource).toContain("Write Apply/Rollback Events (disabled)");
+    expect(appSource).toContain("Approve Apply (disabled)");
+    expect(appSource).toContain("Reject Apply (disabled)");
+    expect(appSource).toContain("Issue Permission Lease (disabled)");
+    for (const handlerName of forbiddenExecutionHandlers) {
+      expect(appSource).not.toContain(handlerName);
+    }
+    expect(appSource).not.toContain("DeepSeek chat works");
+    expect(appSource).not.toContain("Create Run works");
+    expect(appSource).not.toContain("Execute Run works");
+    expect(appSource).not.toContain("App can apply user workspace");
+    expect(appSource).not.toContain("App can rollback user workspace");
+    expect(appSource).not.toContain("App can approve");
+    expect(appSource).not.toContain("Git execution works");
+    expect(appSource).not.toContain("Shell execution works");
+    expect(appSource).not.toContain("Native bridge is enabled");
   });
 });
 
@@ -8630,6 +8690,99 @@ describe("desktop source boundaries", () => {
     expect(combined).toContain("app-shell-sandbox-apply-rc-checklist.md");
   });
 
+  it("documents the v0.7 user workspace apply preview RC without enabling App execution", async () => {
+    const releaseNotes = await readFile(
+      path.join(
+        repoRoot,
+        "docs",
+        "release-notes-v0.7.0-user-workspace-apply-preview-rc.1.md"
+      ),
+      "utf8"
+    );
+    const manualQa = await readFile(
+      path.join(
+        repoRoot,
+        "docs",
+        "app-shell-user-workspace-apply-manual-qa.md"
+      ),
+      "utf8"
+    );
+    const checklist = await readFile(
+      path.join(
+        repoRoot,
+        "docs",
+        "app-shell-user-workspace-apply-rc-checklist.md"
+      ),
+      "utf8"
+    );
+    const docsIndex = await readFile(
+      path.join(repoRoot, "docs", "README.md"),
+      "utf8"
+    );
+    const rootReadme = await readFile(path.join(repoRoot, "README.md"), "utf8");
+    const appReadme = await readFile(path.join(appRoot, "README.md"), "utf8");
+    const combined = `${releaseNotes}\n${manualQa}\n${checklist}\n${docsIndex}\n${rootReadme}\n${appReadme}`;
+
+    expect(combined).toContain("v0.7.0-user-workspace-apply-preview-rc.1");
+    expect(combined).toContain(
+      "User workspace apply/rollback runtime prototypes"
+    );
+    expect(combined).toContain(
+      "v0.6 sandbox disposable apply/rollback prototypes"
+    );
+    expect(combined).toContain("P0K user workspace apply promotion ADR");
+    expect(combined).toContain("User Workspace Snapshot / Backup Contract");
+    expect(combined).toContain("Promotion Readiness Checker");
+    expect(combined).toContain("User Workspace Apply Prototype");
+    expect(combined).toContain("User Workspace Rollback Prototype");
+    expect(combined).toContain("Runtime Apply/Rollback EventStore Writer");
+    expect(combined).toContain("App Approval Execution Design");
+    expect(combined).toContain("web_table_to_csv");
+    expect(combined).toContain("Record Draft Event");
+    expect(combined).toContain("explicit fixture roots");
+    expect(combined).toContain("summary-only apply/rollback events");
+    expect(combined).toContain(
+      "App Shell does not execute apply, rollback, event write, approval execution"
+    );
+    expect(combined).toContain("No real DeepSeek chat");
+    expect(combined).toContain("No real ControlPlaneRun execution");
+    expect(combined).toContain("No App-side user workspace patch apply");
+    expect(combined).toContain("No App-side rollback");
+    expect(combined).toContain("No App-side apply/rollback EventStore write");
+    expect(combined).toContain("No Git commit or push");
+    expect(combined).toContain("No shell execution");
+    expect(combined).toContain("No capability invocation");
+    expect(combined).toContain("No production PermissionLease issuance");
+    expect(combined).toContain("No MCP/plugin/skills runtime");
+    expect(combined).toContain("No `nativeMessaging` or live bridge");
+    expect(combined).toContain("No desktop action");
+    expect(combined).toContain("Runtime explicit fixture root only");
+    expect(combined).toMatch(/[Cc]anonical\s+path\s+guard/);
+    expect(combined).toContain("Symlink, junction, and reparse point");
+    expect(combined).toContain("Backup and preimage content");
+    expect(combined).toContain("summary-only");
+    expect(combined).toContain("App disabled-only");
+    expect(combined).toContain("git status --short");
+    expect(combined).toContain("pnpm verify:ci");
+    expect(combined).toContain("pnpm release:smoke");
+    expect(combined).toContain("pnpm app:qa:check");
+    expect(combined).toContain("pnpm app:dev");
+    expect(combined).toContain("D:\\workspaces\\demo");
+    expect(combined).toContain("web-table-export-p0k.csv");
+    expect(combined).toContain("FILE_EXISTS");
+    expect(combined).toContain("PASSWORD_VALUE_MARKER");
+    expect(combined).toContain("GitHub Actions");
+    expect(combined).toContain("Generated Artifacts");
+    expect(combined).toContain("Rollback Guidance");
+    expect(combined).toContain(
+      "release-notes-v0.7.0-user-workspace-apply-preview-rc.1.md"
+    );
+    expect(combined).toContain("app-shell-user-workspace-apply-manual-qa.md");
+    expect(combined).toContain(
+      "app-shell-user-workspace-apply-rc-checklist.md"
+    );
+  });
+
   it("documents the v0.6 post-release review and P0K promotion roadmap without enabling user workspace apply", async () => {
     const review = await readFile(
       path.join(repoRoot, "docs", "v0.6-sandbox-apply-postrelease-review.md"),
@@ -8965,9 +9118,7 @@ describe("desktop source boundaries", () => {
     );
     const combined = `${runtimeDoc}\n${appDoc}\n${docsIndex}`;
 
-    expect(combined).toContain(
-      "User Workspace Apply / Rollback Event Writer"
-    );
+    expect(combined).toContain("User Workspace Apply / Rollback Event Writer");
     expect(combined).toContain("runtime-only");
     expect(combined).toContain("summary-only events");
     expect(combined).toContain('recordMode: "explicit_summary_event_write"');

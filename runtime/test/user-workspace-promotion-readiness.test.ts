@@ -411,7 +411,9 @@ describe("user workspace promotion readiness helper", () => {
 
   it("warns when backup requirements exist while preimage capture remains deferred", () => {
     const readiness = buildUserWorkspacePromotionReadiness(
-      safeInput({ userWorkspaceSnapshotBackupContract: backupRequiredUserContract() })
+      safeInput({
+        userWorkspaceSnapshotBackupContract: backupRequiredUserContract()
+      })
     );
 
     expect(readiness.status).toBe("warning");
@@ -419,8 +421,9 @@ describe("user workspace promotion readiness helper", () => {
       "PROMOTION_PREIMAGE_CAPTURE_DEFERRED_FOR_BACKUP_REQUIREMENTS"
     );
     expect(
-      readiness.gates.find((gate) => gate.name === "backup_preimage_requirement")
-        ?.status
+      readiness.gates.find(
+        (gate) => gate.name === "backup_preimage_requirement"
+      )?.status
     ).toBe("warning");
   });
 

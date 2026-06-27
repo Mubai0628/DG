@@ -153,16 +153,39 @@ v0.6 Sandbox Apply Preview RC references:
 - [App Shell Sandbox Apply manual QA](docs/app-shell-sandbox-apply-manual-qa.md)
 - [App Shell Sandbox Apply RC checklist](docs/app-shell-sandbox-apply-rc-checklist.md)
 
+## v0.7 User Workspace Apply Preview RC status
+
+Recommended tag:
+`v0.7.0-user-workspace-apply-preview-rc.1`.
+
+The P0K user workspace apply line adds runtime-only user workspace apply and
+rollback prototypes behind explicit fixture roots, plus a runtime-only
+summary-event writer and disabled App approval execution design. The App Shell
+cannot apply, rollback, approve, reject, issue PermissionLeases, write
+apply/rollback events, run Git or shell commands, call DeepSeek, enable a
+native bridge, or perform desktop actions.
+
+The real working flow remains the v0.1 local `web_table_to_csv` Convert path.
+Record Draft Event remains the App/Tauri local summary-event write path.
+
+v0.7 User Workspace Apply Preview RC references:
+
+- [v0.7.0 User Workspace Apply Preview RC release notes](docs/release-notes-v0.7.0-user-workspace-apply-preview-rc.1.md)
+- [App Shell User Workspace Apply manual QA](docs/app-shell-user-workspace-apply-manual-qa.md)
+- [App Shell User Workspace Apply RC checklist](docs/app-shell-user-workspace-apply-rc-checklist.md)
+
 ## Current roadmap
 
 P0F is complete after `v0.2.0-app-shell-rc.1`, P0G is complete after
 `v0.3.0-coding-workflow-preview-rc.1`, P0H is complete after
 `v0.4.0-controlled-creation-preview-rc.1`, and P0I is complete after
-`v0.5.0-validation-approval-virtual-apply-preview-rc.1`. The next phase is P0J
-Sandboxed Real Apply Path Design. Real user workspace patch apply, run
-execution, Git execution, shell execution, broad capability invocation,
-PermissionLease issuing for production mutation, memory persistence UI,
-MCP/plugin/skills runtime, native bridge, and desktop action remain deferred.
+`v0.5.0-validation-approval-virtual-apply-preview-rc.1`. P0J is complete after
+`v0.6.0-sandbox-apply-preview-rc.1`. P0K is in RC polish for
+`v0.7.0-user-workspace-apply-preview-rc.1`. App-side user workspace apply,
+rollback, approval execution, apply/rollback event writes, run execution, Git
+execution, shell execution, broad capability invocation, production
+PermissionLease issuing, memory persistence UI, MCP/plugin/skills runtime,
+native bridge, and desktop action remain deferred.
 
 - [v0.2 App Shell RC post-release review](docs/v0.2-app-shell-rc-postrelease-review.md)
 - [P0G Coding Workflow roadmap](docs/p0g-coding-workflow-roadmap.md)
@@ -182,6 +205,7 @@ MCP/plugin/skills runtime, native bridge, and desktop action remain deferred.
 - [Sandboxed Real Apply Implementation Gate v0.5](docs/sandboxed-real-apply-implementation-gate-v0.5.md)
 - [P0J-002 Disposable Workspace Snapshot Contract plan](docs/p0j-002-disposable-workspace-snapshot-contract-plan.md)
 - [v0.6.0 Sandbox Apply Preview RC release notes](docs/release-notes-v0.6.0-sandbox-apply-preview-rc.1.md)
+- [v0.7.0 User Workspace Apply Preview RC release notes](docs/release-notes-v0.7.0-user-workspace-apply-preview-rc.1.md)
 
 ## What v0.1.0 does not support
 

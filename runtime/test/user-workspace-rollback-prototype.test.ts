@@ -53,7 +53,11 @@ function sha256(value: string): string {
   return createHash("sha256").update(value, "utf8").digest("hex");
 }
 
-function writeFixture(root: string, relativePath: string, content: string): void {
+function writeFixture(
+  root: string,
+  relativePath: string,
+  content: string
+): void {
   const target = path.join(root, ...relativePath.split("/"));
   mkdirSync(path.dirname(target), { recursive: true });
   writeFileSync(target, content, "utf8");
@@ -254,7 +258,9 @@ describe("user workspace rollback prototype", () => {
   it("blocks mismatched apply id", () => {
     const root = makeUserWorkspaceRoot("mismatch-apply");
     const result = rollbackUserWorkspaceApplyPrototype(
-      safeInput(root, { rollbackCheckpoint: checkpoint({ applyId: "other-apply" }) })
+      safeInput(root, {
+        rollbackCheckpoint: checkpoint({ applyId: "other-apply" })
+      })
     );
 
     expect(result.status).toBe("blocked");
@@ -567,7 +573,9 @@ describe("user workspace rollback prototype", () => {
             }
           ]
         }),
-        operations: [baseOperation({ path: "linked/file.ts", changeKind: "delete" })],
+        operations: [
+          baseOperation({ path: "linked/file.ts", changeKind: "delete" })
+        ],
         approvalReceipt: approvalReceipt({
           scope: {
             ...approvalReceipt().scope,
@@ -600,7 +608,9 @@ describe("user workspace rollback prototype", () => {
             }
           ]
         }),
-        operations: [baseOperation({ path: "src/existing.ts", changeKind: "update" })],
+        operations: [
+          baseOperation({ path: "src/existing.ts", changeKind: "update" })
+        ],
         approvalReceipt: approvalReceipt({
           scope: {
             ...approvalReceipt().scope,
@@ -632,7 +642,9 @@ describe("user workspace rollback prototype", () => {
             }
           ]
         }),
-        operations: [baseOperation({ path: "src/secret.ts", changeKind: "delete" })],
+        operations: [
+          baseOperation({ path: "src/secret.ts", changeKind: "delete" })
+        ],
         approvalReceipt: approvalReceipt({
           scope: {
             ...approvalReceipt().scope,
@@ -700,7 +712,9 @@ describe("user workspace rollback prototype", () => {
             }
           ]
         }),
-        operations: [baseOperation({ path: "src/large.ts", changeKind: "delete" })],
+        operations: [
+          baseOperation({ path: "src/large.ts", changeKind: "delete" })
+        ],
         approvalReceipt: approvalReceipt({
           scope: {
             ...approvalReceipt().scope,

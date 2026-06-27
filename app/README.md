@@ -21,8 +21,12 @@ Current scope:
   summary bridge, Disposable Workspace Snapshot Contract, Context Assembly
   Preview, disabled Disposable Patch Apply Prototype status, disabled
   Disposable Patch Rollback Prototype status, Sandbox Apply / Rollback Event
-  Projection, disabled Approval-Gated Disposable Apply status, and disabled
-  Bridge Proposal Preview
+  Projection, disabled Approval-Gated Disposable Apply status, User Workspace
+  Snapshot / Backup Contract, User Workspace Promotion Readiness, disabled
+  User Workspace Apply Prototype status, disabled User Workspace Rollback
+  Prototype status, disabled User Workspace Apply / Rollback Event Writer
+  status, disabled App Approval Execution Design, and disabled Bridge Proposal
+  Preview
 - show Memory Recall Preview through the runtime Memory Core preview helper
   using in-memory summaries only; no memory persistence, commit, revoke, or
   expire operation is connected
@@ -37,6 +41,10 @@ Current scope:
   checkpoint-preview, and replay-preview copy
 - prepare the v0.6 sandbox apply preview RC with runtime-only disposable
   apply/rollback prototypes while App Shell apply and rollback remain disabled
+- prepare the v0.7 user workspace apply preview RC with runtime-only explicit
+  fixture-root user workspace apply/rollback prototypes while App Shell apply,
+  rollback, event write, approval, rejection, and PermissionLease issuance
+  remain disabled
 
 Current limitations:
 
@@ -66,8 +74,14 @@ Current limitations:
   disabled in the App Shell and is not connected to the runtime rollback helper;
   Sandbox Apply / Rollback Event Projection only previews not-written event
   envelopes; Approval-Gated Disposable Apply is disabled in the App Shell and
-  does not accept approval receipts or issue PermissionLeases; none of these
-  App surfaces reads or writes files
+  does not accept approval receipts or issue PermissionLeases; User Workspace
+  Snapshot / Backup Contract is metadata-only, User Workspace Promotion
+  Readiness is no-write, User Workspace Apply Prototype and User Workspace
+  Rollback Prototype are disabled in the App Shell and are not connected to the
+  runtime fixture-root helpers, User Workspace Apply / Rollback Event Writer is
+  runtime-only and App write disabled, and App Approval Execution Design is
+  design-only with no approve, reject, apply, rollback, event write, or
+  PermissionLease controls; none of these App surfaces reads or writes files
 - no validation, audit, approval, virtual apply, rollback, or replay preview is
   an apply/approval/rollback/execution lane
 - no real DeepSeek API call from the desktop shell

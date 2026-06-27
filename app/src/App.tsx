@@ -944,19 +944,18 @@ export function DesktopShell(): JSX.Element {
         displayedUserWorkspaceSnapshotBackup
       ]
     );
-  const userWorkspaceEventWriterView =
-    useMemo<AppUserWorkspaceEventWriterView>(
-      () =>
-        buildUserWorkspaceEventWriterView({
-          promotionReadiness: displayedUserWorkspacePromotionReadiness,
-          userWorkspaceSnapshotBackupContract:
-            displayedUserWorkspaceSnapshotBackup
-        }),
-      [
-        displayedUserWorkspacePromotionReadiness,
-        displayedUserWorkspaceSnapshotBackup
-      ]
-    );
+  const userWorkspaceEventWriterView = useMemo<AppUserWorkspaceEventWriterView>(
+    () =>
+      buildUserWorkspaceEventWriterView({
+        promotionReadiness: displayedUserWorkspacePromotionReadiness,
+        userWorkspaceSnapshotBackupContract:
+          displayedUserWorkspaceSnapshotBackup
+      }),
+    [
+      displayedUserWorkspacePromotionReadiness,
+      displayedUserWorkspaceSnapshotBackup
+    ]
+  );
   const appApprovalExecutionDesignView =
     useMemo<AppApprovalExecutionDesignView>(
       () =>
@@ -3990,9 +3989,9 @@ export function DesktopShell(): JSX.Element {
               <span className="muted">Readiness only / no write</span>
             </div>
             <p className="fieldHelp">
-              Checks whether sandbox apply/rollback summaries and user
-              workspace metadata are sufficient for a future promotion gate. No
-              files are read or written.
+              Checks whether sandbox apply/rollback summaries and user workspace
+              metadata are sufficient for a future promotion gate. No files are
+              read or written. Readiness passing does not enable App execution.
             </p>
             <div className="buttonRow">
               <button
@@ -4011,8 +4010,8 @@ export function DesktopShell(): JSX.Element {
             {displayedUserWorkspacePromotionReadiness.status === "empty" ? (
               <p className="empty">
                 Preview the user workspace snapshot contract and sandbox
-                summaries to evaluate promotion readiness. This checker does
-                not enable apply.
+                summaries to evaluate promotion readiness. This checker does not
+                enable apply.
               </p>
             ) : null}
 
@@ -4073,7 +4072,9 @@ export function DesktopShell(): JSX.Element {
               </div>
               <div>
                 <dt>Hash</dt>
-                <dd>{displayedUserWorkspacePromotionReadiness.readinessHash}</dd>
+                <dd>
+                  {displayedUserWorkspacePromotionReadiness.readinessHash}
+                </dd>
               </div>
             </dl>
 
@@ -4155,10 +4156,9 @@ export function DesktopShell(): JSX.Element {
                     {gate.blockerCodes.length > 0 ||
                     gate.warningCodes.length > 0 ? (
                       <span className="timelineMeta">
-                        {[
-                          ...gate.blockerCodes,
-                          ...gate.warningCodes
-                        ].join(", ")}
+                        {[...gate.blockerCodes, ...gate.warningCodes].join(
+                          ", "
+                        )}
                       </span>
                     ) : null}
                   </li>
@@ -4372,8 +4372,7 @@ export function DesktopShell(): JSX.Element {
               <div>
                 <dt>User workspace mutation</dt>
                 <dd>
-                  {userWorkspaceRollbackPrototypeView
-                    .userWorkspaceMutationEnabled
+                  {userWorkspaceRollbackPrototypeView.userWorkspaceMutationEnabled
                     ? "enabled"
                     : "disabled"}
                 </dd>
@@ -4389,8 +4388,7 @@ export function DesktopShell(): JSX.Element {
               <div>
                 <dt>Approval receipt input</dt>
                 <dd>
-                  {userWorkspaceRollbackPrototypeView
-                    .approvalReceiptInputEnabled
+                  {userWorkspaceRollbackPrototypeView.approvalReceiptInputEnabled
                     ? "enabled"
                     : "disabled"}
                 </dd>
@@ -4434,9 +4432,7 @@ export function DesktopShell(): JSX.Element {
           >
             <div className="panelHeader">
               <h2>User Workspace Apply / Rollback Event Writer</h2>
-              <span className="muted">
-                Runtime only / App write disabled
-              </span>
+              <span className="muted">Runtime only / App write disabled</span>
             </div>
             <p className="fieldHelp">
               Runtime tests can persist summary-only apply/rollback events. The
@@ -4503,7 +4499,8 @@ export function DesktopShell(): JSX.Element {
                 <dt>Apply / rollback result</dt>
                 <dd>
                   {userWorkspaceEventWriterView.userWorkspaceApplyId || "n/a"} /{" "}
-                  {userWorkspaceEventWriterView.userWorkspaceRollbackId || "n/a"}
+                  {userWorkspaceEventWriterView.userWorkspaceRollbackId ||
+                    "n/a"}
                 </dd>
               </div>
               <div>
