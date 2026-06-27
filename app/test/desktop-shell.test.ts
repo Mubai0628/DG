@@ -107,6 +107,7 @@ import {
 } from "../src/user-workspace-promotion-readiness-view.js";
 import { buildUserWorkspaceApplyPrototypeView } from "../src/user-workspace-apply-prototype-view.js";
 import { buildUserWorkspaceRollbackPrototypeView } from "../src/user-workspace-rollback-prototype-view.js";
+import { buildUserWorkspaceEventWriterView } from "../src/user-workspace-event-writer-view.js";
 import { buildDisposablePatchApplyView } from "../src/disposable-patch-apply-view.js";
 import { buildApprovalGatedDisposableApplyView } from "../src/approval-gated-disposable-apply-view.js";
 import { buildDisposablePatchRollbackView } from "../src/disposable-patch-rollback-view.js";
@@ -6511,6 +6512,102 @@ describe("app user workspace rollback prototype", () => {
   });
 });
 
+describe("app user workspace apply rollback event writer", () => {
+  it("shows runtime-only disabled event writer state", () => {
+    const view = buildUserWorkspaceEventWriterView();
+
+    expect(view.source).toBe("app_user_workspace_event_writer_disabled");
+    expect(view.status).toBe("disabled");
+    expect(view.disabledByDefault).toBe(true);
+    expect(view.runtimeOnly).toBe(true);
+    expect(view.runtimeHelperAvailable).toBe(true);
+    expect(view.appWriteConnected).toBe(false);
+    expect(view.eventWriteButtonEnabled).toBe(false);
+    expect(view.eventPayloadInputEnabled).toBe(false);
+    expect(view.rawContentInputEnabled).toBe(false);
+    expect(view.applyExecutionEnabled).toBe(false);
+    expect(view.rollbackExecutionEnabled).toBe(false);
+    expect(view.tauriCommandEnabled).toBe(false);
+    expect(view.gitExecutionEnabled).toBe(false);
+    expect(view.shellExecutionEnabled).toBe(false);
+    expect(view.warningCodes).toEqual(
+      expect.arrayContaining([
+        "USER_WORKSPACE_EVENT_WRITER_APPLY_RESULT_MISSING",
+        "USER_WORKSPACE_EVENT_WRITER_ROLLBACK_RESULT_MISSING",
+        "USER_WORKSPACE_EVENT_WRITER_APP_WRITE_DISABLED"
+      ])
+    );
+  });
+
+  it("summarizes apply and rollback refs without enabling App writes", () => {
+    const view = buildUserWorkspaceEventWriterView({
+      userWorkspaceApplyResult: {
+        applyId: "user-apply-1",
+        userWorkspaceRootRef: "user-root-ref"
+      },
+      userWorkspaceRollbackResult: {
+        rollbackId: "user-rollback-1",
+        userWorkspaceRootRef: "user-root-ref"
+      },
+      promotionReadiness: { readinessId: "readiness-1" },
+      userWorkspaceSnapshotBackupContract: {
+        contractId: "contract-1",
+        userWorkspaceRootRef: "user-root-ref"
+      }
+    });
+    const serialized = JSON.stringify(view);
+
+    expect(view.status).toBe("disabled");
+    expect(view.userWorkspaceApplyId).toBe("user-apply-1");
+    expect(view.userWorkspaceRollbackId).toBe("user-rollback-1");
+    expect(view.userWorkspaceRootRef).toBe("user-root-ref");
+    expect(view.readinessId).toBe("readiness-1");
+    expect(view.contractId).toBe("contract-1");
+    expect(view.eventWriteButtonEnabled).toBe(false);
+    expect(view.eventPayloadInputEnabled).toBe(false);
+    expect(serialized).not.toContain("raw source");
+    expect(serialized).not.toContain("raw diff");
+    expect(serialized).not.toMatch(/"preimageContent"\s*:/);
+  });
+
+  it("keeps App Shell disconnected from apply rollback event writes", async () => {
+    const appSource = await readFile(
+      path.join(appRoot, "src", "App.tsx"),
+      "utf8"
+    );
+    const adapterSource = await readFile(
+      path.join(appRoot, "src", "user-workspace-event-writer-view.ts"),
+      "utf8"
+    );
+    const desktopFlowSource = await readFile(
+      path.join(appRoot, "src", "desktop-flow.ts"),
+      "utf8"
+    );
+    const combined = `${appSource}\n${adapterSource}`;
+
+    expect(appSource).toContain(
+      "User Workspace Apply / Rollback Event Writer"
+    );
+    expect(appSource).toContain("Runtime only / App write disabled");
+    expect(appSource).toContain("Write Apply/Rollback Events (disabled)");
+    expect(appSource).toMatch(
+      /The\s+App\s+Shell\s+cannot\s+write\s+these\s+events\s+or\s+execute\s+apply\/rollback/
+    );
+    expect(combined).not.toContain("writeUserWorkspaceApplyRollbackEvents");
+    expect(combined).not.toContain("handleWriteUserWorkspaceEvents");
+    expect(combined).not.toContain("handleWriteApplyRollbackEvents");
+    expect(combined).not.toContain("eventPayloadDraft");
+    expect(adapterSource).not.toContain("safeInvoke");
+    expect(adapterSource).not.toContain("EventStore");
+    expect(adapterSource).not.toContain("readFile");
+    expect(adapterSource).not.toContain("writeFile");
+    expect(adapterSource).not.toContain("localStorage");
+    expect(adapterSource).not.toContain("sessionStorage");
+    expect(desktopFlowSource).not.toContain("user_workspace.patch_apply");
+    expect(desktopFlowSource).not.toContain("user_workspace.patch_rollback");
+  });
+});
+
 describe("app disposable patch apply prototype", () => {
   it("shows disabled-by-default state without app execution", () => {
     const view = buildDisposablePatchApplyView();
@@ -8710,6 +8807,54 @@ describe("desktop source boundaries", () => {
     );
     expect(docsIndex).toContain(
       "app-shell-user-workspace-rollback-prototype-v0.6.md"
+    );
+  });
+
+  it("documents the user workspace apply rollback event writer as runtime-only", async () => {
+    const runtimeDoc = await readFile(
+      path.join(
+        repoRoot,
+        "docs",
+        "runtime-user-workspace-apply-rollback-event-writer-v0.6.md"
+      ),
+      "utf8"
+    );
+    const appDoc = await readFile(
+      path.join(
+        repoRoot,
+        "docs",
+        "app-shell-user-workspace-apply-rollback-event-writer-v0.6.md"
+      ),
+      "utf8"
+    );
+    const docsIndex = await readFile(
+      path.join(repoRoot, "docs", "README.md"),
+      "utf8"
+    );
+    const combined = `${runtimeDoc}\n${appDoc}\n${docsIndex}`;
+
+    expect(combined).toContain(
+      "User Workspace Apply / Rollback Event Writer"
+    );
+    expect(combined).toContain("runtime-only");
+    expect(combined).toContain("summary-only events");
+    expect(combined).toContain('recordMode: "explicit_summary_event_write"');
+    expect(combined).toContain("App Shell cannot write these events");
+    expect(combined).toContain("No App-side EventStore write");
+    expect(combined).toContain("No Tauri command");
+    expect(combined).toContain("No apply execution");
+    expect(combined).toContain("No rollback execution");
+    expect(combined).toContain("No Git commit or push");
+    expect(combined).toContain("No shell execution");
+    expect(combined).toContain("No raw content");
+    expect(combined).toContain("No native bridge");
+    expect(combined).toContain("No desktop action");
+    expect(combined).toContain("P0K-007");
+    expect(docsIndex).toContain(
+      "runtime-user-workspace-apply-rollback-event-writer-v0.6.md"
+    );
+    expect(docsIndex).toContain(
+      "app-shell-user-workspace-apply-rollback-event-writer-v0.6.md"
     );
   });
 

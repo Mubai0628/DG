@@ -150,6 +150,10 @@ import {
   type AppUserWorkspaceRollbackPrototypeView
 } from "./user-workspace-rollback-prototype-view.js";
 import {
+  buildUserWorkspaceEventWriterView,
+  type AppUserWorkspaceEventWriterView
+} from "./user-workspace-event-writer-view.js";
+import {
   buildDisposablePatchApplyView,
   type AppDisposablePatchApplyView
 } from "./disposable-patch-apply-view.js";
@@ -929,6 +933,19 @@ export function DesktopShell(): JSX.Element {
           userWorkspaceSnapshotBackupContract:
             displayedUserWorkspaceSnapshotBackup,
           promotionReadiness: displayedUserWorkspacePromotionReadiness
+        }),
+      [
+        displayedUserWorkspacePromotionReadiness,
+        displayedUserWorkspaceSnapshotBackup
+      ]
+    );
+  const userWorkspaceEventWriterView =
+    useMemo<AppUserWorkspaceEventWriterView>(
+      () =>
+        buildUserWorkspaceEventWriterView({
+          promotionReadiness: displayedUserWorkspacePromotionReadiness,
+          userWorkspaceSnapshotBackupContract:
+            displayedUserWorkspaceSnapshotBackup
         }),
       [
         displayedUserWorkspacePromotionReadiness,
@@ -4378,6 +4395,110 @@ export function DesktopShell(): JSX.Element {
             ) : null}
             <p className="fieldHelp">
               {userWorkspaceRollbackPrototypeView.nextAction}
+            </p>
+          </section>
+
+          <section
+            className="eventPanel"
+            aria-label="User Workspace Apply / Rollback Event Writer"
+          >
+            <div className="panelHeader">
+              <h2>User Workspace Apply / Rollback Event Writer</h2>
+              <span className="muted">
+                Runtime only / App write disabled
+              </span>
+            </div>
+            <p className="fieldHelp">
+              Runtime tests can persist summary-only apply/rollback events. The
+              App Shell cannot write these events or execute apply/rollback.
+            </p>
+            <div className="buttonRow">
+              <button
+                type="button"
+                className="secondary"
+                disabled
+                aria-disabled="true"
+              >
+                Write Apply/Rollback Events (disabled)
+              </button>
+            </div>
+            <dl className="summaryGrid compact">
+              <div>
+                <dt>Status</dt>
+                <dd>{userWorkspaceEventWriterView.status}</dd>
+              </div>
+              <div>
+                <dt>Runtime helper</dt>
+                <dd>
+                  {userWorkspaceEventWriterView.runtimeHelperAvailable
+                    ? "available for tests"
+                    : "not connected"}
+                </dd>
+              </div>
+              <div>
+                <dt>Runtime only</dt>
+                <dd>
+                  {userWorkspaceEventWriterView.runtimeOnly ? "yes" : "no"}
+                </dd>
+              </div>
+              <div>
+                <dt>App write connected</dt>
+                <dd>
+                  {userWorkspaceEventWriterView.appWriteConnected
+                    ? "yes"
+                    : "no"}
+                </dd>
+              </div>
+              <div>
+                <dt>Payload input</dt>
+                <dd>
+                  {userWorkspaceEventWriterView.eventPayloadInputEnabled
+                    ? "enabled"
+                    : "disabled"}
+                </dd>
+              </div>
+              <div>
+                <dt>Apply / rollback execution</dt>
+                <dd>
+                  {userWorkspaceEventWriterView.applyExecutionEnabled
+                    ? "enabled"
+                    : "disabled"}{" "}
+                  /{" "}
+                  {userWorkspaceEventWriterView.rollbackExecutionEnabled
+                    ? "enabled"
+                    : "disabled"}
+                </dd>
+              </div>
+              <div>
+                <dt>Apply / rollback result</dt>
+                <dd>
+                  {userWorkspaceEventWriterView.userWorkspaceApplyId || "n/a"} /{" "}
+                  {userWorkspaceEventWriterView.userWorkspaceRollbackId || "n/a"}
+                </dd>
+              </div>
+              <div>
+                <dt>Readiness / contract</dt>
+                <dd>
+                  {userWorkspaceEventWriterView.readinessId || "n/a"} /{" "}
+                  {userWorkspaceEventWriterView.contractId || "n/a"}
+                </dd>
+              </div>
+              <div>
+                <dt>Blockers / warnings</dt>
+                <dd>
+                  {userWorkspaceEventWriterView.blockerCount} /{" "}
+                  {userWorkspaceEventWriterView.warningCount}
+                </dd>
+              </div>
+            </dl>
+            {userWorkspaceEventWriterView.warningCodes.length > 0 ? (
+              <p className="fieldHelp">
+                Warning codes:{" "}
+                {userWorkspaceEventWriterView.warningCodes.join(", ")}
+              </p>
+            ) : null}
+            <p className="fieldHelp">
+              {userWorkspaceEventWriterView.nextAction}
             </p>
           </section>
 
