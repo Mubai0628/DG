@@ -101,6 +101,10 @@ import {
   buildUserWorkspaceSnapshotBackupView,
   userWorkspaceSnapshotBackupWarningCodes
 } from "../src/user-workspace-snapshot-backup-view.js";
+import {
+  buildUserWorkspacePromotionReadinessView,
+  userWorkspacePromotionReadinessWarningCodes
+} from "../src/user-workspace-promotion-readiness-view.js";
 import { buildDisposablePatchApplyView } from "../src/disposable-patch-apply-view.js";
 import { buildApprovalGatedDisposableApplyView } from "../src/approval-gated-disposable-apply-view.js";
 import { buildDisposablePatchRollbackView } from "../src/disposable-patch-rollback-view.js";
@@ -6012,6 +6016,294 @@ describe("app user workspace snapshot backup contract", () => {
   });
 });
 
+describe("app user workspace promotion readiness", () => {
+  function safeUserContract() {
+    return buildUserWorkspaceSnapshotBackupView({
+      userWorkspaceRootRef: "user-workspace-ref-p0k-003",
+      sourceWorkspaceFingerprint: "workspace-fingerprint-p0k-003",
+      disposableApplyResultRef: "apply-1",
+      disposableRollbackResultRef: "rollback-1",
+      disposableSnapshotContractRef: "snapshot-contract-1",
+      expectedDisposableOutputHash: "disposable-output-hash",
+      expectedUserSnapshotHash: "user-snapshot-hash",
+      fileSummaryJsonText: JSON.stringify({
+        lineEndingPolicy: "lf",
+        files: [
+          {
+            path: "app/src/App.tsx",
+            language: "typescript",
+            extension: "tsx",
+            sizeBytes: 1200,
+            lineCount: 80,
+            hashPrefix: "abc12345",
+            exists: true,
+            plannedMutation: "none",
+            backupRequired: false,
+            preimageHashRequired: false,
+            lineEnding: "lf"
+          },
+          {
+            path: "app/test/desktop-shell.test.ts",
+            language: "typescript",
+            extension: "ts",
+            sizeBytes: 900,
+            lineCount: 60,
+            hashPrefix: "def67890",
+            exists: true,
+            plannedMutation: "none",
+            backupRequired: false,
+            preimageHashRequired: false,
+            lineEnding: "lf"
+          }
+        ]
+      })
+    });
+  }
+
+  function safeReadinessInput() {
+    return {
+      userWorkspaceSnapshotBackupContract: safeUserContract(),
+      disposablePatchApplyResult: {
+        status: "applied_to_disposable",
+        applyId: "apply-1",
+        disposableRootRef: "disposable-root-ref",
+        outputSnapshotHash: "disposable-output-hash",
+        resultHash: "apply-result-hash",
+        warningCount: 0,
+        blockerCount: 0,
+        readiness: {
+          canPromoteToUserWorkspace: false,
+          canApplyToUserWorkspace: false,
+          canCommitGit: false,
+          canExecuteShell: false,
+          canRollbackReal: false
+        }
+      },
+      disposablePatchRollbackResult: {
+        status: "rolled_back_disposable",
+        rollbackId: "rollback-1",
+        applyId: "apply-1",
+        disposableRootRef: "disposable-root-ref",
+        restoredSnapshotHash: "restored-snapshot-hash",
+        resultHash: "rollback-result-hash",
+        warningCount: 0,
+        blockerCount: 0,
+        readiness: {
+          canRollbackUserWorkspace: false,
+          canApplyToUserWorkspace: false,
+          canCommitGit: false,
+          canExecuteShell: false
+        }
+      },
+      sandboxApplyRollbackEventProjection: {
+        status: "projection_ready",
+        projectionId: "projection-1",
+        chainId: "chain-1",
+        blockerCount: 0,
+        warningCount: 0,
+        projectionHash: "projection-hash",
+        eventPreviews: [{ eventId: "event-1", notWritten: true }],
+        readiness: {
+          canWriteEventStore: false,
+          canExecuteApply: false,
+          canExecuteRollback: false,
+          canApplyToUserWorkspace: false,
+          canExecuteGit: false,
+          canExecuteShell: false
+        }
+      },
+      patchProposalPreview: { status: "preview", proposalId: "proposal-1" },
+      patchValidationPreview: {
+        status: "preview",
+        validationId: "validation-1"
+      },
+      patchDiffAuditPreview: { status: "preview", auditId: "audit-1" },
+      patchApprovalDraft: {
+        status: "preview",
+        approvalDraftId: "approval-1"
+      },
+      patchVirtualApplyPreview: {
+        status: "preview_ready",
+        virtualApplyId: "virtual-1"
+      },
+      patchRollbackCheckpointPreview: {
+        status: "checkpoint_preview_ready",
+        checkpointPreviewId: "checkpoint-preview-1"
+      },
+      approvalGatedDisposableApplyResult: {
+        status: "applied_to_disposable",
+        gatedApplyId: "gated-apply-1",
+        resultHash: "gated-result-hash",
+        readiness: {
+          canApplyToUserWorkspace: false,
+          canPromoteToUserWorkspace: false,
+          canIssuePermissionLease: false,
+          canCommitGit: false,
+          canExecuteShell: false
+        }
+      }
+    };
+  }
+
+  it("builds an empty readiness-only promotion state", () => {
+    const view = buildUserWorkspacePromotionReadinessView();
+
+    expect(view.status).toBe("empty");
+    expect(view.source).toBe("empty");
+    expect(view.readinessOnly).toBe(true);
+    expect(view.userWorkspaceReadEnabled).toBe(false);
+    expect(view.userWorkspaceWriteEnabled).toBe(false);
+    expect(view.backupCreationEnabled).toBe(false);
+    expect(view.applyEnabled).toBe(false);
+    expect(view.rollbackEnabled).toBe(false);
+    expect(view.eventWritesEnabled).toBe(false);
+    expect(view.tauriCommandEnabled).toBe(false);
+    expect(view.gitExecutionEnabled).toBe(false);
+    expect(view.shellExecutionEnabled).toBe(false);
+  });
+
+  it("builds promotion readiness from a safe summary chain", () => {
+    const view = buildUserWorkspacePromotionReadinessView(
+      safeReadinessInput()
+    );
+    const serialized = JSON.stringify(view);
+
+    expect(view.source).toBe("runtime_user_workspace_promotion_readiness");
+    expect(view.status).toBe("readiness_ready");
+    expect(view.blockerCount).toBe(0);
+    expect(view.missingArtifactCount).toBe(0);
+    expect(view.gates.map((gate) => gate.name)).toEqual(
+      expect.arrayContaining([
+        "user_workspace_snapshot_contract",
+        "disposable_apply_result",
+        "disposable_rollback_result",
+        "apply_rollback_event_projection",
+        "patch_validation",
+        "patch_diff_audit",
+        "patch_approval_draft",
+        "rollback_checkpoint_preview",
+        "backup_preimage_requirement",
+        "manual_confirmation_deferred",
+        "production_permission_lease_deferred",
+        "app_execution_disabled"
+      ])
+    );
+    expect(view.readiness.canProceedToUserWorkspaceApplyPrototype).toBe(true);
+    expect(view.readiness.canApplyToUserWorkspace).toBe(false);
+    expect(view.readiness.canWriteFilesystem).toBe(false);
+    expect(view.readiness.canRollbackUserWorkspace).toBe(false);
+    expect(view.readiness.canExecuteGit).toBe(false);
+    expect(view.readiness.canExecuteShell).toBe(false);
+    expect(view.readiness.canIssuePermissionLease).toBe(false);
+    expect(view.readiness.appCanExecute).toBe(false);
+    expect(serialized).not.toContain("raw source");
+    expect(serialized).not.toContain("raw diff");
+    expect(serialized).not.toMatch(/"content"\s*:/);
+  });
+
+  it("rejects unsafe raw fields and fake API key markers safely", () => {
+    const secret = "sk-test1234567890abcdef";
+    const view = buildUserWorkspacePromotionReadinessView({
+      ...safeReadinessInput(),
+      patchValidationPreview: {
+        status: "preview",
+        validationId: "validation-1",
+        preimageContent: "do not keep"
+      },
+      patchDiffAuditPreview: {
+        status: "preview",
+        auditId: "audit-1",
+        rawPrompt: `rawPrompt rawDom rawCsv ${secret}`
+      }
+    });
+    const serialized = JSON.stringify(view);
+
+    expect(view.status).toBe("blocked");
+    expect(view.warningCodes).toEqual(
+      expect.arrayContaining([
+        "PROMOTION_RAW_FIELD_REJECTED",
+        "RAW_PROMPT_MARKER",
+        "RAW_DOM_MARKER",
+        "RAW_CSV_MARKER",
+        "API_KEY_MARKER"
+      ])
+    );
+    expect(serialized).not.toContain(secret);
+    expect(serialized).not.toContain("do not keep");
+  });
+
+  it("feeds Context Assembly and Audit Surface with summary-only readiness refs", () => {
+    const readiness = buildUserWorkspacePromotionReadinessView(
+      safeReadinessInput()
+    );
+    const contextPreview = buildContextAssemblyPreviewView({
+      runDraft: buildRunDraftView({
+        objectiveDraft: "Preview user workspace promotion readiness.",
+        selectedIntent: "code_change",
+        acceptanceCriteriaDraft: "Promotion readiness summary is visible",
+        workspaceRoot: "D:\\workspace"
+      }),
+      userWorkspacePromotionReadiness: readiness
+    });
+    const surfaces = buildWorkbenchSurfacesView({
+      controlProjection: buildControlPlaneProjectionView(undefined),
+      futureAuditWarningCodes:
+        userWorkspacePromotionReadinessWarningCodes(readiness)
+    });
+    const serialized = JSON.stringify({ contextPreview, surfaces });
+
+    expect(
+      contextPreview.segments.some(
+        (segment) =>
+          segment.sourceKind === "user_workspace_promotion_readiness" &&
+          segment.sourceRefId === "user-workspace-promotion-readiness" &&
+          segment.placement === "no_compress_zone"
+      )
+    ).toBe(true);
+    expect(surfaces.audit.warningCodes).toEqual(
+      expect.arrayContaining([
+        `USER_WORKSPACE_PROMOTION_STATUS_${readiness.status.toUpperCase()}`,
+        `USER_WORKSPACE_PROMOTION_GATES_${readiness.gateCount}`
+      ])
+    );
+    expect(serialized).not.toContain("raw source");
+    expect(serialized).not.toContain("raw diff");
+  });
+
+  it("keeps App UI read-only without Tauri, EventStore, filesystem, promote, apply, rollback, or backup handlers", async () => {
+    const appSource = await readFile(
+      path.join(appRoot, "src", "App.tsx"),
+      "utf8"
+    );
+    const adapterSource = await readFile(
+      path.join(appRoot, "src", "user-workspace-promotion-readiness-view.ts"),
+      "utf8"
+    );
+    const desktopFlowSource = await readFile(
+      path.join(appRoot, "src", "desktop-flow.ts"),
+      "utf8"
+    );
+    const combined = `${appSource}\n${adapterSource}`;
+
+    expect(appSource).toContain("User Workspace Promotion Readiness");
+    expect(appSource).toContain("Readiness only / no write");
+    expect(appSource).toContain("Preview Promotion Readiness");
+    expect(appSource).toContain("No files are read or written");
+    expect(combined).not.toContain("handlePromoteUserWorkspace");
+    expect(combined).not.toContain("handleApplyUserWorkspace");
+    expect(combined).not.toContain("handleRollbackUserWorkspace");
+    expect(combined).not.toContain("handleCreateUserWorkspaceBackup");
+    expect(combined).not.toContain("handleWritePromotionEvents");
+    expect(adapterSource).not.toContain("safeInvoke");
+    expect(adapterSource).not.toContain("EventStore");
+    expect(adapterSource).not.toContain("readFile");
+    expect(adapterSource).not.toContain("writeFile");
+    expect(adapterSource).not.toContain("localStorage");
+    expect(adapterSource).not.toContain("sessionStorage");
+    expect(desktopFlowSource).not.toContain("user_workspace_promotion");
+  });
+});
+
 describe("app disposable patch apply prototype", () => {
   it("shows disabled-by-default state without app execution", () => {
     const view = buildDisposablePatchApplyView();
@@ -8066,6 +8358,53 @@ describe("desktop source boundaries", () => {
     );
     expect(docsIndex).toContain(
       "app-shell-user-workspace-snapshot-backup-contract-v0.6.md"
+    );
+  });
+
+  it("documents the user workspace promotion readiness checker as no-write", async () => {
+    const runtimeDoc = await readFile(
+      path.join(
+        repoRoot,
+        "docs",
+        "runtime-user-workspace-promotion-readiness-v0.6.md"
+      ),
+      "utf8"
+    );
+    const appDoc = await readFile(
+      path.join(
+        repoRoot,
+        "docs",
+        "app-shell-user-workspace-promotion-readiness-v0.6.md"
+      ),
+      "utf8"
+    );
+    const docsIndex = await readFile(
+      path.join(repoRoot, "docs", "README.md"),
+      "utf8"
+    );
+    const combined = `${runtimeDoc}\n${appDoc}\n${docsIndex}`;
+
+    expect(combined).toContain("User Workspace Promotion Readiness");
+    expect(combined).toContain("readiness checker");
+    expect(combined).toContain("summary-only");
+    expect(combined).toContain("No user workspace read/write");
+    expect(combined).toContain("No backup file creation");
+    expect(combined).toContain("No user workspace apply");
+    expect(combined).toContain("No user workspace rollback");
+    expect(combined).toContain("No EventStore write");
+    expect(combined).toContain("No Tauri command");
+    expect(combined).toContain("No Git or shell execution");
+    expect(combined).toContain("No native bridge");
+    expect(combined).toContain("No desktop action");
+    expect(combined).toContain("Disposable Patch Apply Result");
+    expect(combined).toContain("Disposable Patch Rollback Result");
+    expect(combined).toContain("User Workspace Snapshot / Backup Contract");
+    expect(combined).toContain("P0K-004 User Workspace Apply Prototype");
+    expect(docsIndex).toContain(
+      "runtime-user-workspace-promotion-readiness-v0.6.md"
+    );
+    expect(docsIndex).toContain(
+      "app-shell-user-workspace-promotion-readiness-v0.6.md"
     );
   });
 

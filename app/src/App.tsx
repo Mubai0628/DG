@@ -136,6 +136,12 @@ import {
   type AppUserWorkspaceSnapshotBackupView
 } from "./user-workspace-snapshot-backup-view.js";
 import {
+  buildUserWorkspacePromotionReadinessView,
+  summarizeUserWorkspacePromotionReadinessView,
+  userWorkspacePromotionReadinessWarningCodes,
+  type AppUserWorkspacePromotionReadinessView
+} from "./user-workspace-promotion-readiness-view.js";
+import {
   buildDisposablePatchApplyView,
   type AppDisposablePatchApplyView
 } from "./disposable-patch-apply-view.js";
@@ -318,6 +324,10 @@ export function DesktopShell(): JSX.Element {
     userWorkspaceSnapshotBackupPreview,
     setUserWorkspaceSnapshotBackupPreview
   ] = useState<AppUserWorkspaceSnapshotBackupView | undefined>();
+  const [
+    userWorkspacePromotionReadinessPreview,
+    setUserWorkspacePromotionReadinessPreview
+  ] = useState<AppUserWorkspacePromotionReadinessView | undefined>();
   const loadedWorkspaceIndexRef =
     workspaceIndexBridge.status === "loaded" ||
     workspaceIndexBridge.status === "warning"
@@ -848,6 +858,37 @@ export function DesktopShell(): JSX.Element {
   const displayedSandboxApplyRollbackEventProjection =
     sandboxApplyRollbackEventProjection ??
     sandboxApplyRollbackEventProjectionCandidate;
+  const userWorkspacePromotionReadinessCandidate =
+    useMemo<AppUserWorkspacePromotionReadinessView>(
+      () =>
+        buildUserWorkspacePromotionReadinessView({
+          userWorkspaceSnapshotBackupContract:
+            userWorkspaceSnapshotBackupPreview,
+          sandboxApplyRollbackEventProjection:
+            displayedSandboxApplyRollbackEventProjection,
+          patchProposalPreview: patchProposalCreationPreview,
+          patchValidationPreview: patchProposalValidationPreview,
+          patchDiffAuditPreview: patchDiffAuditPreview,
+          patchApprovalDraft: patchApprovalDraftPreview,
+          patchVirtualApplyPreview: patchVirtualApplyPreview,
+          patchRollbackCheckpointPreview: patchRollbackCheckpointPreview,
+          approvalGatedDisposableApplyResult: approvalGatedDisposableApplyView
+        }),
+      [
+        approvalGatedDisposableApplyView,
+        displayedSandboxApplyRollbackEventProjection,
+        patchApprovalDraftPreview,
+        patchDiffAuditPreview,
+        patchProposalCreationPreview,
+        patchProposalValidationPreview,
+        patchRollbackCheckpointPreview,
+        patchVirtualApplyPreview,
+        userWorkspaceSnapshotBackupPreview
+      ]
+    );
+  const displayedUserWorkspacePromotionReadiness =
+    userWorkspacePromotionReadinessPreview ??
+    buildUserWorkspacePromotionReadinessView();
   const contextAssemblyCandidate = useMemo<AppContextAssemblyPreviewView>(
     () =>
       buildContextAssemblyPreviewView({
@@ -864,6 +905,8 @@ export function DesktopShell(): JSX.Element {
           displayedSandboxApplyRollbackEventProjection,
         snapshotContract: displayedDisposableWorkspaceSnapshot,
         userWorkspaceSnapshotContract: displayedUserWorkspaceSnapshotBackup,
+        userWorkspacePromotionReadiness:
+          displayedUserWorkspacePromotionReadiness,
         previousPreview: contextAssemblyPreview
       }),
     [
@@ -874,6 +917,7 @@ export function DesktopShell(): JSX.Element {
       controlledCreationReplayProjection,
       displayedDisposableWorkspaceSnapshot,
       displayedUserWorkspaceSnapshotBackup,
+      displayedUserWorkspacePromotionReadiness,
       displayedSandboxApplyRollbackEventProjection,
       displayedRunDraft,
       eventSummary,
@@ -929,6 +973,13 @@ export function DesktopShell(): JSX.Element {
       ),
     [userWorkspaceSnapshotBackupPreview]
   );
+  const userWorkspacePromotionAuditWarningCodes = useMemo(
+    () =>
+      userWorkspacePromotionReadinessWarningCodes(
+        userWorkspacePromotionReadinessPreview
+      ),
+    [userWorkspacePromotionReadinessPreview]
+  );
   const workbenchSurfaces = useMemo<AppWorkbenchSurfaceView>(
     () =>
       buildWorkbenchSurfacesView({
@@ -946,7 +997,8 @@ export function DesktopShell(): JSX.Element {
         futureAuditWarningCodes: [
           ...patchProposalAuditWarningCodes,
           ...disposableWorkspaceSnapshotAuditWarningCodes,
-          ...userWorkspaceSnapshotAuditWarningCodes
+          ...userWorkspaceSnapshotAuditWarningCodes,
+          ...userWorkspacePromotionAuditWarningCodes
         ]
       }),
     [
@@ -960,6 +1012,7 @@ export function DesktopShell(): JSX.Element {
       patchProposalSurfaceSummaries,
       preflight,
       result,
+      userWorkspacePromotionAuditWarningCodes,
       userWorkspaceSnapshotAuditWarningCodes
     ]
   );
@@ -1039,6 +1092,7 @@ export function DesktopShell(): JSX.Element {
     setControlledCreationReplayProjection(undefined);
     setDisposableWorkspaceSnapshotPreview(undefined);
     setUserWorkspaceSnapshotBackupPreview(undefined);
+    setUserWorkspacePromotionReadinessPreview(undefined);
     setContextAssemblyPreview(undefined);
   }, [acceptanceCriteriaDraft, objectiveDraft, selectedIntent, workspaceRoot]);
 
@@ -1051,6 +1105,7 @@ export function DesktopShell(): JSX.Element {
     setPatchRollbackCheckpointPreview(undefined);
     setControlledCreationReplayProjection(undefined);
     setSandboxApplyRollbackEventProjection(undefined);
+    setUserWorkspacePromotionReadinessPreview(undefined);
     setContextAssemblyPreview(undefined);
   }, [
     patchProposalChangeKind,
@@ -1073,6 +1128,7 @@ export function DesktopShell(): JSX.Element {
     controlledCreationReplayProjection?.projectionId,
     sandboxApplyRollbackEventProjection?.projectionId,
     userWorkspaceSnapshotBackupPreview?.contractId,
+    userWorkspacePromotionReadinessPreview?.readinessId,
     patchWorkbenchSurfaces.diff.items.length,
     capabilityPlanPreview.itemCount,
     displayedRunDraft.draftId,
@@ -1084,6 +1140,7 @@ export function DesktopShell(): JSX.Element {
   useEffect(() => {
     setDisposableWorkspaceSnapshotPreview(undefined);
     setUserWorkspaceSnapshotBackupPreview(undefined);
+    setUserWorkspacePromotionReadinessPreview(undefined);
     setContextAssemblyPreview(undefined);
   }, [
     loadedWorkspaceIndexRef?.hashPrefix,
@@ -1094,6 +1151,7 @@ export function DesktopShell(): JSX.Element {
 
   useEffect(() => {
     setUserWorkspaceSnapshotBackupPreview(undefined);
+    setUserWorkspacePromotionReadinessPreview(undefined);
     setContextAssemblyPreview(undefined);
   }, [
     disposableWorkspaceSnapshotPreview?.contractId,
@@ -1101,6 +1159,19 @@ export function DesktopShell(): JSX.Element {
     userWorkspaceFileSummaryJson,
     userWorkspaceRootRef,
     userWorkspaceSourceFingerprint
+  ]);
+
+  useEffect(() => {
+    setUserWorkspacePromotionReadinessPreview(undefined);
+    setContextAssemblyPreview(undefined);
+  }, [
+    patchApprovalDraftPreview?.approvalDraftId,
+    patchDiffAuditPreview?.auditId,
+    patchProposalValidationPreview?.validationId,
+    patchRollbackCheckpointPreview?.checkpointPreviewId,
+    patchVirtualApplyPreview?.virtualApplyId,
+    sandboxApplyRollbackEventProjection?.projectionId,
+    userWorkspaceSnapshotBackupPreview?.contractId
   ]);
 
   function handlePreviewDraftRun(): void {
@@ -1122,6 +1193,7 @@ export function DesktopShell(): JSX.Element {
     setPatchRollbackCheckpointPreview(undefined);
     setControlledCreationReplayProjection(undefined);
     setSandboxApplyRollbackEventProjection(undefined);
+    setUserWorkspacePromotionReadinessPreview(undefined);
   }
 
   function handleValidatePatchProposal(): void {
@@ -1132,6 +1204,7 @@ export function DesktopShell(): JSX.Element {
     setPatchRollbackCheckpointPreview(undefined);
     setControlledCreationReplayProjection(undefined);
     setSandboxApplyRollbackEventProjection(undefined);
+    setUserWorkspacePromotionReadinessPreview(undefined);
   }
 
   function handlePreviewDiffAudit(): void {
@@ -1141,6 +1214,7 @@ export function DesktopShell(): JSX.Element {
     setPatchRollbackCheckpointPreview(undefined);
     setControlledCreationReplayProjection(undefined);
     setSandboxApplyRollbackEventProjection(undefined);
+    setUserWorkspacePromotionReadinessPreview(undefined);
   }
 
   function handlePreviewApprovalDraft(): void {
@@ -1149,6 +1223,7 @@ export function DesktopShell(): JSX.Element {
     setPatchRollbackCheckpointPreview(undefined);
     setControlledCreationReplayProjection(undefined);
     setSandboxApplyRollbackEventProjection(undefined);
+    setUserWorkspacePromotionReadinessPreview(undefined);
   }
 
   function handlePreviewVirtualApply(): void {
@@ -1156,35 +1231,48 @@ export function DesktopShell(): JSX.Element {
     setPatchRollbackCheckpointPreview(undefined);
     setControlledCreationReplayProjection(undefined);
     setSandboxApplyRollbackEventProjection(undefined);
+    setUserWorkspacePromotionReadinessPreview(undefined);
   }
 
   function handlePreviewRollbackCheckpoint(): void {
     setPatchRollbackCheckpointPreview(patchRollbackCheckpointCandidate);
     setControlledCreationReplayProjection(undefined);
     setSandboxApplyRollbackEventProjection(undefined);
+    setUserWorkspacePromotionReadinessPreview(undefined);
   }
 
   function handlePreviewDisposableWorkspaceSnapshot(): void {
     setDisposableWorkspaceSnapshotPreview(disposableWorkspaceSnapshotCandidate);
     setUserWorkspaceSnapshotBackupPreview(undefined);
     setSandboxApplyRollbackEventProjection(undefined);
+    setUserWorkspacePromotionReadinessPreview(undefined);
     setContextAssemblyPreview(undefined);
   }
 
   function handlePreviewUserWorkspaceSnapshotBackup(): void {
     setUserWorkspaceSnapshotBackupPreview(userWorkspaceSnapshotBackupCandidate);
+    setUserWorkspacePromotionReadinessPreview(undefined);
     setContextAssemblyPreview(undefined);
   }
 
   function handlePreviewControlledReplayProjection(): void {
     setControlledCreationReplayProjection(controlledCreationReplayCandidate);
     setSandboxApplyRollbackEventProjection(undefined);
+    setUserWorkspacePromotionReadinessPreview(undefined);
   }
 
   function handlePreviewSandboxApplyRollbackEventProjection(): void {
     setSandboxApplyRollbackEventProjection(
       sandboxApplyRollbackEventProjectionCandidate
     );
+    setUserWorkspacePromotionReadinessPreview(undefined);
+  }
+
+  function handlePreviewUserWorkspacePromotionReadiness(): void {
+    setUserWorkspacePromotionReadinessPreview(
+      userWorkspacePromotionReadinessCandidate
+    );
+    setContextAssemblyPreview(undefined);
   }
 
   async function handleRecordRunDraftEvent(): Promise<void> {
@@ -3797,6 +3885,216 @@ export function DesktopShell(): JSX.Element {
 
             <p className="fieldHelp">
               {displayedUserWorkspaceSnapshotBackup.nextAction}
+            </p>
+          </section>
+
+          <section
+            className="eventPanel"
+            aria-label="User Workspace Promotion Readiness"
+          >
+            <div className="panelHeader">
+              <h2>User Workspace Promotion Readiness</h2>
+              <span className="muted">Readiness only / no write</span>
+            </div>
+            <p className="fieldHelp">
+              Checks whether sandbox apply/rollback summaries and user
+              workspace metadata are sufficient for a future promotion gate. No
+              files are read or written.
+            </p>
+            <div className="buttonRow">
+              <button
+                type="button"
+                className="secondary"
+                onClick={(event) => {
+                  event.preventDefault();
+                  event.stopPropagation();
+                  handlePreviewUserWorkspacePromotionReadiness();
+                }}
+              >
+                Preview Promotion Readiness
+              </button>
+            </div>
+
+            {displayedUserWorkspacePromotionReadiness.status === "empty" ? (
+              <p className="empty">
+                Preview the user workspace snapshot contract and sandbox
+                summaries to evaluate promotion readiness. This checker does
+                not enable apply.
+              </p>
+            ) : null}
+
+            <dl className="summaryGrid compact">
+              <div>
+                <dt>Status</dt>
+                <dd>{displayedUserWorkspacePromotionReadiness.status}</dd>
+              </div>
+              <div>
+                <dt>Readiness id</dt>
+                <dd>{displayedUserWorkspacePromotionReadiness.readinessId}</dd>
+              </div>
+              <div>
+                <dt>Chain id</dt>
+                <dd>{displayedUserWorkspacePromotionReadiness.chainId}</dd>
+              </div>
+              <div>
+                <dt>Gates passed / total</dt>
+                <dd>
+                  {displayedUserWorkspacePromotionReadiness.passedGateCount} /{" "}
+                  {displayedUserWorkspacePromotionReadiness.gateCount}
+                </dd>
+              </div>
+              <div>
+                <dt>Blocked / warning gates</dt>
+                <dd>
+                  {displayedUserWorkspacePromotionReadiness.blockedGateCount} /{" "}
+                  {displayedUserWorkspacePromotionReadiness.warningGateCount}
+                </dd>
+              </div>
+              <div>
+                <dt>Artifacts present / required</dt>
+                <dd>
+                  {
+                    displayedUserWorkspacePromotionReadiness.presentArtifactCount
+                  }{" "}
+                  /{" "}
+                  {
+                    displayedUserWorkspacePromotionReadiness.requiredArtifactCount
+                  }
+                </dd>
+              </div>
+              <div>
+                <dt>Missing artifacts</dt>
+                <dd>
+                  {
+                    displayedUserWorkspacePromotionReadiness.missingArtifactCount
+                  }
+                </dd>
+              </div>
+              <div>
+                <dt>Blockers / warnings / findings</dt>
+                <dd>
+                  {displayedUserWorkspacePromotionReadiness.blockerCount} /{" "}
+                  {displayedUserWorkspacePromotionReadiness.warningCount} /{" "}
+                  {displayedUserWorkspacePromotionReadiness.findingCount}
+                </dd>
+              </div>
+              <div>
+                <dt>Hash</dt>
+                <dd>{displayedUserWorkspacePromotionReadiness.readinessHash}</dd>
+              </div>
+            </dl>
+
+            <dl className="summaryGrid compact">
+              <div>
+                <dt>Can future prototype check</dt>
+                <dd>
+                  {displayedUserWorkspacePromotionReadiness.readiness
+                    .canProceedToUserWorkspaceApplyPrototype
+                    ? "yes"
+                    : "no"}
+                </dd>
+              </div>
+              <div>
+                <dt>Can user apply / rollback</dt>
+                <dd>
+                  {displayedUserWorkspacePromotionReadiness.readiness
+                    .canApplyToUserWorkspace
+                    ? "yes"
+                    : "no"}{" "}
+                  /{" "}
+                  {displayedUserWorkspacePromotionReadiness.readiness
+                    .canRollbackUserWorkspace
+                    ? "yes"
+                    : "no"}
+                </dd>
+              </div>
+              <div>
+                <dt>Can write filesystem</dt>
+                <dd>
+                  {displayedUserWorkspacePromotionReadiness.readiness
+                    .canWriteFilesystem
+                    ? "yes"
+                    : "no"}
+                </dd>
+              </div>
+              <div>
+                <dt>Can permission lease</dt>
+                <dd>
+                  {displayedUserWorkspacePromotionReadiness.readiness
+                    .canIssuePermissionLease
+                    ? "yes"
+                    : "no"}
+                </dd>
+              </div>
+              <div>
+                <dt>Can git / shell</dt>
+                <dd>
+                  {displayedUserWorkspacePromotionReadiness.readiness
+                    .canExecuteGit
+                    ? "yes"
+                    : "no"}{" "}
+                  /{" "}
+                  {displayedUserWorkspacePromotionReadiness.readiness
+                    .canExecuteShell
+                    ? "yes"
+                    : "no"}
+                </dd>
+              </div>
+              <div>
+                <dt>App can execute</dt>
+                <dd>
+                  {displayedUserWorkspacePromotionReadiness.readiness
+                    .appCanExecute
+                    ? "yes"
+                    : "no"}
+                </dd>
+              </div>
+            </dl>
+
+            {displayedUserWorkspacePromotionReadiness.gates.length > 0 ? (
+              <ol className="timeline">
+                {displayedUserWorkspacePromotionReadiness.gates.map((gate) => (
+                  <li key={gate.gateId}>
+                    <span className="timelineMeta">
+                      {gate.name} · {gate.status}
+                    </span>
+                    <span>{gate.summary}</span>
+                    {gate.blockerCodes.length > 0 ||
+                    gate.warningCodes.length > 0 ? (
+                      <span className="timelineMeta">
+                        {[
+                          ...gate.blockerCodes,
+                          ...gate.warningCodes
+                        ].join(", ")}
+                      </span>
+                    ) : null}
+                  </li>
+                ))}
+              </ol>
+            ) : null}
+
+            {displayedUserWorkspacePromotionReadiness.findings.length > 0 ? (
+              <ol className="timeline">
+                {displayedUserWorkspacePromotionReadiness.findings.map(
+                  (finding) => (
+                    <li key={finding.findingId}>
+                      <span className="timelineMeta">
+                        {finding.kind} · {finding.severity} · {finding.code}
+                      </span>
+                      <span>{finding.summary}</span>
+                    </li>
+                  )
+                )}
+              </ol>
+            ) : null}
+
+            <p className="fieldHelp">
+              {summarizeUserWorkspacePromotionReadinessView(
+                displayedUserWorkspacePromotionReadiness
+              )}
+            </p>
+            <p className="fieldHelp">
+              {displayedUserWorkspacePromotionReadiness.nextAction}
             </p>
           </section>
 

@@ -6,6 +6,7 @@ import type { AppDisposableWorkspaceSnapshotView } from "./disposable-workspace-
 import type { AppMemoryRecallPreviewView } from "./memory-recall-preview-view.js";
 import type { AppRunDraftView } from "./run-draft-view.js";
 import type { AppSandboxApplyRollbackEventProjectionView } from "./sandbox-apply-rollback-event-projection-view.js";
+import type { AppUserWorkspacePromotionReadinessView } from "./user-workspace-promotion-readiness-view.js";
 import type { AppUserWorkspaceSnapshotBackupView } from "./user-workspace-snapshot-backup-view.js";
 import {
   safeArray,
@@ -49,6 +50,7 @@ export type AppContextAssemblySourceRef = {
     | "sandbox_event_projection"
     | "snapshot_contract"
     | "user_workspace_contract"
+    | "user_workspace_promotion_readiness"
     | "agent_route"
     | "capability_plan"
     | "event_evidence"
@@ -125,6 +127,9 @@ export type AppContextAssemblyPreviewInput = {
   snapshotContract?: AppDisposableWorkspaceSnapshotView | undefined;
   userWorkspaceSnapshotContract?:
     | AppUserWorkspaceSnapshotBackupView
+    | undefined;
+  userWorkspacePromotionReadiness?:
+    | AppUserWorkspacePromotionReadinessView
     | undefined;
   agentRoutePreview?: AppAgentRoutePreviewView | undefined;
   capabilityPlanPreview?: AppCapabilityPlanPreviewView | undefined;
@@ -266,7 +271,8 @@ export function validateContextAssemblyPreviewInput(
     ...rawKeyWarnings(input.memoryRecallPreview),
     ...rawKeyWarnings(input.patchSurface),
     ...rawKeyWarnings(input.sandboxApplyRollbackEventProjection),
-    ...rawKeyWarnings(input.userWorkspaceSnapshotContract)
+    ...rawKeyWarnings(input.userWorkspaceSnapshotContract),
+    ...rawKeyWarnings(input.userWorkspacePromotionReadiness)
   ]);
   return {
     ok: !warningCodes.some(
@@ -653,6 +659,32 @@ function buildSegments(
         warningCodes: [
           "USER_WORKSPACE_SNAPSHOT_BACKUP_NO_COMPRESS",
           ...input.userWorkspaceSnapshotContract.warningCodes
+        ]
+      })
+    );
+  }
+
+  if (
+    input.userWorkspacePromotionReadiness !== undefined &&
+    input.userWorkspacePromotionReadiness.status !== "empty"
+  ) {
+    segments.push(
+      segment({
+        layer: "no_compress_zone",
+        title: "User workspace promotion readiness summary",
+        sourceKind: "user_workspace_promotion_readiness",
+        sourceRefId: "user-workspace-promotion-readiness",
+        summary: [
+          input.userWorkspacePromotionReadiness.status,
+          `gates:${input.userWorkspacePromotionReadiness.passedGateCount}/${input.userWorkspacePromotionReadiness.gateCount}`,
+          `artifacts:${input.userWorkspacePromotionReadiness.presentArtifactCount}/${input.userWorkspacePromotionReadiness.requiredArtifactCount}`,
+          `blockers:${input.userWorkspacePromotionReadiness.blockerCount}`,
+          `warnings:${input.userWorkspacePromotionReadiness.warningCount}`,
+          `hash:${input.userWorkspacePromotionReadiness.readinessHash}`
+        ].join(" | "),
+        warningCodes: [
+          "USER_WORKSPACE_PROMOTION_READINESS_NO_COMPRESS",
+          ...input.userWorkspacePromotionReadiness.warningCodes
         ]
       })
     );
