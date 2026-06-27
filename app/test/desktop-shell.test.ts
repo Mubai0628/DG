@@ -7661,8 +7661,9 @@ describe("desktop source boundaries", () => {
 
     expect(combined).toContain("v0.6.0-sandbox-apply-preview-rc.1");
     expect(combined).toContain(
-      "Sandboxed disposable apply and rollback prototypes, App execution disabled"
+      "Sandboxed disposable apply and rollback prototypes"
     );
+    expect(combined).toContain("App execution");
     expect(combined).toContain("v0.5 validation / approval / virtual apply");
     expect(combined).toContain("P0J sandbox strategy ADR");
     expect(combined).toContain("Disposable Workspace Snapshot Contract");
@@ -7707,6 +7708,58 @@ describe("desktop source boundaries", () => {
     );
     expect(combined).toContain("app-shell-sandbox-apply-manual-qa.md");
     expect(combined).toContain("app-shell-sandbox-apply-rc-checklist.md");
+  });
+
+  it("documents the v0.6 post-release review and P0K promotion roadmap without enabling user workspace apply", async () => {
+    const review = await readFile(
+      path.join(repoRoot, "docs", "v0.6-sandbox-apply-postrelease-review.md"),
+      "utf8"
+    );
+    const roadmap = await readFile(
+      path.join(
+        repoRoot,
+        "docs",
+        "p0k-user-workspace-apply-promotion-roadmap.md"
+      ),
+      "utf8"
+    );
+    const plan = await readFile(
+      path.join(
+        repoRoot,
+        "docs",
+        "p0k-001-user-workspace-apply-promotion-gate-plan.md"
+      ),
+      "utf8"
+    );
+    const docsIndex = await readFile(
+      path.join(repoRoot, "docs", "README.md"),
+      "utf8"
+    );
+    const combined = `${review}\n${roadmap}\n${plan}\n${docsIndex}`;
+
+    expect(combined).toContain("v0.6.0-sandbox-apply-preview-rc.1");
+    expect(combined).toContain(
+      "Sandboxed disposable apply and rollback prototypes"
+    );
+    expect(combined).toContain("App execution");
+    expect(combined).toContain("P0J is complete");
+    expect(combined).toContain("P0K User Workspace Apply Promotion Roadmap");
+    expect(combined).toContain("promotion gate");
+    expect(combined).toContain("does not directly enable user workspace apply");
+    expect(combined).toContain("no direct user workspace apply");
+    expect(combined).toContain("rollback gate");
+    expect(combined).toContain("No Git");
+    expect(combined).toContain("No shell");
+    expect(combined).toContain("No native bridge");
+    expect(combined).toContain("No desktop action");
+    expect(combined).toContain("App remains disabled");
+    expect(combined).toContain("No Tauri command");
+    expect(combined).toContain("No EventStore writer");
+    expect(combined).toContain("v0.6-sandbox-apply-postrelease-review.md");
+    expect(combined).toContain("p0k-user-workspace-apply-promotion-roadmap.md");
+    expect(combined).toContain(
+      "p0k-001-user-workspace-apply-promotion-gate-plan.md"
+    );
   });
 
   it("documents the v0.5 post-release review and P0J sandbox apply roadmap without implementation", async () => {
