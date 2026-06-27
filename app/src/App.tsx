@@ -154,6 +154,11 @@ import {
   type AppUserWorkspaceEventWriterView
 } from "./user-workspace-event-writer-view.js";
 import {
+  buildAppApprovalExecutionDesignView,
+  summarizeAppApprovalExecutionDesignView,
+  type AppApprovalExecutionDesignView
+} from "./app-approval-execution-design-view.js";
+import {
   buildDisposablePatchApplyView,
   type AppDisposablePatchApplyView
 } from "./disposable-patch-apply-view.js";
@@ -950,6 +955,31 @@ export function DesktopShell(): JSX.Element {
       [
         displayedUserWorkspacePromotionReadiness,
         displayedUserWorkspaceSnapshotBackup
+      ]
+    );
+  const appApprovalExecutionDesignView =
+    useMemo<AppApprovalExecutionDesignView>(
+      () =>
+        buildAppApprovalExecutionDesignView({
+          userWorkspacePromotionReadiness:
+            displayedUserWorkspacePromotionReadiness,
+          userWorkspaceApplyPrototype: userWorkspaceApplyPrototypeView,
+          userWorkspaceRollbackPrototype: userWorkspaceRollbackPrototypeView,
+          userWorkspaceApplyRollbackEventWriter: userWorkspaceEventWriterView,
+          approvalDraft: patchApprovalDraftPreview,
+          capabilityPlan: capabilityPlanPreview,
+          contextAssembly: contextAssemblyPreview,
+          auditSurface: patchWorkbenchSurfaces.audit
+        }),
+      [
+        capabilityPlanPreview,
+        contextAssemblyPreview,
+        displayedUserWorkspacePromotionReadiness,
+        patchApprovalDraftPreview,
+        patchWorkbenchSurfaces.audit,
+        userWorkspaceApplyPrototypeView,
+        userWorkspaceEventWriterView,
+        userWorkspaceRollbackPrototypeView
       ]
     );
   const contextAssemblyCandidate = useMemo<AppContextAssemblyPreviewView>(
@@ -4499,6 +4529,142 @@ export function DesktopShell(): JSX.Element {
             ) : null}
             <p className="fieldHelp">
               {userWorkspaceEventWriterView.nextAction}
+            </p>
+          </section>
+
+          <section
+            className="eventPanel"
+            aria-label="App Approval Execution Design"
+          >
+            <div className="panelHeader">
+              <h2>App Approval Execution Design</h2>
+              <span className="muted">Design only / disabled</span>
+            </div>
+            <p className="fieldHelp">
+              Documents the future App approval execution gate. The App Shell
+              cannot approve, reject, issue leases, apply patches, rollback, or
+              write apply events.
+            </p>
+            <div className="buttonRow">
+              <button
+                type="button"
+                className="secondary"
+                disabled
+                aria-disabled="true"
+              >
+                Approve Apply (disabled)
+              </button>
+              <button
+                type="button"
+                className="secondary"
+                disabled
+                aria-disabled="true"
+              >
+                Reject Apply (disabled)
+              </button>
+              <button
+                type="button"
+                className="secondary"
+                disabled
+                aria-disabled="true"
+              >
+                Issue Permission Lease (disabled)
+              </button>
+            </div>
+            <dl className="summaryGrid compact">
+              <div>
+                <dt>Status</dt>
+                <dd>{appApprovalExecutionDesignView.status}</dd>
+              </div>
+              <div>
+                <dt>Disabled actions</dt>
+                <dd>{appApprovalExecutionDesignView.disabledActionCount}</dd>
+              </div>
+              <div>
+                <dt>Blockers / warnings</dt>
+                <dd>
+                  {appApprovalExecutionDesignView.blockerCount} /{" "}
+                  {appApprovalExecutionDesignView.warningCount}
+                </dd>
+              </div>
+              <div>
+                <dt>Can approve / reject</dt>
+                <dd>
+                  {appApprovalExecutionDesignView.readiness.canApprove
+                    ? "yes"
+                    : "no"}{" "}
+                  /{" "}
+                  {appApprovalExecutionDesignView.readiness.canReject
+                    ? "yes"
+                    : "no"}
+                </dd>
+              </div>
+              <div>
+                <dt>Can issue lease</dt>
+                <dd>
+                  {appApprovalExecutionDesignView.readiness
+                    .canIssuePermissionLease
+                    ? "yes"
+                    : "no"}
+                </dd>
+              </div>
+              <div>
+                <dt>Can apply / rollback</dt>
+                <dd>
+                  {appApprovalExecutionDesignView.readiness.canExecuteApply
+                    ? "yes"
+                    : "no"}{" "}
+                  /{" "}
+                  {appApprovalExecutionDesignView.readiness.canExecuteRollback
+                    ? "yes"
+                    : "no"}
+                </dd>
+              </div>
+              <div>
+                <dt>Can write events</dt>
+                <dd>
+                  {appApprovalExecutionDesignView.readiness.canWriteEventStore
+                    ? "yes"
+                    : "no"}
+                </dd>
+              </div>
+              <div>
+                <dt>Can git / shell</dt>
+                <dd>
+                  {appApprovalExecutionDesignView.readiness.canExecuteGit
+                    ? "yes"
+                    : "no"}{" "}
+                  /{" "}
+                  {appApprovalExecutionDesignView.readiness.canExecuteShell
+                    ? "yes"
+                    : "no"}
+                </dd>
+              </div>
+            </dl>
+            <p className="fieldHelp">
+              {summarizeAppApprovalExecutionDesignView(
+                appApprovalExecutionDesignView
+              )}
+            </p>
+            {appApprovalExecutionDesignView.requirements.length > 0 ? (
+              <ol className="timeline">
+                {appApprovalExecutionDesignView.requirements.map(
+                  (requirement) => (
+                    <li key={requirement.requirementId}>
+                      <span className="timelineMeta">
+                        {requirement.status} · {requirement.requirementId}
+                      </span>
+                      <span>{requirement.label}</span>
+                      <span className="timelineMeta">
+                        {requirement.summary}
+                      </span>
+                    </li>
+                  )
+                )}
+              </ol>
+            ) : null}
+            <p className="fieldHelp">
+              {appApprovalExecutionDesignView.nextAction}
             </p>
           </section>
 

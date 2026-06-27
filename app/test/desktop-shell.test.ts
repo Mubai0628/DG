@@ -108,6 +108,10 @@ import {
 import { buildUserWorkspaceApplyPrototypeView } from "../src/user-workspace-apply-prototype-view.js";
 import { buildUserWorkspaceRollbackPrototypeView } from "../src/user-workspace-rollback-prototype-view.js";
 import { buildUserWorkspaceEventWriterView } from "../src/user-workspace-event-writer-view.js";
+import {
+  buildAppApprovalExecutionDesignView,
+  summarizeAppApprovalExecutionDesignView
+} from "../src/app-approval-execution-design-view.js";
 import { buildDisposablePatchApplyView } from "../src/disposable-patch-apply-view.js";
 import { buildApprovalGatedDisposableApplyView } from "../src/approval-gated-disposable-apply-view.js";
 import { buildDisposablePatchRollbackView } from "../src/disposable-patch-rollback-view.js";
@@ -6608,6 +6612,134 @@ describe("app user workspace apply rollback event writer", () => {
   });
 });
 
+describe("app approval execution design", () => {
+  it("shows disabled design-only state with all execution readiness false", () => {
+    const view = buildAppApprovalExecutionDesignView();
+
+    expect(view.source).toBe("app_approval_execution_design");
+    expect(view.status).toBe("disabled");
+    expect(view.disabledActionCount).toBe(8);
+    expect(view.readiness.canApprove).toBe(false);
+    expect(view.readiness.canReject).toBe(false);
+    expect(view.readiness.canIssuePermissionLease).toBe(false);
+    expect(view.readiness.canExecuteApply).toBe(false);
+    expect(view.readiness.canExecuteRollback).toBe(false);
+    expect(view.readiness.canWriteEventStore).toBe(false);
+    expect(view.readiness.canExecuteGit).toBe(false);
+    expect(view.readiness.canExecuteShell).toBe(false);
+    expect(view.readiness.appCanExecute).toBe(false);
+    expect(view.requirements.map((item) => item.requirementId)).toEqual(
+      expect.arrayContaining([
+        "promotion_readiness",
+        "app_approval_execution_disabled",
+        "production_permission_lease_design",
+        "manual_confirmation_required"
+      ])
+    );
+    expect(summarizeAppApprovalExecutionDesignView(view)).toContain(
+      "app_execution:false"
+    );
+  });
+
+  it("keeps approval execution disabled even when summary refs are present", () => {
+    const view = buildAppApprovalExecutionDesignView({
+      userWorkspacePromotionReadiness: {
+        status: "readiness_ready",
+        readinessId: "readiness-1",
+        userWorkspaceRootRef: "user-root-ref",
+        blockerCount: 0
+      },
+      userWorkspaceApplyPrototype: buildUserWorkspaceApplyPrototypeView({
+        promotionReadiness: { gates: [{ gateId: "gate-1" }] },
+        userWorkspaceSnapshotBackupContract: { contractId: "contract-1" }
+      }),
+      userWorkspaceRollbackPrototype: buildUserWorkspaceRollbackPrototypeView({
+        userWorkspaceApplyResult: { applyId: "apply-1" },
+        userWorkspaceSnapshotBackupContract: { contractId: "contract-1" },
+        promotionReadiness: { readinessId: "readiness-1" },
+        rollbackCheckpoint: {
+          checkpointId: "checkpoint-1",
+          entries: [{ path: "src/file.ts" }]
+        }
+      }),
+      userWorkspaceApplyRollbackEventWriter: buildUserWorkspaceEventWriterView({
+        userWorkspaceApplyResult: { applyId: "apply-1" },
+        userWorkspaceRollbackResult: { rollbackId: "rollback-1" },
+        promotionReadiness: { readinessId: "readiness-1" },
+        userWorkspaceSnapshotBackupContract: { contractId: "contract-1" }
+      }),
+      approvalDraft: {
+        approvalDraftId: "approval-1",
+        readiness: {
+          canApprove: false,
+          canReject: false,
+          canIssueLease: false,
+          canApplyPatch: false
+        }
+      },
+      capabilityPlan: {
+        planId: "capability-plan-1",
+        readiness: { canIssuePermissionLease: false },
+        executionEnabled: false
+      },
+      contextAssembly: { previewId: "context-preview-1" },
+      auditSurface: { source: "audit-surface" }
+    });
+    const serialized = JSON.stringify(view);
+
+    expect(view.status).toBe("warning");
+    expect(view.blockerCount).toBe(0);
+    expect(view.readiness.appCanExecute).toBe(false);
+    expect(view.readiness.canApprove).toBe(false);
+    expect(view.readiness.canWriteEventStore).toBe(false);
+    expect(serialized).not.toContain("raw source");
+    expect(serialized).not.toContain("raw diff");
+    expect(serialized).not.toMatch(/"preimageContent"\s*:/);
+  });
+
+  it("keeps App Shell disconnected from approval execution", async () => {
+    const appSource = await readFile(
+      path.join(appRoot, "src", "App.tsx"),
+      "utf8"
+    );
+    const adapterSource = await readFile(
+      path.join(appRoot, "src", "app-approval-execution-design-view.ts"),
+      "utf8"
+    );
+    const desktopFlowSource = await readFile(
+      path.join(appRoot, "src", "desktop-flow.ts"),
+      "utf8"
+    );
+    const combined = `${appSource}\n${adapterSource}`;
+
+    expect(appSource).toContain("App Approval Execution Design");
+    expect(appSource).toContain("Design only / disabled");
+    expect(appSource).toContain("Approve Apply (disabled)");
+    expect(appSource).toContain("Reject Apply (disabled)");
+    expect(appSource).toContain("Issue Permission Lease (disabled)");
+    expect(appSource).toMatch(
+      /The App Shell\s+cannot approve,\s+reject,\s+issue leases,\s+apply patches,\s+rollback,\s+or\s+write apply events/
+    );
+    expect(combined).not.toContain("handleApproveApply");
+    expect(combined).not.toContain("handleRejectApply");
+    expect(combined).not.toContain("handleIssuePermissionLease");
+    expect(combined).not.toContain("handleApplyUserWorkspace");
+    expect(combined).not.toContain("handleRollbackUserWorkspace");
+    expect(combined).not.toContain("handleWriteUserWorkspaceEvents");
+    expect(combined).not.toContain("applyPatchToUserWorkspacePrototype");
+    expect(combined).not.toContain("rollbackUserWorkspaceApplyPrototype");
+    expect(combined).not.toContain("writeUserWorkspaceApplyRollbackEvents");
+    expect(adapterSource).not.toContain("safeInvoke");
+    expect(adapterSource).not.toContain("appendEvent");
+    expect(adapterSource).not.toContain("recordControlRunDraftEvent");
+    expect(adapterSource).not.toContain("readFile");
+    expect(adapterSource).not.toContain("writeFile");
+    expect(adapterSource).not.toContain("localStorage");
+    expect(adapterSource).not.toContain("sessionStorage");
+    expect(desktopFlowSource).not.toContain("app_approval_execution");
+  });
+});
+
 describe("app disposable patch apply prototype", () => {
   it("shows disabled-by-default state without app execution", () => {
     const view = buildDisposablePatchApplyView();
@@ -8856,6 +8988,38 @@ describe("desktop source boundaries", () => {
     expect(docsIndex).toContain(
       "app-shell-user-workspace-apply-rollback-event-writer-v0.6.md"
     );
+  });
+
+  it("documents App approval execution design as disabled-only", async () => {
+    const designDoc = await readFile(
+      path.join(repoRoot, "docs", "app-approval-execution-design-v0.6.md"),
+      "utf8"
+    );
+    const docsIndex = await readFile(
+      path.join(repoRoot, "docs", "README.md"),
+      "utf8"
+    );
+    const combined = `${designDoc}\n${docsIndex}`;
+
+    expect(combined).toContain("App Approval Execution Design");
+    expect(combined).toContain("design only");
+    expect(combined).toContain("App execution disabled");
+    expect(combined).toContain("No approve action");
+    expect(combined).toContain("No reject action");
+    expect(combined).toContain("No PermissionLease issuing");
+    expect(combined).toContain("No App-side user workspace apply");
+    expect(combined).toContain("No App-side user workspace rollback");
+    expect(combined).toContain("No App-side apply/rollback EventStore write");
+    expect(combined).toContain("No Tauri command");
+    expect(combined).toContain("No Git commit or push");
+    expect(combined).toContain("No shell execution");
+    expect(combined).toContain("No DeepSeek call");
+    expect(combined).toContain("No native bridge");
+    expect(combined).toContain("No desktop action");
+    expect(combined).toContain("Promotion readiness passes");
+    expect(combined).toContain("Replay projection can reconstruct");
+    expect(combined).toContain("P0K-008");
+    expect(docsIndex).toContain("app-approval-execution-design-v0.6.md");
   });
 
   it("documents the v0.5 post-release review and P0J sandbox apply roadmap without implementation", async () => {

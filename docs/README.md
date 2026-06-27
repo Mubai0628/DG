@@ -84,6 +84,7 @@ foundation.
 - [App Shell User Workspace Rollback Prototype v0.6](app-shell-user-workspace-rollback-prototype-v0.6.md)
 - [Runtime User Workspace Apply / Rollback Event Writer v0.6](runtime-user-workspace-apply-rollback-event-writer-v0.6.md)
 - [App Shell User Workspace Apply / Rollback Event Writer v0.6](app-shell-user-workspace-apply-rollback-event-writer-v0.6.md)
+- [App Approval Execution Design v0.6](app-approval-execution-design-v0.6.md)
 - [Runtime Memory Recall Preview v0.3](runtime-memory-recall-preview-v0.3.md)
 - [v0.4.0 Controlled Creation Preview RC release notes](release-notes-v0.4.0-controlled-creation-preview-rc.1.md)
 - [App Shell Controlled Creation manual QA](app-shell-controlled-creation-manual-qa.md)
