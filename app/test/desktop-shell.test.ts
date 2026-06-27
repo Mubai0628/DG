@@ -97,6 +97,10 @@ import {
   buildDisposableWorkspaceSnapshotView,
   disposableWorkspaceSnapshotWarningCodes
 } from "../src/disposable-workspace-snapshot-view.js";
+import {
+  buildUserWorkspaceSnapshotBackupView,
+  userWorkspaceSnapshotBackupWarningCodes
+} from "../src/user-workspace-snapshot-backup-view.js";
 import { buildDisposablePatchApplyView } from "../src/disposable-patch-apply-view.js";
 import { buildApprovalGatedDisposableApplyView } from "../src/approval-gated-disposable-apply-view.js";
 import { buildDisposablePatchRollbackView } from "../src/disposable-patch-rollback-view.js";
@@ -5820,6 +5824,194 @@ describe("app disposable workspace snapshot contract", () => {
   });
 });
 
+describe("app user workspace snapshot backup contract", () => {
+  function loadedWorkspaceIndex() {
+    return buildWorkspaceIndexBridgeView({
+      source: "synthetic_summary",
+      summary: fixedWorkspaceIndexSummary()
+    });
+  }
+
+  it("builds an empty metadata-only user workspace contract state", () => {
+    const view = buildUserWorkspaceSnapshotBackupView();
+
+    expect(view.status).toBe("empty");
+    expect(view.source).toBe("empty");
+    expect(view.metadataOnly).toBe(true);
+    expect(view.applyEnabled).toBe(false);
+    expect(view.rollbackEnabled).toBe(false);
+    expect(view.backupFileCreationEnabled).toBe(false);
+    expect(view.preimageCaptureEnabled).toBe(false);
+    expect(view.fileReadEnabled).toBe(false);
+    expect(view.fileWriteEnabled).toBe(false);
+    expect(view.eventWritesEnabled).toBe(false);
+    expect(view.gitExecutionEnabled).toBe(false);
+    expect(view.shellExecutionEnabled).toBe(false);
+  });
+
+  it("builds a summary-only user workspace contract from a safe Workspace Index summary", () => {
+    const workspaceIndex = loadedWorkspaceIndex();
+    const view = buildUserWorkspaceSnapshotBackupView({
+      userWorkspaceRootRef: "user-workspace-ref-p0k-001",
+      sourceWorkspaceFingerprint: "workspace-fingerprint-p0k-001",
+      workspaceIndexRef: workspaceIndex
+    });
+    const serialized = JSON.stringify(view);
+
+    expect(view.source).toBe(
+      "runtime_user_workspace_snapshot_backup_contract"
+    );
+    expect(view.status).not.toBe("empty");
+    expect(view.status).not.toBe("blocked");
+    expect(view.fileCount).toBeGreaterThan(0);
+    expect(view.totalBytes).toBeGreaterThan(0);
+    expect(view.expectedUserSnapshotHash).toBe(workspaceIndex.hashPrefix);
+    expect(view.readiness.canReadFilesystem).toBe(false);
+    expect(view.readiness.canWriteFilesystem).toBe(false);
+    expect(view.readiness.canApplyToUserWorkspace).toBe(false);
+    expect(view.readiness.canRollbackUserWorkspace).toBe(false);
+    expect(view.readiness.canExecuteGit).toBe(false);
+    expect(view.readiness.canExecuteShell).toBe(false);
+    expect(serialized).not.toContain("source code line");
+    expect(serialized).not.toContain("rawDiff");
+    expect(serialized).not.toMatch(/"preimageContent"\s*:/);
+  });
+
+  it("rejects unsafe raw fields and fake API key markers safely", () => {
+    const secret = "sk-test1234567890abcdef";
+    const view = buildUserWorkspaceSnapshotBackupView({
+      userWorkspaceRootRef: "user-workspace-ref-p0k-unsafe",
+      sourceWorkspaceFingerprint: "workspace-fingerprint-p0k-unsafe",
+      fileSummaryJsonText: JSON.stringify({
+        files: [
+          {
+            path: "docs/unsafe.md",
+            sizeBytes: 1,
+            hashPrefix: "abc12345",
+            exists: true,
+            plannedMutation: "update",
+            backupRequired: true,
+            preimageHashRequired: true,
+            preimageContent: "do not keep"
+          }
+        ],
+        rawPrompt: `rawPrompt rawDom rawCsv ${secret}`
+      })
+    });
+    const serialized = JSON.stringify(view);
+
+    expect(view.status).toBe("blocked");
+    expect(view.warningCodes).toEqual(
+      expect.arrayContaining([
+        "USER_WORKSPACE_RAW_FIELD_REJECTED",
+        "RAW_PROMPT_MARKER",
+        "RAW_DOM_MARKER",
+        "RAW_CSV_MARKER",
+        "API_KEY_MARKER"
+      ])
+    );
+    expect(serialized).not.toContain(secret);
+    expect(serialized).not.toContain("do not keep");
+  });
+
+  it("feeds Context Assembly and Audit Surface with summary-only user workspace contract refs", () => {
+    const runDraft = buildRunDraftView({
+      objectiveDraft: "Preview user workspace promotion metadata.",
+      selectedIntent: "code_change",
+      acceptanceCriteriaDraft: "User workspace contract summary is visible",
+      workspaceRoot: "D:\\workspace"
+    });
+    const contractView = buildUserWorkspaceSnapshotBackupView({
+      userWorkspaceRootRef: "user-workspace-ref-p0k-001",
+      sourceWorkspaceFingerprint: "workspace-fingerprint-p0k-001",
+      fileSummaryJsonText: JSON.stringify({
+        files: [
+          {
+            path: "app/src/App.tsx",
+            language: "typescript",
+            sizeBytes: 1200,
+            hashPrefix: "abc12345",
+            exists: true,
+            plannedMutation: "update",
+            backupRequired: true,
+            preimageHashRequired: true
+          },
+          {
+            path: "app/test/desktop-shell.test.ts",
+            language: "typescript",
+            sizeBytes: 900,
+            hashPrefix: "def67890",
+            exists: true,
+            plannedMutation: "test",
+            backupRequired: true,
+            preimageHashRequired: false
+          }
+        ]
+      })
+    });
+    const contextPreview = buildContextAssemblyPreviewView({
+      runDraft,
+      userWorkspaceSnapshotContract: contractView
+    });
+    const surfaces = buildWorkbenchSurfacesView({
+      controlProjection: buildControlPlaneProjectionView(undefined),
+      futureAuditWarningCodes:
+        userWorkspaceSnapshotBackupWarningCodes(contractView)
+    });
+    const serialized = JSON.stringify({ contextPreview, surfaces });
+
+    expect(
+      contextPreview.segments.some(
+        (segment) =>
+          segment.sourceKind === "user_workspace_contract" &&
+          segment.sourceRefId === "user-workspace-snapshot-backup-contract" &&
+          segment.placement === "no_compress_zone"
+      )
+    ).toBe(true);
+    expect(surfaces.audit.warningCodes).toEqual(
+      expect.arrayContaining([
+        `USER_WORKSPACE_CONTRACT_STATUS_${contractView.status.toUpperCase()}`,
+        `USER_WORKSPACE_CONTRACT_FINDINGS_${contractView.findingCount}`
+      ])
+    );
+    expect(serialized).not.toContain("raw source");
+    expect(serialized).not.toContain("raw diff");
+    expect(serialized).not.toMatch(/"preimageContent"\s*:/);
+  });
+
+  it("keeps App UI read-only without Tauri, EventStore, filesystem, user apply, rollback, or backup handlers", async () => {
+    const appSource = await readFile(
+      path.join(appRoot, "src", "App.tsx"),
+      "utf8"
+    );
+    const adapterSource = await readFile(
+      path.join(appRoot, "src", "user-workspace-snapshot-backup-view.ts"),
+      "utf8"
+    );
+    const desktopFlowSource = await readFile(
+      path.join(appRoot, "src", "desktop-flow.ts"),
+      "utf8"
+    );
+    const combined = `${appSource}\n${adapterSource}`;
+
+    expect(appSource).toContain("User Workspace Snapshot / Backup Contract");
+    expect(appSource).toContain("Metadata only / no user workspace apply");
+    expect(appSource).toContain("Preview User Workspace Contract");
+    expect(appSource).toContain("No files are read or written");
+    expect(combined).not.toContain("handleApplyUserWorkspace");
+    expect(combined).not.toContain("handleWriteUserWorkspace");
+    expect(combined).not.toContain("handleRollbackUserWorkspace");
+    expect(combined).not.toContain("handleCreateBackup");
+    expect(adapterSource).not.toContain("safeInvoke");
+    expect(adapterSource).not.toContain("EventStore");
+    expect(adapterSource).not.toContain("readFile");
+    expect(adapterSource).not.toContain("writeFile");
+    expect(adapterSource).not.toContain("localStorage");
+    expect(adapterSource).not.toContain("sessionStorage");
+    expect(desktopFlowSource).not.toContain("user_workspace_snapshot");
+  });
+});
+
 describe("app disposable patch apply prototype", () => {
   it("shows disabled-by-default state without app execution", () => {
     const view = buildDisposablePatchApplyView();
@@ -7825,6 +8017,55 @@ describe("desktop source boundaries", () => {
     );
     expect(combined).toContain(
       "p0k-002-user-workspace-snapshot-backup-contract-plan.md"
+    );
+  });
+
+  it("documents the user workspace snapshot backup contract as metadata-only and no-apply", async () => {
+    const runtimeDoc = await readFile(
+      path.join(
+        repoRoot,
+        "docs",
+        "runtime-user-workspace-snapshot-backup-contract-v0.6.md"
+      ),
+      "utf8"
+    );
+    const appDoc = await readFile(
+      path.join(
+        repoRoot,
+        "docs",
+        "app-shell-user-workspace-snapshot-backup-contract-v0.6.md"
+      ),
+      "utf8"
+    );
+    const docsIndex = await readFile(
+      path.join(repoRoot, "docs", "README.md"),
+      "utf8"
+    );
+    const combined = `${runtimeDoc}\n${appDoc}\n${docsIndex}`;
+
+    expect(combined).toContain("User Workspace Snapshot / Backup Contract");
+    expect(combined).toContain("metadata-only");
+    expect(combined).toContain("no user workspace read/write");
+    expect(combined).toContain("No user workspace read/write");
+    expect(combined).toContain("No backup file creation");
+    expect(combined).toContain("No preimage capture");
+    expect(combined).toContain("No user workspace apply");
+    expect(combined).toContain("No user workspace rollback");
+    expect(combined).toContain("opaque display reference");
+    expect(combined).toContain("userWorkspaceRootRef");
+    expect(combined).toContain("symlink, junction, or reparse point");
+    expect(combined).toContain("generated artifact paths");
+    expect(combined).toContain("P0K-003 Promotion Readiness Checker");
+    expect(combined).toContain("No Git or shell execution");
+    expect(combined).toContain("No Tauri command");
+    expect(combined).toContain("No EventStore write");
+    expect(combined).toContain("No native bridge");
+    expect(combined).toContain("No desktop action");
+    expect(docsIndex).toContain(
+      "runtime-user-workspace-snapshot-backup-contract-v0.6.md"
+    );
+    expect(docsIndex).toContain(
+      "app-shell-user-workspace-snapshot-backup-contract-v0.6.md"
     );
   });
 

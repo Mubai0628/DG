@@ -131,6 +131,11 @@ import {
   type AppDisposableWorkspaceSnapshotView
 } from "./disposable-workspace-snapshot-view.js";
 import {
+  buildUserWorkspaceSnapshotBackupView,
+  userWorkspaceSnapshotBackupWarningCodes,
+  type AppUserWorkspaceSnapshotBackupView
+} from "./user-workspace-snapshot-backup-view.js";
+import {
   buildDisposablePatchApplyView,
   type AppDisposablePatchApplyView
 } from "./disposable-patch-apply-view.js";
@@ -304,6 +309,15 @@ export function DesktopShell(): JSX.Element {
     disposableWorkspaceSnapshotPreview,
     setDisposableWorkspaceSnapshotPreview
   ] = useState<AppDisposableWorkspaceSnapshotView | undefined>();
+  const [userWorkspaceRootRef, setUserWorkspaceRootRef] = useState("");
+  const [userWorkspaceSourceFingerprint, setUserWorkspaceSourceFingerprint] =
+    useState("");
+  const [userWorkspaceFileSummaryJson, setUserWorkspaceFileSummaryJson] =
+    useState("");
+  const [
+    userWorkspaceSnapshotBackupPreview,
+    setUserWorkspaceSnapshotBackupPreview
+  ] = useState<AppUserWorkspaceSnapshotBackupView | undefined>();
   const loadedWorkspaceIndexRef =
     workspaceIndexBridge.status === "loaded" ||
     workspaceIndexBridge.status === "warning"
@@ -718,6 +732,29 @@ export function DesktopShell(): JSX.Element {
   const displayedDisposableWorkspaceSnapshot =
     disposableWorkspaceSnapshotPreview ??
     buildDisposableWorkspaceSnapshotView();
+  const userWorkspaceSnapshotBackupCandidate =
+    useMemo<AppUserWorkspaceSnapshotBackupView>(
+      () =>
+        buildUserWorkspaceSnapshotBackupView({
+          userWorkspaceRootRef,
+          sourceWorkspaceFingerprint: userWorkspaceSourceFingerprint,
+          fileSummaryJsonText: userWorkspaceFileSummaryJson,
+          workspaceIndexRef: loadedWorkspaceIndexRef,
+          disposableSnapshotContractRef:
+            disposableWorkspaceSnapshotPreview?.contractId,
+          expectedUserSnapshotHash: loadedWorkspaceIndexRef?.hashPrefix
+        }),
+      [
+        disposableWorkspaceSnapshotPreview?.contractId,
+        loadedWorkspaceIndexRef,
+        userWorkspaceFileSummaryJson,
+        userWorkspaceRootRef,
+        userWorkspaceSourceFingerprint
+      ]
+    );
+  const displayedUserWorkspaceSnapshotBackup =
+    userWorkspaceSnapshotBackupPreview ??
+    buildUserWorkspaceSnapshotBackupView();
   const disposablePatchApplyView = useMemo<AppDisposablePatchApplyView>(
     () =>
       buildDisposablePatchApplyView({
@@ -826,6 +863,7 @@ export function DesktopShell(): JSX.Element {
         sandboxApplyRollbackEventProjection:
           displayedSandboxApplyRollbackEventProjection,
         snapshotContract: displayedDisposableWorkspaceSnapshot,
+        userWorkspaceSnapshotContract: displayedUserWorkspaceSnapshotBackup,
         previousPreview: contextAssemblyPreview
       }),
     [
@@ -835,6 +873,7 @@ export function DesktopShell(): JSX.Element {
       controlPlanePanel,
       controlledCreationReplayProjection,
       displayedDisposableWorkspaceSnapshot,
+      displayedUserWorkspaceSnapshotBackup,
       displayedSandboxApplyRollbackEventProjection,
       displayedRunDraft,
       eventSummary,
@@ -883,6 +922,13 @@ export function DesktopShell(): JSX.Element {
       ),
     [disposableWorkspaceSnapshotPreview]
   );
+  const userWorkspaceSnapshotAuditWarningCodes = useMemo(
+    () =>
+      userWorkspaceSnapshotBackupWarningCodes(
+        userWorkspaceSnapshotBackupPreview
+      ),
+    [userWorkspaceSnapshotBackupPreview]
+  );
   const workbenchSurfaces = useMemo<AppWorkbenchSurfaceView>(
     () =>
       buildWorkbenchSurfacesView({
@@ -899,7 +945,8 @@ export function DesktopShell(): JSX.Element {
         ],
         futureAuditWarningCodes: [
           ...patchProposalAuditWarningCodes,
-          ...disposableWorkspaceSnapshotAuditWarningCodes
+          ...disposableWorkspaceSnapshotAuditWarningCodes,
+          ...userWorkspaceSnapshotAuditWarningCodes
         ]
       }),
     [
@@ -912,7 +959,8 @@ export function DesktopShell(): JSX.Element {
       patchProposalAuditWarningCodes,
       patchProposalSurfaceSummaries,
       preflight,
-      result
+      result,
+      userWorkspaceSnapshotAuditWarningCodes
     ]
   );
   const runDraftEventPreview = useMemo<AppRunDraftEventPreview>(
@@ -990,6 +1038,7 @@ export function DesktopShell(): JSX.Element {
     setPatchRollbackCheckpointPreview(undefined);
     setControlledCreationReplayProjection(undefined);
     setDisposableWorkspaceSnapshotPreview(undefined);
+    setUserWorkspaceSnapshotBackupPreview(undefined);
     setContextAssemblyPreview(undefined);
   }, [acceptanceCriteriaDraft, objectiveDraft, selectedIntent, workspaceRoot]);
 
@@ -1023,6 +1072,7 @@ export function DesktopShell(): JSX.Element {
     patchVirtualApplyPreview?.virtualApplyId,
     controlledCreationReplayProjection?.projectionId,
     sandboxApplyRollbackEventProjection?.projectionId,
+    userWorkspaceSnapshotBackupPreview?.contractId,
     patchWorkbenchSurfaces.diff.items.length,
     capabilityPlanPreview.itemCount,
     displayedRunDraft.draftId,
@@ -1033,12 +1083,24 @@ export function DesktopShell(): JSX.Element {
 
   useEffect(() => {
     setDisposableWorkspaceSnapshotPreview(undefined);
+    setUserWorkspaceSnapshotBackupPreview(undefined);
     setContextAssemblyPreview(undefined);
   }, [
     loadedWorkspaceIndexRef?.hashPrefix,
     snapshotDisposableRootRef,
     snapshotFileSummaryJson,
     snapshotSourceFingerprint
+  ]);
+
+  useEffect(() => {
+    setUserWorkspaceSnapshotBackupPreview(undefined);
+    setContextAssemblyPreview(undefined);
+  }, [
+    disposableWorkspaceSnapshotPreview?.contractId,
+    loadedWorkspaceIndexRef?.hashPrefix,
+    userWorkspaceFileSummaryJson,
+    userWorkspaceRootRef,
+    userWorkspaceSourceFingerprint
   ]);
 
   function handlePreviewDraftRun(): void {
@@ -1104,7 +1166,13 @@ export function DesktopShell(): JSX.Element {
 
   function handlePreviewDisposableWorkspaceSnapshot(): void {
     setDisposableWorkspaceSnapshotPreview(disposableWorkspaceSnapshotCandidate);
+    setUserWorkspaceSnapshotBackupPreview(undefined);
     setSandboxApplyRollbackEventProjection(undefined);
+    setContextAssemblyPreview(undefined);
+  }
+
+  function handlePreviewUserWorkspaceSnapshotBackup(): void {
+    setUserWorkspaceSnapshotBackupPreview(userWorkspaceSnapshotBackupCandidate);
     setContextAssemblyPreview(undefined);
   }
 
@@ -3456,6 +3524,279 @@ export function DesktopShell(): JSX.Element {
 
             <p className="fieldHelp">
               {displayedDisposableWorkspaceSnapshot.nextAction}
+            </p>
+          </section>
+
+          <section
+            className="eventPanel"
+            aria-label="User Workspace Snapshot / Backup Contract"
+          >
+            <div className="panelHeader">
+              <h2>User Workspace Snapshot / Backup Contract</h2>
+              <span className="muted">
+                Metadata only / no user workspace apply
+              </span>
+            </div>
+            <p className="fieldHelp">
+              Builds a summary-only contract for a future user workspace
+              promotion gate. No files are read or written, and no backup is
+              created.
+            </p>
+            <label className="fieldLabel" htmlFor="userWorkspaceRootRef">
+              User workspace root ref
+            </label>
+            <input
+              id="userWorkspaceRootRef"
+              value={userWorkspaceRootRef}
+              onChange={(event) =>
+                setUserWorkspaceRootRef(event.currentTarget.value)
+              }
+              placeholder="user-workspace-ref-p0k-001"
+            />
+            <p className="fieldHelp">
+              This is an opaque display ref for the promotion gate, not a real
+              executable filesystem path.
+            </p>
+            <label
+              className="fieldLabel"
+              htmlFor="userWorkspaceSourceFingerprint"
+            >
+              Source workspace fingerprint
+            </label>
+            <input
+              id="userWorkspaceSourceFingerprint"
+              value={userWorkspaceSourceFingerprint}
+              onChange={(event) =>
+                setUserWorkspaceSourceFingerprint(event.currentTarget.value)
+              }
+              placeholder="workspace-fingerprint-summary"
+            />
+            <label
+              className="fieldLabel"
+              htmlFor="userWorkspaceFileSummaryJson"
+            >
+              File summary JSON
+            </label>
+            <textarea
+              id="userWorkspaceFileSummaryJson"
+              value={userWorkspaceFileSummaryJson}
+              onChange={(event) =>
+                setUserWorkspaceFileSummaryJson(event.currentTarget.value)
+              }
+              rows={5}
+              placeholder='[{"path":"app/src/App.tsx","sizeBytes":1200,"hashPrefix":"abc12345","exists":true,"plannedMutation":"update","backupRequired":true,"preimageHashRequired":true}]'
+            />
+            <p className="fieldHelp">
+              Leave blank to use the loaded Workspace Index summary. Raw file
+              content, raw diffs, preimage content, backup content, and secret
+              markers are rejected.
+            </p>
+            <div className="buttonRow">
+              <button
+                type="button"
+                className="secondary"
+                onClick={(event) => {
+                  event.preventDefault();
+                  event.stopPropagation();
+                  handlePreviewUserWorkspaceSnapshotBackup();
+                }}
+              >
+                Preview User Workspace Contract
+              </button>
+            </div>
+
+            {displayedUserWorkspaceSnapshotBackup.status === "empty" ? (
+              <p className="empty">
+                Load a Workspace Index summary or paste metadata-only file
+                summaries to preview the user workspace snapshot and backup
+                contract.
+              </p>
+            ) : null}
+
+            <dl className="summaryGrid compact">
+              <div>
+                <dt>Status</dt>
+                <dd>{displayedUserWorkspaceSnapshotBackup.status}</dd>
+              </div>
+              <div>
+                <dt>Contract</dt>
+                <dd>{displayedUserWorkspaceSnapshotBackup.contractId}</dd>
+              </div>
+              <div>
+                <dt>User workspace ref</dt>
+                <dd>
+                  {displayedUserWorkspaceSnapshotBackup.userWorkspaceRootRef}
+                </dd>
+              </div>
+              <div>
+                <dt>Source fingerprint</dt>
+                <dd>
+                  {
+                    displayedUserWorkspaceSnapshotBackup.sourceWorkspaceFingerprint
+                  }
+                </dd>
+              </div>
+              <div>
+                <dt>Files / directories</dt>
+                <dd>
+                  {displayedUserWorkspaceSnapshotBackup.fileCount} /{" "}
+                  {displayedUserWorkspaceSnapshotBackup.directoryCount}
+                </dd>
+              </div>
+              <div>
+                <dt>Total bytes</dt>
+                <dd>{displayedUserWorkspaceSnapshotBackup.totalBytes}</dd>
+              </div>
+              <div>
+                <dt>Planned mutations</dt>
+                <dd>
+                  {displayedUserWorkspaceSnapshotBackup.plannedMutationCount}
+                </dd>
+              </div>
+              <div>
+                <dt>Backup / preimage requirements</dt>
+                <dd>
+                  {displayedUserWorkspaceSnapshotBackup.backupRequiredCount} /{" "}
+                  {
+                    displayedUserWorkspaceSnapshotBackup.preimageHashRequiredCount
+                  }
+                </dd>
+              </div>
+              <div>
+                <dt>Generated / binary / symlink-like</dt>
+                <dd>
+                  {displayedUserWorkspaceSnapshotBackup.generatedFileCount} /{" "}
+                  {displayedUserWorkspaceSnapshotBackup.binaryFileCount} /{" "}
+                  {displayedUserWorkspaceSnapshotBackup.symlinkLikeCount}
+                </dd>
+              </div>
+              <div>
+                <dt>Blockers / warnings / findings</dt>
+                <dd>
+                  {displayedUserWorkspaceSnapshotBackup.blockerCount} /{" "}
+                  {displayedUserWorkspaceSnapshotBackup.warningCount} /{" "}
+                  {displayedUserWorkspaceSnapshotBackup.findingCount}
+                </dd>
+              </div>
+              <div>
+                <dt>Hash</dt>
+                <dd>{displayedUserWorkspaceSnapshotBackup.contractHash}</dd>
+              </div>
+            </dl>
+
+            <dl className="summaryGrid compact">
+              <div>
+                <dt>Can readiness check</dt>
+                <dd>
+                  {displayedUserWorkspaceSnapshotBackup.readiness
+                    .canProceedToPromotionReadinessCheck
+                    ? "yes"
+                    : "no"}
+                </dd>
+              </div>
+              <div>
+                <dt>Can read filesystem</dt>
+                <dd>
+                  {displayedUserWorkspaceSnapshotBackup.readiness
+                    .canReadFilesystem
+                    ? "yes"
+                    : "no"}
+                </dd>
+              </div>
+              <div>
+                <dt>Can write filesystem</dt>
+                <dd>
+                  {displayedUserWorkspaceSnapshotBackup.readiness
+                    .canWriteFilesystem
+                    ? "yes"
+                    : "no"}
+                </dd>
+              </div>
+              <div>
+                <dt>Can user apply / rollback</dt>
+                <dd>
+                  {displayedUserWorkspaceSnapshotBackup.readiness
+                    .canApplyToUserWorkspace
+                    ? "yes"
+                    : "no"}{" "}
+                  /{" "}
+                  {displayedUserWorkspaceSnapshotBackup.readiness
+                    .canRollbackUserWorkspace
+                    ? "yes"
+                    : "no"}
+                </dd>
+              </div>
+              <div>
+                <dt>Can git / shell</dt>
+                <dd>
+                  {displayedUserWorkspaceSnapshotBackup.readiness.canExecuteGit
+                    ? "yes"
+                    : "no"}{" "}
+                  /{" "}
+                  {displayedUserWorkspaceSnapshotBackup.readiness
+                    .canExecuteShell
+                    ? "yes"
+                    : "no"}
+                </dd>
+              </div>
+              <div>
+                <dt>Policy</dt>
+                <dd>
+                  {displayedUserWorkspaceSnapshotBackup.policy.pathPolicy} ·
+                  backup{" "}
+                  {displayedUserWorkspaceSnapshotBackup.policy.backupPolicy} ·
+                  symlink{" "}
+                  {displayedUserWorkspaceSnapshotBackup.policy.symlinkPolicy}
+                </dd>
+              </div>
+            </dl>
+
+            {displayedUserWorkspaceSnapshotBackup.backupRequirements.length >
+            0 ? (
+              <ol className="timeline">
+                {displayedUserWorkspaceSnapshotBackup.backupRequirements.map(
+                  (requirement) => (
+                    <li key={requirement.requirementId}>
+                      <span className="timelineMeta">
+                        {requirement.path} · {requirement.mutationKind} ·{" "}
+                        {requirement.backupStorage}
+                      </span>
+                      <span>
+                        preimage hash required:{" "}
+                        {requirement.preimageHashRequired ? "yes" : "no"} ·
+                        content deferred:{" "}
+                        {requirement.preimageContentRequiredForFutureApply
+                          ? "yes"
+                          : "no"}
+                      </span>
+                    </li>
+                  )
+                )}
+              </ol>
+            ) : null}
+
+            {displayedUserWorkspaceSnapshotBackup.findings.length > 0 ? (
+              <ol className="timeline">
+                {displayedUserWorkspaceSnapshotBackup.findings.map(
+                  (finding) => (
+                    <li key={finding.findingId}>
+                      <span className="timelineMeta">
+                        {finding.kind} · {finding.severity} · {finding.code}
+                      </span>
+                      <span>{finding.summary}</span>
+                      {finding.path !== undefined ? (
+                        <span className="timelineMeta">
+                          Path: {finding.path}
+                        </span>
+                      ) : null}
+                    </li>
+                  )
+                )}
+              </ol>
+            ) : null}
+
+            <p className="fieldHelp">
+              {displayedUserWorkspaceSnapshotBackup.nextAction}
             </p>
           </section>
 

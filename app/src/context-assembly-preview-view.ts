@@ -6,6 +6,7 @@ import type { AppDisposableWorkspaceSnapshotView } from "./disposable-workspace-
 import type { AppMemoryRecallPreviewView } from "./memory-recall-preview-view.js";
 import type { AppRunDraftView } from "./run-draft-view.js";
 import type { AppSandboxApplyRollbackEventProjectionView } from "./sandbox-apply-rollback-event-projection-view.js";
+import type { AppUserWorkspaceSnapshotBackupView } from "./user-workspace-snapshot-backup-view.js";
 import {
   safeArray,
   safeErrorMessage,
@@ -47,6 +48,7 @@ export type AppContextAssemblySourceRef = {
     | "replay_projection"
     | "sandbox_event_projection"
     | "snapshot_contract"
+    | "user_workspace_contract"
     | "agent_route"
     | "capability_plan"
     | "event_evidence"
@@ -121,6 +123,9 @@ export type AppContextAssemblyPreviewInput = {
     | AppSandboxApplyRollbackEventProjectionView
     | undefined;
   snapshotContract?: AppDisposableWorkspaceSnapshotView | undefined;
+  userWorkspaceSnapshotContract?:
+    | AppUserWorkspaceSnapshotBackupView
+    | undefined;
   agentRoutePreview?: AppAgentRoutePreviewView | undefined;
   capabilityPlanPreview?: AppCapabilityPlanPreviewView | undefined;
   controlProjection?: AppControlPlaneProjectionView | undefined;
@@ -260,7 +265,8 @@ export function validateContextAssemblyPreviewInput(
     ...rawKeyWarnings(input.workspaceIndexBridge),
     ...rawKeyWarnings(input.memoryRecallPreview),
     ...rawKeyWarnings(input.patchSurface),
-    ...rawKeyWarnings(input.sandboxApplyRollbackEventProjection)
+    ...rawKeyWarnings(input.sandboxApplyRollbackEventProjection),
+    ...rawKeyWarnings(input.userWorkspaceSnapshotContract)
   ]);
   return {
     ok: !warningCodes.some(
@@ -619,6 +625,34 @@ function buildSegments(
         warningCodes: [
           "DISPOSABLE_WORKSPACE_SNAPSHOT_NO_COMPRESS",
           ...input.snapshotContract.warningCodes
+        ]
+      })
+    );
+  }
+
+  if (
+    input.userWorkspaceSnapshotContract !== undefined &&
+    input.userWorkspaceSnapshotContract.status !== "empty"
+  ) {
+    segments.push(
+      segment({
+        layer: "no_compress_zone",
+        title: "User workspace snapshot backup contract summary",
+        sourceKind: "user_workspace_contract",
+        sourceRefId: "user-workspace-snapshot-backup-contract",
+        summary: [
+          input.userWorkspaceSnapshotContract.status,
+          `files:${input.userWorkspaceSnapshotContract.fileCount}`,
+          `mutations:${input.userWorkspaceSnapshotContract.plannedMutationCount}`,
+          `backup:${input.userWorkspaceSnapshotContract.backupRequiredCount}`,
+          `preimage:${input.userWorkspaceSnapshotContract.preimageHashRequiredCount}`,
+          `blockers:${input.userWorkspaceSnapshotContract.blockerCount}`,
+          `warnings:${input.userWorkspaceSnapshotContract.warningCount}`,
+          `hash:${input.userWorkspaceSnapshotContract.contractHash}`
+        ].join(" | "),
+        warningCodes: [
+          "USER_WORKSPACE_SNAPSHOT_BACKUP_NO_COMPRESS",
+          ...input.userWorkspaceSnapshotContract.warningCodes
         ]
       })
     );
