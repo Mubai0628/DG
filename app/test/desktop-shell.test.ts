@@ -7762,6 +7762,72 @@ describe("desktop source boundaries", () => {
     );
   });
 
+  it("documents the P0K-001 user workspace promotion gate design without implementation", async () => {
+    const adr = await readFile(
+      path.join(
+        repoRoot,
+        "docs",
+        "adr",
+        "0006-user-workspace-apply-promotion-gate.md"
+      ),
+      "utf8"
+    );
+    const threatModel = await readFile(
+      path.join(
+        repoRoot,
+        "docs",
+        "user-workspace-apply-promotion-threat-model-v0.6.md"
+      ),
+      "utf8"
+    );
+    const implementationGate = await readFile(
+      path.join(
+        repoRoot,
+        "docs",
+        "user-workspace-apply-promotion-implementation-gate-v0.6.md"
+      ),
+      "utf8"
+    );
+    const nextPlan = await readFile(
+      path.join(
+        repoRoot,
+        "docs",
+        "p0k-002-user-workspace-snapshot-backup-contract-plan.md"
+      ),
+      "utf8"
+    );
+    const docsIndex = await readFile(
+      path.join(repoRoot, "docs", "README.md"),
+      "utf8"
+    );
+    const combined = `${adr}\n${threatModel}\n${implementationGate}\n${nextPlan}\n${docsIndex}`;
+
+    expect(combined).toContain("User Workspace Apply Promotion");
+    expect(combined).toContain("no direct user workspace apply");
+    expect(combined).toContain("Disposable apply result exists");
+    expect(combined).toContain("user workspace snapshot");
+    expect(combined).toContain("backup/preimage");
+    expect(combined).toContain("rollback gate");
+    expect(combined).toContain("summary-only");
+    expect(combined).toContain("Replay");
+    expect(combined).toContain("No Git");
+    expect(combined).toContain("No shell");
+    expect(combined).toContain("No native bridge");
+    expect(combined).toContain("No desktop action");
+    expect(combined).toContain(
+      "adr/0006-user-workspace-apply-promotion-gate.md"
+    );
+    expect(combined).toContain(
+      "user-workspace-apply-promotion-threat-model-v0.6.md"
+    );
+    expect(combined).toContain(
+      "user-workspace-apply-promotion-implementation-gate-v0.6.md"
+    );
+    expect(combined).toContain(
+      "p0k-002-user-workspace-snapshot-backup-contract-plan.md"
+    );
+  });
+
   it("documents the v0.5 post-release review and P0J sandbox apply roadmap without implementation", async () => {
     const review = await readFile(
       path.join(
