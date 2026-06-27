@@ -106,6 +106,7 @@ import {
   userWorkspacePromotionReadinessWarningCodes
 } from "../src/user-workspace-promotion-readiness-view.js";
 import { buildUserWorkspaceApplyPrototypeView } from "../src/user-workspace-apply-prototype-view.js";
+import { buildUserWorkspaceRollbackPrototypeView } from "../src/user-workspace-rollback-prototype-view.js";
 import { buildDisposablePatchApplyView } from "../src/disposable-patch-apply-view.js";
 import { buildApprovalGatedDisposableApplyView } from "../src/approval-gated-disposable-apply-view.js";
 import { buildDisposablePatchRollbackView } from "../src/disposable-patch-rollback-view.js";
@@ -6416,6 +6417,100 @@ describe("app user workspace apply prototype", () => {
   });
 });
 
+describe("app user workspace rollback prototype", () => {
+  it("shows disabled-by-default runtime prototype state", () => {
+    const view = buildUserWorkspaceRollbackPrototypeView();
+
+    expect(view.source).toBe("app_user_workspace_rollback_prototype_disabled");
+    expect(view.status).toBe("disabled");
+    expect(view.disabledByDefault).toBe(true);
+    expect(view.runtimePrototypeOnly).toBe(true);
+    expect(view.runtimeHelperAvailable).toBe(true);
+    expect(view.appExecutionConnected).toBe(false);
+    expect(view.userWorkspaceMutationEnabled).toBe(false);
+    expect(view.rollbackButtonEnabled).toBe(false);
+    expect(view.preimageInputEnabled).toBe(false);
+    expect(view.approvalReceiptInputEnabled).toBe(false);
+    expect(view.eventWritesEnabled).toBe(false);
+    expect(view.tauriCommandEnabled).toBe(false);
+    expect(view.gitExecutionEnabled).toBe(false);
+    expect(view.shellExecutionEnabled).toBe(false);
+    expect(view.warningCodes).toEqual(
+      expect.arrayContaining([
+        "USER_WORKSPACE_ROLLBACK_APPLY_RESULT_MISSING",
+        "USER_WORKSPACE_ROLLBACK_CHECKPOINT_MISSING",
+        "USER_WORKSPACE_ROLLBACK_APP_ROLLBACK_DISABLED"
+      ])
+    );
+  });
+
+  it("summarizes rollback refs without enabling App rollback", () => {
+    const view = buildUserWorkspaceRollbackPrototypeView({
+      userWorkspaceApplyResult: { applyId: "user-apply-1" },
+      userWorkspaceSnapshotBackupContract: {
+        contractId: "contract-1",
+        userWorkspaceRootRef: "user-workspace-root-ref"
+      },
+      promotionReadiness: { readinessId: "readiness-1" },
+      rollbackCheckpoint: {
+        checkpointId: "checkpoint-1",
+        entries: [{ path: "src/file.ts" }]
+      }
+    });
+    const serialized = JSON.stringify(view);
+
+    expect(view.status).toBe("disabled");
+    expect(view.applyId).toBe("user-apply-1");
+    expect(view.checkpointId).toBe("checkpoint-1");
+    expect(view.contractId).toBe("contract-1");
+    expect(view.operationCount).toBe(1);
+    expect(view.rollbackButtonEnabled).toBe(false);
+    expect(view.preimageInputEnabled).toBe(false);
+    expect(view.approvalReceiptInputEnabled).toBe(false);
+    expect(serialized).not.toContain("raw source");
+    expect(serialized).not.toContain("raw diff");
+    expect(serialized).not.toMatch(/"preimageContent"\s*:/);
+  });
+
+  it("keeps App Shell disconnected from user workspace rollback execution", async () => {
+    const appSource = await readFile(
+      path.join(appRoot, "src", "App.tsx"),
+      "utf8"
+    );
+    const adapterSource = await readFile(
+      path.join(appRoot, "src", "user-workspace-rollback-prototype-view.ts"),
+      "utf8"
+    );
+    const desktopFlowSource = await readFile(
+      path.join(appRoot, "src", "desktop-flow.ts"),
+      "utf8"
+    );
+    const combined = `${appSource}\n${adapterSource}`;
+
+    expect(appSource).toContain("User Workspace Rollback Prototype");
+    expect(appSource).toContain(
+      "Disabled by default / runtime prototype only"
+    );
+    expect(appSource).toContain("Rollback User Workspace (disabled)");
+    expect(appSource).toMatch(
+      /The App Shell cannot rollback\s+the user\s+workspace/
+    );
+    expect(combined).not.toContain("handleRollbackUserWorkspace");
+    expect(combined).not.toContain("handleApplyUserWorkspace");
+    expect(combined).not.toContain("handlePromoteUserWorkspace");
+    expect(combined).not.toContain("handleWriteUserWorkspaceEvents");
+    expect(combined).not.toContain("approvalReceiptId");
+    expect(adapterSource).not.toContain("preimageContent");
+    expect(adapterSource).not.toContain("safeInvoke");
+    expect(adapterSource).not.toContain("EventStore");
+    expect(adapterSource).not.toContain("readFile");
+    expect(adapterSource).not.toContain("writeFile");
+    expect(adapterSource).not.toContain("localStorage");
+    expect(adapterSource).not.toContain("sessionStorage");
+    expect(desktopFlowSource).not.toContain("user_workspace_rollback");
+  });
+});
+
 describe("app disposable patch apply prototype", () => {
   it("shows disabled-by-default state without app execution", () => {
     const view = buildDisposablePatchApplyView();
@@ -8567,6 +8662,54 @@ describe("desktop source boundaries", () => {
     );
     expect(docsIndex).toContain(
       "app-shell-user-workspace-apply-prototype-v0.6.md"
+    );
+  });
+
+  it("documents the user workspace rollback prototype as disabled in App", async () => {
+    const runtimeDoc = await readFile(
+      path.join(
+        repoRoot,
+        "docs",
+        "runtime-user-workspace-rollback-prototype-v0.6.md"
+      ),
+      "utf8"
+    );
+    const appDoc = await readFile(
+      path.join(
+        repoRoot,
+        "docs",
+        "app-shell-user-workspace-rollback-prototype-v0.6.md"
+      ),
+      "utf8"
+    );
+    const docsIndex = await readFile(
+      path.join(repoRoot, "docs", "README.md"),
+      "utf8"
+    );
+    const combined = `${runtimeDoc}\n${appDoc}\n${docsIndex}`;
+
+    expect(combined).toContain("User Workspace Rollback Prototype");
+    expect(combined).toContain("disabled by default");
+    expect(combined).toContain("runtime tests");
+    expect(combined).toContain("explicit_user_workspace_rollback_prototype");
+    expect(combined).toContain("User Workspace Apply Prototype");
+    expect(combined).toContain("User Workspace Snapshot / Backup Contract");
+    expect(combined).toContain("Promotion Readiness");
+    expect(combined).toContain("approval receipt");
+    expect(combined).toContain("not a production PermissionLease");
+    expect(combined).toContain("notWritten: true");
+    expect(combined).toContain("No App rollback");
+    expect(combined).toContain("No Tauri command");
+    expect(combined).toContain("No EventStore write");
+    expect(combined).toContain("No Git commit or push");
+    expect(combined).toContain("No shell execution");
+    expect(combined).toContain("No native bridge");
+    expect(combined).toContain("No desktop action");
+    expect(docsIndex).toContain(
+      "runtime-user-workspace-rollback-prototype-v0.6.md"
+    );
+    expect(docsIndex).toContain(
+      "app-shell-user-workspace-rollback-prototype-v0.6.md"
     );
   });
 

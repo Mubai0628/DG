@@ -146,6 +146,10 @@ import {
   type AppUserWorkspaceApplyPrototypeView
 } from "./user-workspace-apply-prototype-view.js";
 import {
+  buildUserWorkspaceRollbackPrototypeView,
+  type AppUserWorkspaceRollbackPrototypeView
+} from "./user-workspace-rollback-prototype-view.js";
+import {
   buildDisposablePatchApplyView,
   type AppDisposablePatchApplyView
 } from "./disposable-patch-apply-view.js";
@@ -916,6 +920,19 @@ export function DesktopShell(): JSX.Element {
         patchProposalValidationPreview,
         patchRollbackCheckpointPreview,
         patchVirtualApplyPreview
+      ]
+    );
+  const userWorkspaceRollbackPrototypeView =
+    useMemo<AppUserWorkspaceRollbackPrototypeView>(
+      () =>
+        buildUserWorkspaceRollbackPrototypeView({
+          userWorkspaceSnapshotBackupContract:
+            displayedUserWorkspaceSnapshotBackup,
+          promotionReadiness: displayedUserWorkspacePromotionReadiness
+        }),
+      [
+        displayedUserWorkspacePromotionReadiness,
+        displayedUserWorkspaceSnapshotBackup
       ]
     );
   const contextAssemblyCandidate = useMemo<AppContextAssemblyPreviewView>(
@@ -4248,6 +4265,119 @@ export function DesktopShell(): JSX.Element {
             ) : null}
             <p className="fieldHelp">
               {userWorkspaceApplyPrototypeView.nextAction}
+            </p>
+          </section>
+
+          <section
+            className="eventPanel"
+            aria-label="User Workspace Rollback Prototype"
+          >
+            <div className="panelHeader">
+              <h2>User Workspace Rollback Prototype</h2>
+              <span className="muted">
+                Disabled by default / runtime prototype only
+              </span>
+            </div>
+            <p className="fieldHelp">
+              User workspace rollback is only available to runtime tests with
+              explicit fixtures. The App Shell cannot rollback the user
+              workspace.
+            </p>
+            <div className="buttonRow">
+              <button
+                type="button"
+                className="secondary"
+                disabled
+                aria-disabled="true"
+              >
+                Rollback User Workspace (disabled)
+              </button>
+            </div>
+            <dl className="summaryGrid compact">
+              <div>
+                <dt>Status</dt>
+                <dd>{userWorkspaceRollbackPrototypeView.status}</dd>
+              </div>
+              <div>
+                <dt>Runtime helper</dt>
+                <dd>
+                  {userWorkspaceRollbackPrototypeView.runtimeHelperAvailable
+                    ? "available for tests"
+                    : "not connected"}
+                </dd>
+              </div>
+              <div>
+                <dt>Runtime prototype only</dt>
+                <dd>
+                  {userWorkspaceRollbackPrototypeView.runtimePrototypeOnly
+                    ? "yes"
+                    : "no"}
+                </dd>
+              </div>
+              <div>
+                <dt>App execution connected</dt>
+                <dd>
+                  {userWorkspaceRollbackPrototypeView.appExecutionConnected
+                    ? "yes"
+                    : "no"}
+                </dd>
+              </div>
+              <div>
+                <dt>User workspace mutation</dt>
+                <dd>
+                  {userWorkspaceRollbackPrototypeView
+                    .userWorkspaceMutationEnabled
+                    ? "enabled"
+                    : "disabled"}
+                </dd>
+              </div>
+              <div>
+                <dt>Preimage input</dt>
+                <dd>
+                  {userWorkspaceRollbackPrototypeView.preimageInputEnabled
+                    ? "enabled"
+                    : "disabled"}
+                </dd>
+              </div>
+              <div>
+                <dt>Approval receipt input</dt>
+                <dd>
+                  {userWorkspaceRollbackPrototypeView
+                    .approvalReceiptInputEnabled
+                    ? "enabled"
+                    : "disabled"}
+                </dd>
+              </div>
+              <div>
+                <dt>Apply / checkpoint</dt>
+                <dd>
+                  {userWorkspaceRollbackPrototypeView.applyId || "n/a"} /{" "}
+                  {userWorkspaceRollbackPrototypeView.checkpointId || "n/a"}
+                </dd>
+              </div>
+              <div>
+                <dt>Readiness / contract</dt>
+                <dd>
+                  {userWorkspaceRollbackPrototypeView.readinessId || "n/a"} /{" "}
+                  {userWorkspaceRollbackPrototypeView.contractId || "n/a"}
+                </dd>
+              </div>
+              <div>
+                <dt>Blockers / warnings</dt>
+                <dd>
+                  {userWorkspaceRollbackPrototypeView.blockerCount} /{" "}
+                  {userWorkspaceRollbackPrototypeView.warningCount}
+                </dd>
+              </div>
+            </dl>
+            {userWorkspaceRollbackPrototypeView.warningCodes.length > 0 ? (
+              <p className="fieldHelp">
+                Warning codes:{" "}
+                {userWorkspaceRollbackPrototypeView.warningCodes.join(", ")}
+              </p>
+            ) : null}
+            <p className="fieldHelp">
+              {userWorkspaceRollbackPrototypeView.nextAction}
             </p>
           </section>
 
