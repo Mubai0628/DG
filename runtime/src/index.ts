@@ -51,6 +51,10 @@ export {
   getDeepSeekCapabilityProfile,
   listDeepSeekCapabilityProfiles,
   normalizeLegacyDeepSeekModelId,
+  normalizeModelPatchProposalDraft,
+  parseModelPatchProposalDraft,
+  summarizeModelPatchProposalDraft,
+  validateModelPatchProposalDraft,
   runDeepSeekCapabilityDryProbe
 } from "./models/index.js";
 export type {
@@ -64,7 +68,18 @@ export type {
   DeepSeekFeatureSupport,
   DeepSeekLegacyAlias,
   DeepSeekModelFamily,
-  DeepSeekModelId as DeepSeekCapabilityModelId
+  DeepSeekModelId as DeepSeekCapabilityModelId,
+  ModelPatchProposal,
+  ModelPatchProposalEvidenceRef,
+  ModelPatchProposalFinding,
+  ModelPatchProposalFindingKind,
+  ModelPatchProposalInput,
+  ModelPatchProposalOperation,
+  ModelPatchProposalPathSummary,
+  ModelPatchProposalReadiness,
+  ModelPatchProposalRiskNote,
+  ModelPatchProposalSeverity,
+  ModelPatchProposalValidationResult
 } from "./models/index.js";
 export * from "./web/index.js";
 export * from "./workspace-index/index.js";

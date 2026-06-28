@@ -8938,6 +8938,39 @@ describe("desktop source boundaries", () => {
     expect(docsIndex).toContain("p0l-002-model-patch-proposal-schema-plan.md");
   });
 
+  it("documents the P0L-002 model patch proposal schema without model calls or execution", async () => {
+    const docs = await readFile(
+      path.join(
+        repoRoot,
+        "docs",
+        "runtime-model-patch-proposal-schema-v0.7.md"
+      ),
+      "utf8"
+    );
+    const docsIndex = await readFile(
+      path.join(repoRoot, "docs", "README.md"),
+      "utf8"
+    );
+    const combined = `${docs}\n${docsIndex}`;
+
+    expect(combined).toContain("Runtime Model Patch Proposal Schema v0.7");
+    expect(combined).toContain("No model call");
+    expect(combined).toContain("does not write files");
+    expect(combined).toContain("does not apply patches");
+    expect(combined).toContain("does not rollback");
+    expect(combined).toMatch(/does not\s+write EventStore/);
+    expect(combined).toContain("Forbidden Fields");
+    expect(combined).toContain("Path, Content, And Secret Guards");
+    expect(combined).toContain("Patch Proposal Creation Preview");
+    expect(combined).toContain("patch proposal validation preview");
+    expect(combined).toContain("diff audit");
+    expect(combined).toContain("approval draft");
+    expect(combined).toContain("No Git or shell execution");
+    expect(combined).toContain("No native bridge");
+    expect(combined).toContain("No desktop action");
+    expect(docsIndex).toContain("runtime-model-patch-proposal-schema-v0.7.md");
+  });
+
   it("documents the v0.6 post-release review and P0K promotion roadmap without enabling user workspace apply", async () => {
     const review = await readFile(
       path.join(repoRoot, "docs", "v0.6-sandbox-apply-postrelease-review.md"),

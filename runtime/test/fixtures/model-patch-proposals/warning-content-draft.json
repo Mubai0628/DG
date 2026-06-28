@@ -1,0 +1,28 @@
+{
+  "schemaVersion": "model_patch_proposal.v1",
+  "proposalId": "model-proposal-content-draft",
+  "title": "Draft docs content",
+  "intent": "Represent draft content without treating it as a write.",
+  "objectiveSummary": "Content draft is summary-only until later validation.",
+  "operations": [
+    {
+      "operationId": "op-content-001",
+      "path": "docs/model-proposal.md",
+      "changeKind": "documentation",
+      "summary": "Draft a short documentation paragraph.",
+      "contentDraft": "Model-generated documentation draft. This is not written by the schema validator.",
+      "estimatedLinesAdded": 1,
+      "estimatedLinesRemoved": 0,
+      "warningCodes": []
+    }
+  ],
+  "evidenceRefs": [
+    {
+      "refId": "manual-note",
+      "kind": "manual_note",
+      "summary": "Synthetic content draft fixture."
+    }
+  ],
+  "validationHints": ["Audit content before any later apply path."],
+  "modelProfileId": "deepseek-v4-pro"
+}

@@ -1,0 +1,60 @@
+{
+  "schemaVersion": "model_patch_proposal.v1",
+  "proposalId": "model-proposal-safe-basic",
+  "title": "Clarify disabled App copy",
+  "intent": "Update read-only copy for a disabled App preview surface.",
+  "objectiveSummary": "Keep App execution disabled while clarifying proposal flow.",
+  "operations": [
+    {
+      "operationId": "op-doc-001",
+      "path": "docs/app-shell-preview.md",
+      "changeKind": "documentation",
+      "summary": "Document that model proposals remain draft-only.",
+      "rationale": "Docs should distinguish proposals from apply execution.",
+      "estimatedLinesAdded": 8,
+      "estimatedLinesRemoved": 1,
+      "warningCodes": []
+    },
+    {
+      "operationId": "op-test-001",
+      "path": "runtime/test/model-patch-proposal-schema.test.ts",
+      "changeKind": "test",
+      "summary": "Add schema validator coverage for model proposal drafts.",
+      "estimatedLinesAdded": 12,
+      "estimatedLinesRemoved": 0,
+      "warningCodes": []
+    }
+  ],
+  "pathSummaries": [
+    {
+      "path": "docs/app-shell-preview.md",
+      "changeKind": "documentation",
+      "summary": "Documentation-only update"
+    }
+  ],
+  "evidenceRefs": [
+    {
+      "refId": "workspace-index-summary",
+      "kind": "workspace_index",
+      "summary": "Workspace index summary ref only.",
+      "hashPrefix": "abc12345"
+    },
+    {
+      "refId": "context-assembly-preview",
+      "kind": "context_assembly",
+      "summary": "Context assembly preview ref only.",
+      "hashPrefix": "def67890"
+    }
+  ],
+  "riskNotes": [
+    {
+      "code": "DRAFT_ONLY",
+      "severity": "info",
+      "summary": "No execution controls are added."
+    }
+  ],
+  "validationHints": ["Run patch proposal validation preview before audit."],
+  "createdAt": "2026-06-28T00:00:00.000Z",
+  "modelProfileId": "deepseek-v4-pro",
+  "source": "deepseek_model_patch_proposal"
+}

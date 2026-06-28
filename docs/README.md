@@ -95,6 +95,7 @@ foundation.
 - [DeepSeek Patch Proposal Generation threat model v0.7](deepseek-patch-proposal-generation-threat-model-v0.7.md)
 - [DeepSeek Patch Proposal Generation implementation gate v0.7](deepseek-patch-proposal-generation-implementation-gate-v0.7.md)
 - [P0L-002 Model Patch Proposal Schema plan](p0l-002-model-patch-proposal-schema-plan.md)
+- [Runtime Model Patch Proposal Schema v0.7](runtime-model-patch-proposal-schema-v0.7.md)
 - [Runtime Memory Recall Preview v0.3](runtime-memory-recall-preview-v0.3.md)
 - [v0.4.0 Controlled Creation Preview RC release notes](release-notes-v0.4.0-controlled-creation-preview-rc.1.md)
 - [App Shell Controlled Creation manual QA](app-shell-controlled-creation-manual-qa.md)

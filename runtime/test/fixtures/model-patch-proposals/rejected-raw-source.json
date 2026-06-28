@@ -1,0 +1,21 @@
+{
+  "schemaVersion": "model_patch_proposal.v1",
+  "title": "Unsafe raw field",
+  "intent": "This fixture must be rejected.",
+  "objectiveSummary": "Rejected fixture.",
+  "operations": [
+    {
+      "path": "docs/file.md",
+      "changeKind": "documentation",
+      "summary": "Unsafe raw field test.",
+      "rawSource": "synthetic raw source marker only"
+    }
+  ],
+  "evidenceRefs": [
+    {
+      "refId": "manual-note",
+      "kind": "manual_note",
+      "summary": "Synthetic rejected fixture."
+    }
+  ]
+}
