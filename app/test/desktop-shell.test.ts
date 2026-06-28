@@ -9625,6 +9625,85 @@ describe("desktop source boundaries", () => {
     );
   });
 
+  it("documents the P0M-001 live DeepSeek proposal adapter ADR and gates without implementation", async () => {
+    const adr = await readFile(
+      path.join(
+        repoRoot,
+        "docs",
+        "adr",
+        "0008-live-deepseek-proposal-adapter.md"
+      ),
+      "utf8"
+    );
+    const threatModel = await readFile(
+      path.join(
+        repoRoot,
+        "docs",
+        "live-deepseek-proposal-adapter-threat-model-v0.8.md"
+      ),
+      "utf8"
+    );
+    const implementationGate = await readFile(
+      path.join(
+        repoRoot,
+        "docs",
+        "live-deepseek-proposal-adapter-implementation-gate-v0.8.md"
+      ),
+      "utf8"
+    );
+    const nextPlan = await readFile(
+      path.join(
+        repoRoot,
+        "docs",
+        "p0m-002-api-key-access-policy-opt-in-gate-plan.md"
+      ),
+      "utf8"
+    );
+    const docsIndex = await readFile(
+      path.join(repoRoot, "docs", "README.md"),
+      "utf8"
+    );
+    const combined = `${adr}\n${threatModel}\n${implementationGate}\n${nextPlan}\n${docsIndex}`;
+
+    expect(combined).toContain("Live DeepSeek Proposal Adapter");
+    expect(combined).toContain("Proposed / Accepted for P0M design gate");
+    expect(combined).toContain("explicit opt-in");
+    expect(combined).toMatch(/no live DeepSeek call in P0M-001/i);
+    expect(combined).toMatch(/no API key read in P0M-001/i);
+    expect(combined).toMatch(/no fetch\/network in P0M-001/i);
+    expect(combined).toContain("No adapter implementation");
+    expect(combined).toContain("No App execution");
+    expect(combined).toContain("No file write");
+    expect(combined).toContain("No EventStore write");
+    expect(combined).toContain("No Git");
+    expect(combined).toContain("No shell");
+    expect(combined).toContain("No native bridge");
+    expect(combined).toContain("No desktop action");
+    expect(combined).toMatch(/API Key Leakage Risks/i);
+    expect(combined).toMatch(/Raw Prompt \/ Source Leakage Risks/i);
+    expect(combined).toMatch(/Opt-in Bypass Risks/i);
+    expect(combined).toMatch(
+      /Do not implement live adapter until P0M-001\/P0M-002\/P0M-003 gates are\s+satisfied/
+    );
+    expect(combined).toMatch(
+      /schema[,/ ]+repair[,/ ]+validation[,/ ]+audit[,/ ]+approval/i
+    );
+    expect(combined).toContain("P0M-002 is policy-only");
+    expect(combined).toContain("No live call in P0M-002");
+    expect(combined).toContain("No API key read in P0M-002");
+    expect(combined).toContain("No fetch/network in P0M-002");
+    expect(docsIndex).toContain("adr/0008-live-deepseek-proposal-adapter.md");
+    expect(docsIndex).toContain(
+      "live-deepseek-proposal-adapter-threat-model-v0.8.md"
+    );
+    expect(docsIndex).toContain(
+      "live-deepseek-proposal-adapter-implementation-gate-v0.8.md"
+    );
+    expect(docsIndex).toContain(
+      "p0m-002-api-key-access-policy-opt-in-gate-plan.md"
+    );
+  });
+
   it("documents the P0L-001 DeepSeek patch proposal ADR and gates without implementation", async () => {
     const adr = await readFile(
       path.join(
