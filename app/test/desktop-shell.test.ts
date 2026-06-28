@@ -4159,6 +4159,39 @@ describe("app live proposal request builder", () => {
       "app-shell-live-proposal-request-builder-v0.8.md"
     );
   });
+
+  it("documents the runtime live DeepSeek proposal adapter without App execution", async () => {
+    const runtimeDoc = await readFile(
+      path.join(
+        repoRoot,
+        "docs",
+        "runtime-live-deepseek-proposal-adapter-v0.8.md"
+      ),
+      "utf8"
+    );
+    const docsIndex = await readFile(
+      path.join(repoRoot, "docs", "README.md"),
+      "utf8"
+    );
+    const combined = `${runtimeDoc}\n${docsIndex}`;
+
+    expect(combined).toContain("Runtime Live DeepSeek Proposal Adapter v0.8");
+    expect(combined).toContain("Explicit opt-in required");
+    expect(combined).toContain("API key resolver injected");
+    expect(combined).toContain("Transport injected");
+    expect(combined).toContain("No App call");
+    expect(combined).toContain("No Tauri command");
+    expect(combined).toContain("No tools/tool_choice");
+    expect(combined).toContain("reasoning_content");
+    expect(combined).toContain("No apply or rollback");
+    expect(combined).toContain("No EventStore write");
+    expect(combined).toContain("No Git/shell");
+    expect(combined).toContain("No native bridge");
+    expect(combined).toContain("No desktop action");
+    expect(docsIndex).toContain(
+      "runtime-live-deepseek-proposal-adapter-v0.8.md"
+    );
+  });
 });
 
 describe("app patch proposal validation preview", () => {
