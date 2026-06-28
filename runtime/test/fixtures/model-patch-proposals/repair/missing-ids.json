@@ -1,0 +1,31 @@
+{
+  "schemaVersion": "model_patch_proposal.v1",
+  "title": "Missing ids repair draft",
+  "intent": "Generate deterministic ids for safe proposal drafts.",
+  "objectiveSummary": "Missing proposal and operation ids are mechanical gaps.",
+  "operations": [
+    {
+      "path": "docs/missing-ids.md",
+      "changeKind": "documentation",
+      "summary": "Document deterministic id repair.",
+      "estimatedLinesAdded": 3,
+      "estimatedLinesRemoved": 0
+    },
+    {
+      "path": "runtime/test/patch-proposal-repair.test.ts",
+      "changeKind": "test",
+      "summary": "Cover deterministic id repair.",
+      "estimatedLinesAdded": 8,
+      "estimatedLinesRemoved": 0
+    }
+  ],
+  "evidenceRefs": [
+    {
+      "refId": "manual-note",
+      "kind": "manual_note",
+      "summary": "Synthetic missing ids fixture."
+    }
+  ],
+  "validationHints": ["Validate repaired ids."],
+  "modelProfileId": "deepseek-v4-pro"
+}

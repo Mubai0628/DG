@@ -1,0 +1,26 @@
+{
+  "schemaVersion": "model_patch_proposal.v1",
+  "proposalId": "model-proposal-unsafe-path",
+  "title": "Unsafe path repair rejection",
+  "intent": "Unsafe paths must not be repaired into safe paths.",
+  "objectiveSummary": "Path traversal is rejected fail-closed.",
+  "operations": [
+    {
+      "operationId": "op-unsafe-path",
+      "path": "../outside.md",
+      "changeKind": "documentation",
+      "summary": "Traversal must block.",
+      "estimatedLinesAdded": 1,
+      "estimatedLinesRemoved": 0
+    }
+  ],
+  "evidenceRefs": [
+    {
+      "refId": "manual-note",
+      "kind": "manual_note",
+      "summary": "Synthetic unsafe path fixture."
+    }
+  ],
+  "validationHints": ["Reject traversal."],
+  "modelProfileId": "deepseek-v4-pro"
+}

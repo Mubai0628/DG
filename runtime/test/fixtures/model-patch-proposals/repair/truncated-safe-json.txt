@@ -1,0 +1,25 @@
+{
+  "schemaVersion": "model_patch_proposal.v1",
+  "proposalId": "model-proposal-truncated-safe",
+  "title": "Truncated safe repair draft",
+  "intent": "Close a single missing trailing brace.",
+  "objectiveSummary": "A single missing trailing brace can be repaired when safe.",
+  "operations": [
+    {
+      "operationId": "op-truncated-safe",
+      "path": "docs/truncated-safe.md",
+      "changeKind": "documentation",
+      "summary": "Document safe truncation repair.",
+      "estimatedLinesAdded": 2,
+      "estimatedLinesRemoved": 0
+    }
+  ],
+  "evidenceRefs": [
+    {
+      "refId": "manual-note",
+      "kind": "manual_note",
+      "summary": "Synthetic truncated safe fixture."
+    }
+  ],
+  "validationHints": ["Validate after closing one brace."],
+  "modelProfileId": "deepseek-v4-pro"

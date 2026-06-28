@@ -1,0 +1,26 @@
+{
+  "schemaVersion": "model_patch_proposal.v1",
+  "proposalId": "model-proposal-change-kind-case",
+  "title": "Change kind case repair draft",
+  "intent": "Normalize safe change kind casing.",
+  "objectiveSummary": "Case-only change kind differences are mechanical.",
+  "operations": [
+    {
+      "operationId": "op-change-kind-case",
+      "path": "docs/change-kind-case.md",
+      "changeKind": "Documentation",
+      "summary": "Document change kind case repair.",
+      "estimatedLinesAdded": 2,
+      "estimatedLinesRemoved": 0
+    }
+  ],
+  "evidenceRefs": [
+    {
+      "refId": "manual-note",
+      "kind": "manual_note",
+      "summary": "Synthetic change kind case fixture."
+    }
+  ],
+  "validationHints": ["Validate normalized change kind."],
+  "modelProfileId": "deepseek-v4-pro"
+}

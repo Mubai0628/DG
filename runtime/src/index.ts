@@ -55,14 +55,17 @@ export {
   normalizeLegacyDeepSeekModelId,
   normalizeModelPatchProposalDraft,
   parseModelPatchProposalDraft,
+  repairModelPatchProposalDraft,
   runPatchProposalDryAdapter,
   runPatchProposalHarness,
   runPatchProposalHarnessCase,
   summarizePatchProposalDryAdapterResult,
   summarizePatchProposalHarnessReport,
   summarizeModelPatchProposalDraft,
+  summarizePatchProposalRepairResult,
   validatePatchProposalDryAdapterInput,
   validateModelPatchProposalDraft,
+  validatePatchProposalRepairInput,
   runDeepSeekCapabilityDryProbe
 } from "./models/index.js";
 export type {
@@ -113,7 +116,20 @@ export type {
   PatchProposalHarnessResult,
   PatchProposalHarnessSeverity,
   PatchProposalHarnessStatus,
-  PatchProposalHarnessValidationSummary
+  PatchProposalHarnessValidationSummary,
+  PatchProposalRepairAttempt,
+  PatchProposalRepairFinding,
+  PatchProposalRepairFindingKind,
+  PatchProposalRepairInput,
+  PatchProposalRepairOperation,
+  PatchProposalRepairOperationKind,
+  PatchProposalRepairProposalSummary,
+  PatchProposalRepairProposalValidation,
+  PatchProposalRepairReadiness,
+  PatchProposalRepairResult,
+  PatchProposalRepairSeverity,
+  PatchProposalRepairSourceKind,
+  PatchProposalRepairStatus
 } from "./models/index.js";
 export * from "./web/index.js";
 export * from "./workspace-index/index.js";

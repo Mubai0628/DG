@@ -1,0 +1,25 @@
+```json
+{
+  "title": "Fenced repair draft",
+  "intent": "Repair fenced JSON into a proposal draft.",
+  "objectiveSummary": "Remove markdown fence and fill mechanical schema gaps.",
+  "operations": [
+    {
+      "path": "docs/fenced-repair.md",
+      "changeKind": "documentation",
+      "summary": "Document fenced JSON repair behavior.",
+      "estimatedLinesAdded": 4,
+      "estimatedLinesRemoved": 0
+    }
+  ],
+  "evidenceRefs": [
+    {
+      "refId": "manual-note",
+      "kind": "manual_note",
+      "summary": "Synthetic fenced JSON fixture."
+    }
+  ],
+  "validationHints": ["Run schema validation after repair."],
+  "modelProfileId": "deepseek-v4-pro"
+}
+```

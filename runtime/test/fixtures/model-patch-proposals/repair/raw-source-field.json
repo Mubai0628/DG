@@ -1,0 +1,27 @@
+{
+  "schemaVersion": "model_patch_proposal.v1",
+  "proposalId": "model-proposal-raw-source",
+  "title": "Raw source repair rejection",
+  "intent": "Raw source fields must block.",
+  "objectiveSummary": "Do not remove raw fields to pass validation.",
+  "rawSource": "synthetic raw source should not be returned",
+  "operations": [
+    {
+      "operationId": "op-raw-source",
+      "path": "docs/raw-source.md",
+      "changeKind": "documentation",
+      "summary": "Raw source field must block.",
+      "estimatedLinesAdded": 1,
+      "estimatedLinesRemoved": 0
+    }
+  ],
+  "evidenceRefs": [
+    {
+      "refId": "manual-note",
+      "kind": "manual_note",
+      "summary": "Synthetic raw source fixture."
+    }
+  ],
+  "validationHints": ["Reject raw fields."],
+  "modelProfileId": "deepseek-v4-pro"
+}

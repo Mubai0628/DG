@@ -1,0 +1,27 @@
+{
+  "schemaVersion": "model_patch_proposal.v1",
+  "proposalId": "model-proposal-execution-field",
+  "title": "Execution field repair rejection",
+  "intent": "Execution fields must block.",
+  "objectiveSummary": "Do not remove execution fields to pass validation.",
+  "applyNow": true,
+  "operations": [
+    {
+      "operationId": "op-execution-field",
+      "path": "docs/execution-field.md",
+      "changeKind": "documentation",
+      "summary": "Execution field must block.",
+      "estimatedLinesAdded": 1,
+      "estimatedLinesRemoved": 0
+    }
+  ],
+  "evidenceRefs": [
+    {
+      "refId": "manual-note",
+      "kind": "manual_note",
+      "summary": "Synthetic execution field fixture."
+    }
+  ],
+  "validationHints": ["Reject execution fields."],
+  "modelProfileId": "deepseek-v4-pro"
+}

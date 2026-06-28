@@ -1,0 +1,28 @@
+Here is the requested draft:
+{
+  "schemaVersion": "model_patch_proposal.v1",
+  "proposalId": "model-proposal-leading-trailing",
+  "title": "Leading trailing repair draft",
+  "intent": "Extract JSON surrounded by explanatory text.",
+  "objectiveSummary": "Only the JSON object should be parsed.",
+  "operations": [
+    {
+      "operationId": "op-leading-trailing",
+      "path": "docs/leading-trailing.md",
+      "changeKind": "documentation",
+      "summary": "Document JSON extraction behavior.",
+      "estimatedLinesAdded": 3,
+      "estimatedLinesRemoved": 0
+    }
+  ],
+  "evidenceRefs": [
+    {
+      "refId": "manual-note",
+      "kind": "manual_note",
+      "summary": "Synthetic extraction fixture."
+    }
+  ],
+  "validationHints": ["Validate after extraction."],
+  "modelProfileId": "deepseek-v4-pro"
+}
+Thanks.

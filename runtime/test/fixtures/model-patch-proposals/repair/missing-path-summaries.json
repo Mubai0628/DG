@@ -1,0 +1,26 @@
+{
+  "schemaVersion": "model_patch_proposal.v1",
+  "proposalId": "model-proposal-missing-path-summaries",
+  "title": "Missing path summaries repair draft",
+  "intent": "Derive path summaries from operations.",
+  "objectiveSummary": "Path summaries can be derived mechanically.",
+  "operations": [
+    {
+      "operationId": "op-path-summary",
+      "path": "docs/path-summary.md",
+      "changeKind": "documentation",
+      "summary": "Document derived path summaries.",
+      "estimatedLinesAdded": 2,
+      "estimatedLinesRemoved": 0
+    }
+  ],
+  "evidenceRefs": [
+    {
+      "refId": "manual-note",
+      "kind": "manual_note",
+      "summary": "Synthetic missing path summaries fixture."
+    }
+  ],
+  "validationHints": ["Validate derived path summaries."],
+  "modelProfileId": "deepseek-v4-pro"
+}
