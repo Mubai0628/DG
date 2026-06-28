@@ -97,6 +97,10 @@ import {
   type LiveProposalRequestBuilderView
 } from "./live-proposal-request-builder-view.js";
 import {
+  buildLiveProposalValidationIntegrationView,
+  type LiveProposalValidationIntegrationView
+} from "./live-proposal-validation-integration-view.js";
+import {
   buildPatchProposalValidationPreviewView,
   patchProposalValidationApprovalRefs,
   patchProposalValidationAuditWarningCodes,
@@ -1145,6 +1149,11 @@ export function DesktopShell(): JSX.Element {
     );
   const displayedLiveProposalRequestBuilder =
     liveProposalRequestBuilderPreview ?? liveProposalRequestBuilderCandidate;
+  const liveProposalValidationIntegrationView =
+    useMemo<LiveProposalValidationIntegrationView>(
+      () => buildLiveProposalValidationIntegrationView(),
+      []
+    );
   const contextAssemblyCandidate = useMemo<AppContextAssemblyPreviewView>(
     () =>
       buildContextAssemblyPreviewView({
@@ -2508,6 +2517,103 @@ export function DesktopShell(): JSX.Element {
             ) : null}
 
             <p className="fieldHelp">{workspaceIndexBridge.nextAction}</p>
+          </section>
+
+          <section
+            className="eventPanel"
+            aria-label="Live Proposal Validation Integration"
+          >
+            <div className="panelHeader">
+              <h2>Live Proposal Validation Integration</h2>
+              <span className="muted">Summary only / no execution</span>
+            </div>
+            <p className="fieldHelp">
+              Summarizes how a future live DeepSeek proposal result must pass
+              repair and schema validation. The App Shell does not call
+              DeepSeek, apply patches, rollback, or write events.
+            </p>
+
+            <div className="buttonRow">
+              <button type="button" className="secondary" disabled>
+                Validate Live Proposal Result (disabled)
+              </button>
+            </div>
+
+            <dl className="summaryGrid compact">
+              <div>
+                <dt>Status</dt>
+                <dd>{liveProposalValidationIntegrationView.status}</dd>
+              </div>
+              <div>
+                <dt>Gates</dt>
+                <dd>
+                  {liveProposalValidationIntegrationView.passedGateCount} passed
+                  / {liveProposalValidationIntegrationView.warningGateCount}{" "}
+                  warning /{" "}
+                  {liveProposalValidationIntegrationView.blockedGateCount}{" "}
+                  blocked
+                </dd>
+              </div>
+              <div>
+                <dt>Blockers / warnings</dt>
+                <dd>
+                  {liveProposalValidationIntegrationView.blockerCount} /{" "}
+                  {liveProposalValidationIntegrationView.warningCount}
+                </dd>
+              </div>
+              <div>
+                <dt>Reasoning dropped</dt>
+                <dd>
+                  {liveProposalValidationIntegrationView.droppedReasoningContent
+                    ? "yes"
+                    : "no"}
+                </dd>
+              </div>
+              <div>
+                <dt>Usage summary</dt>
+                <dd>
+                  {liveProposalValidationIntegrationView.usageSummary ===
+                  undefined
+                    ? "not available"
+                    : `${liveProposalValidationIntegrationView.usageSummary.totalTokens ?? 0} token(s)`}
+                </dd>
+              </div>
+              <div>
+                <dt>Can enter preview</dt>
+                <dd>
+                  {liveProposalValidationIntegrationView.readiness
+                    .canEnterPatchProposalPreview
+                    ? "yes"
+                    : "no"}
+                </dd>
+              </div>
+              <div>
+                <dt>Can apply / write events</dt>
+                <dd>
+                  {liveProposalValidationIntegrationView.readiness.canApplyPatch
+                    ? "yes"
+                    : "no"}{" "}
+                  /{" "}
+                  {liveProposalValidationIntegrationView.readiness
+                    .canWriteEventStore
+                    ? "yes"
+                    : "no"}
+                </dd>
+              </div>
+            </dl>
+
+            {liveProposalValidationIntegrationView.findings.length > 0 ? (
+              <p className="muted">
+                findings{" "}
+                {liveProposalValidationIntegrationView.findings
+                  .map((finding) => finding.code)
+                  .join(", ")}
+              </p>
+            ) : null}
+
+            <p className="fieldHelp">
+              {liveProposalValidationIntegrationView.nextAction}
+            </p>
           </section>
 
           <section

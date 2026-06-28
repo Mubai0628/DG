@@ -58,6 +58,7 @@ import {
 } from "../src/model-proposal-chain-integration-view.js";
 import { buildLiveProposalOptInGateView } from "../src/live-proposal-opt-in-gate-view.js";
 import { buildLiveProposalRequestBuilderView } from "../src/live-proposal-request-builder-view.js";
+import { buildLiveProposalValidationIntegrationView } from "../src/live-proposal-validation-integration-view.js";
 import {
   buildPatchProposalValidationPreviewView,
   patchProposalValidationApprovalRefs,
@@ -4190,6 +4191,108 @@ describe("app live proposal request builder", () => {
     expect(combined).toContain("No desktop action");
     expect(docsIndex).toContain(
       "runtime-live-deepseek-proposal-adapter-v0.8.md"
+    );
+  });
+});
+
+describe("app live proposal validation integration", () => {
+  it("builds a disabled summary-only integration view", () => {
+    const view = buildLiveProposalValidationIntegrationView();
+    const serialized = JSON.stringify(view);
+
+    expect(view.status).toBe("empty");
+    expect(view.source).toBe("runtime_live_proposal_validation_integration");
+    expect(view.gateCount).toBe(10);
+    expect(view.blockerCount).toBe(1);
+    expect(view.readiness.canEnterPatchProposalPreview).toBe(false);
+    expect(view.readiness.canApplyPatch).toBe(false);
+    expect(view.readiness.canWriteEventStore).toBe(false);
+    expect(view.readiness.appCanExecute).toBe(false);
+    expect(serialized).not.toContain("rawResponse");
+    expect(serialized).not.toContain("reasoning secret");
+    expect(serialized).not.toContain("sk-");
+  });
+
+  it("keeps App source validation integration disabled without live wiring", async () => {
+    const appSource = await readFile(
+      path.join(appRoot, "src", "App.tsx"),
+      "utf8"
+    );
+    const viewSource = await readFile(
+      path.join(appRoot, "src", "live-proposal-validation-integration-view.ts"),
+      "utf8"
+    );
+    const combined = `${appSource}\n${viewSource}`;
+    const normalizedAppSource = appSource.replace(/\s+/g, " ");
+
+    expect(appSource).toContain("Live Proposal Validation Integration");
+    expect(appSource).toContain("Summary only / no execution");
+    expect(appSource).toContain("Validate Live Proposal Result (disabled)");
+    expect(normalizedAppSource).toContain(
+      "The App Shell does not call DeepSeek, apply patches, rollback, or write events."
+    );
+    expect(appSource).not.toContain("raw response input");
+    expect(appSource).not.toContain("API key input");
+    expect(appSource).not.toContain("handleValidateLiveProposalResult");
+    expect(appSource).not.toContain("handleCallLiveProposalValidation");
+    expect(appSource).not.toContain("handleApplyLiveProposalValidation");
+    expect(viewSource).not.toContain("process.env");
+    expect(viewSource).not.toContain("fetch(");
+    expect(viewSource).not.toContain("safeInvoke");
+    expect(viewSource).not.toContain("recordControlRunDraftEvent");
+    expect(combined).not.toContain("readLiveProposalApiKey");
+    expect(combined).not.toContain("writeLiveProposalEvent");
+  });
+
+  it("documents runtime and App live proposal validation integration boundaries", async () => {
+    const runtimeDoc = await readFile(
+      path.join(
+        repoRoot,
+        "docs",
+        "runtime-live-proposal-validation-integration-v0.8.md"
+      ),
+      "utf8"
+    );
+    const appDoc = await readFile(
+      path.join(
+        repoRoot,
+        "docs",
+        "app-shell-live-proposal-validation-integration-v0.8.md"
+      ),
+      "utf8"
+    );
+    const docsIndex = await readFile(
+      path.join(repoRoot, "docs", "README.md"),
+      "utf8"
+    );
+    const combined = `${runtimeDoc}\n${appDoc}\n${docsIndex}`;
+
+    expect(combined).toContain(
+      "Runtime Live Proposal Validation Integration v0.8"
+    );
+    expect(combined).toContain(
+      "App Shell Live Proposal Validation Integration v0.8"
+    );
+    expect(combined).toContain("Integration helper only");
+    expect(combined).toContain("No live call");
+    expect(combined).toContain("No API key read");
+    expect(combined).toContain("No fetch/network");
+    expect(combined).toContain("No App call");
+    expect(combined).toContain("No file write");
+    expect(combined).toContain("No apply or rollback");
+    expect(combined).toContain("No EventStore write");
+    expect(combined).toContain("No raw response input");
+    expect(combined).toContain("reasoning_content");
+    expect(combined).toContain("repair summary");
+    expect(combined).toContain("schema validation summary");
+    expect(combined).toContain("No Git/shell");
+    expect(combined).toContain("No native bridge");
+    expect(combined).toContain("No desktop action");
+    expect(docsIndex).toContain(
+      "runtime-live-proposal-validation-integration-v0.8.md"
+    );
+    expect(docsIndex).toContain(
+      "app-shell-live-proposal-validation-integration-v0.8.md"
     );
   });
 });
