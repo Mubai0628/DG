@@ -1,0 +1,58 @@
+{
+  "schemaVersion": "live_proposal_golden_case.v1",
+  "caseId": "golden-blocked-raw-prompt",
+  "title": "Raw prompt field should block",
+  "objectiveSummary": "Rejected fixture for forbidden raw prompt field.",
+  "intent": "documentation_update",
+  "difficulty": "adversarial",
+  "mode": "offline_only",
+  "workspaceRefs": [
+    {
+      "refId": "workspace-raw-prompt",
+      "kind": "file_summary",
+      "path": "docs/raw-prompt-case.md",
+      "summary": "Fixture contains a forbidden raw prompt field.",
+      "hashPrefix": "rawpr1"
+    }
+  ],
+  "contextRefs": [
+    {
+      "refId": "context-raw-prompt",
+      "kind": "manual_note",
+      "summary": "Raw prompt fields must fail closed.",
+      "hashPrefix": "ctxraw1"
+    }
+  ],
+  "allowedPathRefs": ["docs/raw-prompt-case.md"],
+  "forbiddenPathPolicy": ["no raw prompt"],
+  "evidenceRefs": [
+    {
+      "refId": "evidence-raw-prompt",
+      "kind": "manual_note",
+      "summary": "Forbidden raw prompt fixture.",
+      "hashPrefix": "evraw1"
+    }
+  ],
+  "expectedOutcome": {
+    "expectedStatus": "blocked",
+    "expectedChangedPaths": ["docs/raw-prompt-case.md"],
+    "expectedOperationKinds": ["documentation"],
+    "expectedRiskLevel": "high",
+    "expectedEvidenceCoverage": "partial",
+    "expectedRepairNeeded": false,
+    "expectedValidationBlockers": ["raw_content_leak"],
+    "expectedValidationWarnings": [],
+    "expectedSummaryOnly": true
+  },
+  "expectedFailureCategories": ["raw_content_leak"],
+  "expectedWarnings": [],
+  "expectedMetrics": [
+    {
+      "metricId": "raw_prompt_blocked",
+      "kind": "blocker_category",
+      "expectedValue": true
+    }
+  ],
+  "rawPrompt": "This synthetic raw prompt text must not be persisted.",
+  "tags": ["blocked", "raw_prompt"]
+}

@@ -1,0 +1,59 @@
+{
+  "schemaVersion": "live_proposal_golden_case.v1",
+  "caseId": "golden-warning-missing-tests",
+  "title": "Code proposal missing test evidence",
+  "objectiveSummary": "Add a pure runtime helper, but omit test evidence from the fixture.",
+  "intent": "code_change",
+  "difficulty": "standard",
+  "mode": "offline_only",
+  "workspaceRefs": [
+    {
+      "refId": "workspace-runtime-helper",
+      "kind": "file_summary",
+      "path": "runtime/src/models/example-helper.ts",
+      "language": "typescript",
+      "summary": "Example runtime helper summary.",
+      "hashPrefix": "helper12"
+    }
+  ],
+  "contextRefs": [
+    {
+      "refId": "context-manual-note",
+      "kind": "manual_note",
+      "summary": "This fixture intentionally lacks test_summary evidence.",
+      "hashPrefix": "manual1"
+    }
+  ],
+  "allowedPathRefs": ["runtime/src/models/example-helper.ts"],
+  "forbiddenPathPolicy": ["no generated paths", "no secret paths"],
+  "evidenceRefs": [
+    {
+      "refId": "evidence-manual-note",
+      "kind": "manual_note",
+      "summary": "Manual summary without test evidence.",
+      "hashPrefix": "note123"
+    }
+  ],
+  "expectedOutcome": {
+    "expectedStatus": "warning",
+    "expectedProposalIntent": "code_change",
+    "expectedChangedPaths": ["runtime/src/models/example-helper.ts"],
+    "expectedOperationKinds": ["create"],
+    "expectedRiskLevel": "medium",
+    "expectedEvidenceCoverage": "partial",
+    "expectedRepairNeeded": false,
+    "expectedValidationBlockers": [],
+    "expectedValidationWarnings": ["missing_test_plan"],
+    "expectedSummaryOnly": true
+  },
+  "expectedFailureCategories": ["missing_test_plan"],
+  "expectedWarnings": ["missing_test_summary_evidence"],
+  "expectedMetrics": [
+    {
+      "metricId": "evidence_coverage",
+      "kind": "coverage_hint",
+      "expectedValue": "partial"
+    }
+  ],
+  "tags": ["runtime", "warning"]
+}

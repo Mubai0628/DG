@@ -10750,6 +10750,46 @@ describe("desktop source boundaries", () => {
     expect(docsIndex).toContain("p0n-002-golden-case-fixture-schema-plan.md");
   });
 
+  it("documents the P0N-002 golden case fixture schema without evaluator or live call", async () => {
+    const runtimeDoc = await readFile(
+      path.join(
+        repoRoot,
+        "docs",
+        "runtime-live-proposal-golden-case-schema-v0.9.md"
+      ),
+      "utf8"
+    );
+    const docsIndex = await readFile(
+      path.join(repoRoot, "docs", "README.md"),
+      "utf8"
+    );
+    const combined = `${runtimeDoc}\n${docsIndex}`;
+
+    expect(combined).toContain("Runtime Live Proposal Golden Case Schema v0.9");
+    expect(combined).toContain("fixture schema");
+    expect(combined).toContain("No evaluator runner");
+    expect(combined).toContain("No live DeepSeek call");
+    expect(combined).toContain("No API key read");
+    expect(combined).toContain("No fetch/network");
+    expect(combined).toContain("raw prompt");
+    expect(combined).toContain("raw response");
+    expect(combined).toContain("reasoning_content");
+    expect(combined).toContain("No apply/rollback");
+    expect(combined).toContain("No App execution");
+    expect(combined).toContain("No Git/shell execution");
+    expect(combined).toContain("No native bridge");
+    expect(combined).toContain("No desktop action");
+    expect(combined).toContain("Failure Taxonomy");
+    expect(combined).toContain("schema_failure");
+    expect(combined).toContain("unsafe_path");
+    expect(combined).toContain("forbidden_field");
+    expect(combined).toContain("secret_marker");
+    expect(combined).toContain("reasoning_content_leak");
+    expect(docsIndex).toContain(
+      "runtime-live-proposal-golden-case-schema-v0.9.md"
+    );
+  });
+
   it("documents the P0L-001 DeepSeek patch proposal ADR and gates without implementation", async () => {
     const adr = await readFile(
       path.join(

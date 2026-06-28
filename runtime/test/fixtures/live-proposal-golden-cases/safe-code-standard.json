@@ -1,0 +1,92 @@
+{
+  "schemaVersion": "live_proposal_golden_case.v1",
+  "caseId": "golden-code-standard",
+  "title": "Code proposal standard case",
+  "description": "Summary-only golden case for a schema helper code change with tests.",
+  "objectiveSummary": "Add a pure runtime schema helper and focused tests.",
+  "intent": "code_change",
+  "difficulty": "standard",
+  "mode": "offline_only",
+  "workspaceRefs": [
+    {
+      "refId": "workspace-runtime-schema",
+      "kind": "file_summary",
+      "path": "runtime/src/models/live-proposal-golden-case-schema.ts",
+      "language": "typescript",
+      "summary": "Pure TypeScript schema helper for live proposal golden cases.",
+      "hashPrefix": "rt123456"
+    },
+    {
+      "refId": "workspace-runtime-test",
+      "kind": "file_summary",
+      "path": "runtime/test/live-proposal-golden-case-schema.test.ts",
+      "language": "typescript",
+      "summary": "Focused runtime tests for golden case fixtures.",
+      "hashPrefix": "test1234"
+    }
+  ],
+  "contextRefs": [
+    {
+      "refId": "context-no-compress",
+      "kind": "no_compress_ref",
+      "summary": "Safety decisions and expected failure taxonomy remain no-compress.",
+      "hashPrefix": "nocomp1"
+    }
+  ],
+  "allowedPathRefs": [
+    "runtime/src/models/live-proposal-golden-case-schema.ts",
+    "runtime/test/live-proposal-golden-case-schema.test.ts"
+  ],
+  "forbiddenPathPolicy": [
+    "source dumps are not allowed",
+    "no dependency artifacts",
+    "no secret-like filenames"
+  ],
+  "evidenceRefs": [
+    {
+      "refId": "evidence-test-summary",
+      "kind": "test_summary",
+      "summary": "Focused runtime test path is expected for code-change cases.",
+      "hashPrefix": "testev1"
+    },
+    {
+      "refId": "evidence-workspace-index",
+      "kind": "workspace_index",
+      "summary": "Workspace index summary references runtime source and test locations.",
+      "hashPrefix": "widx123"
+    }
+  ],
+  "expectedOutcome": {
+    "expectedStatus": "pass",
+    "expectedProposalIntent": "code_change",
+    "expectedChangedPaths": [
+      "runtime/src/models/live-proposal-golden-case-schema.ts",
+      "runtime/test/live-proposal-golden-case-schema.test.ts"
+    ],
+    "expectedOperationKinds": ["create", "test"],
+    "expectedRiskLevel": "medium",
+    "expectedEvidenceCoverage": "sufficient",
+    "expectedRepairNeeded": false,
+    "expectedValidationBlockers": [],
+    "expectedValidationWarnings": [],
+    "expectedSummaryOnly": true
+  },
+  "expectedFailureCategories": ["no_failure_expected"],
+  "expectedWarnings": [],
+  "expectedMetrics": [
+    {
+      "metricId": "repair_success",
+      "kind": "boolean",
+      "expectedValue": true,
+      "summary": "No repair should be required."
+    },
+    {
+      "metricId": "test_coverage_hint",
+      "kind": "coverage_hint",
+      "expectedValue": "sufficient",
+      "summary": "Test summary evidence is present."
+    }
+  ],
+  "tags": ["runtime", "schema", "standard"],
+  "createdAt": "2026-06-29T00:00:00.000Z"
+}

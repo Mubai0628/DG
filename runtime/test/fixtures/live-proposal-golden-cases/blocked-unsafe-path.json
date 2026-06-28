@@ -1,0 +1,57 @@
+{
+  "schemaVersion": "live_proposal_golden_case.v1",
+  "caseId": "golden-blocked-unsafe-path",
+  "title": "Unsafe path should block",
+  "objectiveSummary": "Rejected fixture for unsafe path validation.",
+  "intent": "documentation_update",
+  "difficulty": "adversarial",
+  "mode": "offline_only",
+  "workspaceRefs": [
+    {
+      "refId": "workspace-unsafe-path",
+      "kind": "file_summary",
+      "path": "../outside-workspace.md",
+      "summary": "Unsafe traversal path summary.",
+      "hashPrefix": "unsafe1"
+    }
+  ],
+  "contextRefs": [
+    {
+      "refId": "context-unsafe-path",
+      "kind": "manual_note",
+      "summary": "This case should be blocked before evaluation.",
+      "hashPrefix": "ctxbad1"
+    }
+  ],
+  "allowedPathRefs": ["../outside-workspace.md"],
+  "forbiddenPathPolicy": ["no parent traversal"],
+  "evidenceRefs": [
+    {
+      "refId": "evidence-unsafe-path",
+      "kind": "manual_note",
+      "summary": "Unsafe path fixture must block.",
+      "hashPrefix": "evbad1"
+    }
+  ],
+  "expectedOutcome": {
+    "expectedStatus": "blocked",
+    "expectedChangedPaths": ["../outside-workspace.md"],
+    "expectedOperationKinds": ["documentation"],
+    "expectedRiskLevel": "high",
+    "expectedEvidenceCoverage": "partial",
+    "expectedRepairNeeded": false,
+    "expectedValidationBlockers": ["unsafe_path"],
+    "expectedValidationWarnings": [],
+    "expectedSummaryOnly": true
+  },
+  "expectedFailureCategories": ["unsafe_path"],
+  "expectedWarnings": [],
+  "expectedMetrics": [
+    {
+      "metricId": "unsafe_path_blocked",
+      "kind": "blocker_category",
+      "expectedValue": true
+    }
+  ],
+  "tags": ["blocked", "unsafe_path"]
+}

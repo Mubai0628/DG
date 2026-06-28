@@ -1,0 +1,68 @@
+{
+  "schemaVersion": "live_proposal_golden_case.v1",
+  "caseId": "golden-docs-smoke",
+  "title": "Docs-only proposal smoke case",
+  "description": "Summary-only golden case for a documentation proposal.",
+  "objectiveSummary": "Update runtime golden case documentation without execution.",
+  "intent": "documentation_update",
+  "difficulty": "smoke",
+  "mode": "offline_only",
+  "workspaceRefs": [
+    {
+      "refId": "workspace-docs-schema",
+      "kind": "file_summary",
+      "path": "docs/runtime-live-proposal-golden-case-schema-v0.9.md",
+      "language": "markdown",
+      "summary": "Runtime golden case schema documentation summary.",
+      "hashPrefix": "docs1234"
+    }
+  ],
+  "contextRefs": [
+    {
+      "refId": "context-p0n-design",
+      "kind": "task_contract",
+      "summary": "P0N-001 requires summary-only golden case planning.",
+      "hashPrefix": "ctx12345"
+    }
+  ],
+  "allowedPathRefs": ["docs/runtime-live-proposal-golden-case-schema-v0.9.md"],
+  "forbiddenPathPolicy": [
+    "no absolute paths",
+    "no generated paths",
+    "no secret-like paths"
+  ],
+  "evidenceRefs": [
+    {
+      "refId": "evidence-user-request",
+      "kind": "user_request",
+      "summary": "User requested golden case fixture schema without live calls.",
+      "hashPrefix": "ev123456"
+    }
+  ],
+  "expectedOutcome": {
+    "expectedStatus": "pass",
+    "expectedProposalIntent": "documentation_update",
+    "expectedChangedPaths": [
+      "docs/runtime-live-proposal-golden-case-schema-v0.9.md"
+    ],
+    "expectedOperationKinds": ["documentation"],
+    "expectedRiskLevel": "low",
+    "expectedEvidenceCoverage": "sufficient",
+    "expectedRepairNeeded": false,
+    "expectedValidationBlockers": [],
+    "expectedValidationWarnings": [],
+    "expectedSummaryOnly": true
+  },
+  "expectedFailureCategories": ["no_failure_expected"],
+  "expectedWarnings": [],
+  "expectedMetrics": [
+    {
+      "metricId": "schema_validity",
+      "kind": "pass_rate",
+      "expectedValue": true,
+      "summary": "Expected schema validation pass."
+    }
+  ],
+  "tags": ["docs", "smoke", "summary_only"],
+  "createdAt": "2026-06-29T00:00:00.000Z"
+}

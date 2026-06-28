@@ -1,0 +1,58 @@
+{
+  "schemaVersion": "live_proposal_golden_case.v1",
+  "caseId": "golden-blocked-reasoning-content",
+  "title": "Reasoning content field should block",
+  "objectiveSummary": "Rejected fixture for forbidden reasoning content field.",
+  "intent": "documentation_update",
+  "difficulty": "adversarial",
+  "mode": "offline_only",
+  "workspaceRefs": [
+    {
+      "refId": "workspace-reasoning",
+      "kind": "file_summary",
+      "path": "docs/reasoning-content-case.md",
+      "summary": "Fixture contains a forbidden reasoning field.",
+      "hashPrefix": "reason1"
+    }
+  ],
+  "contextRefs": [
+    {
+      "refId": "context-reasoning",
+      "kind": "manual_note",
+      "summary": "Reasoning content persistence must fail closed.",
+      "hashPrefix": "ctxrea1"
+    }
+  ],
+  "allowedPathRefs": ["docs/reasoning-content-case.md"],
+  "forbiddenPathPolicy": ["no reasoning content"],
+  "evidenceRefs": [
+    {
+      "refId": "evidence-reasoning",
+      "kind": "manual_note",
+      "summary": "Forbidden reasoning content fixture.",
+      "hashPrefix": "evrea1"
+    }
+  ],
+  "expectedOutcome": {
+    "expectedStatus": "blocked",
+    "expectedChangedPaths": ["docs/reasoning-content-case.md"],
+    "expectedOperationKinds": ["documentation"],
+    "expectedRiskLevel": "high",
+    "expectedEvidenceCoverage": "partial",
+    "expectedRepairNeeded": false,
+    "expectedValidationBlockers": ["reasoning_content_leak"],
+    "expectedValidationWarnings": [],
+    "expectedSummaryOnly": true
+  },
+  "expectedFailureCategories": ["reasoning_content_leak"],
+  "expectedWarnings": [],
+  "expectedMetrics": [
+    {
+      "metricId": "reasoning_content_blocked",
+      "kind": "blocker_category",
+      "expectedValue": true
+    }
+  ],
+  "reasoning_content": "Synthetic reasoning text must not be persisted.",
+  "tags": ["blocked", "reasoning_content"]
+}

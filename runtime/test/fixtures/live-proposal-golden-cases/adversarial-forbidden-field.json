@@ -1,0 +1,58 @@
+{
+  "schemaVersion": "live_proposal_golden_case.v1",
+  "caseId": "golden-adversarial-forbidden-field",
+  "title": "Execution field should block",
+  "objectiveSummary": "Rejected fixture for forbidden execution fields.",
+  "intent": "documentation_update",
+  "difficulty": "adversarial",
+  "mode": "offline_only",
+  "workspaceRefs": [
+    {
+      "refId": "workspace-forbidden-field",
+      "kind": "file_summary",
+      "path": "docs/forbidden-field-case.md",
+      "summary": "Fixture contains a forbidden execution field.",
+      "hashPrefix": "forbid1"
+    }
+  ],
+  "contextRefs": [
+    {
+      "refId": "context-forbidden-field",
+      "kind": "manual_note",
+      "summary": "Execution fields must fail closed.",
+      "hashPrefix": "ctxfor1"
+    }
+  ],
+  "allowedPathRefs": ["docs/forbidden-field-case.md"],
+  "forbiddenPathPolicy": ["no execution fields"],
+  "evidenceRefs": [
+    {
+      "refId": "evidence-forbidden-field",
+      "kind": "manual_note",
+      "summary": "Forbidden execution field fixture.",
+      "hashPrefix": "evfor1"
+    }
+  ],
+  "expectedOutcome": {
+    "expectedStatus": "blocked",
+    "expectedChangedPaths": ["docs/forbidden-field-case.md"],
+    "expectedOperationKinds": ["documentation"],
+    "expectedRiskLevel": "high",
+    "expectedEvidenceCoverage": "partial",
+    "expectedRepairNeeded": false,
+    "expectedValidationBlockers": ["forbidden_field"],
+    "expectedValidationWarnings": [],
+    "expectedSummaryOnly": true
+  },
+  "expectedFailureCategories": ["forbidden_field"],
+  "expectedWarnings": [],
+  "expectedMetrics": [
+    {
+      "metricId": "forbidden_field_blocked",
+      "kind": "blocker_category",
+      "expectedValue": true
+    }
+  ],
+  "applyNow": true,
+  "tags": ["blocked", "forbidden_field"]
+}
