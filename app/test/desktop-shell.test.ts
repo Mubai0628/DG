@@ -10573,6 +10573,85 @@ describe("desktop source boundaries", () => {
     );
   });
 
+  it("documents the v0.9 post-release review and P0N live proposal evaluation roadmap without execution", async () => {
+    const review = await readFile(
+      path.join(
+        repoRoot,
+        "docs",
+        "v0.9-live-deepseek-proposal-postrelease-review.md"
+      ),
+      "utf8"
+    );
+    const roadmap = await readFile(
+      path.join(repoRoot, "docs", "p0n-live-proposal-evaluation-roadmap.md"),
+      "utf8"
+    );
+    const plan = await readFile(
+      path.join(repoRoot, "docs", "p0n-001-live-proposal-golden-cases-plan.md"),
+      "utf8"
+    );
+    const docsIndex = await readFile(
+      path.join(repoRoot, "docs", "README.md"),
+      "utf8"
+    );
+    const combined = `${review}\n${roadmap}\n${plan}\n${docsIndex}`;
+
+    expect(combined).toContain("v0.9.0-live-deepseek-proposal-preview-rc.1");
+    expect(combined).toContain(
+      "Live DeepSeek proposal adapter, explicit opt-in, no App execution"
+    );
+    expect(combined).toContain("Commit: to be verified");
+    expect(combined).toContain("P0M is complete");
+    expect(combined).toContain("P0N: Live Proposal Evaluation / Golden Cases");
+    expect(combined).toContain("live proposal evaluation");
+    expect(combined).toContain("golden cases");
+    expect(combined).toMatch(
+      /measure[s]?\s+proposal quality before expanding execution/i
+    );
+    expect(combined).toMatch(/App execution remains\s+disabled/);
+    expect(combined).toMatch(/App-side apply and App-side rollback/);
+    expect(combined).toMatch(/must not directly write files/);
+    expect(combined).toMatch(/schema, repair, validation,\s+audit, approval/);
+    expect(combined).toContain("schema failure");
+    expect(combined).toContain("unsafe path");
+    expect(combined).toContain("forbidden field");
+    expect(combined).toContain("secret marker");
+    expect(combined).toContain("missing evidence");
+    expect(combined).toContain("missing tests");
+    expect(combined).toContain("high-risk operation");
+    expect(combined).toContain("repair failed");
+    expect(combined).toContain("validation warning");
+    expect(combined).toContain("hallucinated path");
+    expect(combined).toContain("poor objective fit");
+    expect(combined).toContain("usage summary only");
+    expect(combined).toContain("never persist raw prompt");
+    expect(combined).toContain("raw response");
+    expect(combined).toContain("reasoning_content");
+    expect(combined).toContain("no live DeepSeek call in P0N-001");
+    expect(combined).toContain(
+      "no evaluation runner implementation in P0N-001"
+    );
+    expect(combined).toContain("no API key read in P0N-001");
+    expect(combined).toContain("no fetch/network in P0N-001");
+    expect(combined).toContain("no file write");
+    expect(combined).toContain("no apply");
+    expect(combined).toContain("no rollback");
+    expect(combined).toContain("no App execution");
+    expect(combined).toContain("No App execution");
+    expect(combined).toContain("No Git");
+    expect(combined).toContain("No shell");
+    expect(combined).toContain("No native bridge");
+    expect(combined).toContain("No desktop action");
+    expect(combined).toContain("No raw prompt");
+    expect(combined).toContain("No raw response");
+    expect(combined).toContain("No API key");
+    expect(docsIndex).toContain(
+      "v0.9-live-deepseek-proposal-postrelease-review.md"
+    );
+    expect(docsIndex).toContain("p0n-live-proposal-evaluation-roadmap.md");
+    expect(docsIndex).toContain("p0n-001-live-proposal-golden-cases-plan.md");
+  });
+
   it("documents the P0L-001 DeepSeek patch proposal ADR and gates without implementation", async () => {
     const adr = await readFile(
       path.join(

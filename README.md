@@ -217,6 +217,9 @@ v0.9 Live DeepSeek Proposal Preview RC references:
 - [v0.9.0 Live DeepSeek Proposal Preview RC release notes](docs/release-notes-v0.9.0-live-deepseek-proposal-preview-rc.1.md)
 - [App Shell Live DeepSeek Proposal manual QA](docs/app-shell-live-deepseek-proposal-manual-qa.md)
 - [App Shell Live DeepSeek Proposal RC checklist](docs/app-shell-live-deepseek-proposal-rc-checklist.md)
+- [v0.9 Live DeepSeek Proposal post-release review](docs/v0.9-live-deepseek-proposal-postrelease-review.md)
+- [P0N Live Proposal Evaluation roadmap](docs/p0n-live-proposal-evaluation-roadmap.md)
+- [P0N-001 Live Proposal Golden Cases plan](docs/p0n-001-live-proposal-golden-cases-plan.md)
 
 ## Current roadmap
 
@@ -228,12 +231,13 @@ P0F is complete after `v0.2.0-app-shell-rc.1`, P0G is complete after
 `v0.7.0-user-workspace-apply-preview-rc.1`. P0L is complete after
 `v0.8.0-deepseek-proposal-preview-rc.1` with DeepSeek proposal previews only:
 structured proposal schema, fake/dry generation, repair, App import, and chain
-projection. P0M is preparing `v0.9.0-live-deepseek-proposal-preview-rc.1` with
-runtime-only explicit opt-in live DeepSeek proposal adapter support, summary
-request building, validation integration, App disabled-only gate previews, and
-telemetry/redaction audit. App-side live model calls, App API key reads, App
-fetch/network, model-driven file writes, App-side user workspace apply,
-rollback, approval execution,
+projection. P0M is complete after
+`v0.9.0-live-deepseek-proposal-preview-rc.1` with runtime-only explicit opt-in
+live DeepSeek proposal adapter support, summary request building, validation
+integration, App disabled-only gate previews, and telemetry/redaction audit.
+P0N is planned for live proposal evaluation and golden cases. App-side live
+model calls, App API key reads, App fetch/network, model-driven file writes,
+App-side user workspace apply, rollback, approval execution,
 apply/rollback event writes, run execution, Git execution, shell execution,
 broad capability invocation, production PermissionLease issuing, memory
 persistence UI, MCP/plugin/skills runtime, native bridge, and desktop action
@@ -263,6 +267,8 @@ remain deferred.
 - [v0.8.0 DeepSeek Proposal Preview RC release notes](docs/release-notes-v0.8.0-deepseek-proposal-preview-rc.1.md)
 - [v0.8 DeepSeek Proposal post-release review](docs/v0.8-deepseek-proposal-postrelease-review.md)
 - [P0M Live DeepSeek Proposal Adapter roadmap](docs/p0m-live-deepseek-proposal-adapter-roadmap.md)
+- [v0.9 Live DeepSeek Proposal post-release review](docs/v0.9-live-deepseek-proposal-postrelease-review.md)
+- [P0N Live Proposal Evaluation roadmap](docs/p0n-live-proposal-evaluation-roadmap.md)
 
 ## What v0.1.0 does not support
 
