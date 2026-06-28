@@ -97,6 +97,7 @@ foundation.
 - [P0L-002 Model Patch Proposal Schema plan](p0l-002-model-patch-proposal-schema-plan.md)
 - [Runtime Model Patch Proposal Schema v0.7](runtime-model-patch-proposal-schema-v0.7.md)
 - [Runtime Patch Proposal Fake Harness v0.7](runtime-patch-proposal-fake-harness-v0.7.md)
+- [Runtime Patch Proposal Dry Adapter v0.7](runtime-patch-proposal-dry-adapter-v0.7.md)
 - [Runtime Memory Recall Preview v0.3](runtime-memory-recall-preview-v0.3.md)
 - [v0.4.0 Controlled Creation Preview RC release notes](release-notes-v0.4.0-controlled-creation-preview-rc.1.md)
 - [App Shell Controlled Creation manual QA](app-shell-controlled-creation-manual-qa.md)
