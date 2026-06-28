@@ -51,6 +51,12 @@ import {
   summarizeModelPatchProposalImportView
 } from "../src/model-patch-proposal-import-view.js";
 import {
+  buildModelProposalChainIntegrationView,
+  modelProposalChainIntegrationApprovalRefs,
+  modelProposalChainIntegrationSurfaceSummaries,
+  summarizeModelProposalChainIntegrationView
+} from "../src/model-proposal-chain-integration-view.js";
+import {
   buildPatchProposalValidationPreviewView,
   patchProposalValidationApprovalRefs,
   patchProposalValidationAuditWarningCodes,
@@ -3629,6 +3635,290 @@ describe("app model patch proposal import", () => {
     expect(doc).toContain("P0L-002");
     expect(doc).toContain("P0L-005");
     expect(docsIndex).toContain("app-shell-model-patch-proposal-import-v0.7.md");
+  });
+});
+
+describe("app model proposal chain integration", () => {
+  const proposalFixtureRoot = path.join(
+    repoRoot,
+    "runtime",
+    "test",
+    "fixtures",
+    "model-patch-proposals"
+  );
+
+  it("builds an empty preview-only chain state", () => {
+    const view = buildModelProposalChainIntegrationView();
+
+    expect(view.status).toBe("empty");
+    expect(view.readiness.canEnterExistingPreviewChain).toBe(false);
+    expect(view.readiness.canExecuteApply).toBe(false);
+    expect(view.readiness.canExecuteRollback).toBe(false);
+    expect(view.readiness.canWriteFilesystem).toBe(false);
+    expect(view.readiness.canWriteEventStore).toBe(false);
+    expect(view.readiness.canApprove).toBe(false);
+    expect(view.readiness.canIssuePermissionLease).toBe(false);
+    expect(view.readiness.canExecuteGit).toBe(false);
+    expect(view.readiness.canExecuteShell).toBe(false);
+    expect(view.readiness.appCanExecute).toBe(false);
+  });
+
+  it("projects a safe imported proposal into a summary-only chain timeline", async () => {
+    const draft = await readFile(
+      path.join(proposalFixtureRoot, "safe-basic.json"),
+      "utf8"
+    );
+    const importView = buildModelPatchProposalImportView({
+      draftText: draft,
+      sourceKind: "fixture"
+    });
+    const creationPreview =
+      buildPatchProposalCreationPreviewFromModelImport(importView);
+
+    if (creationPreview === undefined) {
+      throw new Error("Expected imported model proposal to create preview input.");
+    }
+
+    const chainView = buildModelProposalChainIntegrationView({
+      modelImportView: importView,
+      patchProposalCreationPreview: creationPreview
+    });
+    const summary = summarizeModelProposalChainIntegrationView(chainView);
+    const serialized = JSON.stringify(chainView);
+
+    expect(chainView.status).toBe("partial");
+    expect(chainView.proposalId).toBe("model-proposal-safe-basic");
+    expect(chainView.stages.map((stage) => stage.kind)).toEqual(
+      expect.arrayContaining([
+        "model_proposal_import",
+        "patch_proposal_creation_preview",
+        "patch_validation_preview",
+        "user_workspace_promotion_readiness",
+        "app_approval_execution_disabled"
+      ])
+    );
+    expect(chainView.completedStageCount).toBeGreaterThanOrEqual(2);
+    expect(chainView.missingStageCount).toBeGreaterThan(0);
+    expect(chainView.readiness.canEnterExistingPreviewChain).toBe(true);
+    expect(summary.nextAction).toContain("No execution is enabled");
+    expect(serialized).not.toContain("rawSource");
+    expect(serialized).not.toContain("rawDiff");
+    expect(serialized).not.toContain("apiKey");
+    expect(serialized).not.toContain("Model-generated documentation draft");
+  });
+
+  it("blocks chain integration when the model import is blocked", async () => {
+    const draft = await readFile(
+      path.join(proposalFixtureRoot, "repair", "unsafe-path.json"),
+      "utf8"
+    );
+    const importView = buildModelPatchProposalImportView({
+      draftText: draft,
+      sourceKind: "fixture"
+    });
+    const chainView = buildModelProposalChainIntegrationView({
+      modelImportView: importView
+    });
+
+    expect(importView.status).toBe("blocked");
+    expect(chainView.status).toBe("blocked");
+    expect(chainView.readiness.canEnterExistingPreviewChain).toBe(false);
+    expect(chainView.stages).toHaveLength(1);
+    expect(chainView.findings.map((finding) => finding.code)).toContain(
+      "MODEL_IMPORT_BLOCKED"
+    );
+  });
+
+  it("lets warning imports enter the chain only with warning summaries", async () => {
+    const draft = await readFile(
+      path.join(proposalFixtureRoot, "warning-content-draft.json"),
+      "utf8"
+    );
+    const importView = buildModelPatchProposalImportView({
+      draftText: draft,
+      sourceKind: "fixture"
+    });
+    const creationPreview =
+      buildPatchProposalCreationPreviewFromModelImport(importView);
+
+    if (creationPreview === undefined) {
+      throw new Error("Expected warning model proposal to create preview input.");
+    }
+
+    const chainView = buildModelProposalChainIntegrationView({
+      modelImportView: importView,
+      patchProposalCreationPreview: creationPreview
+    });
+    const serialized = JSON.stringify(chainView);
+
+    expect(importView.status).toBe("warning");
+    expect(chainView.status).toBe("partial");
+    expect(chainView.warningCount).toBeGreaterThan(0);
+    expect(chainView.blockerCount).toBe(0);
+    expect(chainView.readiness.canEnterExistingPreviewChain).toBe(true);
+    expect(serialized).not.toContain(
+      "Model-generated documentation draft. This is not written"
+    );
+    expect(serialized).not.toContain('"contentDraft":');
+  });
+
+  it("blocks a stage that claims execution readiness", async () => {
+    const draft = await readFile(
+      path.join(proposalFixtureRoot, "safe-basic.json"),
+      "utf8"
+    );
+    const importView = buildModelPatchProposalImportView({
+      draftText: draft,
+      sourceKind: "fixture"
+    });
+    const creationPreview =
+      buildPatchProposalCreationPreviewFromModelImport(importView);
+
+    if (creationPreview === undefined) {
+      throw new Error("Expected imported model proposal to create preview input.");
+    }
+
+    const executingValidationPreview = {
+      status: "warning",
+      proposalId: importView.preview?.proposalId,
+      validationId: "validation-execution-claim",
+      readiness: {
+        canApplyPatch: true
+      }
+    } as never;
+    const chainView = buildModelProposalChainIntegrationView({
+      modelImportView: importView,
+      patchProposalCreationPreview: creationPreview,
+      patchValidationPreview: executingValidationPreview
+    });
+
+    expect(chainView.status).toBe("blocked");
+    expect(chainView.readiness.canEnterExistingPreviewChain).toBe(false);
+    expect(chainView.findings.map((finding) => finding.code)).toContain(
+      "MODEL_CHAIN_EXECUTION_FLAG_TRUE"
+    );
+  });
+
+  it("feeds summary-only chain refs into Diff, Approval, and Context surfaces", async () => {
+    const draft = await readFile(
+      path.join(proposalFixtureRoot, "safe-basic.json"),
+      "utf8"
+    );
+    const importView = buildModelPatchProposalImportView({
+      draftText: draft,
+      sourceKind: "fixture"
+    });
+    const creationPreview =
+      buildPatchProposalCreationPreviewFromModelImport(importView);
+
+    if (creationPreview === undefined) {
+      throw new Error("Expected imported model proposal to create preview input.");
+    }
+
+    const chainView = buildModelProposalChainIntegrationView({
+      modelImportView: importView,
+      patchProposalCreationPreview: creationPreview
+    });
+    const surfaces = buildWorkbenchSurfacesView({
+      controlProjection: buildControlPlaneProjectionView(undefined),
+      patchProposalSummaries:
+        modelProposalChainIntegrationSurfaceSummaries(chainView),
+      futureApprovalRefs: modelProposalChainIntegrationApprovalRefs(chainView)
+    });
+    const runDraft = buildRunDraftView({
+      objectiveDraft: "Review an imported model proposal chain.",
+      selectedIntent: "code_change",
+      acceptanceCriteriaDraft: "Chain ref enters context.",
+      workspaceRoot: "D:\\workspace"
+    });
+    const contextPreview = buildContextAssemblyPreviewView({
+      runDraft,
+      modelPatchProposalImport: importView,
+      modelProposalChainIntegration: chainView
+    });
+    const chainSegment = contextPreview.segments.find(
+      (segment) => segment.sourceKind === "model_proposal_chain_integration"
+    );
+    const serialized = JSON.stringify({ chainView, surfaces, contextPreview });
+
+    expect(surfaces.diff.items[0]?.label).toBe(
+      "Model proposal chain integration"
+    );
+    expect(surfaces.approval.items[0]).toMatchObject({
+      kind: "patch",
+      status: "dry"
+    });
+    expect(chainSegment).toMatchObject({
+      placement: "no_compress_zone",
+      sourceRefId: chainView.chainId
+    });
+    expect(chainSegment?.warningCodes).toContain(
+      "MODEL_PROPOSAL_CHAIN_INTEGRATION_NO_COMPRESS"
+    );
+    expect(serialized).not.toContain("rawDiff");
+    expect(serialized).not.toContain("apiKey");
+  });
+
+  it("keeps App source chain integration preview-only", async () => {
+    const appSource = await readFile(
+      path.join(appRoot, "src", "App.tsx"),
+      "utf8"
+    );
+    const chainSource = await readFile(
+      path.join(appRoot, "src", "model-proposal-chain-integration-view.ts"),
+      "utf8"
+    );
+    const combined = `${appSource}\n${chainSource}`;
+
+    expect(appSource).toContain("Model Proposal Chain Integration");
+    expect(appSource).toContain("Preview chain / no execution");
+    expect(appSource).toContain("Preview Model Proposal Chain");
+    expect(appSource).not.toContain("Apply Model Proposal Chain");
+    expect(chainSource).not.toContain("safeInvoke");
+    expect(chainSource).not.toContain("fetch(");
+    expect(chainSource).not.toContain("DEEPSEEK_API_KEY");
+    expect(chainSource).not.toContain("OPENAI_API_KEY");
+    expect(chainSource).not.toContain("readFile");
+    expect(chainSource).not.toContain("writeFile");
+    expect(chainSource).not.toContain("eventStoreWrite");
+    expect(chainSource).not.toContain("writeUserWorkspaceApplyRollbackEvents");
+    expect(combined).not.toContain("handleApplyModelProposalChain");
+    expect(combined).not.toContain("handleRollbackModelProposalChain");
+    expect(combined).not.toContain("handleWriteModelProposalChainEvents");
+  });
+
+  it("documents App model proposal chain integration as no-execution", async () => {
+    const doc = await readFile(
+      path.join(
+        repoRoot,
+        "docs",
+        "app-shell-model-proposal-chain-integration-v0.7.md"
+      ),
+      "utf8"
+    );
+    const docsIndex = await readFile(
+      path.join(repoRoot, "docs", "README.md"),
+      "utf8"
+    );
+
+    expect(doc).toContain("App Shell Model Proposal Chain Integration v0.7");
+    expect(doc).toContain("preview chain only");
+    expect(doc).toContain("No live model call");
+    expect(doc).toContain("No dry adapter call");
+    expect(doc).toContain("No API key is read");
+    expect(doc).toContain("No fetch or network request");
+    expect(doc).toContain("No file is read or written");
+    expect(doc).toContain("No patch is applied");
+    expect(doc).toContain("No rollback is executed");
+    expect(doc).toContain("No App approval execution");
+    expect(doc).toContain("No EventStore write");
+    expect(doc).toContain("No Tauri command");
+    expect(doc).toContain("P0L-006");
+    expect(doc).toContain("P0I");
+    expect(doc).toContain("P0K");
+    expect(docsIndex).toContain(
+      "app-shell-model-proposal-chain-integration-v0.7.md"
+    );
   });
 });
 

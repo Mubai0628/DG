@@ -81,6 +81,14 @@ import {
   type ModelPatchProposalImportView
 } from "./model-patch-proposal-import-view.js";
 import {
+  buildModelProposalChainIntegrationView,
+  modelProposalChainIntegrationApprovalRefs,
+  modelProposalChainIntegrationSurfaceSummaries,
+  modelProposalChainIntegrationWarningCodes,
+  summarizeModelProposalChainIntegrationView,
+  type ModelProposalChainIntegrationView
+} from "./model-proposal-chain-integration-view.js";
+import {
   buildPatchProposalValidationPreviewView,
   patchProposalValidationApprovalRefs,
   patchProposalValidationAuditWarningCodes,
@@ -310,6 +318,10 @@ export function DesktopShell(): JSX.Element {
     useState("");
   const [modelPatchProposalImportPreview, setModelPatchProposalImportPreview] =
     useState<ModelPatchProposalImportView | undefined>();
+  const [
+    modelProposalChainIntegrationPreview,
+    setModelProposalChainIntegrationPreview
+  ] = useState<ModelProposalChainIntegrationView | undefined>();
   const [patchProposalCreationPreview, setPatchProposalCreationPreview] =
     useState<AppPatchProposalCreationPreviewView | undefined>();
   const [patchProposalValidationPreview, setPatchProposalValidationPreview] =
@@ -492,10 +504,14 @@ export function DesktopShell(): JSX.Element {
       ) ?? []),
       ...(sandboxApplyRollbackEventProjectionSurfaceSummaries(
         sandboxApplyRollbackEventProjection
+      ) ?? []),
+      ...(modelProposalChainIntegrationSurfaceSummaries(
+        modelProposalChainIntegrationPreview
       ) ?? [])
     ],
     [
       controlledCreationReplayProjection,
+      modelProposalChainIntegrationPreview,
       sandboxApplyRollbackEventProjection,
       patchApprovalDraftPreview,
       patchRollbackCheckpointPreview,
@@ -518,10 +534,14 @@ export function DesktopShell(): JSX.Element {
       ),
       ...sandboxApplyRollbackEventProjectionApprovalRefs(
         sandboxApplyRollbackEventProjection
+      ),
+      ...modelProposalChainIntegrationApprovalRefs(
+        modelProposalChainIntegrationPreview
       )
     ],
     [
       controlledCreationReplayProjection,
+      modelProposalChainIntegrationPreview,
       sandboxApplyRollbackEventProjection,
       patchApprovalDraftPreview,
       patchRollbackCheckpointPreview,
@@ -545,10 +565,14 @@ export function DesktopShell(): JSX.Element {
       ),
       ...sandboxApplyRollbackEventProjectionWarningCodes(
         sandboxApplyRollbackEventProjection
+      ),
+      ...modelProposalChainIntegrationWarningCodes(
+        modelProposalChainIntegrationPreview
       )
     ],
     [
       controlledCreationReplayProjection,
+      modelProposalChainIntegrationPreview,
       sandboxApplyRollbackEventProjection,
       patchApprovalDraftPreview,
       patchRollbackCheckpointPreview,
@@ -1016,6 +1040,47 @@ export function DesktopShell(): JSX.Element {
         userWorkspaceRollbackPrototypeView
       ]
     );
+  const modelProposalChainIntegrationCandidate =
+    useMemo<ModelProposalChainIntegrationView>(
+      () =>
+        buildModelProposalChainIntegrationView({
+          modelImportView: modelPatchProposalImportPreview,
+          patchProposalCreationPreview: displayedPatchProposalCreation,
+          patchValidationPreview: patchProposalValidationPreview,
+          patchDiffAuditPreview: patchDiffAuditPreview,
+          patchApprovalDraft: patchApprovalDraftPreview,
+          patchVirtualApplyPreview: patchVirtualApplyPreview,
+          patchRollbackCheckpointPreview: patchRollbackCheckpointPreview,
+          controlledCreationReplayProjection,
+          userWorkspaceSnapshotBackupContract:
+            userWorkspaceSnapshotBackupPreview,
+          userWorkspacePromotionReadiness:
+            userWorkspacePromotionReadinessPreview,
+          userWorkspaceApplyPrototype: userWorkspaceApplyPrototypeView,
+          userWorkspaceRollbackPrototype: userWorkspaceRollbackPrototypeView,
+          userWorkspaceApplyRollbackEventWriter: userWorkspaceEventWriterView,
+          appApprovalExecutionDesign: appApprovalExecutionDesignView
+        }),
+      [
+        appApprovalExecutionDesignView,
+        controlledCreationReplayProjection,
+        displayedPatchProposalCreation,
+        modelPatchProposalImportPreview,
+        patchApprovalDraftPreview,
+        patchDiffAuditPreview,
+        patchProposalValidationPreview,
+        patchRollbackCheckpointPreview,
+        patchVirtualApplyPreview,
+        userWorkspaceApplyPrototypeView,
+        userWorkspaceEventWriterView,
+        userWorkspacePromotionReadinessPreview,
+        userWorkspaceRollbackPrototypeView,
+        userWorkspaceSnapshotBackupPreview
+      ]
+    );
+  const displayedModelProposalChainIntegration =
+    modelProposalChainIntegrationPreview ??
+    buildModelProposalChainIntegrationView();
   const contextAssemblyCandidate = useMemo<AppContextAssemblyPreviewView>(
     () =>
       buildContextAssemblyPreviewView({
@@ -1031,6 +1096,7 @@ export function DesktopShell(): JSX.Element {
         sandboxApplyRollbackEventProjection:
           displayedSandboxApplyRollbackEventProjection,
         modelPatchProposalImport: modelPatchProposalImportPreview,
+        modelProposalChainIntegration: modelProposalChainIntegrationPreview,
         snapshotContract: displayedDisposableWorkspaceSnapshot,
         userWorkspaceSnapshotContract: displayedUserWorkspaceSnapshotBackup,
         userWorkspacePromotionReadiness:
@@ -1044,6 +1110,7 @@ export function DesktopShell(): JSX.Element {
       controlPlanePanel,
       controlledCreationReplayProjection,
       displayedDisposableWorkspaceSnapshot,
+      modelProposalChainIntegrationPreview,
       modelPatchProposalImportPreview,
       displayedUserWorkspaceSnapshotBackup,
       displayedUserWorkspacePromotionReadiness,
@@ -1215,6 +1282,7 @@ export function DesktopShell(): JSX.Element {
     setPatchProposalCreationPreview(undefined);
     setPatchProposalValidationPreview(undefined);
     setModelPatchProposalImportPreview(undefined);
+    setModelProposalChainIntegrationPreview(undefined);
     setPatchDiffAuditPreview(undefined);
     setPatchApprovalDraftPreview(undefined);
     setPatchVirtualApplyPreview(undefined);
@@ -1229,6 +1297,7 @@ export function DesktopShell(): JSX.Element {
   useEffect(() => {
     setPatchProposalCreationPreview(undefined);
     setModelPatchProposalImportPreview(undefined);
+    setModelProposalChainIntegrationPreview(undefined);
     setPatchProposalValidationPreview(undefined);
     setPatchDiffAuditPreview(undefined);
     setPatchApprovalDraftPreview(undefined);
@@ -1249,6 +1318,7 @@ export function DesktopShell(): JSX.Element {
 
   useEffect(() => {
     setModelPatchProposalImportPreview(undefined);
+    setModelProposalChainIntegrationPreview(undefined);
     setPatchProposalValidationPreview(undefined);
     setPatchDiffAuditPreview(undefined);
     setPatchApprovalDraftPreview(undefined);
@@ -1261,6 +1331,21 @@ export function DesktopShell(): JSX.Element {
   }, [modelPatchProposalDraftText]);
 
   useEffect(() => {
+    setModelProposalChainIntegrationPreview(undefined);
+    setContextAssemblyPreview(undefined);
+  }, [
+    modelPatchProposalImportPreview?.importId,
+    patchProposalValidationPreview?.validationId,
+    patchDiffAuditPreview?.auditId,
+    patchApprovalDraftPreview?.approvalDraftId,
+    patchVirtualApplyPreview?.virtualApplyId,
+    patchRollbackCheckpointPreview?.checkpointPreviewId,
+    controlledCreationReplayProjection?.projectionId,
+    userWorkspaceSnapshotBackupPreview?.contractId,
+    userWorkspacePromotionReadinessPreview?.readinessId
+  ]);
+
+  useEffect(() => {
     setContextAssemblyPreview(undefined);
   }, [
     agentRoutePreview.routeId,
@@ -1271,6 +1356,7 @@ export function DesktopShell(): JSX.Element {
     patchVirtualApplyPreview?.virtualApplyId,
     controlledCreationReplayProjection?.projectionId,
     sandboxApplyRollbackEventProjection?.projectionId,
+    modelProposalChainIntegrationPreview?.chainId,
     modelPatchProposalImportPreview?.importId,
     userWorkspaceSnapshotBackupPreview?.contractId,
     userWorkspacePromotionReadinessPreview?.readinessId,
@@ -1332,6 +1418,7 @@ export function DesktopShell(): JSX.Element {
   function handlePreviewPatchProposal(): void {
     setPatchProposalCreationPreview(patchProposalCreationCandidate);
     setModelPatchProposalImportPreview(undefined);
+    setModelProposalChainIntegrationPreview(undefined);
     setPatchProposalValidationPreview(undefined);
     setPatchDiffAuditPreview(undefined);
     setPatchApprovalDraftPreview(undefined);
@@ -1344,6 +1431,7 @@ export function DesktopShell(): JSX.Element {
 
   function handlePreviewModelPatchProposal(): void {
     setModelPatchProposalImportPreview(modelPatchProposalImportCandidate);
+    setModelProposalChainIntegrationPreview(undefined);
     setPatchProposalCreationPreview(undefined);
     setPatchProposalValidationPreview(undefined);
     setPatchDiffAuditPreview(undefined);
@@ -1359,6 +1447,7 @@ export function DesktopShell(): JSX.Element {
   function handleClearModelPatchProposal(): void {
     setModelPatchProposalDraftText("");
     setModelPatchProposalImportPreview(undefined);
+    setModelProposalChainIntegrationPreview(undefined);
     setPatchProposalCreationPreview(undefined);
     setPatchProposalValidationPreview(undefined);
     setPatchDiffAuditPreview(undefined);
@@ -1371,6 +1460,18 @@ export function DesktopShell(): JSX.Element {
     setContextAssemblyPreview(undefined);
   }
 
+  function handlePreviewModelProposalChain(): void {
+    setModelProposalChainIntegrationPreview(
+      modelProposalChainIntegrationCandidate
+    );
+    setContextAssemblyPreview(undefined);
+  }
+
+  function handleClearModelProposalChain(): void {
+    setModelProposalChainIntegrationPreview(undefined);
+    setContextAssemblyPreview(undefined);
+  }
+
   function handleValidatePatchProposal(): void {
     setPatchProposalValidationPreview(patchProposalValidationCandidate);
     setPatchDiffAuditPreview(undefined);
@@ -1380,10 +1481,12 @@ export function DesktopShell(): JSX.Element {
     setControlledCreationReplayProjection(undefined);
     setSandboxApplyRollbackEventProjection(undefined);
     setUserWorkspacePromotionReadinessPreview(undefined);
+    setModelProposalChainIntegrationPreview(undefined);
   }
 
   function handlePreviewDiffAudit(): void {
     setPatchDiffAuditPreview(patchDiffAuditCandidate);
+    setModelProposalChainIntegrationPreview(undefined);
     setPatchApprovalDraftPreview(undefined);
     setPatchVirtualApplyPreview(undefined);
     setPatchRollbackCheckpointPreview(undefined);
@@ -1394,6 +1497,7 @@ export function DesktopShell(): JSX.Element {
 
   function handlePreviewApprovalDraft(): void {
     setPatchApprovalDraftPreview(patchApprovalDraftCandidate);
+    setModelProposalChainIntegrationPreview(undefined);
     setPatchVirtualApplyPreview(undefined);
     setPatchRollbackCheckpointPreview(undefined);
     setControlledCreationReplayProjection(undefined);
@@ -1403,6 +1507,7 @@ export function DesktopShell(): JSX.Element {
 
   function handlePreviewVirtualApply(): void {
     setPatchVirtualApplyPreview(patchVirtualApplyCandidate);
+    setModelProposalChainIntegrationPreview(undefined);
     setPatchRollbackCheckpointPreview(undefined);
     setControlledCreationReplayProjection(undefined);
     setSandboxApplyRollbackEventProjection(undefined);
@@ -1411,6 +1516,7 @@ export function DesktopShell(): JSX.Element {
 
   function handlePreviewRollbackCheckpoint(): void {
     setPatchRollbackCheckpointPreview(patchRollbackCheckpointCandidate);
+    setModelProposalChainIntegrationPreview(undefined);
     setControlledCreationReplayProjection(undefined);
     setSandboxApplyRollbackEventProjection(undefined);
     setUserWorkspacePromotionReadinessPreview(undefined);
@@ -1418,6 +1524,7 @@ export function DesktopShell(): JSX.Element {
 
   function handlePreviewDisposableWorkspaceSnapshot(): void {
     setDisposableWorkspaceSnapshotPreview(disposableWorkspaceSnapshotCandidate);
+    setModelProposalChainIntegrationPreview(undefined);
     setUserWorkspaceSnapshotBackupPreview(undefined);
     setSandboxApplyRollbackEventProjection(undefined);
     setUserWorkspacePromotionReadinessPreview(undefined);
@@ -1426,12 +1533,14 @@ export function DesktopShell(): JSX.Element {
 
   function handlePreviewUserWorkspaceSnapshotBackup(): void {
     setUserWorkspaceSnapshotBackupPreview(userWorkspaceSnapshotBackupCandidate);
+    setModelProposalChainIntegrationPreview(undefined);
     setUserWorkspacePromotionReadinessPreview(undefined);
     setContextAssemblyPreview(undefined);
   }
 
   function handlePreviewControlledReplayProjection(): void {
     setControlledCreationReplayProjection(controlledCreationReplayCandidate);
+    setModelProposalChainIntegrationPreview(undefined);
     setSandboxApplyRollbackEventProjection(undefined);
     setUserWorkspacePromotionReadinessPreview(undefined);
   }
@@ -1440,6 +1549,7 @@ export function DesktopShell(): JSX.Element {
     setSandboxApplyRollbackEventProjection(
       sandboxApplyRollbackEventProjectionCandidate
     );
+    setModelProposalChainIntegrationPreview(undefined);
     setUserWorkspacePromotionReadinessPreview(undefined);
   }
 
@@ -1447,6 +1557,7 @@ export function DesktopShell(): JSX.Element {
     setUserWorkspacePromotionReadinessPreview(
       userWorkspacePromotionReadinessCandidate
     );
+    setModelProposalChainIntegrationPreview(undefined);
     setContextAssemblyPreview(undefined);
   }
 
@@ -2494,6 +2605,140 @@ export function DesktopShell(): JSX.Element {
             <p className="fieldHelp">
               {summarizeModelPatchProposalImportView(
                 displayedModelPatchProposalImport
+              ).nextAction}
+            </p>
+          </section>
+
+          <section
+            className="eventPanel"
+            aria-label="Model Proposal Chain Integration"
+          >
+            <div className="panelHeader">
+              <h2>Model Proposal Chain Integration</h2>
+              <span className="muted">Preview chain / no execution</span>
+            </div>
+            <p className="fieldHelp">
+              Projects an imported model_patch_proposal into the existing
+              validation, audit, approval, rollback, and user-workspace
+              readiness chain. No model call, file write, apply, rollback,
+              approval execution, or event write is performed.
+            </p>
+
+            <div className="buttonRow">
+              <button
+                type="button"
+                className="secondary"
+                onClick={(event) => {
+                  event.preventDefault();
+                  event.stopPropagation();
+                  handlePreviewModelProposalChain();
+                }}
+              >
+                Preview Model Proposal Chain
+              </button>
+              <button
+                type="button"
+                className="secondary"
+                onClick={(event) => {
+                  event.preventDefault();
+                  event.stopPropagation();
+                  handleClearModelProposalChain();
+                }}
+              >
+                Clear Chain Preview
+              </button>
+            </div>
+
+            {displayedModelProposalChainIntegration.status === "empty" ? (
+              <p className="empty">
+                No model proposal chain preview yet. Import a model proposal
+                draft first, then preview the summary-only chain.
+              </p>
+            ) : null}
+
+            {displayedModelProposalChainIntegration.status === "blocked" ? (
+              <div className="errorBox">
+                <strong>Model proposal chain blocked</strong>
+                <p>{displayedModelProposalChainIntegration.nextAction}</p>
+              </div>
+            ) : null}
+
+            <dl className="summaryGrid compact">
+              <div>
+                <dt>Status</dt>
+                <dd>{displayedModelProposalChainIntegration.status}</dd>
+              </div>
+              <div>
+                <dt>Chain</dt>
+                <dd>{displayedModelProposalChainIntegration.chainId}</dd>
+              </div>
+              <div>
+                <dt>Proposal</dt>
+                <dd>{displayedModelProposalChainIntegration.proposalId ?? "n/a"}</dd>
+              </div>
+              <div>
+                <dt>Stages</dt>
+                <dd>
+                  {displayedModelProposalChainIntegration.completedStageCount} /{" "}
+                  {displayedModelProposalChainIntegration.stageCount}
+                </dd>
+              </div>
+              <div>
+                <dt>Missing stages</dt>
+                <dd>{displayedModelProposalChainIntegration.missingStageCount}</dd>
+              </div>
+              <div>
+                <dt>Blockers / warnings</dt>
+                <dd>
+                  {displayedModelProposalChainIntegration.blockerCount} /{" "}
+                  {displayedModelProposalChainIntegration.warningCount}
+                </dd>
+              </div>
+              <div>
+                <dt>Hash</dt>
+                <dd>{displayedModelProposalChainIntegration.chainHash}</dd>
+              </div>
+              <div>
+                <dt>Can enter chain</dt>
+                <dd>
+                  {displayedModelProposalChainIntegration.readiness
+                    .canEnterExistingPreviewChain
+                    ? "yes"
+                    : "no"}
+                </dd>
+              </div>
+            </dl>
+
+            {displayedModelProposalChainIntegration.stages.length > 0 ? (
+              <ol className="timeline">
+                {displayedModelProposalChainIntegration.stages.map((stage) => (
+                  <li key={stage.stageId}>
+                    <span className="timelineMeta">
+                      {stage.kind} · {stage.status}
+                    </span>
+                    <span>{stage.summary}</span>
+                    {stage.warningCodes.length > 0 ? (
+                      <span className="timelineMeta">
+                        Warnings: {stage.warningCodes.join(", ")}
+                      </span>
+                    ) : null}
+                  </li>
+                ))}
+              </ol>
+            ) : null}
+
+            {displayedModelProposalChainIntegration.findings.length > 0 ? (
+              <p className="muted">
+                findings{" "}
+                {displayedModelProposalChainIntegration.findings
+                  .map((finding) => finding.code)
+                  .join(", ")}
+              </p>
+            ) : null}
+
+            <p className="fieldHelp">
+              {summarizeModelProposalChainIntegrationView(
+                displayedModelProposalChainIntegration
               ).nextAction}
             </p>
           </section>

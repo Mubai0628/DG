@@ -5,6 +5,7 @@ import type { AppControlledCreationReplayProjectionView } from "./controlled-cre
 import type { AppDisposableWorkspaceSnapshotView } from "./disposable-workspace-snapshot-view.js";
 import type { AppMemoryRecallPreviewView } from "./memory-recall-preview-view.js";
 import type { ModelPatchProposalImportView } from "./model-patch-proposal-import-view.js";
+import type { ModelProposalChainIntegrationView } from "./model-proposal-chain-integration-view.js";
 import type { AppRunDraftView } from "./run-draft-view.js";
 import type { AppSandboxApplyRollbackEventProjectionView } from "./sandbox-apply-rollback-event-projection-view.js";
 import type { AppUserWorkspacePromotionReadinessView } from "./user-workspace-promotion-readiness-view.js";
@@ -47,6 +48,7 @@ export type AppContextAssemblySourceRef = {
     | "memory_recall"
     | "patch_proposal"
     | "model_patch_proposal_import"
+    | "model_proposal_chain_integration"
     | "approval_ref"
     | "replay_projection"
     | "sandbox_event_projection"
@@ -127,6 +129,9 @@ export type AppContextAssemblyPreviewInput = {
     | AppSandboxApplyRollbackEventProjectionView
     | undefined;
   modelPatchProposalImport?: ModelPatchProposalImportView | undefined;
+  modelProposalChainIntegration?:
+    | ModelProposalChainIntegrationView
+    | undefined;
   snapshotContract?: AppDisposableWorkspaceSnapshotView | undefined;
   userWorkspaceSnapshotContract?:
     | AppUserWorkspaceSnapshotBackupView
@@ -639,6 +644,35 @@ function buildSegments(
             (finding) => finding.code
           ),
           ...(importPreview?.warningCodes ?? [])
+        ]
+      })
+    );
+  }
+
+  if (
+    input.modelProposalChainIntegration !== undefined &&
+    input.modelProposalChainIntegration.status !== "empty"
+  ) {
+    segments.push(
+      segment({
+        layer: "no_compress_zone",
+        title: "Model proposal chain integration summary",
+        sourceKind: "model_proposal_chain_integration",
+        sourceRefId: input.modelProposalChainIntegration.chainId,
+        summary: [
+          input.modelProposalChainIntegration.status,
+          `proposal:${input.modelProposalChainIntegration.proposalId ?? "n/a"}`,
+          `stages:${input.modelProposalChainIntegration.completedStageCount}/${input.modelProposalChainIntegration.stageCount}`,
+          `missing:${input.modelProposalChainIntegration.missingStageCount}`,
+          `blockers:${input.modelProposalChainIntegration.blockerCount}`,
+          `warnings:${input.modelProposalChainIntegration.warningCount}`,
+          `hash:${input.modelProposalChainIntegration.chainHash}`
+        ].join(" | "),
+        warningCodes: [
+          "MODEL_PROPOSAL_CHAIN_INTEGRATION_NO_COMPRESS",
+          ...input.modelProposalChainIntegration.findings.map(
+            (finding) => finding.code
+          )
         ]
       })
     );
