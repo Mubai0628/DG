@@ -8783,6 +8783,84 @@ describe("desktop source boundaries", () => {
     );
   });
 
+  it("documents the v0.7 post-release review and P0L DeepSeek proposal roadmap without enabling execution", async () => {
+    const review = await readFile(
+      path.join(
+        repoRoot,
+        "docs",
+        "v0.7-user-workspace-apply-postrelease-review.md"
+      ),
+      "utf8"
+    );
+    const roadmap = await readFile(
+      path.join(
+        repoRoot,
+        "docs",
+        "p0l-deepseek-patch-proposal-generation-roadmap.md"
+      ),
+      "utf8"
+    );
+    const plan = await readFile(
+      path.join(
+        repoRoot,
+        "docs",
+        "p0l-001-deepseek-patch-proposal-generation-plan.md"
+      ),
+      "utf8"
+    );
+    const docsIndex = await readFile(
+      path.join(repoRoot, "docs", "README.md"),
+      "utf8"
+    );
+    const combined = `${review}\n${roadmap}\n${plan}\n${docsIndex}`;
+
+    expect(combined).toContain("v0.7.0-user-workspace-apply-preview-rc.1");
+    expect(combined).toContain(
+      "User workspace apply/rollback runtime prototypes"
+    );
+    expect(combined).toContain("0b98beb");
+    expect(combined).toContain("P0K is complete");
+    expect(combined).toContain("P0L DeepSeek Patch Proposal Generation");
+    expect(combined).toContain("DeepSeek-assisted patch proposal generation");
+    expect(combined).toMatch(/structured\s+patch\s+proposals\s+only/);
+    expect(combined).toContain("DeepSeek must not write files");
+    expect(combined).toContain("DeepSeek must not call apply or rollback");
+    expect(combined).toContain("validation preview");
+    expect(combined).toContain("diff audit");
+    expect(combined).toContain("approval draft");
+    expect(combined).toContain("virtual apply");
+    expect(combined).toContain("rollback");
+    expect(combined).toContain("replay chain");
+    expect(combined).toContain("model must not write files");
+    expect(combined).toContain("no live DeepSeek call");
+    expect(combined).toContain("no model implementation");
+    expect(combined).toContain("no file write");
+    expect(combined).toContain("no apply");
+    expect(combined).toContain("no rollback");
+    expect(combined).toContain("no App execution");
+    expect(combined).toContain("No Git");
+    expect(combined).toContain("No shell");
+    expect(combined).toContain("No native bridge");
+    expect(combined).toContain("No desktop action");
+    expect(combined).toContain("App-side apply");
+    expect(combined).toContain("App-side rollback");
+    expect(combined).toContain("Production PermissionLease");
+    expect(combined).toContain("No raw source");
+    expect(combined).toContain("No raw diff");
+    expect(combined).toContain("No raw CSV");
+    expect(combined).toContain("No raw prompt");
+    expect(combined).toContain("No API key");
+    expect(docsIndex).toContain(
+      "v0.7-user-workspace-apply-postrelease-review.md"
+    );
+    expect(docsIndex).toContain(
+      "p0l-deepseek-patch-proposal-generation-roadmap.md"
+    );
+    expect(docsIndex).toContain(
+      "p0l-001-deepseek-patch-proposal-generation-plan.md"
+    );
+  });
+
   it("documents the v0.6 post-release review and P0K promotion roadmap without enabling user workspace apply", async () => {
     const review = await readFile(
       path.join(repoRoot, "docs", "v0.6-sandbox-apply-postrelease-review.md"),

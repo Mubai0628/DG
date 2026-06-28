@@ -173,6 +173,7 @@ v0.7 User Workspace Apply Preview RC references:
 - [v0.7.0 User Workspace Apply Preview RC release notes](docs/release-notes-v0.7.0-user-workspace-apply-preview-rc.1.md)
 - [App Shell User Workspace Apply manual QA](docs/app-shell-user-workspace-apply-manual-qa.md)
 - [App Shell User Workspace Apply RC checklist](docs/app-shell-user-workspace-apply-rc-checklist.md)
+- [v0.7 User Workspace Apply post-release review](docs/v0.7-user-workspace-apply-postrelease-review.md)
 
 ## Current roadmap
 
@@ -181,11 +182,12 @@ P0F is complete after `v0.2.0-app-shell-rc.1`, P0G is complete after
 `v0.4.0-controlled-creation-preview-rc.1`, and P0I is complete after
 `v0.5.0-validation-approval-virtual-apply-preview-rc.1`. P0J is complete after
 `v0.6.0-sandbox-apply-preview-rc.1`. P0K is in RC polish for
-`v0.7.0-user-workspace-apply-preview-rc.1`. App-side user workspace apply,
-rollback, approval execution, apply/rollback event writes, run execution, Git
-execution, shell execution, broad capability invocation, production
-PermissionLease issuing, memory persistence UI, MCP/plugin/skills runtime,
-native bridge, and desktop action remain deferred.
+`v0.7.0-user-workspace-apply-preview-rc.1`. The next phase is P0L DeepSeek
+Patch Proposal Generation, draft-only and no App execution. App-side user
+workspace apply, rollback, approval execution, apply/rollback event writes, run
+execution, Git execution, shell execution, broad capability invocation,
+production PermissionLease issuing, memory persistence UI, MCP/plugin/skills
+runtime, native bridge, and desktop action remain deferred.
 
 - [v0.2 App Shell RC post-release review](docs/v0.2-app-shell-rc-postrelease-review.md)
 - [P0G Coding Workflow roadmap](docs/p0g-coding-workflow-roadmap.md)
@@ -206,6 +208,7 @@ native bridge, and desktop action remain deferred.
 - [P0J-002 Disposable Workspace Snapshot Contract plan](docs/p0j-002-disposable-workspace-snapshot-contract-plan.md)
 - [v0.6.0 Sandbox Apply Preview RC release notes](docs/release-notes-v0.6.0-sandbox-apply-preview-rc.1.md)
 - [v0.7.0 User Workspace Apply Preview RC release notes](docs/release-notes-v0.7.0-user-workspace-apply-preview-rc.1.md)
+- [P0L DeepSeek Patch Proposal Generation roadmap](docs/p0l-deepseek-patch-proposal-generation-roadmap.md)
 
 ## What v0.1.0 does not support
 
