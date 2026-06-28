@@ -56,6 +56,7 @@ import {
   modelProposalChainIntegrationSurfaceSummaries,
   summarizeModelProposalChainIntegrationView
 } from "../src/model-proposal-chain-integration-view.js";
+import { buildLiveProposalOptInGateView } from "../src/live-proposal-opt-in-gate-view.js";
 import {
   buildPatchProposalValidationPreviewView,
   patchProposalValidationApprovalRefs,
@@ -3928,6 +3929,117 @@ describe("app model proposal chain integration", () => {
     expect(docsIndex).toContain(
       "app-shell-model-proposal-chain-integration-v0.7.md"
     );
+  });
+});
+
+describe("app live proposal opt-in gate", () => {
+  it("builds disabled and explicit policy previews without key reads or live calls", () => {
+    const disabled = buildLiveProposalOptInGateView();
+    const explicit = buildLiveProposalOptInGateView({
+      modelProfileId: "deepseek-chat",
+      keySourceRef: "DEEPSEEK_API_KEY",
+      optInMode: "explicit_live_proposal_opt_in"
+    });
+    const secret = "sk-test1234567890abcdef";
+    const blocked = buildLiveProposalOptInGateView({
+      modelProfileId: "deepseek-chat",
+      keySourceRef: secret,
+      optInMode: "explicit_live_proposal_opt_in"
+    });
+    const serialized = JSON.stringify({ disabled, explicit, blocked });
+
+    expect(disabled.status).toBe("disabled");
+    expect(disabled.keySourceType).toBe("disabled");
+    expect(disabled.readiness.canReadApiKey).toBe(false);
+    expect(disabled.readiness.canCallLiveModel).toBe(false);
+    expect(explicit.status).toBe("warning");
+    expect(explicit.keySourceType).toBe("env_var_ref");
+    expect(explicit.keySourceRefHash).toHaveLength(16);
+    expect(explicit.readiness.canProceedToLiveRequestBuilder).toBe(true);
+    expect(explicit.readiness.canReadApiKey).toBe(false);
+    expect(explicit.readiness.canCallLiveModel).toBe(false);
+    expect(explicit.readiness.canFetchNetwork).toBe(false);
+    expect(blocked.status).toBe("blocked");
+    expect(blocked.findings.map((finding) => finding.code)).toContain(
+      "RAW_KEY_REF_REJECTED"
+    );
+    expect(serialized).not.toContain(secret);
+  });
+
+  it("keeps App source opt-in gate policy-only without live execution wiring", async () => {
+    const appSource = await readFile(
+      path.join(appRoot, "src", "App.tsx"),
+      "utf8"
+    );
+    const viewSource = await readFile(
+      path.join(appRoot, "src", "live-proposal-opt-in-gate-view.ts"),
+      "utf8"
+    );
+    const combined = `${appSource}\n${viewSource}`;
+
+    expect(appSource).toContain("Live Proposal Opt-in Gate");
+    expect(appSource).toContain("Policy only / no API key read");
+    expect(appSource).toContain("Preview Opt-in Policy");
+    expect(appSource).toContain("Call DeepSeek (disabled)");
+    expect(appSource).toContain("DEEPSEEK_API_KEY ref only, no value");
+    expect(appSource).toContain("not an API key");
+    expect(appSource).toContain("value field");
+    expect(appSource).not.toContain('type="password"');
+    expect(appSource).not.toContain("Authorization input");
+    expect(appSource).not.toContain("handleCallDeepSeek");
+    expect(appSource).not.toContain("handleLiveDeepSeekProposal");
+    expect(appSource).not.toContain("handleApplyLiveProposal");
+    expect(appSource).not.toContain("handleRollbackLiveProposal");
+    expect(appSource).not.toContain("handleWriteLiveProposalEvents");
+    expect(viewSource).not.toContain("process.env");
+    expect(viewSource).not.toContain("fetch(");
+    expect(viewSource).not.toContain("safeInvoke");
+    expect(viewSource).not.toContain("recordControlRunDraftEvent");
+    expect(combined).not.toContain("readLiveProposalApiKey");
+    expect(combined).not.toContain("writeLiveProposalEvent");
+  });
+
+  it("documents runtime and App live proposal opt-in policy boundaries", async () => {
+    const runtimeDoc = await readFile(
+      path.join(
+        repoRoot,
+        "docs",
+        "runtime-live-proposal-api-key-policy-v0.8.md"
+      ),
+      "utf8"
+    );
+    const appDoc = await readFile(
+      path.join(
+        repoRoot,
+        "docs",
+        "app-shell-live-proposal-opt-in-gate-v0.8.md"
+      ),
+      "utf8"
+    );
+    const docsIndex = await readFile(
+      path.join(repoRoot, "docs", "README.md"),
+      "utf8"
+    );
+    const combined = `${runtimeDoc}\n${appDoc}\n${docsIndex}`;
+    const normalized = combined.replace(/\s+/g, " ");
+
+    expect(combined).toContain("Runtime Live Proposal API Key Policy v0.8");
+    expect(combined).toContain("App Shell Live Proposal Opt-in Gate v0.8");
+    expect(combined).toContain("Policy only");
+    expect(combined).toContain("No API key read");
+    expect(combined).toContain("No environment value read");
+    expect(combined).toContain("No vault read");
+    expect(combined).toContain("No fetch/network");
+    expect(combined).toContain("No live DeepSeek call");
+    expect(combined).toContain("No App execution");
+    expect(combined).toContain("No apply or rollback");
+    expect(combined).toContain("No EventStore write");
+    expect(combined).toContain("No Git/shell");
+    expect(combined).toContain("No native bridge");
+    expect(combined).toContain("No desktop action");
+    expect(normalized).toContain("DEEPSEEK_API_KEY ref only, no value");
+    expect(docsIndex).toContain("runtime-live-proposal-api-key-policy-v0.8.md");
+    expect(docsIndex).toContain("app-shell-live-proposal-opt-in-gate-v0.8.md");
   });
 });
 

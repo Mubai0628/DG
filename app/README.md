@@ -49,6 +49,9 @@ Current scope:
   `model_patch_proposal` paste/import and chain projection while live DeepSeek
   proposal calls, API key reads, fetch/network, model-driven file writes, and
   App execution remain disabled
+- preview the P0M Live Proposal Opt-in Gate as policy metadata only, with no
+  API key read, no environment value read, no vault read, no fetch/network, no
+  live DeepSeek call, and no App execution
 
 Current limitations:
 
@@ -89,8 +92,11 @@ Current limitations:
   model call, no API key read, no fetch/network, no file write, no apply, no
   rollback, and no EventStore write; Model Proposal Chain Integration projects
   imported proposal summaries into the preview chain only, with no model call,
-  dry adapter call, approval execution, apply, rollback, or event write; none
-  of these App surfaces reads or writes files
+  dry adapter call, approval execution, apply, rollback, or event write; Live
+  Proposal Opt-in Gate is policy-only with no API key read, no environment
+  value read, no vault read, no fetch/network, no live DeepSeek call, no
+  Tauri command, no EventStore write, and no App execution; none of these App
+  surfaces reads or writes files
 - no validation, audit, approval, virtual apply, rollback, or replay preview is
   an apply/approval/rollback/execution lane
 - no real DeepSeek API call from the desktop shell

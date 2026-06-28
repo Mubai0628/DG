@@ -306,7 +306,7 @@ function isAllowedBoundaryHit(file, line, ruleId) {
   return false;
 }
 
-function isAllowedSecretHit(file) {
+function isAllowedSecretHit(file, line, ruleId) {
   if (isBoundaryDoc(file)) {
     return true;
   }
@@ -340,7 +340,22 @@ function isAllowedSecretHit(file) {
   if (file === "conformance/README.md") {
     return true;
   }
+  if (isLiveProposalOptInPolicyDisplayRef(file, line, ruleId)) {
+    return true;
+  }
   return false;
+}
+
+function isLiveProposalOptInPolicyDisplayRef(file, line, ruleId) {
+  // ACCEPTABLE_LIVE_PROPOSAL_OPT_IN_POLICY: metadata refs only, never key reads.
+  return (
+    ruleId === "deepseek_env_reference" &&
+    !line.includes("process.env") &&
+    (file === "app/src/live-proposal-opt-in-gate-view.ts" ||
+      file === "app/src/App.tsx") &&
+    line.includes("DEEPSEEK_API_KEY") &&
+    (line.includes("allowedEnvVarNames") || line.includes("ref only"))
+  );
 }
 
 function isEventLogLeakScannerLine(line) {

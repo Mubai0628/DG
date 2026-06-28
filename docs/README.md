@@ -111,6 +111,8 @@ foundation.
 - [Live DeepSeek Proposal Adapter threat model v0.8](live-deepseek-proposal-adapter-threat-model-v0.8.md)
 - [Live DeepSeek Proposal Adapter implementation gate v0.8](live-deepseek-proposal-adapter-implementation-gate-v0.8.md)
 - [P0M-002 API Key Access Policy / Opt-in Gate plan](p0m-002-api-key-access-policy-opt-in-gate-plan.md)
+- [Runtime Live Proposal API Key Policy v0.8](runtime-live-proposal-api-key-policy-v0.8.md)
+- [App Shell Live Proposal Opt-in Gate v0.8](app-shell-live-proposal-opt-in-gate-v0.8.md)
 - [Runtime Memory Recall Preview v0.3](runtime-memory-recall-preview-v0.3.md)
 - [v0.4.0 Controlled Creation Preview RC release notes](release-notes-v0.4.0-controlled-creation-preview-rc.1.md)
 - [App Shell Controlled Creation manual QA](app-shell-controlled-creation-manual-qa.md)

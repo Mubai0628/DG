@@ -89,6 +89,10 @@ import {
   type ModelProposalChainIntegrationView
 } from "./model-proposal-chain-integration-view.js";
 import {
+  buildLiveProposalOptInGateView,
+  type LiveProposalOptInGateView
+} from "./live-proposal-opt-in-gate-view.js";
+import {
   buildPatchProposalValidationPreviewView,
   patchProposalValidationApprovalRefs,
   patchProposalValidationAuditWarningCodes,
@@ -322,6 +326,13 @@ export function DesktopShell(): JSX.Element {
     modelProposalChainIntegrationPreview,
     setModelProposalChainIntegrationPreview
   ] = useState<ModelProposalChainIntegrationView | undefined>();
+  const [liveProposalModelProfileId, setLiveProposalModelProfileId] =
+    useState("deepseek-chat");
+  const [liveProposalKeySourceRef, setLiveProposalKeySourceRef] = useState("");
+  const [liveProposalOptInMode, setLiveProposalOptInMode] =
+    useState<LiveProposalOptInGateView["optInMode"]>("disabled");
+  const [liveProposalOptInGatePreview, setLiveProposalOptInGatePreview] =
+    useState<LiveProposalOptInGateView | undefined>();
   const [patchProposalCreationPreview, setPatchProposalCreationPreview] =
     useState<AppPatchProposalCreationPreviewView | undefined>();
   const [patchProposalValidationPreview, setPatchProposalValidationPreview] =
@@ -1081,6 +1092,22 @@ export function DesktopShell(): JSX.Element {
   const displayedModelProposalChainIntegration =
     modelProposalChainIntegrationPreview ??
     buildModelProposalChainIntegrationView();
+  const liveProposalOptInGateCandidate = useMemo<LiveProposalOptInGateView>(
+    () =>
+      buildLiveProposalOptInGateView({
+        providerId: "deepseek",
+        modelProfileId: liveProposalModelProfileId,
+        keySourceRef: liveProposalKeySourceRef,
+        optInMode: liveProposalOptInMode
+      }),
+    [
+      liveProposalKeySourceRef,
+      liveProposalModelProfileId,
+      liveProposalOptInMode
+    ]
+  );
+  const displayedLiveProposalOptInGate =
+    liveProposalOptInGatePreview ?? liveProposalOptInGateCandidate;
   const contextAssemblyCandidate = useMemo<AppContextAssemblyPreviewView>(
     () =>
       buildContextAssemblyPreviewView({
@@ -1470,6 +1497,10 @@ export function DesktopShell(): JSX.Element {
   function handleClearModelProposalChain(): void {
     setModelProposalChainIntegrationPreview(undefined);
     setContextAssemblyPreview(undefined);
+  }
+
+  function handlePreviewLiveProposalOptInGate(): void {
+    setLiveProposalOptInGatePreview(liveProposalOptInGateCandidate);
   }
 
   function handleValidatePatchProposal(): void {
@@ -2748,6 +2779,178 @@ export function DesktopShell(): JSX.Element {
                   displayedModelProposalChainIntegration
                 ).nextAction
               }
+            </p>
+          </section>
+
+          <section
+            className="eventPanel"
+            aria-label="Live Proposal Opt-in Gate"
+          >
+            <div className="panelHeader">
+              <h2>Live Proposal Opt-in Gate</h2>
+              <span className="muted">Policy only / no API key read</span>
+            </div>
+            <p className="fieldHelp">
+              Defines the future opt-in boundary for live DeepSeek proposal
+              generation. The App Shell does not read API keys, call DeepSeek,
+              fetch network, apply patches, rollback, or write events.
+            </p>
+
+            <div className="inlineFields">
+              <label>
+                <span>Provider</span>
+                <input value="deepseek" readOnly />
+              </label>
+              <label>
+                <span>Model profile</span>
+                <input
+                  value={liveProposalModelProfileId}
+                  onChange={(event) => {
+                    setLiveProposalModelProfileId(event.target.value);
+                    setLiveProposalOptInGatePreview(undefined);
+                  }}
+                  placeholder="deepseek-chat"
+                />
+              </label>
+            </div>
+
+            <label>
+              <span>Key source ref</span>
+              <input
+                value={liveProposalKeySourceRef}
+                onChange={(event) => {
+                  setLiveProposalKeySourceRef(event.target.value);
+                  setLiveProposalOptInGatePreview(undefined);
+                }}
+                placeholder="DEEPSEEK_API_KEY ref only, no value"
+              />
+              <p className="fieldHelp">
+                This field accepts a reference name only. It is not an API key
+                value field, does not read environment values, and does not call
+                a vault.
+              </p>
+            </label>
+
+            <label>
+              <span>Opt-in mode</span>
+              <select
+                value={liveProposalOptInMode}
+                onChange={(event) => {
+                  setLiveProposalOptInMode(
+                    event.target.value as LiveProposalOptInGateView["optInMode"]
+                  );
+                  setLiveProposalOptInGatePreview(undefined);
+                }}
+              >
+                <option value="disabled">disabled</option>
+                <option value="dry_config_check">dry config check</option>
+                <option value="explicit_live_proposal_opt_in">
+                  explicit opt-in
+                </option>
+              </select>
+            </label>
+
+            <div className="buttonRow">
+              <button
+                type="button"
+                className="secondary"
+                onClick={(event) => {
+                  event.preventDefault();
+                  event.stopPropagation();
+                  handlePreviewLiveProposalOptInGate();
+                }}
+              >
+                Preview Opt-in Policy
+              </button>
+              <button type="button" className="secondary" disabled>
+                Call DeepSeek (disabled)
+              </button>
+            </div>
+
+            <dl className="summaryGrid compact">
+              <div>
+                <dt>Status</dt>
+                <dd>{displayedLiveProposalOptInGate.status}</dd>
+              </div>
+              <div>
+                <dt>Policy</dt>
+                <dd>{displayedLiveProposalOptInGate.policyId}</dd>
+              </div>
+              <div>
+                <dt>Provider / model</dt>
+                <dd>
+                  {displayedLiveProposalOptInGate.providerId} /{" "}
+                  {displayedLiveProposalOptInGate.modelProfileId}
+                </dd>
+              </div>
+              <div>
+                <dt>Key source</dt>
+                <dd>{displayedLiveProposalOptInGate.keySourceType}</dd>
+              </div>
+              <div>
+                <dt>Ref hash</dt>
+                <dd>{displayedLiveProposalOptInGate.keySourceRefHash}</dd>
+              </div>
+              <div>
+                <dt>Opt-in</dt>
+                <dd>
+                  {displayedLiveProposalOptInGate.optInMode} /{" "}
+                  {displayedLiveProposalOptInGate.optInScope}
+                </dd>
+              </div>
+              <div>
+                <dt>Blockers / warnings</dt>
+                <dd>
+                  {displayedLiveProposalOptInGate.blockerCount} /{" "}
+                  {displayedLiveProposalOptInGate.warningCount}
+                </dd>
+              </div>
+              <div>
+                <dt>Can build request later</dt>
+                <dd>
+                  {displayedLiveProposalOptInGate.readiness
+                    .canProceedToLiveRequestBuilder
+                    ? "yes"
+                    : "no"}
+                </dd>
+              </div>
+              <div>
+                <dt>Can read key / call model</dt>
+                <dd>
+                  {displayedLiveProposalOptInGate.readiness.canReadApiKey
+                    ? "yes"
+                    : "no"}{" "}
+                  /{" "}
+                  {displayedLiveProposalOptInGate.readiness.canCallLiveModel
+                    ? "yes"
+                    : "no"}
+                </dd>
+              </div>
+              <div>
+                <dt>Network / events</dt>
+                <dd>
+                  {displayedLiveProposalOptInGate.readiness.canFetchNetwork
+                    ? "yes"
+                    : "no"}{" "}
+                  /{" "}
+                  {displayedLiveProposalOptInGate.readiness.canWriteEventStore
+                    ? "yes"
+                    : "no"}
+                </dd>
+              </div>
+            </dl>
+
+            {displayedLiveProposalOptInGate.findings.length > 0 ? (
+              <p className="muted">
+                findings{" "}
+                {displayedLiveProposalOptInGate.findings
+                  .map((finding) => finding.code)
+                  .join(", ")}
+              </p>
+            ) : null}
+
+            <p className="fieldHelp">
+              {displayedLiveProposalOptInGate.nextAction}
             </p>
           </section>
 
