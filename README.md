@@ -181,9 +181,11 @@ P0F is complete after `v0.2.0-app-shell-rc.1`, P0G is complete after
 `v0.3.0-coding-workflow-preview-rc.1`, P0H is complete after
 `v0.4.0-controlled-creation-preview-rc.1`, and P0I is complete after
 `v0.5.0-validation-approval-virtual-apply-preview-rc.1`. P0J is complete after
-`v0.6.0-sandbox-apply-preview-rc.1`. P0K is in RC polish for
-`v0.7.0-user-workspace-apply-preview-rc.1`. The next phase is P0L DeepSeek
-Patch Proposal Generation, draft-only and no App execution. App-side user
+`v0.6.0-sandbox-apply-preview-rc.1`. P0K is complete after
+`v0.7.0-user-workspace-apply-preview-rc.1`. The current phase is P0L DeepSeek
+Patch Proposal Generation, draft-only and no App execution. DeepSeek may draft
+structured patch proposals only; it must not write files, apply, rollback, or
+bypass validation, audit, approval, rollback, and replay gates. App-side user
 workspace apply, rollback, approval execution, apply/rollback event writes, run
 execution, Git execution, shell execution, broad capability invocation,
 production PermissionLease issuing, memory persistence UI, MCP/plugin/skills
@@ -209,6 +211,7 @@ runtime, native bridge, and desktop action remain deferred.
 - [v0.6.0 Sandbox Apply Preview RC release notes](docs/release-notes-v0.6.0-sandbox-apply-preview-rc.1.md)
 - [v0.7.0 User Workspace Apply Preview RC release notes](docs/release-notes-v0.7.0-user-workspace-apply-preview-rc.1.md)
 - [P0L DeepSeek Patch Proposal Generation roadmap](docs/p0l-deepseek-patch-proposal-generation-roadmap.md)
+- [ADR 0007: DeepSeek Patch Proposal Generation](docs/adr/0007-deepseek-patch-proposal-generation.md)
 
 ## What v0.1.0 does not support
 

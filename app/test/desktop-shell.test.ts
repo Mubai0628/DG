@@ -8861,6 +8861,83 @@ describe("desktop source boundaries", () => {
     );
   });
 
+  it("documents the P0L-001 DeepSeek patch proposal ADR and gates without implementation", async () => {
+    const adr = await readFile(
+      path.join(
+        repoRoot,
+        "docs",
+        "adr",
+        "0007-deepseek-patch-proposal-generation.md"
+      ),
+      "utf8"
+    );
+    const threatModel = await readFile(
+      path.join(
+        repoRoot,
+        "docs",
+        "deepseek-patch-proposal-generation-threat-model-v0.7.md"
+      ),
+      "utf8"
+    );
+    const implementationGate = await readFile(
+      path.join(
+        repoRoot,
+        "docs",
+        "deepseek-patch-proposal-generation-implementation-gate-v0.7.md"
+      ),
+      "utf8"
+    );
+    const nextPlan = await readFile(
+      path.join(
+        repoRoot,
+        "docs",
+        "p0l-002-model-patch-proposal-schema-plan.md"
+      ),
+      "utf8"
+    );
+    const docsIndex = await readFile(
+      path.join(repoRoot, "docs", "README.md"),
+      "utf8"
+    );
+    const combined = `${adr}\n${threatModel}\n${implementationGate}\n${nextPlan}\n${docsIndex}`;
+
+    expect(combined).toContain("DeepSeek Patch Proposal Generation");
+    expect(combined).toContain("Proposed / Accepted for P0L design gate");
+    expect(combined).toContain("no live DeepSeek call");
+    expect(combined).toContain("DeepSeek must not write files");
+    expect(combined).toContain("DeepSeek must not call apply or rollback");
+    expect(combined).toContain("DeepSeek must not issue PermissionLease");
+    expect(combined).toContain("schema validation");
+    expect(combined).toContain("secret scan");
+    expect(combined).toContain("path guard");
+    expect(combined).toContain("patch validation preview");
+    expect(combined).toContain("diff audit");
+    expect(combined).toContain("approval draft");
+    expect(combined).toContain("virtual apply");
+    expect(combined).toContain("rollback checkpoint");
+    expect(combined).toContain("replay projection");
+    expect(combined).toContain("No App execution");
+    expect(combined).toContain("No Git");
+    expect(combined).toContain("No shell");
+    expect(combined).toContain("No native bridge");
+    expect(combined).toContain("No desktop action");
+    expect(combined).toContain("Do not implement live model call");
+    expect(combined).toContain("model_patch_proposal");
+    expect(combined).toMatch(/forbidden fields/i);
+    expect(combined).toContain("Example Safe Fixture");
+    expect(combined).toContain("Example Rejected Fixture");
+    expect(docsIndex).toContain(
+      "adr/0007-deepseek-patch-proposal-generation.md"
+    );
+    expect(docsIndex).toContain(
+      "deepseek-patch-proposal-generation-threat-model-v0.7.md"
+    );
+    expect(docsIndex).toContain(
+      "deepseek-patch-proposal-generation-implementation-gate-v0.7.md"
+    );
+    expect(docsIndex).toContain("p0l-002-model-patch-proposal-schema-plan.md");
+  });
+
   it("documents the v0.6 post-release review and P0K promotion roadmap without enabling user workspace apply", async () => {
     const review = await readFile(
       path.join(repoRoot, "docs", "v0.6-sandbox-apply-postrelease-review.md"),
