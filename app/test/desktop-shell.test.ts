@@ -10652,6 +10652,104 @@ describe("desktop source boundaries", () => {
     expect(docsIndex).toContain("p0n-001-live-proposal-golden-cases-plan.md");
   });
 
+  it("documents the P0N-001 live proposal golden cases design without evaluator implementation", async () => {
+    const adr = await readFile(
+      path.join(repoRoot, "docs", "adr", "0009-live-proposal-golden-cases.md"),
+      "utf8"
+    );
+    const design = await readFile(
+      path.join(repoRoot, "docs", "live-proposal-golden-cases-design-v0.9.md"),
+      "utf8"
+    );
+    const threatModel = await readFile(
+      path.join(
+        repoRoot,
+        "docs",
+        "live-proposal-evaluation-threat-model-v0.9.md"
+      ),
+      "utf8"
+    );
+    const nextPlan = await readFile(
+      path.join(repoRoot, "docs", "p0n-002-golden-case-fixture-schema-plan.md"),
+      "utf8"
+    );
+    const docsIndex = await readFile(
+      path.join(repoRoot, "docs", "README.md"),
+      "utf8"
+    );
+    const combined = `${adr}\n${design}\n${threatModel}\n${nextPlan}\n${docsIndex}`;
+
+    expect(combined).toContain("Live Proposal Golden Cases");
+    expect(combined).toContain("Proposed / Accepted for P0N design gate");
+    expect(combined).toContain("evaluation taxonomy");
+    expect(combined).toContain("Golden Case Principles");
+    expect(combined).toContain("objective summary");
+    expect(combined).toContain("workspace refs");
+    expect(combined).toContain("expected proposal summary");
+    expect(combined).toMatch(/expected failure categor(?:y|ies)/i);
+    expect(combined).toContain("no live DeepSeek call in P0N-001");
+    expect(combined).toContain("no evaluator implementation in P0N-001");
+    expect(combined).toContain("no API key read in P0N-001");
+    expect(combined).toContain("no fetch/network in P0N-001");
+    expect(combined).toContain("no raw prompt persistence");
+    expect(combined).toContain("no raw response persistence");
+    expect(combined).toContain("no reasoning_content persistence");
+    expect(combined).toContain("No API key");
+    expect(combined).toContain("No App execution");
+    expect(combined).toMatch(/No Git(?:\/shell)?/);
+    expect(combined).toMatch(/No (?:Git\/)?shell/);
+    expect(combined).toContain("No native bridge");
+    expect(combined).toContain("No desktop action");
+    expect(combined).toContain("Golden Case Poisoning");
+    expect(combined).toContain("Expected-Output Overfitting");
+    expect(combined).toContain("Raw Prompt / Response Leakage");
+    expect(combined).toContain("reasoning_content Leakage");
+    expect(combined).toContain("API Key Leakage");
+    expect(combined).toContain("Metric Gaming");
+    expect(combined).toContain("schema_validity");
+    expect(combined).toContain("repair_success");
+    expect(combined).toContain("unsafe_path_blocked");
+    expect(combined).toContain("forbidden_field_blocked");
+    expect(combined).toContain("secret_marker_blocked");
+    expect(combined).toContain("evidence_coverage");
+    expect(combined).toContain("objective_fit");
+    expect(combined).toContain("operation_risk");
+    expect(combined).toContain("test_coverage_hint");
+    expect(combined).toContain("diff_audit_readiness");
+    expect(combined).toContain("approval_readiness");
+    expect(combined).toContain("user_workspace_readiness");
+    expect(combined).toContain("schema_failure");
+    expect(combined).toContain("malformed_json");
+    expect(combined).toContain("repair_failed");
+    expect(combined).toContain("unsafe_path");
+    expect(combined).toContain("forbidden_field");
+    expect(combined).toContain("secret_marker");
+    expect(combined).toContain("missing_evidence");
+    expect(combined).toContain("missing_test_plan");
+    expect(combined).toContain("high_risk_operation");
+    expect(combined).toContain("hallucinated_path");
+    expect(combined).toContain("poor_objective_fit");
+    expect(combined).toContain("raw_content_leak");
+    expect(combined).toContain("reasoning_content_leak");
+    expect(combined).toContain("usage_summary_missing");
+    expect(combined).toContain("redaction audit");
+    expect(combined).toMatch(/no live call in P0N-002/i);
+    expect(combined).toContain("no raw prompt");
+    expect(combined).toContain("no raw response");
+    expect(combined).toContain("no raw source");
+    expect(combined).toContain("no raw diff");
+    expect(combined).toContain("no reasoning_content");
+    expect(combined).toContain("no apply");
+    expect(combined).toContain("no rollback");
+    expect(combined).toContain("no App execution");
+    expect(docsIndex).toContain("adr/0009-live-proposal-golden-cases.md");
+    expect(docsIndex).toContain("live-proposal-golden-cases-design-v0.9.md");
+    expect(docsIndex).toContain(
+      "live-proposal-evaluation-threat-model-v0.9.md"
+    );
+    expect(docsIndex).toContain("p0n-002-golden-case-fixture-schema-plan.md");
+  });
+
   it("documents the P0L-001 DeepSeek patch proposal ADR and gates without implementation", async () => {
     const adr = await readFile(
       path.join(
