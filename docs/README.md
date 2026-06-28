@@ -118,6 +118,7 @@ foundation.
 - [Runtime Live DeepSeek Proposal Adapter v0.8](runtime-live-deepseek-proposal-adapter-v0.8.md)
 - [Runtime Live Proposal Validation Integration v0.8](runtime-live-proposal-validation-integration-v0.8.md)
 - [App Shell Live Proposal Validation Integration v0.8](app-shell-live-proposal-validation-integration-v0.8.md)
+- [App Shell Live Proposal Preview Gate v0.8](app-shell-live-proposal-preview-gate-v0.8.md)
 - [Runtime Memory Recall Preview v0.3](runtime-memory-recall-preview-v0.3.md)
 - [v0.4.0 Controlled Creation Preview RC release notes](release-notes-v0.4.0-controlled-creation-preview-rc.1.md)
 - [App Shell Controlled Creation manual QA](app-shell-controlled-creation-manual-qa.md)

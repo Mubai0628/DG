@@ -3,6 +3,7 @@ import type { AppCapabilityPlanPreviewView } from "./capability-plan-preview-vie
 import type { AppControlPlaneProjectionView } from "./control-plane-view.js";
 import type { AppControlledCreationReplayProjectionView } from "./controlled-creation-replay-projection-view.js";
 import type { AppDisposableWorkspaceSnapshotView } from "./disposable-workspace-snapshot-view.js";
+import type { LiveProposalPreviewGateView } from "./live-proposal-preview-gate-view.js";
 import type { AppMemoryRecallPreviewView } from "./memory-recall-preview-view.js";
 import type { ModelPatchProposalImportView } from "./model-patch-proposal-import-view.js";
 import type { ModelProposalChainIntegrationView } from "./model-proposal-chain-integration-view.js";
@@ -49,6 +50,7 @@ export type AppContextAssemblySourceRef = {
     | "patch_proposal"
     | "model_patch_proposal_import"
     | "model_proposal_chain_integration"
+    | "live_proposal_preview_gate"
     | "approval_ref"
     | "replay_projection"
     | "sandbox_event_projection"
@@ -130,6 +132,7 @@ export type AppContextAssemblyPreviewInput = {
     | undefined;
   modelPatchProposalImport?: ModelPatchProposalImportView | undefined;
   modelProposalChainIntegration?: ModelProposalChainIntegrationView | undefined;
+  liveProposalPreviewGate?: LiveProposalPreviewGateView | undefined;
   snapshotContract?: AppDisposableWorkspaceSnapshotView | undefined;
   userWorkspaceSnapshotContract?:
     | AppUserWorkspaceSnapshotBackupView
@@ -277,6 +280,7 @@ export function validateContextAssemblyPreviewInput(
     ...rawKeyWarnings(input.memoryRecallPreview),
     ...rawKeyWarnings(input.patchSurface),
     ...rawKeyWarnings(input.sandboxApplyRollbackEventProjection),
+    ...rawKeyWarnings(input.liveProposalPreviewGate),
     ...rawKeyWarnings(input.userWorkspaceSnapshotContract),
     ...rawKeyWarnings(input.userWorkspacePromotionReadiness)
   ]);
@@ -669,6 +673,33 @@ function buildSegments(
         warningCodes: [
           "MODEL_PROPOSAL_CHAIN_INTEGRATION_NO_COMPRESS",
           ...input.modelProposalChainIntegration.findings.map(
+            (finding) => finding.code
+          )
+        ]
+      })
+    );
+  }
+
+  if (
+    input.liveProposalPreviewGate !== undefined &&
+    input.liveProposalPreviewGate.status !== "empty"
+  ) {
+    segments.push(
+      segment({
+        layer: "no_compress_zone",
+        title: "App live proposal preview gate summary",
+        sourceKind: "live_proposal_preview_gate",
+        sourceRefId: input.liveProposalPreviewGate.gateId,
+        summary: [
+          input.liveProposalPreviewGate.status,
+          `stages:${input.liveProposalPreviewGate.satisfiedStageCount}/${input.liveProposalPreviewGate.stageCount}`,
+          `blocked:${input.liveProposalPreviewGate.blockedStageCount}`,
+          `warnings:${input.liveProposalPreviewGate.warningCount}`,
+          `hash:${input.liveProposalPreviewGate.gateHash}`
+        ].join(" | "),
+        warningCodes: [
+          "LIVE_PROPOSAL_PREVIEW_GATE_NO_COMPRESS",
+          ...input.liveProposalPreviewGate.findings.map(
             (finding) => finding.code
           )
         ]

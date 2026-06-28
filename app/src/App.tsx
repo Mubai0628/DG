@@ -101,6 +101,11 @@ import {
   type LiveProposalValidationIntegrationView
 } from "./live-proposal-validation-integration-view.js";
 import {
+  buildLiveProposalPreviewGateView,
+  summarizeLiveProposalPreviewGateView,
+  type LiveProposalPreviewGateView
+} from "./live-proposal-preview-gate-view.js";
+import {
   buildPatchProposalValidationPreviewView,
   patchProposalValidationApprovalRefs,
   patchProposalValidationAuditWarningCodes,
@@ -352,6 +357,8 @@ export function DesktopShell(): JSX.Element {
     liveProposalRequestBuilderPreview,
     setLiveProposalRequestBuilderPreview
   ] = useState<LiveProposalRequestBuilderView | undefined>();
+  const [liveProposalPreviewGatePreview, setLiveProposalPreviewGatePreview] =
+    useState<LiveProposalPreviewGateView | undefined>();
   const [patchProposalCreationPreview, setPatchProposalCreationPreview] =
     useState<AppPatchProposalCreationPreviewView | undefined>();
   const [patchProposalValidationPreview, setPatchProposalValidationPreview] =
@@ -1154,6 +1161,29 @@ export function DesktopShell(): JSX.Element {
       () => buildLiveProposalValidationIntegrationView(),
       []
     );
+  const liveProposalPreviewGateCandidate =
+    useMemo<LiveProposalPreviewGateView>(
+      () =>
+        buildLiveProposalPreviewGateView({
+          liveProposalApiKeyPolicyView: displayedLiveProposalOptInGate,
+          liveProposalRequestBuilderView: displayedLiveProposalRequestBuilder,
+          liveProposalValidationIntegrationView,
+          modelPatchProposalImportView: modelPatchProposalImportPreview,
+          modelProposalChainIntegrationView:
+            modelProposalChainIntegrationPreview,
+          auditSurface: patchWorkbenchSurfaces.audit
+        }),
+      [
+        displayedLiveProposalOptInGate,
+        displayedLiveProposalRequestBuilder,
+        liveProposalValidationIntegrationView,
+        modelPatchProposalImportPreview,
+        modelProposalChainIntegrationPreview,
+        patchWorkbenchSurfaces.audit
+      ]
+    );
+  const displayedLiveProposalPreviewGate =
+    liveProposalPreviewGatePreview ?? buildLiveProposalPreviewGateView();
   const contextAssemblyCandidate = useMemo<AppContextAssemblyPreviewView>(
     () =>
       buildContextAssemblyPreviewView({
@@ -1170,6 +1200,7 @@ export function DesktopShell(): JSX.Element {
           displayedSandboxApplyRollbackEventProjection,
         modelPatchProposalImport: modelPatchProposalImportPreview,
         modelProposalChainIntegration: modelProposalChainIntegrationPreview,
+        liveProposalPreviewGate: liveProposalPreviewGatePreview,
         snapshotContract: displayedDisposableWorkspaceSnapshot,
         userWorkspaceSnapshotContract: displayedUserWorkspaceSnapshotBackup,
         userWorkspacePromotionReadiness:
@@ -1183,6 +1214,7 @@ export function DesktopShell(): JSX.Element {
       controlPlanePanel,
       controlledCreationReplayProjection,
       displayedDisposableWorkspaceSnapshot,
+      liveProposalPreviewGatePreview,
       modelProposalChainIntegrationPreview,
       modelPatchProposalImportPreview,
       displayedUserWorkspaceSnapshotBackup,
@@ -1492,6 +1524,7 @@ export function DesktopShell(): JSX.Element {
     setPatchProposalCreationPreview(patchProposalCreationCandidate);
     setModelPatchProposalImportPreview(undefined);
     setModelProposalChainIntegrationPreview(undefined);
+    setLiveProposalPreviewGatePreview(undefined);
     setPatchProposalValidationPreview(undefined);
     setPatchDiffAuditPreview(undefined);
     setPatchApprovalDraftPreview(undefined);
@@ -1505,6 +1538,7 @@ export function DesktopShell(): JSX.Element {
   function handlePreviewModelPatchProposal(): void {
     setModelPatchProposalImportPreview(modelPatchProposalImportCandidate);
     setModelProposalChainIntegrationPreview(undefined);
+    setLiveProposalPreviewGatePreview(undefined);
     setPatchProposalCreationPreview(undefined);
     setPatchProposalValidationPreview(undefined);
     setPatchDiffAuditPreview(undefined);
@@ -1521,6 +1555,7 @@ export function DesktopShell(): JSX.Element {
     setModelPatchProposalDraftText("");
     setModelPatchProposalImportPreview(undefined);
     setModelProposalChainIntegrationPreview(undefined);
+    setLiveProposalPreviewGatePreview(undefined);
     setPatchProposalCreationPreview(undefined);
     setPatchProposalValidationPreview(undefined);
     setPatchDiffAuditPreview(undefined);
@@ -1537,20 +1572,34 @@ export function DesktopShell(): JSX.Element {
     setModelProposalChainIntegrationPreview(
       modelProposalChainIntegrationCandidate
     );
+    setLiveProposalPreviewGatePreview(undefined);
     setContextAssemblyPreview(undefined);
   }
 
   function handleClearModelProposalChain(): void {
     setModelProposalChainIntegrationPreview(undefined);
+    setLiveProposalPreviewGatePreview(undefined);
     setContextAssemblyPreview(undefined);
   }
 
   function handlePreviewLiveProposalOptInGate(): void {
     setLiveProposalOptInGatePreview(liveProposalOptInGateCandidate);
+    setLiveProposalPreviewGatePreview(undefined);
   }
 
   function handlePreviewLiveProposalRequest(): void {
     setLiveProposalRequestBuilderPreview(liveProposalRequestBuilderCandidate);
+    setLiveProposalPreviewGatePreview(undefined);
+  }
+
+  function handlePreviewLiveProposalGate(): void {
+    setLiveProposalPreviewGatePreview(liveProposalPreviewGateCandidate);
+    setContextAssemblyPreview(undefined);
+  }
+
+  function handleClearLiveProposalGate(): void {
+    setLiveProposalPreviewGatePreview(undefined);
+    setContextAssemblyPreview(undefined);
   }
 
   function handleValidatePatchProposal(): void {
@@ -1563,11 +1612,13 @@ export function DesktopShell(): JSX.Element {
     setSandboxApplyRollbackEventProjection(undefined);
     setUserWorkspacePromotionReadinessPreview(undefined);
     setModelProposalChainIntegrationPreview(undefined);
+    setLiveProposalPreviewGatePreview(undefined);
   }
 
   function handlePreviewDiffAudit(): void {
     setPatchDiffAuditPreview(patchDiffAuditCandidate);
     setModelProposalChainIntegrationPreview(undefined);
+    setLiveProposalPreviewGatePreview(undefined);
     setPatchApprovalDraftPreview(undefined);
     setPatchVirtualApplyPreview(undefined);
     setPatchRollbackCheckpointPreview(undefined);
@@ -1579,6 +1630,7 @@ export function DesktopShell(): JSX.Element {
   function handlePreviewApprovalDraft(): void {
     setPatchApprovalDraftPreview(patchApprovalDraftCandidate);
     setModelProposalChainIntegrationPreview(undefined);
+    setLiveProposalPreviewGatePreview(undefined);
     setPatchVirtualApplyPreview(undefined);
     setPatchRollbackCheckpointPreview(undefined);
     setControlledCreationReplayProjection(undefined);
@@ -1589,6 +1641,7 @@ export function DesktopShell(): JSX.Element {
   function handlePreviewVirtualApply(): void {
     setPatchVirtualApplyPreview(patchVirtualApplyCandidate);
     setModelProposalChainIntegrationPreview(undefined);
+    setLiveProposalPreviewGatePreview(undefined);
     setPatchRollbackCheckpointPreview(undefined);
     setControlledCreationReplayProjection(undefined);
     setSandboxApplyRollbackEventProjection(undefined);
@@ -1598,6 +1651,7 @@ export function DesktopShell(): JSX.Element {
   function handlePreviewRollbackCheckpoint(): void {
     setPatchRollbackCheckpointPreview(patchRollbackCheckpointCandidate);
     setModelProposalChainIntegrationPreview(undefined);
+    setLiveProposalPreviewGatePreview(undefined);
     setControlledCreationReplayProjection(undefined);
     setSandboxApplyRollbackEventProjection(undefined);
     setUserWorkspacePromotionReadinessPreview(undefined);
@@ -1606,6 +1660,7 @@ export function DesktopShell(): JSX.Element {
   function handlePreviewDisposableWorkspaceSnapshot(): void {
     setDisposableWorkspaceSnapshotPreview(disposableWorkspaceSnapshotCandidate);
     setModelProposalChainIntegrationPreview(undefined);
+    setLiveProposalPreviewGatePreview(undefined);
     setUserWorkspaceSnapshotBackupPreview(undefined);
     setSandboxApplyRollbackEventProjection(undefined);
     setUserWorkspacePromotionReadinessPreview(undefined);
@@ -1615,6 +1670,7 @@ export function DesktopShell(): JSX.Element {
   function handlePreviewUserWorkspaceSnapshotBackup(): void {
     setUserWorkspaceSnapshotBackupPreview(userWorkspaceSnapshotBackupCandidate);
     setModelProposalChainIntegrationPreview(undefined);
+    setLiveProposalPreviewGatePreview(undefined);
     setUserWorkspacePromotionReadinessPreview(undefined);
     setContextAssemblyPreview(undefined);
   }
@@ -1622,6 +1678,7 @@ export function DesktopShell(): JSX.Element {
   function handlePreviewControlledReplayProjection(): void {
     setControlledCreationReplayProjection(controlledCreationReplayCandidate);
     setModelProposalChainIntegrationPreview(undefined);
+    setLiveProposalPreviewGatePreview(undefined);
     setSandboxApplyRollbackEventProjection(undefined);
     setUserWorkspacePromotionReadinessPreview(undefined);
   }
@@ -1631,6 +1688,7 @@ export function DesktopShell(): JSX.Element {
       sandboxApplyRollbackEventProjectionCandidate
     );
     setModelProposalChainIntegrationPreview(undefined);
+    setLiveProposalPreviewGatePreview(undefined);
     setUserWorkspacePromotionReadinessPreview(undefined);
   }
 
@@ -1639,6 +1697,7 @@ export function DesktopShell(): JSX.Element {
       userWorkspacePromotionReadinessCandidate
     );
     setModelProposalChainIntegrationPreview(undefined);
+    setLiveProposalPreviewGatePreview(undefined);
     setContextAssemblyPreview(undefined);
   }
 
@@ -2956,6 +3015,7 @@ export function DesktopShell(): JSX.Element {
                     setLiveProposalModelProfileId(event.target.value);
                     setLiveProposalOptInGatePreview(undefined);
                     setLiveProposalRequestBuilderPreview(undefined);
+                    setLiveProposalPreviewGatePreview(undefined);
                   }}
                   placeholder="deepseek-chat"
                 />
@@ -2970,6 +3030,7 @@ export function DesktopShell(): JSX.Element {
                   setLiveProposalKeySourceRef(event.target.value);
                   setLiveProposalOptInGatePreview(undefined);
                   setLiveProposalRequestBuilderPreview(undefined);
+                  setLiveProposalPreviewGatePreview(undefined);
                 }}
                 placeholder="DEEPSEEK_API_KEY ref only, no value"
               />
@@ -2990,6 +3051,7 @@ export function DesktopShell(): JSX.Element {
                   );
                   setLiveProposalOptInGatePreview(undefined);
                   setLiveProposalRequestBuilderPreview(undefined);
+                  setLiveProposalPreviewGatePreview(undefined);
                 }}
               >
                 <option value="disabled">disabled</option>
@@ -3126,6 +3188,7 @@ export function DesktopShell(): JSX.Element {
                 onChange={(event) => {
                   setLiveProposalRequestObjective(event.target.value);
                   setLiveProposalRequestBuilderPreview(undefined);
+                  setLiveProposalPreviewGatePreview(undefined);
                 }}
                 placeholder="Describe the desired structured patch proposal without raw source or diff"
               />
@@ -3138,6 +3201,7 @@ export function DesktopShell(): JSX.Element {
                 onChange={(event) => {
                   setLiveProposalRequestIntent(event.target.value);
                   setLiveProposalRequestBuilderPreview(undefined);
+                  setLiveProposalPreviewGatePreview(undefined);
                 }}
                 placeholder="Generate a structured model_patch_proposal draft."
               />
@@ -3152,6 +3216,7 @@ export function DesktopShell(): JSX.Element {
                     setLiveProposalModelProfileId(event.target.value);
                     setLiveProposalOptInGatePreview(undefined);
                     setLiveProposalRequestBuilderPreview(undefined);
+                    setLiveProposalPreviewGatePreview(undefined);
                   }}
                   placeholder="deepseek-chat"
                 />
@@ -3164,6 +3229,7 @@ export function DesktopShell(): JSX.Element {
                   onChange={(event) => {
                     setLiveProposalRequestAllowedPaths(event.target.value);
                     setLiveProposalRequestBuilderPreview(undefined);
+                    setLiveProposalPreviewGatePreview(undefined);
                   }}
                   placeholder={"docs/example.md\napp/src/example.ts"}
                 />
@@ -3272,6 +3338,187 @@ export function DesktopShell(): JSX.Element {
 
             <p className="fieldHelp">
               {displayedLiveProposalRequestBuilder.nextAction}
+            </p>
+          </section>
+
+          <section
+            className="eventPanel"
+            aria-label="App Live Proposal Preview Gate"
+          >
+            <div className="panelHeader">
+              <h2>App Live Proposal Preview Gate</h2>
+              <span className="muted">
+                Disabled by default / no App live call
+              </span>
+            </div>
+            <p className="fieldHelp">
+              Summarizes the future live DeepSeek proposal boundary. The App
+              Shell cannot read API keys, call DeepSeek, fetch network, apply
+              patches, rollback, approve, issue leases, or write events.
+            </p>
+
+            <div className="buttonRow">
+              <button
+                type="button"
+                className="secondary"
+                onClick={(event) => {
+                  event.preventDefault();
+                  event.stopPropagation();
+                  handlePreviewLiveProposalGate();
+                }}
+              >
+                Preview Live Proposal Gate
+              </button>
+              <button
+                type="button"
+                className="secondary"
+                onClick={(event) => {
+                  event.preventDefault();
+                  event.stopPropagation();
+                  handleClearLiveProposalGate();
+                }}
+              >
+                Clear Live Proposal Gate
+              </button>
+              <button type="button" className="secondary" disabled>
+                Call DeepSeek (disabled)
+              </button>
+              <button type="button" className="secondary" disabled>
+                Send Live Proposal Request (disabled)
+              </button>
+            </div>
+
+            {displayedLiveProposalPreviewGate.status === "empty" ? (
+              <p className="empty">
+                No App live proposal gate preview yet. Preview the gate to
+                inspect summary-only stage readiness.
+              </p>
+            ) : null}
+
+            {displayedLiveProposalPreviewGate.status === "blocked" ? (
+              <div className="errorBox">
+                <strong>Live proposal gate blocked</strong>
+                <p>{displayedLiveProposalPreviewGate.nextAction}</p>
+              </div>
+            ) : null}
+
+            <dl className="summaryGrid compact">
+              <div>
+                <dt>Status</dt>
+                <dd>{displayedLiveProposalPreviewGate.status}</dd>
+              </div>
+              <div>
+                <dt>Gate</dt>
+                <dd>{displayedLiveProposalPreviewGate.gateId}</dd>
+              </div>
+              <div>
+                <dt>Stages</dt>
+                <dd>
+                  {displayedLiveProposalPreviewGate.satisfiedStageCount} /{" "}
+                  {displayedLiveProposalPreviewGate.stageCount}
+                </dd>
+              </div>
+              <div>
+                <dt>Warnings / blocked</dt>
+                <dd>
+                  {displayedLiveProposalPreviewGate.warningStageCount} /{" "}
+                  {displayedLiveProposalPreviewGate.blockedStageCount}
+                </dd>
+              </div>
+              <div>
+                <dt>Blockers / warnings</dt>
+                <dd>
+                  {displayedLiveProposalPreviewGate.blockerCount} /{" "}
+                  {displayedLiveProposalPreviewGate.warningCount}
+                </dd>
+              </div>
+              <div>
+                <dt>Hash</dt>
+                <dd>{displayedLiveProposalPreviewGate.gateHashPrefix}</dd>
+              </div>
+              <div>
+                <dt>Can preview gate</dt>
+                <dd>
+                  {displayedLiveProposalPreviewGate.readiness.canPreviewGate
+                    ? "yes"
+                    : "no"}
+                </dd>
+              </div>
+              <div>
+                <dt>App live call / key read</dt>
+                <dd>
+                  {displayedLiveProposalPreviewGate.readiness
+                    .canCallDeepSeekFromApp
+                    ? "yes"
+                    : "no"}{" "}
+                  /{" "}
+                  {displayedLiveProposalPreviewGate.readiness
+                    .canReadApiKeyFromApp
+                    ? "yes"
+                    : "no"}
+                </dd>
+              </div>
+              <div>
+                <dt>Fetch / send request</dt>
+                <dd>
+                  {displayedLiveProposalPreviewGate.readiness
+                    .canFetchNetworkFromApp
+                    ? "yes"
+                    : "no"}{" "}
+                  /{" "}
+                  {displayedLiveProposalPreviewGate.readiness.canSendLiveRequest
+                    ? "yes"
+                    : "no"}
+                </dd>
+              </div>
+              <div>
+                <dt>Apply / rollback</dt>
+                <dd>
+                  {displayedLiveProposalPreviewGate.readiness.canApplyPatch
+                    ? "yes"
+                    : "no"}{" "}
+                  /{" "}
+                  {displayedLiveProposalPreviewGate.readiness.canRollback
+                    ? "yes"
+                    : "no"}
+                </dd>
+              </div>
+            </dl>
+
+            {displayedLiveProposalPreviewGate.stages.length > 0 ? (
+              <ol className="timeline">
+                {displayedLiveProposalPreviewGate.stages.map((stage) => (
+                  <li key={stage.stageId}>
+                    <span className="timelineMeta">
+                      {stage.kind} · {stage.status}
+                    </span>
+                    <span>{stage.summary}</span>
+                    {stage.warningCodes.length > 0 ? (
+                      <span className="timelineMeta">
+                        Warnings: {stage.warningCodes.join(", ")}
+                      </span>
+                    ) : null}
+                  </li>
+                ))}
+              </ol>
+            ) : null}
+
+            {displayedLiveProposalPreviewGate.findings.length > 0 ? (
+              <p className="muted">
+                findings{" "}
+                {displayedLiveProposalPreviewGate.findings
+                  .map((finding) => finding.code)
+                  .join(", ")}
+              </p>
+            ) : null}
+
+            <p className="fieldHelp">
+              {
+                summarizeLiveProposalPreviewGateView(
+                  displayedLiveProposalPreviewGate
+                ).nextAction
+              }{" "}
+              No key value or raw response text is accepted.
             </p>
           </section>
 

@@ -59,6 +59,7 @@ import {
 import { buildLiveProposalOptInGateView } from "../src/live-proposal-opt-in-gate-view.js";
 import { buildLiveProposalRequestBuilderView } from "../src/live-proposal-request-builder-view.js";
 import { buildLiveProposalValidationIntegrationView } from "../src/live-proposal-validation-integration-view.js";
+import { buildLiveProposalPreviewGateView } from "../src/live-proposal-preview-gate-view.js";
 import {
   buildPatchProposalValidationPreviewView,
   patchProposalValidationApprovalRefs,
@@ -4293,6 +4294,178 @@ describe("app live proposal validation integration", () => {
     );
     expect(docsIndex).toContain(
       "app-shell-live-proposal-validation-integration-v0.8.md"
+    );
+  });
+});
+
+describe("app live proposal preview gate", () => {
+  it("builds empty, warning, and blocked gate views without execution readiness", () => {
+    const empty = buildLiveProposalPreviewGateView();
+    const policy = buildLiveProposalOptInGateView({
+      modelProfileId: "deepseek-chat",
+      keySourceRef: "DEEPSEEK_API_KEY",
+      optInMode: "explicit_live_proposal_opt_in"
+    });
+    const request = buildLiveProposalRequestBuilderView({
+      objectiveSummary: "Create a summary-only docs proposal.",
+      intent: "Generate a structured model_patch_proposal draft.",
+      modelProfileId: "deepseek-chat",
+      keySourceRef: "DEEPSEEK_API_KEY",
+      optInMode: "explicit_live_proposal_opt_in",
+      allowedPathRefsText: "docs/live-proposal-preview-gate.md"
+    });
+    const warning = buildLiveProposalPreviewGateView({
+      liveProposalApiKeyPolicyView: policy,
+      liveProposalRequestBuilderView: request,
+      liveProposalValidationIntegrationView:
+        buildLiveProposalValidationIntegrationView()
+    });
+    const blocked = buildLiveProposalPreviewGateView({
+      liveDeepSeekProposalAdapterSummary: {
+        readiness: {
+          appCanExecute: true
+        }
+      }
+    });
+    const serialized = JSON.stringify({ empty, warning, blocked });
+
+    expect(empty.status).toBe("empty");
+    expect(empty.readiness.canPreviewGate).toBe(false);
+    expect(warning.status).toBe("warning");
+    expect(warning.stageCount).toBe(14);
+    expect(warning.readiness.canPreviewGate).toBe(true);
+    expect(warning.readiness.canCallDeepSeekFromApp).toBe(false);
+    expect(warning.readiness.canReadApiKeyFromApp).toBe(false);
+    expect(warning.readiness.canFetchNetworkFromApp).toBe(false);
+    expect(warning.readiness.canSendLiveRequest).toBe(false);
+    expect(warning.readiness.canApplyPatch).toBe(false);
+    expect(warning.readiness.canRollback).toBe(false);
+    expect(warning.readiness.canWriteEventStore).toBe(false);
+    expect(warning.readiness.canApprove).toBe(false);
+    expect(warning.readiness.canReject).toBe(false);
+    expect(warning.readiness.canIssuePermissionLease).toBe(false);
+    expect(warning.readiness.canExecuteGit).toBe(false);
+    expect(warning.readiness.canExecuteShell).toBe(false);
+    expect(warning.readiness.appCanExecute).toBe(false);
+    expect(blocked.status).toBe("blocked");
+    expect(blocked.findings.map((finding) => finding.code)).toContain(
+      "LIVE_PROPOSAL_GATE_EXECUTION_FLAG_TRUE"
+    );
+    expect(serialized).not.toContain("sk-");
+    expect(serialized).not.toContain("rawResponse");
+    expect(serialized).not.toContain("Authorization:");
+  });
+
+  it("places live proposal preview gate refs into context no_compress_zone", () => {
+    const gate = buildLiveProposalPreviewGateView({
+      liveProposalApiKeyPolicyView: buildLiveProposalOptInGateView({
+        modelProfileId: "deepseek-chat",
+        keySourceRef: "DEEPSEEK_API_KEY",
+        optInMode: "explicit_live_proposal_opt_in"
+      }),
+      liveProposalRequestBuilderView: buildLiveProposalRequestBuilderView({
+        objectiveSummary: "Create a summary-only docs proposal.",
+        intent: "Generate a structured model_patch_proposal draft.",
+        modelProfileId: "deepseek-chat",
+        keySourceRef: "DEEPSEEK_API_KEY",
+        optInMode: "explicit_live_proposal_opt_in",
+        allowedPathRefsText: "docs/live-proposal-preview-gate.md"
+      }),
+      liveProposalValidationIntegrationView:
+        buildLiveProposalValidationIntegrationView()
+    });
+    const runDraft = buildRunDraftView({
+      objectiveDraft: "Review the App live proposal gate.",
+      selectedIntent: "code_change",
+      acceptanceCriteriaDraft: "Gate ref enters context.",
+      workspaceRoot: "D:\\workspace"
+    });
+    const contextPreview = buildContextAssemblyPreviewView({
+      runDraft,
+      liveProposalPreviewGate: gate
+    });
+    const gateSegment = contextPreview.segments.find(
+      (segment) => segment.sourceKind === "live_proposal_preview_gate"
+    );
+    const serialized = JSON.stringify({ gate, contextPreview });
+
+    expect(gateSegment).toMatchObject({
+      placement: "no_compress_zone",
+      sourceRefId: gate.gateId
+    });
+    expect(gateSegment?.warningCodes).toContain(
+      "LIVE_PROPOSAL_PREVIEW_GATE_NO_COMPRESS"
+    );
+    expect(serialized).not.toContain("rawResponse");
+    expect(serialized).not.toContain("apiKeyValue");
+  });
+
+  it("keeps App source preview gate disabled without live call wiring", async () => {
+    const appSource = await readFile(
+      path.join(appRoot, "src", "App.tsx"),
+      "utf8"
+    );
+    const viewSource = await readFile(
+      path.join(appRoot, "src", "live-proposal-preview-gate-view.ts"),
+      "utf8"
+    );
+    const combined = `${appSource}\n${viewSource}`;
+    const normalizedAppSource = appSource.replace(/\s+/g, " ");
+
+    expect(appSource).toContain("App Live Proposal Preview Gate");
+    expect(appSource).toContain("Disabled by default / no App live call");
+    expect(appSource).toContain("Preview Live Proposal Gate");
+    expect(appSource).toContain("Call DeepSeek (disabled)");
+    expect(appSource).toContain("Send Live Proposal Request (disabled)");
+    expect(normalizedAppSource).toContain(
+      "The App Shell cannot read API keys, call DeepSeek, fetch network, apply patches, rollback, approve, issue leases, or write events."
+    );
+    expect(appSource).not.toContain('type="password"');
+    expect(appSource).not.toContain("Authorization input");
+    expect(appSource).not.toContain("handleCallDeepSeek");
+    expect(appSource).not.toContain("handleSendLiveProposalRequest");
+    expect(appSource).not.toContain("handleApplyLiveProposalGate");
+    expect(appSource).not.toContain("handleRollbackLiveProposalGate");
+    expect(viewSource).not.toContain("process.env");
+    expect(viewSource).not.toContain("fetch(");
+    expect(viewSource).not.toContain("safeInvoke");
+    expect(viewSource).not.toContain("recordControlRunDraftEvent");
+    expect(viewSource).not.toContain("runLiveDeepSeekProposalAdapter");
+    expect(combined).not.toContain("readLiveProposalApiKey");
+    expect(combined).not.toContain("writeLiveProposalEvent");
+  });
+
+  it("documents the App live proposal preview gate boundary", async () => {
+    const appDoc = await readFile(
+      path.join(
+        repoRoot,
+        "docs",
+        "app-shell-live-proposal-preview-gate-v0.8.md"
+      ),
+      "utf8"
+    );
+    const docsIndex = await readFile(
+      path.join(repoRoot, "docs", "README.md"),
+      "utf8"
+    );
+    const combined = `${appDoc}\n${docsIndex}`;
+
+    expect(combined).toContain("App Shell Live Proposal Preview Gate v0.8");
+    expect(combined).toContain("App gate only");
+    expect(combined).toContain("No live DeepSeek call");
+    expect(combined).toContain("No API key read");
+    expect(combined).toContain("No fetch/network");
+    expect(combined).toContain("No request send");
+    expect(combined).toContain("No App execution");
+    expect(combined).toContain("No apply or rollback");
+    expect(combined).toContain("No EventStore write");
+    expect(combined).toContain("No Tauri command");
+    expect(combined).toContain("no_compress_zone");
+    expect(combined).toContain("No Git/shell");
+    expect(combined).toContain("No native bridge");
+    expect(combined).toContain("No desktop action");
+    expect(docsIndex).toContain(
+      "app-shell-live-proposal-preview-gate-v0.8.md"
     );
   });
 });

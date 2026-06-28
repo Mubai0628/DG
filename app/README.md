@@ -27,6 +27,7 @@ Current scope:
   Prototype status, disabled User Workspace Apply / Rollback Event Writer
   status, disabled App Approval Execution Design, Model Patch Proposal Import,
   Model Proposal Chain Integration, and disabled Bridge Proposal Preview
+  plus the disabled App Live Proposal Preview Gate
 - show Memory Recall Preview through the runtime Memory Core preview helper
   using in-memory summaries only; no memory persistence, commit, revoke, or
   expire operation is connected
@@ -55,6 +56,9 @@ Current scope:
 - preview the P0M Live Proposal Request Builder as a summary-only request
   envelope with no API key read, no vault read, no fetch/network, no live
   DeepSeek call, no tools/tool_choice, and no App execution
+- preview the P0M App Live Proposal Preview Gate as disabled-by-default
+  summary visualization with no App live call, no API key read, no
+  fetch/network, no request send, no apply/rollback, and no event write
 
 Current limitations:
 
@@ -100,7 +104,11 @@ Current limitations:
   value read, no vault read, no fetch/network, no live DeepSeek call, no
   Tauri command, no EventStore write, and no App execution; Live Proposal
   Request Builder is request-preview only with no network send and no
-  tools/tool_choice; none of these App surfaces reads or writes files
+  tools/tool_choice; App Live Proposal Preview Gate is disabled-by-default
+  gate visualization only with no App live call, no API key read, no
+  fetch/network, no request send, no apply/rollback, no approval execution, no
+  PermissionLease issuing, and no EventStore write; none of these App surfaces
+  reads or writes files
 - no validation, audit, approval, virtual apply, rollback, or replay preview is
   an apply/approval/rollback/execution lane
 - no real DeepSeek API call from the desktop shell
