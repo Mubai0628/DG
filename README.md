@@ -195,6 +195,9 @@ v0.8 DeepSeek Proposal Preview RC references:
 - [v0.8.0 DeepSeek Proposal Preview RC release notes](docs/release-notes-v0.8.0-deepseek-proposal-preview-rc.1.md)
 - [App Shell DeepSeek Proposal Preview manual QA](docs/app-shell-deepseek-proposal-preview-manual-qa.md)
 - [App Shell DeepSeek Proposal Preview RC checklist](docs/app-shell-deepseek-proposal-preview-rc-checklist.md)
+- [v0.8 DeepSeek Proposal post-release review](docs/v0.8-deepseek-proposal-postrelease-review.md)
+- [P0M Live DeepSeek Proposal Adapter roadmap](docs/p0m-live-deepseek-proposal-adapter-roadmap.md)
+- [P0M-001 Live DeepSeek Proposal Adapter plan](docs/p0m-001-live-deepseek-proposal-adapter-plan.md)
 
 ## Current roadmap
 
@@ -203,14 +206,16 @@ P0F is complete after `v0.2.0-app-shell-rc.1`, P0G is complete after
 `v0.4.0-controlled-creation-preview-rc.1`, and P0I is complete after
 `v0.5.0-validation-approval-virtual-apply-preview-rc.1`. P0J is complete after
 `v0.6.0-sandbox-apply-preview-rc.1`. P0K is complete after
-`v0.7.0-user-workspace-apply-preview-rc.1`. P0L is prepared for
+`v0.7.0-user-workspace-apply-preview-rc.1`. P0L is complete after
 `v0.8.0-deepseek-proposal-preview-rc.1` with DeepSeek proposal previews only:
 structured proposal schema, fake/dry generation, repair, App import, and chain
-projection. Live model calls, model-driven file writes, App-side user workspace
-apply, rollback, approval execution, apply/rollback event writes, run
-execution, Git execution, shell execution, broad capability invocation,
-production PermissionLease issuing, memory persistence UI, MCP/plugin/skills
-runtime, native bridge, and desktop action remain deferred.
+projection. P0M is planned for explicit opt-in live DeepSeek proposal adapter
+design only. Live model calls, API key reads, fetch/network, model-driven file
+writes, App-side user workspace apply, rollback, approval execution,
+apply/rollback event writes, run execution, Git execution, shell execution,
+broad capability invocation, production PermissionLease issuing, memory
+persistence UI, MCP/plugin/skills runtime, native bridge, and desktop action
+remain deferred.
 
 - [v0.2 App Shell RC post-release review](docs/v0.2-app-shell-rc-postrelease-review.md)
 - [P0G Coding Workflow roadmap](docs/p0g-coding-workflow-roadmap.md)
@@ -234,6 +239,8 @@ runtime, native bridge, and desktop action remain deferred.
 - [P0L DeepSeek Patch Proposal Generation roadmap](docs/p0l-deepseek-patch-proposal-generation-roadmap.md)
 - [ADR 0007: DeepSeek Patch Proposal Generation](docs/adr/0007-deepseek-patch-proposal-generation.md)
 - [v0.8.0 DeepSeek Proposal Preview RC release notes](docs/release-notes-v0.8.0-deepseek-proposal-preview-rc.1.md)
+- [v0.8 DeepSeek Proposal post-release review](docs/v0.8-deepseek-proposal-postrelease-review.md)
+- [P0M Live DeepSeek Proposal Adapter roadmap](docs/p0m-live-deepseek-proposal-adapter-roadmap.md)
 
 ## What v0.1.0 does not support
 

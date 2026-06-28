@@ -9547,6 +9547,84 @@ describe("desktop source boundaries", () => {
     );
   });
 
+  it("documents the v0.8 post-release review and P0M live proposal roadmap without implementation", async () => {
+    const review = await readFile(
+      path.join(
+        repoRoot,
+        "docs",
+        "v0.8-deepseek-proposal-postrelease-review.md"
+      ),
+      "utf8"
+    );
+    const roadmap = await readFile(
+      path.join(
+        repoRoot,
+        "docs",
+        "p0m-live-deepseek-proposal-adapter-roadmap.md"
+      ),
+      "utf8"
+    );
+    const plan = await readFile(
+      path.join(
+        repoRoot,
+        "docs",
+        "p0m-001-live-deepseek-proposal-adapter-plan.md"
+      ),
+      "utf8"
+    );
+    const docsIndex = await readFile(
+      path.join(repoRoot, "docs", "README.md"),
+      "utf8"
+    );
+    const combined = `${review}\n${roadmap}\n${plan}\n${docsIndex}`;
+
+    expect(combined).toContain("v0.8.0-deepseek-proposal-preview-rc.1");
+    expect(combined).toContain(
+      "DeepSeek patch proposal preview pipeline, no live model call"
+    );
+    expect(combined).toContain("d82790a");
+    expect(combined).toContain("P0L is complete");
+    expect(combined).toContain("P0M: Live DeepSeek Proposal Adapter");
+    expect(combined).toContain(
+      "explicit opt-in live DeepSeek proposal adapter"
+    );
+    expect(combined).toContain(
+      "Live DeepSeek may generate structured patch proposals only"
+    );
+    expect(combined).toMatch(/Live DeepSeek must\s+not write files/);
+    expect(combined).toMatch(/Live DeepSeek must not call apply or rollback/);
+    expect(combined).toMatch(/Live DeepSeek\s+must not write EventStore/);
+    expect(combined).toMatch(/Live DeepSeek must not issue PermissionLease/);
+    expect(combined).toMatch(/API key access must be explicit and\s+gated/);
+    expect(combined).toContain("no live DeepSeek call in P0M-001");
+    expect(combined).toContain("no adapter implementation in P0M-001");
+    expect(combined).toContain("no API key read in P0M-001");
+    expect(combined).toContain("no fetch/network in P0M-001");
+    expect(combined).toMatch(
+      /schema \/ repair \/ validation \/ audit \/ approval\s+chain/
+    );
+    expect(combined).toContain("No App execution");
+    expect(combined).toContain("No Git");
+    expect(combined).toContain("No shell");
+    expect(combined).toContain("No native bridge");
+    expect(combined).toContain("No desktop action");
+    expect(combined).toContain("App-side apply");
+    expect(combined).toContain("App-side rollback");
+    expect(combined).toContain("Production PermissionLease");
+    expect(combined).toContain("No raw source");
+    expect(combined).toContain("No raw diff");
+    expect(combined).toContain("No raw CSV");
+    expect(combined).toContain("No raw prompt");
+    expect(combined).toContain("No API key");
+    expect(docsIndex).toContain("v0.8-deepseek-proposal-postrelease-review.md");
+    expect(docsIndex).toContain(
+      "p0m-live-deepseek-proposal-adapter-roadmap.md"
+    );
+    expect(docsIndex).toContain(
+      "p0m-001-live-deepseek-proposal-adapter-plan.md"
+    );
+  });
+
   it("documents the P0L-001 DeepSeek patch proposal ADR and gates without implementation", async () => {
     const adr = await readFile(
       path.join(
