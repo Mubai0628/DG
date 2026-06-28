@@ -93,11 +93,18 @@ export type PatchProposalRepairReadiness = {
 export type PatchProposalRepairProposalSummary = {
   proposalId?: string | undefined;
   status: ModelPatchProposalValidationStatus;
+  title?: string | undefined;
+  intent?: string | undefined;
   operationCount: number;
   fileCount: number;
+  evidenceRefCount: number;
+  riskNoteCount: number;
   pathSummaries: string[];
   warningCodes: string[];
   hash?: string | undefined;
+  patchProposalCreationPreviewInput?:
+    | ModelPatchProposalValidationResult["summary"]["patchProposalCreationPreviewInput"]
+    | undefined;
 };
 
 export type PatchProposalRepairProposalValidation = {
@@ -733,7 +740,7 @@ function resultFrom(args: {
   const allFindings = uniqueFindings([...args.findings, ...mappedValidationFindings]);
   const blockerCount = allFindings.filter((item) => item.severity === "blocker").length;
   const warningCount = allFindings.filter((item) => item.severity === "warning").length;
-  const proposalSummary = sanitizeProposalSummary(args.validation?.summary);
+  const proposalSummary = sanitizeProposalSummary(args.validation);
   const proposalValidation = sanitizeProposalValidation(args.validation);
   const operations = uniqueOperations(args.operations);
   const status =
@@ -805,26 +812,55 @@ function statusFrom(args: {
 }
 
 function sanitizeProposalSummary(
-  summary: ModelPatchProposalValidationResult["summary"] | undefined
+  validation: ModelPatchProposalValidationResult | undefined
 ): PatchProposalRepairProposalSummary | undefined {
+  const summary = validation?.summary;
   if (summary === undefined) {
     return undefined;
   }
   return {
     proposalId: summary.proposalId,
     status: summary.status,
+    title: summary.title,
+    intent: summary.intent,
     operationCount: summary.operationCount,
     fileCount: summary.fileCount,
+    evidenceRefCount: validation?.proposal?.evidenceRefs.length ?? 0,
+    riskNoteCount: validation?.proposal?.riskNotes.length ?? 0,
     pathSummaries: summary.pathSummaries,
     warningCodes: summary.warningCodes,
-    hash: summary.hash
+    hash: summary.hash,
+    patchProposalCreationPreviewInput:
+      summary.patchProposalCreationPreviewInput === undefined
+        ? undefined
+        : {
+            intent: summary.patchProposalCreationPreviewInput.intent,
+            title: summary.patchProposalCreationPreviewInput.title,
+            changeDescriptionSummary:
+              summary.patchProposalCreationPreviewInput
+                .changeDescriptionSummary,
+            proposedChanges:
+              summary.patchProposalCreationPreviewInput.proposedChanges.map(
+                (change) => ({
+                  path: change.path,
+                  changeKind: change.changeKind,
+                  reasonSummary: change.reasonSummary,
+                  estimatedLinesAdded: change.estimatedLinesAdded,
+                  estimatedLinesRemoved: change.estimatedLinesRemoved,
+                  warningCodes:
+                    change.warningCodes === undefined
+                      ? undefined
+                      : [...change.warningCodes]
+                })
+              )
+          }
   };
 }
 
 function sanitizeProposalValidation(
   validation: ModelPatchProposalValidationResult | undefined
 ): PatchProposalRepairProposalValidation | undefined {
-  const summary = sanitizeProposalSummary(validation?.summary);
+  const summary = sanitizeProposalSummary(validation);
   if (validation === undefined || summary === undefined) {
     return undefined;
   }

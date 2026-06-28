@@ -4,6 +4,7 @@ import type { AppControlPlaneProjectionView } from "./control-plane-view.js";
 import type { AppControlledCreationReplayProjectionView } from "./controlled-creation-replay-projection-view.js";
 import type { AppDisposableWorkspaceSnapshotView } from "./disposable-workspace-snapshot-view.js";
 import type { AppMemoryRecallPreviewView } from "./memory-recall-preview-view.js";
+import type { ModelPatchProposalImportView } from "./model-patch-proposal-import-view.js";
 import type { AppRunDraftView } from "./run-draft-view.js";
 import type { AppSandboxApplyRollbackEventProjectionView } from "./sandbox-apply-rollback-event-projection-view.js";
 import type { AppUserWorkspacePromotionReadinessView } from "./user-workspace-promotion-readiness-view.js";
@@ -45,6 +46,7 @@ export type AppContextAssemblySourceRef = {
     | "workspace_index"
     | "memory_recall"
     | "patch_proposal"
+    | "model_patch_proposal_import"
     | "approval_ref"
     | "replay_projection"
     | "sandbox_event_projection"
@@ -124,6 +126,7 @@ export type AppContextAssemblyPreviewInput = {
   sandboxApplyRollbackEventProjection?:
     | AppSandboxApplyRollbackEventProjectionView
     | undefined;
+  modelPatchProposalImport?: ModelPatchProposalImportView | undefined;
   snapshotContract?: AppDisposableWorkspaceSnapshotView | undefined;
   userWorkspaceSnapshotContract?:
     | AppUserWorkspaceSnapshotBackupView
@@ -605,6 +608,37 @@ function buildSegments(
         warningCodes: [
           "SANDBOX_APPLY_ROLLBACK_EVENT_PROJECTION_NO_COMPRESS",
           ...input.sandboxApplyRollbackEventProjection.warningCodes
+        ]
+      })
+    );
+  }
+
+  if (
+    input.modelPatchProposalImport !== undefined &&
+    input.modelPatchProposalImport.status !== "empty"
+  ) {
+    const importPreview = input.modelPatchProposalImport.preview;
+    segments.push(
+      segment({
+        layer: "no_compress_zone",
+        title: "Model patch proposal import summary",
+        sourceKind: "model_patch_proposal_import",
+        sourceRefId: input.modelPatchProposalImport.importId,
+        summary: [
+          input.modelPatchProposalImport.status,
+          `proposal:${importPreview?.proposalId ?? "n/a"}`,
+          `operations:${importPreview?.operationCount ?? 0}`,
+          `files:${importPreview?.fileCount ?? 0}`,
+          `blockers:${input.modelPatchProposalImport.blockerCount}`,
+          `warnings:${input.modelPatchProposalImport.warningCount}`,
+          `hash:${importPreview?.proposalHash ?? "n/a"}`
+        ].join(" | "),
+        warningCodes: [
+          "MODEL_PATCH_PROPOSAL_IMPORT_NO_COMPRESS",
+          ...input.modelPatchProposalImport.findings.map(
+            (finding) => finding.code
+          ),
+          ...(importPreview?.warningCodes ?? [])
         ]
       })
     );

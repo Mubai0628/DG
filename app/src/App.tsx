@@ -69,11 +69,17 @@ import {
 } from "./capability-plan-preview-view.js";
 import {
   buildPatchProposalCreationPreviewView,
+  type AppPatchProposalCreationPreviewView,
   patchProposalCreationApprovalRefs,
   patchProposalCreationSurfaceSummaries,
-  type AppPatchProposalCreationPreviewView,
   type PatchProposalCreationChangeKind
 } from "./patch-proposal-creation-preview-view.js";
+import {
+  buildModelPatchProposalImportView,
+  buildPatchProposalCreationPreviewFromModelImport,
+  summarizeModelPatchProposalImportView,
+  type ModelPatchProposalImportView
+} from "./model-patch-proposal-import-view.js";
 import {
   buildPatchProposalValidationPreviewView,
   patchProposalValidationApprovalRefs,
@@ -300,6 +306,10 @@ export function DesktopShell(): JSX.Element {
   const [patchProposalLinesAdded, setPatchProposalLinesAdded] = useState("0");
   const [patchProposalLinesRemoved, setPatchProposalLinesRemoved] =
     useState("0");
+  const [modelPatchProposalDraftText, setModelPatchProposalDraftText] =
+    useState("");
+  const [modelPatchProposalImportPreview, setModelPatchProposalImportPreview] =
+    useState<ModelPatchProposalImportView | undefined>();
   const [patchProposalCreationPreview, setPatchProposalCreationPreview] =
     useState<AppPatchProposalCreationPreviewView | undefined>();
   const [patchProposalValidationPreview, setPatchProposalValidationPreview] =
@@ -431,8 +441,33 @@ export function DesktopShell(): JSX.Element {
         selectedIntent
       ]
     );
+  const modelPatchProposalImportCandidate =
+    useMemo<ModelPatchProposalImportView>(
+      () =>
+        buildModelPatchProposalImportView({
+          draftText: modelPatchProposalDraftText,
+          sourceKind: "paste"
+        }),
+      [modelPatchProposalDraftText]
+    );
+  const modelImportedPatchProposalCreationPreview = useMemo<
+    AppPatchProposalCreationPreviewView | undefined
+  >(
+    () =>
+      buildPatchProposalCreationPreviewFromModelImport(
+        modelPatchProposalImportPreview
+      ),
+    [modelPatchProposalImportPreview]
+  );
+  const displayedModelPatchProposalImport =
+    modelPatchProposalImportPreview ??
+    buildModelPatchProposalImportView({
+      draftText: "",
+      sourceKind: "paste"
+    });
   const displayedPatchProposalCreation =
     patchProposalCreationPreview ??
+    modelImportedPatchProposalCreationPreview ??
     buildPatchProposalCreationPreviewView({
       selectedIntent,
       runDraft: displayedRunDraft,
@@ -995,6 +1030,7 @@ export function DesktopShell(): JSX.Element {
         replayProjection: controlledCreationReplayProjection,
         sandboxApplyRollbackEventProjection:
           displayedSandboxApplyRollbackEventProjection,
+        modelPatchProposalImport: modelPatchProposalImportPreview,
         snapshotContract: displayedDisposableWorkspaceSnapshot,
         userWorkspaceSnapshotContract: displayedUserWorkspaceSnapshotBackup,
         userWorkspacePromotionReadiness:
@@ -1008,6 +1044,7 @@ export function DesktopShell(): JSX.Element {
       controlPlanePanel,
       controlledCreationReplayProjection,
       displayedDisposableWorkspaceSnapshot,
+      modelPatchProposalImportPreview,
       displayedUserWorkspaceSnapshotBackup,
       displayedUserWorkspacePromotionReadiness,
       displayedSandboxApplyRollbackEventProjection,
@@ -1177,6 +1214,7 @@ export function DesktopShell(): JSX.Element {
     setRunDraftEventError(undefined);
     setPatchProposalCreationPreview(undefined);
     setPatchProposalValidationPreview(undefined);
+    setModelPatchProposalImportPreview(undefined);
     setPatchDiffAuditPreview(undefined);
     setPatchApprovalDraftPreview(undefined);
     setPatchVirtualApplyPreview(undefined);
@@ -1190,6 +1228,7 @@ export function DesktopShell(): JSX.Element {
 
   useEffect(() => {
     setPatchProposalCreationPreview(undefined);
+    setModelPatchProposalImportPreview(undefined);
     setPatchProposalValidationPreview(undefined);
     setPatchDiffAuditPreview(undefined);
     setPatchApprovalDraftPreview(undefined);
@@ -1209,6 +1248,19 @@ export function DesktopShell(): JSX.Element {
   ]);
 
   useEffect(() => {
+    setModelPatchProposalImportPreview(undefined);
+    setPatchProposalValidationPreview(undefined);
+    setPatchDiffAuditPreview(undefined);
+    setPatchApprovalDraftPreview(undefined);
+    setPatchVirtualApplyPreview(undefined);
+    setPatchRollbackCheckpointPreview(undefined);
+    setControlledCreationReplayProjection(undefined);
+    setSandboxApplyRollbackEventProjection(undefined);
+    setUserWorkspacePromotionReadinessPreview(undefined);
+    setContextAssemblyPreview(undefined);
+  }, [modelPatchProposalDraftText]);
+
+  useEffect(() => {
     setContextAssemblyPreview(undefined);
   }, [
     agentRoutePreview.routeId,
@@ -1219,6 +1271,7 @@ export function DesktopShell(): JSX.Element {
     patchVirtualApplyPreview?.virtualApplyId,
     controlledCreationReplayProjection?.projectionId,
     sandboxApplyRollbackEventProjection?.projectionId,
+    modelPatchProposalImportPreview?.importId,
     userWorkspaceSnapshotBackupPreview?.contractId,
     userWorkspacePromotionReadinessPreview?.readinessId,
     patchWorkbenchSurfaces.diff.items.length,
@@ -1278,6 +1331,7 @@ export function DesktopShell(): JSX.Element {
 
   function handlePreviewPatchProposal(): void {
     setPatchProposalCreationPreview(patchProposalCreationCandidate);
+    setModelPatchProposalImportPreview(undefined);
     setPatchProposalValidationPreview(undefined);
     setPatchDiffAuditPreview(undefined);
     setPatchApprovalDraftPreview(undefined);
@@ -1286,6 +1340,35 @@ export function DesktopShell(): JSX.Element {
     setControlledCreationReplayProjection(undefined);
     setSandboxApplyRollbackEventProjection(undefined);
     setUserWorkspacePromotionReadinessPreview(undefined);
+  }
+
+  function handlePreviewModelPatchProposal(): void {
+    setModelPatchProposalImportPreview(modelPatchProposalImportCandidate);
+    setPatchProposalCreationPreview(undefined);
+    setPatchProposalValidationPreview(undefined);
+    setPatchDiffAuditPreview(undefined);
+    setPatchApprovalDraftPreview(undefined);
+    setPatchVirtualApplyPreview(undefined);
+    setPatchRollbackCheckpointPreview(undefined);
+    setControlledCreationReplayProjection(undefined);
+    setSandboxApplyRollbackEventProjection(undefined);
+    setUserWorkspacePromotionReadinessPreview(undefined);
+    setContextAssemblyPreview(undefined);
+  }
+
+  function handleClearModelPatchProposal(): void {
+    setModelPatchProposalDraftText("");
+    setModelPatchProposalImportPreview(undefined);
+    setPatchProposalCreationPreview(undefined);
+    setPatchProposalValidationPreview(undefined);
+    setPatchDiffAuditPreview(undefined);
+    setPatchApprovalDraftPreview(undefined);
+    setPatchVirtualApplyPreview(undefined);
+    setPatchRollbackCheckpointPreview(undefined);
+    setControlledCreationReplayProjection(undefined);
+    setSandboxApplyRollbackEventProjection(undefined);
+    setUserWorkspacePromotionReadinessPreview(undefined);
+    setContextAssemblyPreview(undefined);
   }
 
   function handleValidatePatchProposal(): void {
@@ -2242,6 +2325,177 @@ export function DesktopShell(): JSX.Element {
             ) : null}
 
             <p className="fieldHelp">{workspaceIndexBridge.nextAction}</p>
+          </section>
+
+          <section
+            className="eventPanel"
+            aria-label="Model Patch Proposal Import"
+          >
+            <div className="panelHeader">
+              <h2>Model Patch Proposal Import</h2>
+              <span className="muted">Preview only / no model call</span>
+            </div>
+            <p className="fieldHelp">
+              Paste a structured model_patch_proposal draft to import it into
+              the preview chain. The App Shell does not call DeepSeek, write
+              files, apply patches, rollback, or write events.
+            </p>
+
+            <label>
+              <span>Model proposal draft</span>
+              <textarea
+                className="compactTextarea"
+                value={modelPatchProposalDraftText}
+                onChange={(event) => {
+                  setModelPatchProposalDraftText(event.target.value);
+                }}
+                placeholder="Paste model_patch_proposal JSON draft"
+                spellCheck={false}
+              />
+              <p className="fieldHelp">
+                contentDraft is summarized only as warning codes, counts, and
+                hashes from the runtime schema validator. Raw source, raw diff,
+                prompts, DOM, CSV, and secrets are not displayed.
+              </p>
+            </label>
+
+            <div className="buttonRow">
+              <button
+                type="button"
+                className="secondary"
+                onClick={(event) => {
+                  event.preventDefault();
+                  event.stopPropagation();
+                  handlePreviewModelPatchProposal();
+                }}
+              >
+                Preview Model Proposal
+              </button>
+              <button
+                type="button"
+                className="secondary"
+                onClick={(event) => {
+                  event.preventDefault();
+                  event.stopPropagation();
+                  handleClearModelPatchProposal();
+                }}
+              >
+                Clear Model Proposal
+              </button>
+            </div>
+
+            {displayedModelPatchProposalImport.status === "empty" ? (
+              <p className="empty">
+                No model proposal draft imported yet. Paste a structured JSON
+                draft to preview summary-only proposal counts.
+              </p>
+            ) : null}
+
+            {displayedModelPatchProposalImport.status === "blocked" ? (
+              <div className="errorBox">
+                <strong>Model proposal import blocked</strong>
+                <p>{displayedModelPatchProposalImport.nextAction}</p>
+              </div>
+            ) : null}
+
+            <dl className="summaryGrid compact">
+              <div>
+                <dt>Status</dt>
+                <dd>{displayedModelPatchProposalImport.status}</dd>
+              </div>
+              <div>
+                <dt>Import</dt>
+                <dd>{displayedModelPatchProposalImport.importId}</dd>
+              </div>
+              <div>
+                <dt>Proposal</dt>
+                <dd>
+                  {displayedModelPatchProposalImport.preview?.proposalId ??
+                    "n/a"}
+                </dd>
+              </div>
+              <div>
+                <dt>Title</dt>
+                <dd>
+                  {displayedModelPatchProposalImport.preview?.title ?? "n/a"}
+                </dd>
+              </div>
+              <div>
+                <dt>Intent</dt>
+                <dd>
+                  {displayedModelPatchProposalImport.preview?.intent ?? "n/a"}
+                </dd>
+              </div>
+              <div>
+                <dt>Operations / files</dt>
+                <dd>
+                  {displayedModelPatchProposalImport.preview?.operationCount ??
+                    0}{" "}
+                  / {displayedModelPatchProposalImport.preview?.fileCount ?? 0}
+                </dd>
+              </div>
+              <div>
+                <dt>Evidence / risk</dt>
+                <dd>
+                  {displayedModelPatchProposalImport.preview?.evidenceRefCount ??
+                    0}{" "}
+                  /{" "}
+                  {displayedModelPatchProposalImport.preview?.riskNoteCount ??
+                    0}
+                </dd>
+              </div>
+              <div>
+                <dt>Blockers / warnings</dt>
+                <dd>
+                  {displayedModelPatchProposalImport.blockerCount} /{" "}
+                  {displayedModelPatchProposalImport.warningCount}
+                </dd>
+              </div>
+              <div>
+                <dt>Hash</dt>
+                <dd>
+                  {displayedModelPatchProposalImport.preview?.proposalHash ??
+                    "n/a"}
+                </dd>
+              </div>
+              <div>
+                <dt>Can import</dt>
+                <dd>
+                  {displayedModelPatchProposalImport.readiness
+                    .canImportToPatchPreview
+                    ? "yes"
+                    : "no"}
+                </dd>
+              </div>
+            </dl>
+
+            {displayedModelPatchProposalImport.preview?.pathSummaries.length ? (
+              <ol className="timeline">
+                {displayedModelPatchProposalImport.preview.pathSummaries.map(
+                  (pathSummary) => (
+                    <li key={pathSummary}>
+                      <span className="timelineMeta">path summary</span>
+                      <span>{pathSummary}</span>
+                    </li>
+                  )
+                )}
+              </ol>
+            ) : null}
+
+            {displayedModelPatchProposalImport.findings.length > 0 ? (
+              <p className="muted">
+                findings{" "}
+                {displayedModelPatchProposalImport.findings
+                  .map((finding) => finding.code)
+                  .join(", ")}
+              </p>
+            ) : null}
+
+            <p className="fieldHelp">
+              {summarizeModelPatchProposalImportView(
+                displayedModelPatchProposalImport
+              ).nextAction}
+            </p>
           </section>
 
           <section

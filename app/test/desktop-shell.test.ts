@@ -44,6 +44,13 @@ import {
   patchProposalCreationSurfaceSummaries
 } from "../src/patch-proposal-creation-preview-view.js";
 import {
+  buildModelPatchProposalImportView,
+  buildPatchProposalCreationPreviewFromModelImport,
+  modelPatchProposalImportApprovalRefs,
+  modelPatchProposalImportSurfaceSummaries,
+  summarizeModelPatchProposalImportView
+} from "../src/model-patch-proposal-import-view.js";
+import {
   buildPatchProposalValidationPreviewView,
   patchProposalValidationApprovalRefs,
   patchProposalValidationAuditWarningCodes,
@@ -3387,6 +3394,241 @@ describe("app patch proposal creation preview", () => {
     expect(adapterSource).not.toContain("localStorage");
     expect(adapterSource).not.toContain("sessionStorage");
     expect(desktopFlowSource).not.toContain("patch_proposal_creation");
+  });
+});
+
+describe("app model patch proposal import", () => {
+  const proposalFixtureRoot = path.join(
+    repoRoot,
+    "runtime",
+    "test",
+    "fixtures",
+    "model-patch-proposals"
+  );
+  const repairFixtureRoot = path.join(proposalFixtureRoot, "repair");
+
+  it("builds an empty preview-only import state", () => {
+    const view = buildModelPatchProposalImportView({
+      draftText: "",
+      sourceKind: "paste",
+      idGenerator: () => "empty-test"
+    });
+
+    expect(view.status).toBe("empty");
+    expect(view.readiness.canImportToPatchPreview).toBe(false);
+    expect(view.readiness.canApplyPatch).toBe(false);
+    expect(view.readiness.canWriteFilesystem).toBe(false);
+    expect(view.readiness.canExecuteGit).toBe(false);
+    expect(view.readiness.canExecuteShell).toBe(false);
+    expect(view.readiness.canWriteEventStore).toBe(false);
+    expect(view.readiness.appCanExecute).toBe(false);
+  });
+
+  it("imports a safe model proposal draft into summary preview surfaces", async () => {
+    const draft = await readFile(
+      path.join(proposalFixtureRoot, "safe-basic.json"),
+      "utf8"
+    );
+    const view = buildModelPatchProposalImportView({
+      draftText: draft,
+      sourceKind: "fixture"
+    });
+    const creationPreview = buildPatchProposalCreationPreviewFromModelImport(view);
+    const surfaces = buildWorkbenchSurfacesView({
+      controlProjection: buildControlPlaneProjectionView(undefined),
+      patchProposalSummaries: modelPatchProposalImportSurfaceSummaries(view),
+      futureApprovalRefs: modelPatchProposalImportApprovalRefs(view)
+    });
+    const summary = summarizeModelPatchProposalImportView(view);
+    const serialized = JSON.stringify({ view, creationPreview, surfaces });
+
+    expect(view.status).toBe("warning");
+    expect(view.preview?.proposalId).toBe("model-proposal-safe-basic");
+    expect(view.preview?.operationCount).toBe(2);
+    expect(view.preview?.evidenceRefCount).toBe(2);
+    expect(view.readiness.canImportToPatchPreview).toBe(true);
+    expect(creationPreview?.status).not.toBe("empty");
+    expect(creationPreview?.items.map((item) => item.path)).toContain(
+      "docs/app-shell-preview.md"
+    );
+    expect(surfaces.diff.items[0]?.proposalId).toBe(
+      "model-proposal-safe-basic"
+    );
+    expect(surfaces.approval.items[0]).toMatchObject({
+      kind: "patch",
+      status: "dry"
+    });
+    expect(summary.nextAction).toContain("preview-only");
+    expect(serialized).not.toContain("rawSource");
+    expect(serialized).not.toContain("rawDiff");
+    expect(serialized).not.toContain("apiKey");
+  });
+
+  it("repairs markdown fenced model proposal draft before import", async () => {
+    const draft = await readFile(
+      path.join(repairFixtureRoot, "markdown-fenced-json.txt"),
+      "utf8"
+    );
+    const view = buildModelPatchProposalImportView({
+      draftText: draft,
+      sourceKind: "fixture"
+    });
+
+    expect(view.status).toBe("warning");
+    expect(view.repairOperations).toContain("strip_markdown_fence");
+    expect(view.preview?.title).toBe("Fenced repair draft");
+    expect(view.readiness.canImportToPatchPreview).toBe(true);
+  });
+
+  it("blocks unsafe path, secret marker, and execution field drafts", async () => {
+    const unsafePath = await readFile(
+      path.join(repairFixtureRoot, "unsafe-path.json"),
+      "utf8"
+    );
+    const secretMarker = await readFile(
+      path.join(repairFixtureRoot, "secret-marker.json"),
+      "utf8"
+    );
+    const executionField = await readFile(
+      path.join(repairFixtureRoot, "execution-field.json"),
+      "utf8"
+    );
+
+    const unsafePathView = buildModelPatchProposalImportView({
+      draftText: unsafePath,
+      sourceKind: "fixture"
+    });
+    const secretView = buildModelPatchProposalImportView({
+      draftText: secretMarker,
+      sourceKind: "fixture"
+    });
+    const executionView = buildModelPatchProposalImportView({
+      draftText: executionField,
+      sourceKind: "fixture"
+    });
+
+    expect(unsafePathView.status).toBe("blocked");
+    expect(unsafePathView.repairOperations).toContain("reject_unsafe_path");
+    expect(secretView.status).toBe("blocked");
+    expect(secretView.repairOperations).toContain("reject_secret_marker");
+    expect(executionView.status).toBe("blocked");
+    expect(executionView.repairOperations).toContain("reject_execution_fields");
+    expect(
+      buildPatchProposalCreationPreviewFromModelImport(unsafePathView)
+    ).toBeUndefined();
+    expect(JSON.stringify(secretView)).not.toContain(
+      "sk-test1234567890abcdef"
+    );
+  });
+
+  it("keeps contentDraft out of App view output", async () => {
+    const draft = await readFile(
+      path.join(proposalFixtureRoot, "warning-content-draft.json"),
+      "utf8"
+    );
+    const view = buildModelPatchProposalImportView({
+      draftText: draft,
+      sourceKind: "fixture"
+    });
+    const serialized = JSON.stringify(view);
+
+    expect(view.status).toBe("warning");
+    expect(view.findings.map((finding) => finding.code)).toEqual(
+      expect.arrayContaining(["SCHEMA_CONTENT_DRAFT_PRESENT"])
+    );
+    expect(serialized).not.toContain(
+      "Model-generated documentation draft. This is not written"
+    );
+    expect(serialized).not.toContain('"contentDraft":');
+    expect(view.contentDraftSummaryOnly).toBe(true);
+  });
+
+  it("places model proposal import refs into context no_compress_zone", async () => {
+    const draft = await readFile(
+      path.join(proposalFixtureRoot, "safe-basic.json"),
+      "utf8"
+    );
+    const importView = buildModelPatchProposalImportView({
+      draftText: draft,
+      sourceKind: "fixture"
+    });
+    const runDraft = buildRunDraftView({
+      objectiveDraft: "Review an imported model proposal.",
+      selectedIntent: "code_change",
+      acceptanceCriteriaDraft: "Import ref enters context.",
+      workspaceRoot: "D:\\workspace"
+    });
+    const contextPreview = buildContextAssemblyPreviewView({
+      runDraft,
+      modelPatchProposalImport: importView
+    });
+    const importSegment = contextPreview.segments.find(
+      (segment) => segment.sourceKind === "model_patch_proposal_import"
+    );
+
+    expect(importSegment).toMatchObject({
+      placement: "no_compress_zone",
+      sourceRefId: importView.importId
+    });
+    expect(importSegment?.warningCodes).toContain(
+      "MODEL_PATCH_PROPOSAL_IMPORT_NO_COMPRESS"
+    );
+    expect(JSON.stringify(contextPreview)).not.toContain("rawDiff");
+  });
+
+  it("keeps App source preview-only without model calls, Tauri, or events", async () => {
+    const appSource = await readFile(
+      path.join(appRoot, "src", "App.tsx"),
+      "utf8"
+    );
+    const importSource = await readFile(
+      path.join(appRoot, "src", "model-patch-proposal-import-view.ts"),
+      "utf8"
+    );
+    const combined = `${appSource}\n${importSource}`;
+
+    expect(appSource).toContain("Model Patch Proposal Import");
+    expect(appSource).toContain("Preview only / no model call");
+    expect(appSource).toContain("Preview Model Proposal");
+    expect(appSource).not.toContain("Apply Model Proposal");
+    expect(importSource).not.toContain("safeInvoke");
+    expect(importSource).not.toContain("fetch(");
+    expect(importSource).not.toContain("DEEPSEEK_API_KEY");
+    expect(importSource).not.toContain("OPENAI_API_KEY");
+    expect(importSource).not.toContain("readFile");
+    expect(importSource).not.toContain("writeFile");
+    expect(importSource).not.toContain("eventStoreWrite");
+    expect(importSource).not.toContain("writeUserWorkspaceApplyRollbackEvents");
+    expect(combined).not.toContain("handleApplyModelProposal");
+    expect(combined).not.toContain("handleRollbackModelProposal");
+    expect(combined).not.toContain("handleWriteModelProposalEvents");
+  });
+
+  it("documents App model proposal import as preview-only", async () => {
+    const doc = await readFile(
+      path.join(
+        repoRoot,
+        "docs",
+        "app-shell-model-patch-proposal-import-v0.7.md"
+      ),
+      "utf8"
+    );
+    const docsIndex = await readFile(
+      path.join(repoRoot, "docs", "README.md"),
+      "utf8"
+    );
+
+    expect(doc).toContain("App Shell Model Patch Proposal Import v0.7");
+    expect(doc).toContain("preview only");
+    expect(doc).toContain("no model call");
+    expect(doc).toContain("No fetch/network");
+    expect(doc).toContain("No file write");
+    expect(doc).toContain("No apply or rollback");
+    expect(doc).toContain("No EventStore write");
+    expect(doc).toContain("contentDraft");
+    expect(doc).toContain("P0L-002");
+    expect(doc).toContain("P0L-005");
+    expect(docsIndex).toContain("app-shell-model-patch-proposal-import-v0.7.md");
   });
 });
 
