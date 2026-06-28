@@ -57,6 +57,7 @@ import {
   summarizeModelProposalChainIntegrationView
 } from "../src/model-proposal-chain-integration-view.js";
 import { buildLiveProposalOptInGateView } from "../src/live-proposal-opt-in-gate-view.js";
+import { buildLiveProposalRequestBuilderView } from "../src/live-proposal-request-builder-view.js";
 import {
   buildPatchProposalValidationPreviewView,
   patchProposalValidationApprovalRefs,
@@ -4040,6 +4041,123 @@ describe("app live proposal opt-in gate", () => {
     expect(normalized).toContain("DEEPSEEK_API_KEY ref only, no value");
     expect(docsIndex).toContain("runtime-live-proposal-api-key-policy-v0.8.md");
     expect(docsIndex).toContain("app-shell-live-proposal-opt-in-gate-v0.8.md");
+  });
+});
+
+describe("app live proposal request builder", () => {
+  it("builds empty and safe request previews without network or key reads", () => {
+    const empty = buildLiveProposalRequestBuilderView();
+    const safe = buildLiveProposalRequestBuilderView({
+      objectiveSummary: "Create a summary-only docs proposal.",
+      intent: "Generate a structured model_patch_proposal draft.",
+      modelProfileId: "deepseek-chat",
+      keySourceRef: "DEEPSEEK_API_KEY",
+      optInMode: "explicit_live_proposal_opt_in",
+      allowedPathRefsText: "docs/live-proposal-request-builder.md"
+    });
+    const blocked = buildLiveProposalRequestBuilderView({
+      objectiveSummary: "Create proposal",
+      modelProfileId: "deepseek-chat",
+      keySourceRef: "DEEPSEEK_API_KEY",
+      optInMode: "explicit_live_proposal_opt_in",
+      allowedPathRefsText: "../escape.ts"
+    });
+    const serialized = JSON.stringify({ empty, safe, blocked });
+
+    expect(empty.status).toBe("empty");
+    expect(empty.readiness.canReadApiKey).toBe(false);
+    expect(empty.readiness.canCallLiveModel).toBe(false);
+    expect(safe.status).toBe("request_ready");
+    expect(safe.summaryOnly).toBe(true);
+    expect(safe.noExecution).toBe(true);
+    expect(safe.toolChoiceOmitted).toBe(true);
+    expect(safe.keySourceRefHash).toHaveLength(16);
+    expect(safe.requestHash).toHaveLength(64);
+    expect(safe.readiness.canProceedToLiveAdapter).toBe(true);
+    expect(safe.readiness.canReadApiKey).toBe(false);
+    expect(safe.readiness.canFetchNetwork).toBe(false);
+    expect(blocked.status).toBe("blocked");
+    expect(blocked.findings.map((finding) => finding.code)).toContain(
+      "UNSAFE_ALLOWED_PATH_REF"
+    );
+    expect(serialized).not.toContain("sk-");
+    expect(serialized).not.toContain("Authorization");
+    expect(serialized).not.toContain("process.env");
+  });
+
+  it("keeps App source request builder preview-only without live send wiring", async () => {
+    const appSource = await readFile(
+      path.join(appRoot, "src", "App.tsx"),
+      "utf8"
+    );
+    const viewSource = await readFile(
+      path.join(appRoot, "src", "live-proposal-request-builder-view.ts"),
+      "utf8"
+    );
+    const combined = `${appSource}\n${viewSource}`;
+
+    expect(appSource).toContain("Live Proposal Request Builder");
+    expect(appSource).toContain("Request preview / no network");
+    expect(appSource).toContain("Preview Live Proposal Request");
+    expect(appSource).toContain("Send Live Proposal Request (disabled)");
+    expect(appSource).not.toContain('type="password"');
+    expect(appSource).not.toContain("Authorization input");
+    expect(appSource).not.toContain("handleSendLiveProposalRequest");
+    expect(appSource).not.toContain("handleCallLiveProposalRequest");
+    expect(appSource).not.toContain("handleApplyLiveProposal");
+    expect(appSource).not.toContain("handleRollbackLiveProposal");
+    expect(viewSource).not.toContain("process.env");
+    expect(viewSource).not.toContain("fetch(");
+    expect(viewSource).not.toContain("safeInvoke");
+    expect(viewSource).not.toContain("recordControlRunDraftEvent");
+    expect(combined).not.toContain("readLiveProposalApiKey");
+    expect(combined).not.toContain("writeLiveProposalEvent");
+  });
+
+  it("documents runtime and App live proposal request builder boundaries", async () => {
+    const runtimeDoc = await readFile(
+      path.join(
+        repoRoot,
+        "docs",
+        "runtime-live-proposal-request-builder-v0.8.md"
+      ),
+      "utf8"
+    );
+    const appDoc = await readFile(
+      path.join(
+        repoRoot,
+        "docs",
+        "app-shell-live-proposal-request-builder-v0.8.md"
+      ),
+      "utf8"
+    );
+    const docsIndex = await readFile(
+      path.join(repoRoot, "docs", "README.md"),
+      "utf8"
+    );
+    const combined = `${runtimeDoc}\n${appDoc}\n${docsIndex}`;
+
+    expect(combined).toContain("Runtime Live Proposal Request Builder v0.8");
+    expect(combined).toContain("App Shell Live Proposal Request Builder v0.8");
+    expect(combined).toContain("Request builder only");
+    expect(combined).toContain("No API key read");
+    expect(combined).toContain("No environment value read");
+    expect(combined).toContain("No vault read");
+    expect(combined).toContain("No fetch/network");
+    expect(combined).toContain("No live DeepSeek call");
+    expect(combined).toContain("No App execution");
+    expect(combined).toContain("No apply or rollback");
+    expect(combined).toContain("No EventStore write");
+    expect(combined).toContain("No tools/tool_choice");
+    expect(combined).toContain("No Git/shell");
+    expect(combined).toContain("No native bridge");
+    expect(combined).toContain("No desktop action");
+    expect(docsIndex).toContain(
+      "runtime-live-proposal-request-builder-v0.8.md"
+    );
+    expect(docsIndex).toContain(
+      "app-shell-live-proposal-request-builder-v0.8.md"
+    );
   });
 });
 

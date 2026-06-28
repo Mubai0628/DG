@@ -352,6 +352,7 @@ function isLiveProposalOptInPolicyDisplayRef(file, line, ruleId) {
     ruleId === "deepseek_env_reference" &&
     !line.includes("process.env") &&
     (file === "app/src/live-proposal-opt-in-gate-view.ts" ||
+      file === "app/src/live-proposal-request-builder-view.ts" ||
       file === "app/src/App.tsx") &&
     line.includes("DEEPSEEK_API_KEY") &&
     (line.includes("allowedEnvVarNames") || line.includes("ref only"))

@@ -2,6 +2,7 @@ export * from "./capability-probe.js";
 export * from "./deepseek-capability-profile.js";
 export * from "./legacy-alias.js";
 export * from "./live-proposal-api-key-policy.js";
+export * from "./live-proposal-request-builder.js";
 export * from "./patch-proposal-dry-adapter.js";
 export * from "./patch-proposal-fake-harness.js";
 export * from "./patch-proposal-repair.js";

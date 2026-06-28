@@ -52,6 +52,9 @@ Current scope:
 - preview the P0M Live Proposal Opt-in Gate as policy metadata only, with no
   API key read, no environment value read, no vault read, no fetch/network, no
   live DeepSeek call, and no App execution
+- preview the P0M Live Proposal Request Builder as a summary-only request
+  envelope with no API key read, no vault read, no fetch/network, no live
+  DeepSeek call, no tools/tool_choice, and no App execution
 
 Current limitations:
 
@@ -95,8 +98,9 @@ Current limitations:
   dry adapter call, approval execution, apply, rollback, or event write; Live
   Proposal Opt-in Gate is policy-only with no API key read, no environment
   value read, no vault read, no fetch/network, no live DeepSeek call, no
-  Tauri command, no EventStore write, and no App execution; none of these App
-  surfaces reads or writes files
+  Tauri command, no EventStore write, and no App execution; Live Proposal
+  Request Builder is request-preview only with no network send and no
+  tools/tool_choice; none of these App surfaces reads or writes files
 - no validation, audit, approval, virtual apply, rollback, or replay preview is
   an apply/approval/rollback/execution lane
 - no real DeepSeek API call from the desktop shell

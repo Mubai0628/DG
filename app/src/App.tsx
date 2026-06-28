@@ -93,6 +93,10 @@ import {
   type LiveProposalOptInGateView
 } from "./live-proposal-opt-in-gate-view.js";
 import {
+  buildLiveProposalRequestBuilderView,
+  type LiveProposalRequestBuilderView
+} from "./live-proposal-request-builder-view.js";
+import {
   buildPatchProposalValidationPreviewView,
   patchProposalValidationApprovalRefs,
   patchProposalValidationAuditWarningCodes,
@@ -333,6 +337,17 @@ export function DesktopShell(): JSX.Element {
     useState<LiveProposalOptInGateView["optInMode"]>("disabled");
   const [liveProposalOptInGatePreview, setLiveProposalOptInGatePreview] =
     useState<LiveProposalOptInGateView | undefined>();
+  const [liveProposalRequestObjective, setLiveProposalRequestObjective] =
+    useState("");
+  const [liveProposalRequestIntent, setLiveProposalRequestIntent] = useState(
+    "Generate a structured model_patch_proposal draft."
+  );
+  const [liveProposalRequestAllowedPaths, setLiveProposalRequestAllowedPaths] =
+    useState("");
+  const [
+    liveProposalRequestBuilderPreview,
+    setLiveProposalRequestBuilderPreview
+  ] = useState<LiveProposalRequestBuilderView | undefined>();
   const [patchProposalCreationPreview, setPatchProposalCreationPreview] =
     useState<AppPatchProposalCreationPreviewView | undefined>();
   const [patchProposalValidationPreview, setPatchProposalValidationPreview] =
@@ -1108,6 +1123,28 @@ export function DesktopShell(): JSX.Element {
   );
   const displayedLiveProposalOptInGate =
     liveProposalOptInGatePreview ?? liveProposalOptInGateCandidate;
+  const liveProposalRequestBuilderCandidate =
+    useMemo<LiveProposalRequestBuilderView>(
+      () =>
+        buildLiveProposalRequestBuilderView({
+          objectiveSummary: liveProposalRequestObjective,
+          intent: liveProposalRequestIntent,
+          modelProfileId: liveProposalModelProfileId,
+          keySourceRef: liveProposalKeySourceRef,
+          optInMode: liveProposalOptInMode,
+          allowedPathRefsText: liveProposalRequestAllowedPaths
+        }),
+      [
+        liveProposalKeySourceRef,
+        liveProposalModelProfileId,
+        liveProposalOptInMode,
+        liveProposalRequestAllowedPaths,
+        liveProposalRequestIntent,
+        liveProposalRequestObjective
+      ]
+    );
+  const displayedLiveProposalRequestBuilder =
+    liveProposalRequestBuilderPreview ?? liveProposalRequestBuilderCandidate;
   const contextAssemblyCandidate = useMemo<AppContextAssemblyPreviewView>(
     () =>
       buildContextAssemblyPreviewView({
@@ -1501,6 +1538,10 @@ export function DesktopShell(): JSX.Element {
 
   function handlePreviewLiveProposalOptInGate(): void {
     setLiveProposalOptInGatePreview(liveProposalOptInGateCandidate);
+  }
+
+  function handlePreviewLiveProposalRequest(): void {
+    setLiveProposalRequestBuilderPreview(liveProposalRequestBuilderCandidate);
   }
 
   function handleValidatePatchProposal(): void {
@@ -2808,6 +2849,7 @@ export function DesktopShell(): JSX.Element {
                   onChange={(event) => {
                     setLiveProposalModelProfileId(event.target.value);
                     setLiveProposalOptInGatePreview(undefined);
+                    setLiveProposalRequestBuilderPreview(undefined);
                   }}
                   placeholder="deepseek-chat"
                 />
@@ -2821,6 +2863,7 @@ export function DesktopShell(): JSX.Element {
                 onChange={(event) => {
                   setLiveProposalKeySourceRef(event.target.value);
                   setLiveProposalOptInGatePreview(undefined);
+                  setLiveProposalRequestBuilderPreview(undefined);
                 }}
                 placeholder="DEEPSEEK_API_KEY ref only, no value"
               />
@@ -2840,6 +2883,7 @@ export function DesktopShell(): JSX.Element {
                     event.target.value as LiveProposalOptInGateView["optInMode"]
                   );
                   setLiveProposalOptInGatePreview(undefined);
+                  setLiveProposalRequestBuilderPreview(undefined);
                 }}
               >
                 <option value="disabled">disabled</option>
@@ -2951,6 +2995,177 @@ export function DesktopShell(): JSX.Element {
 
             <p className="fieldHelp">
               {displayedLiveProposalOptInGate.nextAction}
+            </p>
+          </section>
+
+          <section
+            className="eventPanel"
+            aria-label="Live Proposal Request Builder"
+          >
+            <div className="panelHeader">
+              <h2>Live Proposal Request Builder</h2>
+              <span className="muted">Request preview / no network</span>
+            </div>
+            <p className="fieldHelp">
+              Builds a summary-only request boundary for a future live DeepSeek
+              proposal call. The App Shell does not read API keys, call
+              DeepSeek, fetch network, apply patches, rollback, or write events.
+            </p>
+
+            <label>
+              <span>Objective summary</span>
+              <textarea
+                className="compactTextarea"
+                value={liveProposalRequestObjective}
+                onChange={(event) => {
+                  setLiveProposalRequestObjective(event.target.value);
+                  setLiveProposalRequestBuilderPreview(undefined);
+                }}
+                placeholder="Describe the desired structured patch proposal without raw source or diff"
+              />
+            </label>
+
+            <label>
+              <span>Intent</span>
+              <input
+                value={liveProposalRequestIntent}
+                onChange={(event) => {
+                  setLiveProposalRequestIntent(event.target.value);
+                  setLiveProposalRequestBuilderPreview(undefined);
+                }}
+                placeholder="Generate a structured model_patch_proposal draft."
+              />
+            </label>
+
+            <div className="inlineFields">
+              <label>
+                <span>Model profile</span>
+                <input
+                  value={liveProposalModelProfileId}
+                  onChange={(event) => {
+                    setLiveProposalModelProfileId(event.target.value);
+                    setLiveProposalOptInGatePreview(undefined);
+                    setLiveProposalRequestBuilderPreview(undefined);
+                  }}
+                  placeholder="deepseek-chat"
+                />
+              </label>
+              <label>
+                <span>Allowed path refs</span>
+                <textarea
+                  className="compactTextarea"
+                  value={liveProposalRequestAllowedPaths}
+                  onChange={(event) => {
+                    setLiveProposalRequestAllowedPaths(event.target.value);
+                    setLiveProposalRequestBuilderPreview(undefined);
+                  }}
+                  placeholder={"docs/example.md\napp/src/example.ts"}
+                />
+              </label>
+            </div>
+
+            <div className="buttonRow">
+              <button
+                type="button"
+                className="secondary"
+                onClick={(event) => {
+                  event.preventDefault();
+                  event.stopPropagation();
+                  handlePreviewLiveProposalRequest();
+                }}
+              >
+                Preview Live Proposal Request
+              </button>
+              <button type="button" className="secondary" disabled>
+                Send Live Proposal Request (disabled)
+              </button>
+            </div>
+
+            <dl className="summaryGrid compact">
+              <div>
+                <dt>Status</dt>
+                <dd>{displayedLiveProposalRequestBuilder.status}</dd>
+              </div>
+              <div>
+                <dt>Request</dt>
+                <dd>{displayedLiveProposalRequestBuilder.requestId}</dd>
+              </div>
+              <div>
+                <dt>Model profile</dt>
+                <dd>{displayedLiveProposalRequestBuilder.modelProfileId}</dd>
+              </div>
+              <div>
+                <dt>Summary / execution</dt>
+                <dd>
+                  {displayedLiveProposalRequestBuilder.summaryOnly
+                    ? "summary-only"
+                    : "not-summary-only"}{" "}
+                  /{" "}
+                  {displayedLiveProposalRequestBuilder.noExecution
+                    ? "no execution"
+                    : "execution"}
+                </dd>
+              </div>
+              <div>
+                <dt>Tool choice</dt>
+                <dd>
+                  {displayedLiveProposalRequestBuilder.toolChoiceOmitted
+                    ? "omitted"
+                    : "present"}
+                </dd>
+              </div>
+              <div>
+                <dt>Key ref hash</dt>
+                <dd>{displayedLiveProposalRequestBuilder.keySourceRefHash}</dd>
+              </div>
+              <div>
+                <dt>Blockers / warnings</dt>
+                <dd>
+                  {displayedLiveProposalRequestBuilder.blockerCount} /{" "}
+                  {displayedLiveProposalRequestBuilder.warningCount}
+                </dd>
+              </div>
+              <div>
+                <dt>Can continue later</dt>
+                <dd>
+                  {displayedLiveProposalRequestBuilder.readiness
+                    .canProceedToLiveAdapter
+                    ? "yes"
+                    : "no"}
+                </dd>
+              </div>
+              <div>
+                <dt>Can read key / fetch</dt>
+                <dd>
+                  {displayedLiveProposalRequestBuilder.readiness.canReadApiKey
+                    ? "yes"
+                    : "no"}{" "}
+                  /{" "}
+                  {displayedLiveProposalRequestBuilder.readiness.canFetchNetwork
+                    ? "yes"
+                    : "no"}
+                </dd>
+              </div>
+              <div>
+                <dt>Request hash</dt>
+                <dd>
+                  {displayedLiveProposalRequestBuilder.requestHashPrefix ??
+                    "n/a"}
+                </dd>
+              </div>
+            </dl>
+
+            {displayedLiveProposalRequestBuilder.findings.length > 0 ? (
+              <p className="muted">
+                findings{" "}
+                {displayedLiveProposalRequestBuilder.findings
+                  .map((finding) => finding.code)
+                  .join(", ")}
+              </p>
+            ) : null}
+
+            <p className="fieldHelp">
+              {displayedLiveProposalRequestBuilder.nextAction}
             </p>
           </section>
 
