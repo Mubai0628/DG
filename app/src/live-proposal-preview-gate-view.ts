@@ -99,9 +99,7 @@ export type LiveProposalPreviewGateView = {
 
 export type LiveProposalPreviewGateInput = {
   liveProposalApiKeyPolicyView?: LiveProposalOptInGateView | undefined;
-  liveProposalRequestBuilderView?:
-    | LiveProposalRequestBuilderView
-    | undefined;
+  liveProposalRequestBuilderView?: LiveProposalRequestBuilderView | undefined;
   liveDeepSeekProposalAdapterSummary?: unknown;
   liveProposalValidationIntegrationView?:
     | LiveProposalValidationIntegrationView
@@ -465,9 +463,7 @@ function requestBuilderStage(
   );
 }
 
-function runtimeAdapterStage(
-  value: unknown
-): LiveProposalPreviewGateStage {
+function runtimeAdapterStage(value: unknown): LiveProposalPreviewGateStage {
   if (value === undefined) {
     return stage(
       "runtime_adapter_explicit_opt_in_only",
@@ -477,7 +473,10 @@ function runtimeAdapterStage(
       ["LIVE_PROPOSAL_ADAPTER_RUNTIME_ONLY"]
     );
   }
-  if (executionClaimFindings(value).length > 0 || rawFieldFindings(value).length > 0) {
+  if (
+    executionClaimFindings(value).length > 0 ||
+    rawFieldFindings(value).length > 0
+  ) {
     return stage(
       "runtime_adapter_explicit_opt_in_only",
       "Live DeepSeek Proposal Adapter",
@@ -716,7 +715,9 @@ function rawFieldFindings(value: unknown): LiveProposalPreviewGateFinding[] {
   return uniqueFindings(findings);
 }
 
-function unsafeStringFindings(value: unknown): LiveProposalPreviewGateFinding[] {
+function unsafeStringFindings(
+  value: unknown
+): LiveProposalPreviewGateFinding[] {
   const findings: LiveProposalPreviewGateFinding[] = [];
   walk(value, (_key, nested) => {
     if (typeof nested !== "string") {

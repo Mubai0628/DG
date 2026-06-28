@@ -54,9 +54,7 @@ export type LiveProposalTelemetryAuditView = {
 
 export type LiveProposalTelemetryAuditInput = {
   liveProposalApiKeyPolicyView?: LiveProposalOptInGateView | undefined;
-  liveProposalRequestBuilderView?:
-    | LiveProposalRequestBuilderView
-    | undefined;
+  liveProposalRequestBuilderView?: LiveProposalRequestBuilderView | undefined;
   liveProposalValidationIntegrationView?:
     | LiveProposalValidationIntegrationView
     | undefined;

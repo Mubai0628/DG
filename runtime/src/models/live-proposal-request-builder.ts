@@ -1,7 +1,4 @@
-import {
-  type LiveProposalApiKeyPolicy,
-  type LiveProposalApiKeyPolicyReadiness
-} from "./live-proposal-api-key-policy.js";
+import { type LiveProposalApiKeyPolicy } from "./live-proposal-api-key-policy.js";
 import { stablePreviewHash } from "./stable-preview-hash.js";
 
 export type LiveProposalPromptMode = "summary_only";

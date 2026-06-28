@@ -50,12 +50,19 @@ Current scope:
   `model_patch_proposal` paste/import and chain projection while live DeepSeek
   proposal calls, API key reads, fetch/network, model-driven file writes, and
   App execution remain disabled
+- prepare the v0.9 Live DeepSeek proposal preview RC with runtime-only
+  explicit opt-in live proposal adapter support while App Shell live calls, API
+  key reads, fetch/network, apply/rollback, approval execution, and event writes
+  remain disabled
 - preview the P0M Live Proposal Opt-in Gate as policy metadata only, with no
   API key read, no environment value read, no vault read, no fetch/network, no
   live DeepSeek call, and no App execution
 - preview the P0M Live Proposal Request Builder as a summary-only request
   envelope with no API key read, no vault read, no fetch/network, no live
   DeepSeek call, no tools/tool_choice, and no App execution
+- preview the P0M Live Proposal Validation Integration as summary-only repair
+  and schema validation evidence with no live call, no raw response, no
+  reasoning_content persistence, no apply/rollback, and no EventStore write
 - preview the P0M App Live Proposal Preview Gate as disabled-by-default
   summary visualization with no App live call, no API key read, no
   fetch/network, no request send, no apply/rollback, and no event write

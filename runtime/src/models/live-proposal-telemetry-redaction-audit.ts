@@ -1,8 +1,6 @@
 import { stablePreviewHash } from "./stable-preview-hash.js";
 
-export type LiveProposalTelemetryMode =
-  | "disabled"
-  | "summary_only_audit";
+export type LiveProposalTelemetryMode = "disabled" | "summary_only_audit";
 
 export type LiveProposalTelemetryRedactionAuditInput = {
   apiKeyPolicy?: unknown;
@@ -498,7 +496,9 @@ function artifactRecord(
   const summary = summaryForArtifact(kind, value);
   return record(kind, status, summary, safeArtifactHash(value), [
     ...relevant.map((item) => item.code),
-    ...(status === "passed" ? [] : [`${kind.toUpperCase()}_${status.toUpperCase()}`])
+    ...(status === "passed"
+      ? []
+      : [`${kind.toUpperCase()}_${status.toUpperCase()}`])
   ]);
 }
 
@@ -508,9 +508,13 @@ function usageRecord(
 ): LiveProposalTelemetryRecord {
   const relevant = findings.filter((item) => item.kind === "usage_summary");
   if (usageSummary === undefined) {
-    return record("usage_summary", "missing", "usage summary missing", undefined, [
-      "USAGE_SUMMARY_MISSING"
-    ]);
+    return record(
+      "usage_summary",
+      "missing",
+      "usage summary missing",
+      undefined,
+      ["USAGE_SUMMARY_MISSING"]
+    );
   }
   const status = statusForFindings(relevant);
   const count =
@@ -544,11 +548,15 @@ function reasoningRecord(
       : false
   );
   const status =
-    statusForFindings(relevant) === "passed" && dropped ? "warning" : statusForFindings(relevant);
+    statusForFindings(relevant) === "passed" && dropped
+      ? "warning"
+      : statusForFindings(relevant);
   return record(
     "reasoning_content_drop_summary",
     status,
-    dropped ? `reasoning content dropped; length:${length ?? 0}` : "no reasoning content persisted",
+    dropped
+      ? `reasoning content dropped; length:${length ?? 0}`
+      : "no reasoning content persisted",
     stablePreviewHash(JSON.stringify({ dropped, length: length ?? 0 })),
     [
       ...relevant.map((item) => item.code),
@@ -585,7 +593,9 @@ function record(
   warningCodes: readonly string[],
   count?: number | undefined
 ): LiveProposalTelemetryRecord {
-  const recordHash = stablePreviewHash(JSON.stringify({ kind, status, summary, hash }));
+  const recordHash = stablePreviewHash(
+    JSON.stringify({ kind, status, summary, hash })
+  );
   return {
     recordId: `${kind}-${recordHash.slice(0, 10)}`,
     kind,
@@ -639,7 +649,11 @@ function validateApiKeyPolicy(
     readBoolean(readiness, "canFetchNetwork")
   ) {
     findings.push(
-      finding("api_key_policy_summary", "blocker", "API_KEY_POLICY_READINESS_REJECTED")
+      finding(
+        "api_key_policy_summary",
+        "blocker",
+        "API_KEY_POLICY_READINESS_REJECTED"
+      )
     );
   }
 }
@@ -764,7 +778,9 @@ function validateUsageSummary(
   ]);
   for (const [key, value] of Object.entries(usageSummary)) {
     if (!allowedKeys.has(key) || !isSafeNonNegativeNumber(value)) {
-      findings.push(finding("usage_summary", "blocker", "UNSAFE_USAGE_SUMMARY"));
+      findings.push(
+        finding("usage_summary", "blocker", "UNSAFE_USAGE_SUMMARY")
+      );
     }
     if (typeof value === "string") {
       findings.push(
@@ -1052,10 +1068,17 @@ function countSafeRedactionSignals(
   const request = asRecord(input.requestBuildResult);
   const live = asRecord(input.liveAdapterResult);
   const validation = asRecord(input.validationIntegration);
-  if (readBoolean(asRecord(policy?.keySourceSummary), "rawKeyPresent") === false) {
+  if (
+    readBoolean(asRecord(policy?.keySourceSummary), "rawKeyPresent") === false
+  ) {
     count += 1;
   }
-  if (readBoolean(asRecord(asRecord(request?.request)?.apiKeyPolicyRef), "rawKeyIncluded") === false) {
+  if (
+    readBoolean(
+      asRecord(asRecord(request?.request)?.apiKeyPolicyRef),
+      "rawKeyIncluded"
+    ) === false
+  ) {
     count += 1;
   }
   if (live?.apiKeyHashPrefix !== undefined) {
@@ -1070,7 +1093,9 @@ function countSafeRedactionSignals(
   return count;
 }
 
-function hasAnyArtifact(input: LiveProposalTelemetryRedactionAuditInput): boolean {
+function hasAnyArtifact(
+  input: LiveProposalTelemetryRedactionAuditInput
+): boolean {
   return (
     input.apiKeyPolicy !== undefined ||
     input.requestBuildResult !== undefined ||

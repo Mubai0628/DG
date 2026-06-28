@@ -4465,9 +4465,7 @@ describe("app live proposal preview gate", () => {
     expect(combined).toContain("No Git/shell");
     expect(combined).toContain("No native bridge");
     expect(combined).toContain("No desktop action");
-    expect(docsIndex).toContain(
-      "app-shell-live-proposal-preview-gate-v0.8.md"
-    );
+    expect(docsIndex).toContain("app-shell-live-proposal-preview-gate-v0.8.md");
   });
 });
 
@@ -4510,9 +4508,7 @@ describe("app live proposal telemetry redaction audit", () => {
     const serialized = JSON.stringify({ view, blocked });
 
     expect(view.status).toBe("warning");
-    expect(view.source).toBe(
-      "runtime_live_proposal_telemetry_redaction_audit"
-    );
+    expect(view.source).toBe("runtime_live_proposal_telemetry_redaction_audit");
     expect(view.recordCount).toBeGreaterThan(0);
     expect(view.apiKeyLeakDetected).toBe(false);
     expect(view.rawPromptDetected).toBe(false);
@@ -10160,6 +10156,186 @@ describe("desktop source boundaries", () => {
     expect(appSource).not.toContain("handleRejectModelProposal");
     expect(appSource).not.toContain("handleCommitModelProposal");
     expect(appSource).not.toContain("handleExecuteModelProposal");
+  });
+
+  it("documents the v0.9 live DeepSeek proposal RC without enabling App live calls", async () => {
+    const releaseNotes = await readFile(
+      path.join(
+        repoRoot,
+        "docs",
+        "release-notes-v0.9.0-live-deepseek-proposal-preview-rc.1.md"
+      ),
+      "utf8"
+    );
+    const manualQa = await readFile(
+      path.join(
+        repoRoot,
+        "docs",
+        "app-shell-live-deepseek-proposal-manual-qa.md"
+      ),
+      "utf8"
+    );
+    const checklist = await readFile(
+      path.join(
+        repoRoot,
+        "docs",
+        "app-shell-live-deepseek-proposal-rc-checklist.md"
+      ),
+      "utf8"
+    );
+    const docsIndex = await readFile(
+      path.join(repoRoot, "docs", "README.md"),
+      "utf8"
+    );
+    const rootReadme = await readFile(path.join(repoRoot, "README.md"), "utf8");
+    const appReadme = await readFile(path.join(appRoot, "README.md"), "utf8");
+    const combined = `${releaseNotes}\n${manualQa}\n${checklist}\n${docsIndex}\n${rootReadme}\n${appReadme}`;
+
+    expect(releaseNotes).toContain(
+      "v0.9.0-live-deepseek-proposal-preview-rc.1"
+    );
+    expect(releaseNotes).toContain(
+      "Live DeepSeek proposal adapter, explicit opt-in, no App execution"
+    );
+    expect(combined).toContain("v0.8 DeepSeek proposal preview pipeline");
+    expect(combined).toContain("P0M Live DeepSeek Proposal Adapter ADR");
+    expect(combined).toContain("API Key Access Policy / Opt-in Gate");
+    expect(combined).toContain("Live Proposal Request Builder");
+    expect(combined).toContain("Runtime Live DeepSeek Proposal Adapter");
+    expect(combined).toContain("Live Proposal Repair / Validation Integration");
+    expect(combined).toContain("App Live Proposal Preview Gate");
+    expect(combined).toContain("Telemetry / Redaction Audit");
+    expect(combined).toContain("web_table_to_csv");
+    expect(combined).toContain("Record Draft Event");
+    expect(combined).toContain("summary-only live proposal requests");
+    expect(combined).toContain("injected API key resolver");
+    expect(combined).toContain("injected transport");
+    expect(combined).toContain("repair/schema chain");
+    expect(combined).toContain("App can preview opt-in");
+    expect(combined).toContain("App Shell does not call DeepSeek");
+    expect(combined).toContain("No App-side live DeepSeek call");
+    expect(combined).toContain("No App API key read");
+    expect(combined).toContain("No App fetch/network");
+    expect(combined).toContain("No autonomous DeepSeek coding loop");
+    expect(combined).toContain("No real DeepSeek chat UI");
+    expect(combined).toContain("No real ControlPlaneRun execution");
+    expect(combined).toContain("No App-side user workspace patch apply");
+    expect(combined).toContain("No App-side rollback");
+    expect(combined).toContain("No App-side apply/rollback EventStore write");
+    expect(combined).toContain("No App approval/rejection execution");
+    expect(combined).toContain("No production PermissionLease issuance");
+    expect(combined).toContain("No Git commit or push");
+    expect(combined).toContain("No shell execution");
+    expect(combined).toContain("No capability invocation");
+    expect(combined).toContain("No MCP/plugin/skills runtime");
+    expect(combined).toContain("No `nativeMessaging` or live bridge");
+    expect(combined).toContain("No desktop action");
+    expect(combined).toContain("explicit opt-in");
+    expect(combined).toContain("no default environment read");
+    expect(combined).toContain("no default fetch/network");
+    expect(combined).toContain("summary-only request boundary");
+    expect(combined).toContain("no tools or `tool_choice`");
+    expect(combined).toContain("reasoning_content");
+    expect(combined).toContain("Unsafe live output fails closed");
+    expect(combined).toContain("Telemetry / Redaction Audit");
+    expect(combined).toContain("git status --short");
+    expect(combined).toContain("pnpm verify:ci");
+    expect(combined).toContain("pnpm release:smoke");
+    expect(combined).toContain("pnpm app:qa:check");
+    expect(combined).toContain("pnpm app:dev");
+    expect(combined).toContain("D:\\workspaces\\demo");
+    expect(combined).toContain("web-table-export-p0m.csv");
+    expect(combined).toContain("Live Proposal Opt-in Gate");
+    expect(combined).toContain("Live Proposal Request Builder");
+    expect(combined).toContain("Live Proposal Validation Integration");
+    expect(combined).toContain("App Live Proposal Preview Gate");
+    expect(combined).toContain("Live Proposal Telemetry / Redaction Audit");
+    expect(combined).toContain("FILE_EXISTS");
+    expect(combined).toContain("PASSWORD_VALUE_MARKER");
+    expect(combined).toContain("GitHub Actions");
+    expect(combined).toContain("Generated Artifacts");
+    expect(combined).toContain("Rollback Guidance");
+    expect(combined).toContain("full docs path links");
+    expect(combined).toContain(
+      "release-notes-v0.9.0-live-deepseek-proposal-preview-rc.1.md"
+    );
+    expect(combined).toContain("app-shell-live-deepseek-proposal-manual-qa.md");
+    expect(combined).toContain(
+      "app-shell-live-deepseek-proposal-rc-checklist.md"
+    );
+  });
+
+  it("locks v0.9 App Shell copy as disabled-only live proposal preview", async () => {
+    const appSource = await readFile(
+      path.join(appRoot, "src", "App.tsx"),
+      "utf8"
+    );
+    const normalizedAppSource = appSource.replace(/\s+/g, " ");
+
+    expect(appSource).toContain("Policy only / no API key read");
+    expect(normalizedAppSource).toContain(
+      "The App Shell does not read API keys, call DeepSeek, fetch network, apply patches, rollback, or write events."
+    );
+    expect(appSource).toContain("Request preview / no network");
+    expect(normalizedAppSource).toContain(
+      "The App Shell does not send live requests."
+    );
+    expect(appSource).toContain("Summary only / no execution");
+    expect(normalizedAppSource).toContain(
+      "The App Shell does not call DeepSeek, apply patches, rollback, or write events."
+    );
+    expect(appSource).toContain("Disabled by default / no App live call");
+    expect(normalizedAppSource).toContain(
+      "The App Shell cannot read API keys, call DeepSeek, fetch network, apply patches, rollback, approve, issue leases, or write events."
+    );
+    expect(appSource).toContain("Summary only / no raw prompt");
+    expect(normalizedAppSource).toContain(
+      "The App Shell does not persist raw prompts, raw responses, reasoning_content, API keys, or model calls."
+    );
+    expect(appSource).toContain("Preview only / no model call");
+    expect(appSource).toContain("Preview chain / no execution");
+    expect(appSource).toContain("Disabled by default / runtime prototype only");
+    expect(appSource).toContain("Runtime only / App write disabled");
+    expect(appSource).toContain("Design only / disabled");
+    expect(appSource).toContain(
+      "No prompt is assembled and no model request is sent."
+    );
+    expect(appSource).toMatch(
+      /No\s+capability\s+is\s+invoked\s+and\s+no\s+permission\s+lease\s+is\s+issued\./
+    );
+    expect(appSource).toContain("Event log events");
+    expect(appSource).toContain("Source-tree mode");
+    expect(appSource).toContain("No native bridge");
+    expect(appSource).toContain("Call DeepSeek (disabled)");
+    expect(appSource).toContain("Send Live Proposal Request (disabled)");
+    expect(appSource).toContain("Write Telemetry (disabled)");
+    expect(appSource).not.toMatch(/>\s*Call DeepSeek\s*</);
+    expect(appSource).not.toMatch(/>\s*Send Live Proposal Request\s*</);
+    expect(appSource).not.toMatch(/>\s*Apply\s*</);
+    expect(appSource).not.toMatch(/>\s*Rollback\s*</);
+    expect(appSource).not.toMatch(/>\s*Write Events\s*</);
+    expect(appSource).not.toMatch(/>\s*Approve\s*</);
+    expect(appSource).not.toMatch(/>\s*Reject\s*</);
+    expect(appSource).not.toMatch(/>\s*Commit\s*</);
+    expect(appSource).not.toMatch(/>\s*Execute\s*</);
+    expect(appSource).not.toContain("DeepSeek chat works");
+    expect(appSource).not.toContain("Generate Live DeepSeek Proposal");
+    expect(appSource).not.toContain("Read DeepSeek API Key");
+    expect(appSource).not.toContain("Fetch Live DeepSeek Proposal");
+    expect(appSource).not.toContain("Create Run works");
+    expect(appSource).not.toContain("Execute Run works");
+    expect(appSource).not.toContain("Enable native bridge");
+    expect(appSource).not.toContain("handleCallDeepSeek");
+    expect(appSource).not.toContain("handleSendLiveProposalRequest");
+    expect(appSource).not.toContain("handleReadDeepSeekApiKey");
+    expect(appSource).not.toContain("handleFetchLiveProposal");
+    expect(appSource).not.toContain("handleApplyLiveProposal");
+    expect(appSource).not.toContain("handleRollbackLiveProposal");
+    expect(appSource).not.toContain("handleWriteLiveProposalEvents");
+    expect(appSource).not.toContain("handleApproveLiveProposal");
+    expect(appSource).not.toContain("handleRejectLiveProposal");
+    expect(appSource).not.toContain("handleCommitLiveProposal");
+    expect(appSource).not.toContain("handleExecuteLiveProposal");
   });
 
   it("documents the v0.7 post-release review and P0L DeepSeek proposal roadmap without enabling execution", async () => {

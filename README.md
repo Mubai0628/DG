@@ -199,6 +199,25 @@ v0.8 DeepSeek Proposal Preview RC references:
 - [P0M Live DeepSeek Proposal Adapter roadmap](docs/p0m-live-deepseek-proposal-adapter-roadmap.md)
 - [P0M-001 Live DeepSeek Proposal Adapter plan](docs/p0m-001-live-deepseek-proposal-adapter-plan.md)
 
+## v0.9 Live DeepSeek Proposal Preview RC status
+
+Recommended tag:
+`v0.9.0-live-deepseek-proposal-preview-rc.1`.
+
+The P0M live DeepSeek proposal line adds runtime-only explicit opt-in live
+proposal adapter support with injected API key resolver and injected transport,
+summary-only request building, repair/schema validation integration, and
+telemetry/redaction audit. App Shell surfaces remain preview-only and cannot
+call DeepSeek, read API keys, fetch network, apply, rollback, approve, reject,
+issue leases, write events, execute Git, execute shell, enable a native bridge,
+or perform desktop actions.
+
+v0.9 Live DeepSeek Proposal Preview RC references:
+
+- [v0.9.0 Live DeepSeek Proposal Preview RC release notes](docs/release-notes-v0.9.0-live-deepseek-proposal-preview-rc.1.md)
+- [App Shell Live DeepSeek Proposal manual QA](docs/app-shell-live-deepseek-proposal-manual-qa.md)
+- [App Shell Live DeepSeek Proposal RC checklist](docs/app-shell-live-deepseek-proposal-rc-checklist.md)
+
 ## Current roadmap
 
 P0F is complete after `v0.2.0-app-shell-rc.1`, P0G is complete after
@@ -209,9 +228,12 @@ P0F is complete after `v0.2.0-app-shell-rc.1`, P0G is complete after
 `v0.7.0-user-workspace-apply-preview-rc.1`. P0L is complete after
 `v0.8.0-deepseek-proposal-preview-rc.1` with DeepSeek proposal previews only:
 structured proposal schema, fake/dry generation, repair, App import, and chain
-projection. P0M is planned for explicit opt-in live DeepSeek proposal adapter
-design only. Live model calls, API key reads, fetch/network, model-driven file
-writes, App-side user workspace apply, rollback, approval execution,
+projection. P0M is preparing `v0.9.0-live-deepseek-proposal-preview-rc.1` with
+runtime-only explicit opt-in live DeepSeek proposal adapter support, summary
+request building, validation integration, App disabled-only gate previews, and
+telemetry/redaction audit. App-side live model calls, App API key reads, App
+fetch/network, model-driven file writes, App-side user workspace apply,
+rollback, approval execution,
 apply/rollback event writes, run execution, Git execution, shell execution,
 broad capability invocation, production PermissionLease issuing, memory
 persistence UI, MCP/plugin/skills runtime, native bridge, and desktop action

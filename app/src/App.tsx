@@ -1170,27 +1170,25 @@ export function DesktopShell(): JSX.Element {
       () => buildLiveProposalValidationIntegrationView(),
       []
     );
-  const liveProposalPreviewGateCandidate =
-    useMemo<LiveProposalPreviewGateView>(
-      () =>
-        buildLiveProposalPreviewGateView({
-          liveProposalApiKeyPolicyView: displayedLiveProposalOptInGate,
-          liveProposalRequestBuilderView: displayedLiveProposalRequestBuilder,
-          liveProposalValidationIntegrationView,
-          modelPatchProposalImportView: modelPatchProposalImportPreview,
-          modelProposalChainIntegrationView:
-            modelProposalChainIntegrationPreview,
-          auditSurface: patchWorkbenchSurfaces.audit
-        }),
-      [
-        displayedLiveProposalOptInGate,
-        displayedLiveProposalRequestBuilder,
+  const liveProposalPreviewGateCandidate = useMemo<LiveProposalPreviewGateView>(
+    () =>
+      buildLiveProposalPreviewGateView({
+        liveProposalApiKeyPolicyView: displayedLiveProposalOptInGate,
+        liveProposalRequestBuilderView: displayedLiveProposalRequestBuilder,
         liveProposalValidationIntegrationView,
-        modelPatchProposalImportPreview,
-        modelProposalChainIntegrationPreview,
-        patchWorkbenchSurfaces.audit
-      ]
-    );
+        modelPatchProposalImportView: modelPatchProposalImportPreview,
+        modelProposalChainIntegrationView: modelProposalChainIntegrationPreview,
+        auditSurface: patchWorkbenchSurfaces.audit
+      }),
+    [
+      displayedLiveProposalOptInGate,
+      displayedLiveProposalRequestBuilder,
+      liveProposalValidationIntegrationView,
+      modelPatchProposalImportPreview,
+      modelProposalChainIntegrationPreview,
+      patchWorkbenchSurfaces.audit
+    ]
+  );
   const displayedLiveProposalPreviewGate =
     liveProposalPreviewGatePreview ?? buildLiveProposalPreviewGateView();
   const liveProposalTelemetryAuditCandidate =
@@ -1213,8 +1211,7 @@ export function DesktopShell(): JSX.Element {
       ]
     );
   const displayedLiveProposalTelemetryAudit =
-    liveProposalTelemetryAuditPreview ??
-    buildLiveProposalTelemetryAuditView();
+    liveProposalTelemetryAuditPreview ?? buildLiveProposalTelemetryAuditView();
   useEffect(() => {
     setLiveProposalTelemetryAuditPreview(undefined);
   }, [
@@ -3233,6 +3230,7 @@ export function DesktopShell(): JSX.Element {
               Builds a summary-only request boundary for a future live DeepSeek
               proposal call. The App Shell does not read API keys, call
               DeepSeek, fetch network, apply patches, rollback, or write events.
+              The App Shell does not send live requests.
             </p>
 
             <label>
