@@ -59,6 +59,9 @@ Current scope:
 - preview the P0M App Live Proposal Preview Gate as disabled-by-default
   summary visualization with no App live call, no API key read, no
   fetch/network, no request send, no apply/rollback, and no event write
+- preview the P0M Live Proposal Telemetry / Redaction Audit as summary-only
+  redaction evidence with no raw prompt, raw response, reasoning_content, API
+  key, telemetry write, fetch/network, or App execution
 
 Current limitations:
 
@@ -107,8 +110,11 @@ Current limitations:
   tools/tool_choice; App Live Proposal Preview Gate is disabled-by-default
   gate visualization only with no App live call, no API key read, no
   fetch/network, no request send, no apply/rollback, no approval execution, no
-  PermissionLease issuing, and no EventStore write; none of these App surfaces
-  reads or writes files
+  PermissionLease issuing, and no EventStore write; Live Proposal Telemetry /
+  Redaction Audit is audit-only with no raw prompt persistence, no raw response
+  persistence, no reasoning_content persistence, no API key read, no telemetry
+  event write, no fetch/network, no Tauri command, no apply/rollback, and no
+  App execution; none of these App surfaces reads or writes files
 - no validation, audit, approval, virtual apply, rollback, or replay preview is
   an apply/approval/rollback/execution lane
 - no real DeepSeek API call from the desktop shell

@@ -60,6 +60,7 @@ import { buildLiveProposalOptInGateView } from "../src/live-proposal-opt-in-gate
 import { buildLiveProposalRequestBuilderView } from "../src/live-proposal-request-builder-view.js";
 import { buildLiveProposalValidationIntegrationView } from "../src/live-proposal-validation-integration-view.js";
 import { buildLiveProposalPreviewGateView } from "../src/live-proposal-preview-gate-view.js";
+import { buildLiveProposalTelemetryAuditView } from "../src/live-proposal-telemetry-audit-view.js";
 import {
   buildPatchProposalValidationPreviewView,
   patchProposalValidationApprovalRefs,
@@ -4466,6 +4467,159 @@ describe("app live proposal preview gate", () => {
     expect(combined).toContain("No desktop action");
     expect(docsIndex).toContain(
       "app-shell-live-proposal-preview-gate-v0.8.md"
+    );
+  });
+});
+
+describe("app live proposal telemetry redaction audit", () => {
+  it("builds a summary-only telemetry audit view without execution readiness", () => {
+    const policy = buildLiveProposalOptInGateView({
+      modelProfileId: "deepseek-chat",
+      keySourceRef: "DEEPSEEK_API_KEY",
+      optInMode: "explicit_live_proposal_opt_in"
+    });
+    const request = buildLiveProposalRequestBuilderView({
+      objectiveSummary: "Create a summary-only telemetry proposal.",
+      intent: "Generate a structured model_patch_proposal draft.",
+      modelProfileId: "deepseek-chat",
+      keySourceRef: "DEEPSEEK_API_KEY",
+      optInMode: "explicit_live_proposal_opt_in",
+      allowedPathRefsText: "docs/live-proposal-telemetry.md"
+    });
+    const validation = buildLiveProposalValidationIntegrationView();
+    const gate = buildLiveProposalPreviewGateView({
+      liveProposalApiKeyPolicyView: policy,
+      liveProposalRequestBuilderView: request,
+      liveProposalValidationIntegrationView: validation
+    });
+    const view = buildLiveProposalTelemetryAuditView({
+      liveProposalApiKeyPolicyView: policy,
+      liveProposalRequestBuilderView: request,
+      liveProposalValidationIntegrationView: validation,
+      liveProposalPreviewGateView: gate
+    });
+    const blocked = buildLiveProposalTelemetryAuditView({
+      liveProposalPreviewGateView: {
+        ...gate,
+        readiness: {
+          ...gate.readiness,
+          appCanExecute: true as false
+        }
+      }
+    });
+    const serialized = JSON.stringify({ view, blocked });
+
+    expect(view.status).toBe("warning");
+    expect(view.source).toBe(
+      "runtime_live_proposal_telemetry_redaction_audit"
+    );
+    expect(view.recordCount).toBeGreaterThan(0);
+    expect(view.apiKeyLeakDetected).toBe(false);
+    expect(view.rawPromptDetected).toBe(false);
+    expect(view.rawResponseDetected).toBe(false);
+    expect(view.reasoningContentPersisted).toBe(false);
+    expect(view.readiness.canWriteTelemetryEvent).toBe(false);
+    expect(view.readiness.canPersistRawPrompt).toBe(false);
+    expect(view.readiness.canPersistRawResponse).toBe(false);
+    expect(view.readiness.canPersistReasoningContent).toBe(false);
+    expect(view.readiness.canReadApiKey).toBe(false);
+    expect(view.readiness.canCallLiveModel).toBe(false);
+    expect(view.readiness.canFetchNetwork).toBe(false);
+    expect(view.readiness.canWriteEventStore).toBe(false);
+    expect(view.readiness.canApplyPatch).toBe(false);
+    expect(view.readiness.canRollback).toBe(false);
+    expect(view.readiness.canExecuteGit).toBe(false);
+    expect(view.readiness.canExecuteShell).toBe(false);
+    expect(view.readiness.appCanExecute).toBe(false);
+    expect(blocked.status).toBe("blocked");
+    expect(blocked.findings.map((finding) => finding.code)).toContain(
+      "EXECUTION_READINESS_REJECTED"
+    );
+    expect(serialized).not.toContain("sk-");
+    expect(serialized).not.toContain("model response text");
+    expect(serialized).not.toContain("model prompt text");
+    expect(serialized).not.toContain("Authorization:");
+  });
+
+  it("keeps App source telemetry audit disabled without writes or live calls", async () => {
+    const appSource = await readFile(
+      path.join(appRoot, "src", "App.tsx"),
+      "utf8"
+    );
+    const viewSource = await readFile(
+      path.join(appRoot, "src", "live-proposal-telemetry-audit-view.ts"),
+      "utf8"
+    );
+    const combined = `${appSource}\n${viewSource}`;
+
+    expect(appSource).toContain("Live Proposal Telemetry / Redaction Audit");
+    expect(appSource).toContain("Summary only / no raw prompt");
+    expect(appSource).toContain("Preview Telemetry Audit");
+    expect(appSource).toContain("Write Telemetry (disabled)");
+    expect(appSource).not.toContain('type="password"');
+    expect(appSource).not.toContain("Authorization input");
+    expect(appSource).not.toContain("raw prompt input");
+    expect(appSource).not.toContain("raw response input");
+    expect(appSource).not.toContain("handleWriteTelemetry");
+    expect(appSource).not.toContain("handleCallTelemetry");
+    expect(appSource).not.toContain("handleCallDeepSeekTelemetry");
+    expect(viewSource).not.toContain("process.env");
+    expect(viewSource).not.toContain("fetch(");
+    expect(viewSource).not.toContain("safeInvoke");
+    expect(viewSource).not.toContain("recordControlRunDraftEvent");
+    expect(viewSource).not.toContain("runLiveDeepSeekProposalAdapter");
+    expect(combined).not.toContain("writeLiveProposalTelemetryEvent");
+    expect(combined).not.toContain("writeLiveProposalEvent");
+  });
+
+  it("documents runtime and App live proposal telemetry redaction audit boundaries", async () => {
+    const runtimeDoc = await readFile(
+      path.join(
+        repoRoot,
+        "docs",
+        "runtime-live-proposal-telemetry-redaction-audit-v0.8.md"
+      ),
+      "utf8"
+    );
+    const appDoc = await readFile(
+      path.join(
+        repoRoot,
+        "docs",
+        "app-shell-live-proposal-telemetry-redaction-audit-v0.8.md"
+      ),
+      "utf8"
+    );
+    const docsIndex = await readFile(
+      path.join(repoRoot, "docs", "README.md"),
+      "utf8"
+    );
+    const combined = `${runtimeDoc}\n${appDoc}\n${docsIndex}`;
+
+    expect(combined).toContain(
+      "Runtime Live Proposal Telemetry / Redaction Audit v0.8"
+    );
+    expect(combined).toContain(
+      "App Shell Live Proposal Telemetry / Redaction Audit v0.8"
+    );
+    expect(combined).toContain("Audit only");
+    expect(combined).toContain("No live call");
+    expect(combined).toContain("No API key read");
+    expect(combined).toContain("No fetch/network");
+    expect(combined).toContain("No raw prompt persistence");
+    expect(combined).toContain("No raw response persistence");
+    expect(combined).toContain("No reasoning_content persistence");
+    expect(combined).toContain("No EventStore write");
+    expect(combined).toContain("No file write");
+    expect(combined).toContain("No apply or rollback");
+    expect(combined).toContain("Usage summary only");
+    expect(combined).toContain("No Git/shell");
+    expect(combined).toContain("No native bridge");
+    expect(combined).toContain("No desktop action");
+    expect(docsIndex).toContain(
+      "runtime-live-proposal-telemetry-redaction-audit-v0.8.md"
+    );
+    expect(docsIndex).toContain(
+      "app-shell-live-proposal-telemetry-redaction-audit-v0.8.md"
     );
   });
 });

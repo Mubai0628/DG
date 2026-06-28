@@ -106,6 +106,11 @@ import {
   type LiveProposalPreviewGateView
 } from "./live-proposal-preview-gate-view.js";
 import {
+  buildLiveProposalTelemetryAuditView,
+  summarizeLiveProposalTelemetryAuditView,
+  type LiveProposalTelemetryAuditView
+} from "./live-proposal-telemetry-audit-view.js";
+import {
   buildPatchProposalValidationPreviewView,
   patchProposalValidationApprovalRefs,
   patchProposalValidationAuditWarningCodes,
@@ -359,6 +364,10 @@ export function DesktopShell(): JSX.Element {
   ] = useState<LiveProposalRequestBuilderView | undefined>();
   const [liveProposalPreviewGatePreview, setLiveProposalPreviewGatePreview] =
     useState<LiveProposalPreviewGateView | undefined>();
+  const [
+    liveProposalTelemetryAuditPreview,
+    setLiveProposalTelemetryAuditPreview
+  ] = useState<LiveProposalTelemetryAuditView | undefined>();
   const [patchProposalCreationPreview, setPatchProposalCreationPreview] =
     useState<AppPatchProposalCreationPreviewView | undefined>();
   const [patchProposalValidationPreview, setPatchProposalValidationPreview] =
@@ -1184,6 +1193,37 @@ export function DesktopShell(): JSX.Element {
     );
   const displayedLiveProposalPreviewGate =
     liveProposalPreviewGatePreview ?? buildLiveProposalPreviewGateView();
+  const liveProposalTelemetryAuditCandidate =
+    useMemo<LiveProposalTelemetryAuditView>(
+      () =>
+        buildLiveProposalTelemetryAuditView({
+          liveProposalApiKeyPolicyView: displayedLiveProposalOptInGate,
+          liveProposalRequestBuilderView: displayedLiveProposalRequestBuilder,
+          liveProposalValidationIntegrationView,
+          liveProposalPreviewGateView:
+            displayedLiveProposalPreviewGate.status === "empty"
+              ? undefined
+              : displayedLiveProposalPreviewGate
+        }),
+      [
+        displayedLiveProposalOptInGate,
+        displayedLiveProposalPreviewGate,
+        displayedLiveProposalRequestBuilder,
+        liveProposalValidationIntegrationView
+      ]
+    );
+  const displayedLiveProposalTelemetryAudit =
+    liveProposalTelemetryAuditPreview ??
+    buildLiveProposalTelemetryAuditView();
+  useEffect(() => {
+    setLiveProposalTelemetryAuditPreview(undefined);
+  }, [
+    liveProposalOptInGatePreview,
+    liveProposalPreviewGatePreview,
+    liveProposalRequestBuilderPreview,
+    modelPatchProposalImportPreview,
+    modelProposalChainIntegrationPreview
+  ]);
   const contextAssemblyCandidate = useMemo<AppContextAssemblyPreviewView>(
     () =>
       buildContextAssemblyPreviewView({
@@ -1539,6 +1579,7 @@ export function DesktopShell(): JSX.Element {
     setModelPatchProposalImportPreview(modelPatchProposalImportCandidate);
     setModelProposalChainIntegrationPreview(undefined);
     setLiveProposalPreviewGatePreview(undefined);
+    setLiveProposalTelemetryAuditPreview(undefined);
     setPatchProposalCreationPreview(undefined);
     setPatchProposalValidationPreview(undefined);
     setPatchDiffAuditPreview(undefined);
@@ -1556,6 +1597,7 @@ export function DesktopShell(): JSX.Element {
     setModelPatchProposalImportPreview(undefined);
     setModelProposalChainIntegrationPreview(undefined);
     setLiveProposalPreviewGatePreview(undefined);
+    setLiveProposalTelemetryAuditPreview(undefined);
     setPatchProposalCreationPreview(undefined);
     setPatchProposalValidationPreview(undefined);
     setPatchDiffAuditPreview(undefined);
@@ -1573,33 +1615,43 @@ export function DesktopShell(): JSX.Element {
       modelProposalChainIntegrationCandidate
     );
     setLiveProposalPreviewGatePreview(undefined);
+    setLiveProposalTelemetryAuditPreview(undefined);
     setContextAssemblyPreview(undefined);
   }
 
   function handleClearModelProposalChain(): void {
     setModelProposalChainIntegrationPreview(undefined);
     setLiveProposalPreviewGatePreview(undefined);
+    setLiveProposalTelemetryAuditPreview(undefined);
     setContextAssemblyPreview(undefined);
   }
 
   function handlePreviewLiveProposalOptInGate(): void {
     setLiveProposalOptInGatePreview(liveProposalOptInGateCandidate);
     setLiveProposalPreviewGatePreview(undefined);
+    setLiveProposalTelemetryAuditPreview(undefined);
   }
 
   function handlePreviewLiveProposalRequest(): void {
     setLiveProposalRequestBuilderPreview(liveProposalRequestBuilderCandidate);
     setLiveProposalPreviewGatePreview(undefined);
+    setLiveProposalTelemetryAuditPreview(undefined);
   }
 
   function handlePreviewLiveProposalGate(): void {
     setLiveProposalPreviewGatePreview(liveProposalPreviewGateCandidate);
+    setLiveProposalTelemetryAuditPreview(undefined);
     setContextAssemblyPreview(undefined);
   }
 
   function handleClearLiveProposalGate(): void {
     setLiveProposalPreviewGatePreview(undefined);
+    setLiveProposalTelemetryAuditPreview(undefined);
     setContextAssemblyPreview(undefined);
+  }
+
+  function handlePreviewLiveProposalTelemetryAudit(): void {
+    setLiveProposalTelemetryAuditPreview(liveProposalTelemetryAuditCandidate);
   }
 
   function handleValidatePatchProposal(): void {
@@ -3016,6 +3068,7 @@ export function DesktopShell(): JSX.Element {
                     setLiveProposalOptInGatePreview(undefined);
                     setLiveProposalRequestBuilderPreview(undefined);
                     setLiveProposalPreviewGatePreview(undefined);
+                    setLiveProposalTelemetryAuditPreview(undefined);
                   }}
                   placeholder="deepseek-chat"
                 />
@@ -3031,6 +3084,7 @@ export function DesktopShell(): JSX.Element {
                   setLiveProposalOptInGatePreview(undefined);
                   setLiveProposalRequestBuilderPreview(undefined);
                   setLiveProposalPreviewGatePreview(undefined);
+                  setLiveProposalTelemetryAuditPreview(undefined);
                 }}
                 placeholder="DEEPSEEK_API_KEY ref only, no value"
               />
@@ -3052,6 +3106,7 @@ export function DesktopShell(): JSX.Element {
                   setLiveProposalOptInGatePreview(undefined);
                   setLiveProposalRequestBuilderPreview(undefined);
                   setLiveProposalPreviewGatePreview(undefined);
+                  setLiveProposalTelemetryAuditPreview(undefined);
                 }}
               >
                 <option value="disabled">disabled</option>
@@ -3189,6 +3244,7 @@ export function DesktopShell(): JSX.Element {
                   setLiveProposalRequestObjective(event.target.value);
                   setLiveProposalRequestBuilderPreview(undefined);
                   setLiveProposalPreviewGatePreview(undefined);
+                  setLiveProposalTelemetryAuditPreview(undefined);
                 }}
                 placeholder="Describe the desired structured patch proposal without raw source or diff"
               />
@@ -3202,6 +3258,7 @@ export function DesktopShell(): JSX.Element {
                   setLiveProposalRequestIntent(event.target.value);
                   setLiveProposalRequestBuilderPreview(undefined);
                   setLiveProposalPreviewGatePreview(undefined);
+                  setLiveProposalTelemetryAuditPreview(undefined);
                 }}
                 placeholder="Generate a structured model_patch_proposal draft."
               />
@@ -3217,6 +3274,7 @@ export function DesktopShell(): JSX.Element {
                     setLiveProposalOptInGatePreview(undefined);
                     setLiveProposalRequestBuilderPreview(undefined);
                     setLiveProposalPreviewGatePreview(undefined);
+                    setLiveProposalTelemetryAuditPreview(undefined);
                   }}
                   placeholder="deepseek-chat"
                 />
@@ -3230,6 +3288,7 @@ export function DesktopShell(): JSX.Element {
                     setLiveProposalRequestAllowedPaths(event.target.value);
                     setLiveProposalRequestBuilderPreview(undefined);
                     setLiveProposalPreviewGatePreview(undefined);
+                    setLiveProposalTelemetryAuditPreview(undefined);
                   }}
                   placeholder={"docs/example.md\napp/src/example.ts"}
                 />
@@ -3519,6 +3578,194 @@ export function DesktopShell(): JSX.Element {
                 ).nextAction
               }{" "}
               No key value or raw response text is accepted.
+            </p>
+          </section>
+
+          <section
+            className="eventPanel"
+            aria-label="Live Proposal Telemetry / Redaction Audit"
+          >
+            <div className="panelHeader">
+              <h2>Live Proposal Telemetry / Redaction Audit</h2>
+              <span className="muted">Summary only / no raw prompt</span>
+            </div>
+            <p className="fieldHelp">
+              Audits future live proposal telemetry boundaries. The App Shell
+              does not persist raw prompts, raw responses, reasoning_content,
+              API keys, or model calls.
+            </p>
+
+            <div className="buttonRow">
+              <button
+                type="button"
+                className="secondary"
+                onClick={(event) => {
+                  event.preventDefault();
+                  event.stopPropagation();
+                  handlePreviewLiveProposalTelemetryAudit();
+                }}
+              >
+                Preview Telemetry Audit
+              </button>
+              <button type="button" className="secondary" disabled>
+                Write Telemetry (disabled)
+              </button>
+            </div>
+
+            {displayedLiveProposalTelemetryAudit.status === "empty" ? (
+              <p className="empty">
+                No telemetry audit preview yet. Preview the audit to inspect
+                summary-only redaction readiness.
+              </p>
+            ) : null}
+
+            {displayedLiveProposalTelemetryAudit.status === "blocked" ? (
+              <div className="errorBox">
+                <strong>Telemetry audit blocked</strong>
+                <p>{displayedLiveProposalTelemetryAudit.nextAction}</p>
+              </div>
+            ) : null}
+
+            <dl className="summaryGrid compact">
+              <div>
+                <dt>Status</dt>
+                <dd>{displayedLiveProposalTelemetryAudit.status}</dd>
+              </div>
+              <div>
+                <dt>Audit</dt>
+                <dd>{displayedLiveProposalTelemetryAudit.auditId}</dd>
+              </div>
+              <div>
+                <dt>Records</dt>
+                <dd>{displayedLiveProposalTelemetryAudit.recordCount}</dd>
+              </div>
+              <div>
+                <dt>Warning / blocked records</dt>
+                <dd>
+                  {displayedLiveProposalTelemetryAudit.warningRecordCount} /{" "}
+                  {displayedLiveProposalTelemetryAudit.blockedRecordCount}
+                </dd>
+              </div>
+              <div>
+                <dt>Redacted / raw fields</dt>
+                <dd>
+                  {displayedLiveProposalTelemetryAudit.redactedFieldCount} /{" "}
+                  {displayedLiveProposalTelemetryAudit.rawFieldDetectedCount}
+                </dd>
+              </div>
+              <div>
+                <dt>Key / prompt leak</dt>
+                <dd>
+                  {displayedLiveProposalTelemetryAudit.apiKeyLeakDetected
+                    ? "yes"
+                    : "no"}{" "}
+                  /{" "}
+                  {displayedLiveProposalTelemetryAudit.rawPromptDetected
+                    ? "yes"
+                    : "no"}
+                </dd>
+              </div>
+              <div>
+                <dt>Response / reasoning persisted</dt>
+                <dd>
+                  {displayedLiveProposalTelemetryAudit.rawResponseDetected
+                    ? "yes"
+                    : "no"}{" "}
+                  /{" "}
+                  {displayedLiveProposalTelemetryAudit.reasoningContentPersisted
+                    ? "yes"
+                    : "no"}
+                </dd>
+              </div>
+              <div>
+                <dt>Usage tokens</dt>
+                <dd>
+                  {displayedLiveProposalTelemetryAudit.usageSummary ===
+                  undefined
+                    ? "n/a"
+                    : `${displayedLiveProposalTelemetryAudit.usageSummary.totalTokens ?? 0} token(s)`}
+                </dd>
+              </div>
+              <div>
+                <dt>Hash</dt>
+                <dd>{displayedLiveProposalTelemetryAudit.auditHashPrefix}</dd>
+              </div>
+              <div>
+                <dt>Telemetry event / model call</dt>
+                <dd>
+                  {displayedLiveProposalTelemetryAudit.readiness
+                    .canWriteTelemetryEvent
+                    ? "yes"
+                    : "no"}{" "}
+                  /{" "}
+                  {displayedLiveProposalTelemetryAudit.readiness
+                    .canCallLiveModel
+                    ? "yes"
+                    : "no"}
+                </dd>
+              </div>
+              <div>
+                <dt>Persist prompt / response</dt>
+                <dd>
+                  {displayedLiveProposalTelemetryAudit.readiness
+                    .canPersistRawPrompt
+                    ? "yes"
+                    : "no"}{" "}
+                  /{" "}
+                  {displayedLiveProposalTelemetryAudit.readiness
+                    .canPersistRawResponse
+                    ? "yes"
+                    : "no"}
+                </dd>
+              </div>
+              <div>
+                <dt>Apply / rollback</dt>
+                <dd>
+                  {displayedLiveProposalTelemetryAudit.readiness.canApplyPatch
+                    ? "yes"
+                    : "no"}{" "}
+                  /{" "}
+                  {displayedLiveProposalTelemetryAudit.readiness.canRollback
+                    ? "yes"
+                    : "no"}
+                </dd>
+              </div>
+            </dl>
+
+            {displayedLiveProposalTelemetryAudit.records.length > 0 ? (
+              <ol className="timeline">
+                {displayedLiveProposalTelemetryAudit.records.map((record) => (
+                  <li key={`${record.kind}-${record.status}`}>
+                    <span className="timelineMeta">
+                      {record.kind} · {record.status}
+                    </span>
+                    <span>{record.summary}</span>
+                    {record.warningCodes.length > 0 ? (
+                      <span className="timelineMeta">
+                        Warnings: {record.warningCodes.join(", ")}
+                      </span>
+                    ) : null}
+                  </li>
+                ))}
+              </ol>
+            ) : null}
+
+            {displayedLiveProposalTelemetryAudit.findings.length > 0 ? (
+              <p className="muted">
+                findings{" "}
+                {displayedLiveProposalTelemetryAudit.findings
+                  .map((finding) => finding.code)
+                  .join(", ")}
+              </p>
+            ) : null}
+
+            <p className="fieldHelp">
+              {
+                summarizeLiveProposalTelemetryAuditView(
+                  displayedLiveProposalTelemetryAudit
+                ).source
+              }{" "}
+              · {displayedLiveProposalTelemetryAudit.nextAction}
             </p>
           </section>
 
