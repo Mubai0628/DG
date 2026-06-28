@@ -50,9 +50,13 @@ export * as modelPlane from "./models/index.js";
 export {
   getDeepSeekCapabilityProfile,
   listDeepSeekCapabilityProfiles,
+  createFakePatchProposalModel,
   normalizeLegacyDeepSeekModelId,
   normalizeModelPatchProposalDraft,
   parseModelPatchProposalDraft,
+  runPatchProposalHarness,
+  runPatchProposalHarnessCase,
+  summarizePatchProposalHarnessReport,
   summarizeModelPatchProposalDraft,
   validateModelPatchProposalDraft,
   runDeepSeekCapabilityDryProbe
@@ -69,6 +73,8 @@ export type {
   DeepSeekLegacyAlias,
   DeepSeekModelFamily,
   DeepSeekModelId as DeepSeekCapabilityModelId,
+  FakePatchProposalModel,
+  FakePatchProposalModelResponse,
   ModelPatchProposal,
   ModelPatchProposalEvidenceRef,
   ModelPatchProposalFinding,
@@ -79,7 +85,18 @@ export type {
   ModelPatchProposalReadiness,
   ModelPatchProposalRiskNote,
   ModelPatchProposalSeverity,
-  ModelPatchProposalValidationResult
+  ModelPatchProposalValidationResult,
+  PatchProposalHarnessCase,
+  PatchProposalHarnessCaseStatus,
+  PatchProposalHarnessFinding,
+  PatchProposalHarnessFindingKind,
+  PatchProposalHarnessInput,
+  PatchProposalHarnessReadiness,
+  PatchProposalHarnessReport,
+  PatchProposalHarnessResult,
+  PatchProposalHarnessSeverity,
+  PatchProposalHarnessStatus,
+  PatchProposalHarnessValidationSummary
 } from "./models/index.js";
 export * from "./web/index.js";
 export * from "./workspace-index/index.js";

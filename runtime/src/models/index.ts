@@ -1,6 +1,7 @@
 export * from "./capability-probe.js";
 export * from "./deepseek-capability-profile.js";
 export * from "./legacy-alias.js";
+export * from "./patch-proposal-fake-harness.js";
 export * from "./patch-proposal-schema.js";
 export type {
   DeepSeekCapabilityInvariant,

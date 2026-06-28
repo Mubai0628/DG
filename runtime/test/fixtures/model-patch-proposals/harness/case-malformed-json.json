@@ -1,0 +1,12 @@
+{
+  "caseId": "malformed-json",
+  "title": "Malformed JSON string",
+  "objectiveSummary": "Malformed fake model output must block safely.",
+  "workspaceRefs": ["workspace-index-summary"],
+  "contextRefs": ["context-assembly-preview"],
+  "allowedPathRefs": ["docs/malformed.md"],
+  "forbiddenPathPolicy": [".git", ".env", "node_modules", "dist", "target", ".tmp"],
+  "evidenceRefs": ["workspace-index-summary"],
+  "expectedStatus": "blocked",
+  "fakeResponse": "{\"schemaVersion\":\"model_patch_proposal.v1\",\"title\":\"Broken\""
+}

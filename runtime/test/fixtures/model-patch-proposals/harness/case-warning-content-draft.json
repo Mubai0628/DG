@@ -1,0 +1,39 @@
+{
+  "caseId": "warning-content-draft",
+  "title": "Offline content draft warning",
+  "objectiveSummary": "Keep model draft text summary-only and not executable.",
+  "workspaceRefs": ["workspace-index-summary"],
+  "contextRefs": ["context-assembly-preview"],
+  "allowedPathRefs": ["docs/model-proposal.md"],
+  "forbiddenPathPolicy": [".git", ".env", "node_modules", "dist", "target", ".tmp"],
+  "evidenceRefs": ["manual-note"],
+  "expectedStatus": "warning",
+  "fakeResponse": {
+    "schemaVersion": "model_patch_proposal.v1",
+    "proposalId": "model-proposal-harness-content-draft",
+    "title": "Draft docs content",
+    "intent": "Represent draft content without treating it as a write.",
+    "objectiveSummary": "Content draft is summary-only until later validation.",
+    "operations": [
+      {
+        "operationId": "op-content-001",
+        "path": "docs/model-proposal.md",
+        "changeKind": "documentation",
+        "summary": "Draft a short documentation paragraph.",
+        "contentDraft": "Offline fixture draft text. This is not written by the fake harness.",
+        "estimatedLinesAdded": 1,
+        "estimatedLinesRemoved": 0,
+        "warningCodes": []
+      }
+    ],
+    "evidenceRefs": [
+      {
+        "refId": "manual-note",
+        "kind": "manual_note",
+        "summary": "Synthetic content draft fixture."
+      }
+    ],
+    "validationHints": ["Audit content before any later apply path."],
+    "modelProfileId": "deepseek-v4-pro"
+  }
+}

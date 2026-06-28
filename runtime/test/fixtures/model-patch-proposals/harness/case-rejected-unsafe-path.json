@@ -1,0 +1,38 @@
+{
+  "caseId": "rejected-unsafe-path",
+  "title": "Reject unsafe path",
+  "objectiveSummary": "Unsafe paths must be blocked before proposal preview.",
+  "workspaceRefs": ["workspace-index-summary"],
+  "contextRefs": ["context-assembly-preview"],
+  "allowedPathRefs": ["docs/safe.md"],
+  "forbiddenPathPolicy": [".git", ".env", "node_modules", "dist", "target", ".tmp"],
+  "evidenceRefs": ["workspace-index-summary"],
+  "expectedStatus": "blocked",
+  "fakeResponse": {
+    "schemaVersion": "model_patch_proposal.v1",
+    "proposalId": "model-proposal-harness-unsafe-path",
+    "title": "Unsafe path draft",
+    "intent": "Show that traversal is rejected.",
+    "objectiveSummary": "Reject traversal before any later chain step.",
+    "operations": [
+      {
+        "operationId": "op-unsafe-path",
+        "path": "../outside.md",
+        "changeKind": "documentation",
+        "summary": "Unsafe traversal path must block.",
+        "estimatedLinesAdded": 1,
+        "estimatedLinesRemoved": 0,
+        "warningCodes": []
+      }
+    ],
+    "evidenceRefs": [
+      {
+        "refId": "workspace-index-summary",
+        "kind": "workspace_index",
+        "summary": "Workspace index summary ref only."
+      }
+    ],
+    "validationHints": ["Reject unsafe paths."],
+    "modelProfileId": "deepseek-v4-pro"
+  }
+}

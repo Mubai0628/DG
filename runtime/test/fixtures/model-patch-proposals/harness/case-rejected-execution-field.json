@@ -1,0 +1,39 @@
+{
+  "caseId": "rejected-execution-field",
+  "title": "Reject execution fields",
+  "objectiveSummary": "Model proposals must not request execution.",
+  "workspaceRefs": ["workspace-index-summary"],
+  "contextRefs": ["context-assembly-preview"],
+  "allowedPathRefs": ["docs/execution-check.md"],
+  "forbiddenPathPolicy": [".git", ".env", "node_modules", "dist", "target", ".tmp"],
+  "evidenceRefs": ["workspace-index-summary"],
+  "expectedStatus": "blocked",
+  "fakeResponse": {
+    "schemaVersion": "model_patch_proposal.v1",
+    "proposalId": "model-proposal-harness-execution-field",
+    "title": "Unsafe execution draft",
+    "intent": "Show that execution fields are rejected.",
+    "objectiveSummary": "Reject action fields before any proposal preview.",
+    "applyNow": true,
+    "operations": [
+      {
+        "operationId": "op-execution",
+        "path": "docs/execution-check.md",
+        "changeKind": "documentation",
+        "summary": "Execution field should block the response.",
+        "estimatedLinesAdded": 1,
+        "estimatedLinesRemoved": 0,
+        "warningCodes": []
+      }
+    ],
+    "evidenceRefs": [
+      {
+        "refId": "workspace-index-summary",
+        "kind": "workspace_index",
+        "summary": "Workspace index summary ref only."
+      }
+    ],
+    "validationHints": ["Reject execution fields."],
+    "modelProfileId": "deepseek-v4-pro"
+  }
+}

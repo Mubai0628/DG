@@ -8971,6 +8971,33 @@ describe("desktop source boundaries", () => {
     expect(docsIndex).toContain("runtime-model-patch-proposal-schema-v0.7.md");
   });
 
+  it("documents the P0L-003 fake patch proposal harness without live calls or execution", async () => {
+    const docs = await readFile(
+      path.join(repoRoot, "docs", "runtime-patch-proposal-fake-harness-v0.7.md"),
+      "utf8"
+    );
+    const docsIndex = await readFile(
+      path.join(repoRoot, "docs", "README.md"),
+      "utf8"
+    );
+    const combined = `${docs}\n${docsIndex}`;
+
+    expect(combined).toContain("Runtime Patch Proposal Fake Harness v0.7");
+    expect(combined).toContain("offline fake model patch proposal harness");
+    expect(combined).toContain("No live DeepSeek call");
+    expect(combined).toContain("No API key read");
+    expect(combined).toContain("No fetch or network use");
+    expect(combined).toContain("No apply or rollback");
+    expect(combined).toContain("P0L-002 model patch proposal schema");
+    expect(combined).toContain("schema validation");
+    expect(combined).toContain("diff audit");
+    expect(combined).toContain("approval draft");
+    expect(combined).toContain("No Git or shell execution");
+    expect(combined).toContain("No native bridge");
+    expect(combined).toContain("No desktop action");
+    expect(docsIndex).toContain("runtime-patch-proposal-fake-harness-v0.7.md");
+  });
+
   it("documents the v0.6 post-release review and P0K promotion roadmap without enabling user workspace apply", async () => {
     const review = await readFile(
       path.join(repoRoot, "docs", "v0.6-sandbox-apply-postrelease-review.md"),
