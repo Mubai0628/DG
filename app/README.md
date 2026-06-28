@@ -25,8 +25,8 @@ Current scope:
   Snapshot / Backup Contract, User Workspace Promotion Readiness, disabled
   User Workspace Apply Prototype status, disabled User Workspace Rollback
   Prototype status, disabled User Workspace Apply / Rollback Event Writer
-  status, disabled App Approval Execution Design, and disabled Bridge Proposal
-  Preview
+  status, disabled App Approval Execution Design, Model Patch Proposal Import,
+  Model Proposal Chain Integration, and disabled Bridge Proposal Preview
 - show Memory Recall Preview through the runtime Memory Core preview helper
   using in-memory summaries only; no memory persistence, commit, revoke, or
   expire operation is connected
@@ -45,6 +45,10 @@ Current scope:
   fixture-root user workspace apply/rollback prototypes while App Shell apply,
   rollback, event write, approval, rejection, and PermissionLease issuance
   remain disabled
+- prepare the v0.8 DeepSeek proposal preview RC with schema-validated
+  `model_patch_proposal` paste/import and chain projection while live DeepSeek
+  proposal calls, API key reads, fetch/network, model-driven file writes, and
+  App execution remain disabled
 
 Current limitations:
 
@@ -81,7 +85,12 @@ Current limitations:
   runtime fixture-root helpers, User Workspace Apply / Rollback Event Writer is
   runtime-only and App write disabled, and App Approval Execution Design is
   design-only with no approve, reject, apply, rollback, event write, or
-  PermissionLease controls; none of these App surfaces reads or writes files
+  PermissionLease controls; Model Patch Proposal Import is preview-only with no
+  model call, no API key read, no fetch/network, no file write, no apply, no
+  rollback, and no EventStore write; Model Proposal Chain Integration projects
+  imported proposal summaries into the preview chain only, with no model call,
+  dry adapter call, approval execution, apply, rollback, or event write; none
+  of these App surfaces reads or writes files
 - no validation, audit, approval, virtual apply, rollback, or replay preview is
   an apply/approval/rollback/execution lane
 - no real DeepSeek API call from the desktop shell

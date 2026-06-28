@@ -1,12 +1,10 @@
-import { createHash } from "node:crypto";
-
 import {
   parseModelPatchProposalDraft,
-  type ModelPatchProposalInput,
   type ModelPatchProposalValidationResult,
   type ModelPatchProposalValidationStatus
 } from "./patch-proposal-schema.js";
 import type { PatchProposalDryAdapterResult } from "./patch-proposal-dry-adapter.js";
+import { stablePreviewHash } from "./stable-preview-hash.js";
 
 export type PatchProposalRepairSourceKind =
   | "model_response"
@@ -289,7 +287,11 @@ export function repairModelPatchProposalDraft(
           forcedStatus: "blocked"
         });
       }
-      const stringRepair = repairStringCandidate(candidate, operations, maxAttempts);
+      const stringRepair = repairStringCandidate(
+        candidate,
+        operations,
+        maxAttempts
+      );
       findings.push(...stringRepair.findings);
       if (findings.some((item) => item.severity === "blocker")) {
         return resultFrom({
@@ -463,7 +465,14 @@ function repairStringCandidate(
 
   const fenceMatch = text.match(/^```(?:json)?\s*([\s\S]*?)\s*```$/i);
   if (fenceMatch?.[1] !== undefined) {
-    if (!tryAddOperation(operations, "strip_markdown_fence", maxAttempts, findings)) {
+    if (
+      !tryAddOperation(
+        operations,
+        "strip_markdown_fence",
+        maxAttempts,
+        findings
+      )
+    ) {
       return { text, findings };
     }
     text = fenceMatch[1].trim();
@@ -471,7 +480,9 @@ function repairStringCandidate(
 
   const firstBrace = text.indexOf("{");
   if (firstBrace > 0) {
-    if (!tryAddOperation(operations, "extract_json_object", maxAttempts, findings)) {
+    if (
+      !tryAddOperation(operations, "extract_json_object", maxAttempts, findings)
+    ) {
       return { text, findings };
     }
     text = text.slice(firstBrace).trim();
@@ -479,7 +490,9 @@ function repairStringCandidate(
 
   const balancedEnd = findBalancedJsonEnd(text);
   if (balancedEnd !== undefined && balancedEnd < text.length - 1) {
-    if (!tryAddOperation(operations, "trim_trailing_noise", maxAttempts, findings)) {
+    if (
+      !tryAddOperation(operations, "trim_trailing_noise", maxAttempts, findings)
+    ) {
       return { text, findings };
     }
     text = text.slice(0, balancedEnd + 1).trim();
@@ -487,7 +500,14 @@ function repairStringCandidate(
 
   const closeToken = singleMissingCloseToken(text);
   if (closeToken !== undefined) {
-    if (!tryAddOperation(operations, "close_truncated_brace", maxAttempts, findings)) {
+    if (
+      !tryAddOperation(
+        operations,
+        "close_truncated_brace",
+        maxAttempts,
+        findings
+      )
+    ) {
       return { text, findings };
     }
     text = `${text}${closeToken}`;
@@ -520,7 +540,14 @@ function applyStructuralRepairs(
   const next = cloneRecord(record);
 
   if (optionalText(next.schemaVersion) === undefined) {
-    if (tryAddOperation(operations, "normalize_schema_version", maxAttempts, findings)) {
+    if (
+      tryAddOperation(
+        operations,
+        "normalize_schema_version",
+        maxAttempts,
+        findings
+      )
+    ) {
       next.schemaVersion = supportedSchemaVersion;
     }
   } else if (
@@ -528,7 +555,14 @@ function applyStructuralRepairs(
     next.schemaVersion !== supportedSchemaVersion &&
     next.schemaVersion.toLowerCase() === supportedSchemaVersion
   ) {
-    if (tryAddOperation(operations, "normalize_schema_version", maxAttempts, findings)) {
+    if (
+      tryAddOperation(
+        operations,
+        "normalize_schema_version",
+        maxAttempts,
+        findings
+      )
+    ) {
       next.schemaVersion = supportedSchemaVersion;
     }
   }
@@ -542,10 +576,9 @@ function applyStructuralRepairs(
         findings
       )
     ) {
-      next.proposalId = `model-proposal-repaired-${hashObject(toSafeHashInput(next)).slice(
-        0,
-        12
-      )}`;
+      next.proposalId = `model-proposal-repaired-${hashObject(
+        toSafeHashInput(next)
+      ).slice(0, 12)}`;
     }
   }
 
@@ -565,7 +598,10 @@ function applyStructuralRepairs(
       }
       if (typeof op.changeKind === "string") {
         const normalized = op.changeKind.toLowerCase();
-        if (normalized !== op.changeKind && allowedChangeKinds.has(normalized)) {
+        if (
+          normalized !== op.changeKind &&
+          allowedChangeKinds.has(normalized)
+        ) {
           normalizedChangeKinds = true;
           op.changeKind = normalized;
         }
@@ -576,11 +612,15 @@ function applyStructuralRepairs(
         addedRiskNotes = true;
         op.warningCodes = [...warningCodes, "DELETE_REQUIRES_APPROVAL"];
       }
-      if (changeKind === "config" && !hasConfigApprovalMarker(op, warningCodes)) {
+      if (
+        changeKind === "config" &&
+        !hasConfigApprovalMarker(op, warningCodes)
+      ) {
         addedRiskNotes = true;
         op.warningCodes = [...warningCodes, "CONFIG_APPROVAL_REQUIRED"];
         if (optionalText(op.rationale) === undefined) {
-          op.rationale = "Conservative approval review required for config draft.";
+          op.rationale =
+            "Conservative approval review required for config draft.";
         }
       }
       if (typeof op.contentDraft === "string") {
@@ -627,7 +667,14 @@ function applyStructuralRepairs(
   }
 
   if (!Array.isArray(next.pathSummaries) && Array.isArray(next.operations)) {
-    if (tryAddOperation(operations, "derive_path_summaries", maxAttempts, findings)) {
+    if (
+      tryAddOperation(
+        operations,
+        "derive_path_summaries",
+        maxAttempts,
+        findings
+      )
+    ) {
       next.pathSummaries = derivePathSummaries(next.operations);
     }
   }
@@ -635,9 +682,7 @@ function applyStructuralRepairs(
   return { record: next, findings };
 }
 
-function findSecurityFindings(
-  value: unknown
-): PatchProposalRepairFinding[] {
+function findSecurityFindings(value: unknown): PatchProposalRepairFinding[] {
   return uniqueFindings([
     ...findForbiddenFields(value, "security"),
     ...findUnsafeTextMarkers(value, "security")
@@ -736,10 +781,19 @@ function resultFrom(args: {
   forcedStatus?: PatchProposalRepairStatus | undefined;
 }): PatchProposalRepairResult {
   const mappedValidationFindings =
-    args.validation !== undefined ? findingsFromValidation(args.validation) : [];
-  const allFindings = uniqueFindings([...args.findings, ...mappedValidationFindings]);
-  const blockerCount = allFindings.filter((item) => item.severity === "blocker").length;
-  const warningCount = allFindings.filter((item) => item.severity === "warning").length;
+    args.validation !== undefined
+      ? findingsFromValidation(args.validation)
+      : [];
+  const allFindings = uniqueFindings([
+    ...args.findings,
+    ...mappedValidationFindings
+  ]);
+  const blockerCount = allFindings.filter(
+    (item) => item.severity === "blocker"
+  ).length;
+  const warningCount = allFindings.filter(
+    (item) => item.severity === "warning"
+  ).length;
   const proposalSummary = sanitizeProposalSummary(args.validation);
   const proposalValidation = sanitizeProposalValidation(args.validation);
   const operations = uniqueOperations(args.operations);
@@ -907,7 +961,10 @@ function tryAddOperation(
   maxAttempts: number,
   findings: PatchProposalRepairFinding[]
 ): boolean {
-  if (operations.filter((item) => !item.kind.startsWith("reject_")).length >= maxAttempts) {
+  if (
+    operations.filter((item) => !item.kind.startsWith("reject_")).length >=
+    maxAttempts
+  ) {
     findings.push(finding("repair", "blocker", "MAX_ATTEMPTS_EXCEEDED"));
     return false;
   }
@@ -922,7 +979,9 @@ function addOperation(
   operations.push(operation(kind));
 }
 
-function operation(kind: PatchProposalRepairOperationKind): PatchProposalRepairOperation {
+function operation(
+  kind: PatchProposalRepairOperationKind
+): PatchProposalRepairOperation {
   return {
     operationId: `patch-proposal-repair-${kind}-${hashPreview(kind)}`,
     kind,
@@ -951,7 +1010,7 @@ function findBalancedJsonEnd(text: string): number | undefined {
       escaped = true;
       continue;
     }
-    if (char === "\"") {
+    if (char === '"') {
       inString = !inString;
       continue;
     }
@@ -988,7 +1047,7 @@ function singleMissingCloseToken(text: string): string | undefined {
       escaped = true;
       continue;
     }
-    if (char === "\"") {
+    if (char === '"') {
       inString = !inString;
       continue;
     }
@@ -1009,7 +1068,9 @@ function singleMissingCloseToken(text: string): string | undefined {
   return undefined;
 }
 
-function derivePathSummaries(operations: unknown[]): Array<Record<string, unknown>> {
+function derivePathSummaries(
+  operations: unknown[]
+): Array<Record<string, unknown>> {
   return operations.filter(isRecord).map((operation) => ({
     path: optionalText(operation.path) ?? "",
     changeKind: optionalText(operation.changeKind) ?? "update",
@@ -1089,7 +1150,11 @@ function safeMessageFor(code: string): string {
   if (code.includes("RAW")) {
     return "Proposal repair rejected raw-content fields.";
   }
-  if (code.includes("SECRET") || code.includes("KEY") || code.includes("TOKEN")) {
+  if (
+    code.includes("SECRET") ||
+    code.includes("KEY") ||
+    code.includes("TOKEN")
+  ) {
     return "Proposal repair rejected secret-like content.";
   }
   if (code.includes("JSON")) {
@@ -1239,11 +1304,11 @@ function stableStringify(value: unknown): string {
 }
 
 function hashObject(value: unknown): string {
-  return createHash("sha256").update(stableStringify(value)).digest("hex");
+  return stablePreviewHash(stableStringify(value));
 }
 
 function hashPreview(value: string): string {
-  return createHash("sha256").update(value, "utf8").digest("hex").slice(0, 12);
+  return stablePreviewHash(value).slice(0, 12);
 }
 
 function safeCodeString(value: string): string {

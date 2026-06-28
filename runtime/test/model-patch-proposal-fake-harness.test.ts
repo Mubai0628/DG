@@ -91,7 +91,9 @@ describe("offline fake model patch proposal harness", () => {
     ];
 
     for (const caseName of caseNames) {
-      const result = await runPatchProposalHarnessCase(await readCase(caseName));
+      const result = await runPatchProposalHarnessCase(
+        await readCase(caseName)
+      );
 
       expect(result.status, caseName).toBe("blocked");
       expect(result.blockerCount, caseName).toBeGreaterThan(0);

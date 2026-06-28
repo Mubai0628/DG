@@ -3439,7 +3439,8 @@ describe("app model patch proposal import", () => {
       draftText: draft,
       sourceKind: "fixture"
     });
-    const creationPreview = buildPatchProposalCreationPreviewFromModelImport(view);
+    const creationPreview =
+      buildPatchProposalCreationPreviewFromModelImport(view);
     const surfaces = buildWorkbenchSurfacesView({
       controlProjection: buildControlPlaneProjectionView(undefined),
       patchProposalSummaries: modelPatchProposalImportSurfaceSummaries(view),
@@ -3522,9 +3523,7 @@ describe("app model patch proposal import", () => {
     expect(
       buildPatchProposalCreationPreviewFromModelImport(unsafePathView)
     ).toBeUndefined();
-    expect(JSON.stringify(secretView)).not.toContain(
-      "sk-test1234567890abcdef"
-    );
+    expect(JSON.stringify(secretView)).not.toContain("sk-test1234567890abcdef");
   });
 
   it("keeps contentDraft out of App view output", async () => {
@@ -3634,7 +3633,9 @@ describe("app model patch proposal import", () => {
     expect(doc).toContain("contentDraft");
     expect(doc).toContain("P0L-002");
     expect(doc).toContain("P0L-005");
-    expect(docsIndex).toContain("app-shell-model-patch-proposal-import-v0.7.md");
+    expect(docsIndex).toContain(
+      "app-shell-model-patch-proposal-import-v0.7.md"
+    );
   });
 });
 
@@ -3676,7 +3677,9 @@ describe("app model proposal chain integration", () => {
       buildPatchProposalCreationPreviewFromModelImport(importView);
 
     if (creationPreview === undefined) {
-      throw new Error("Expected imported model proposal to create preview input.");
+      throw new Error(
+        "Expected imported model proposal to create preview input."
+      );
     }
 
     const chainView = buildModelProposalChainIntegrationView({
@@ -3742,7 +3745,9 @@ describe("app model proposal chain integration", () => {
       buildPatchProposalCreationPreviewFromModelImport(importView);
 
     if (creationPreview === undefined) {
-      throw new Error("Expected warning model proposal to create preview input.");
+      throw new Error(
+        "Expected warning model proposal to create preview input."
+      );
     }
 
     const chainView = buildModelProposalChainIntegrationView({
@@ -3775,7 +3780,9 @@ describe("app model proposal chain integration", () => {
       buildPatchProposalCreationPreviewFromModelImport(importView);
 
     if (creationPreview === undefined) {
-      throw new Error("Expected imported model proposal to create preview input.");
+      throw new Error(
+        "Expected imported model proposal to create preview input."
+      );
     }
 
     const executingValidationPreview = {
@@ -3812,7 +3819,9 @@ describe("app model proposal chain integration", () => {
       buildPatchProposalCreationPreviewFromModelImport(importView);
 
     if (creationPreview === undefined) {
-      throw new Error("Expected imported model proposal to create preview input.");
+      throw new Error(
+        "Expected imported model proposal to create preview input."
+      );
     }
 
     const chainView = buildModelProposalChainIntegrationView({
@@ -4093,7 +4102,7 @@ describe("app patch proposal validation preview", () => {
     expect(appSource).toContain("handleValidatePatchProposal");
     expect(appSource).toContain("Validation");
     expect(appSource).toMatch(
-      /Validation\s+passing\s+does\s+not\s+mean\s+apply\s+is\s+enabled\./
+      /Validation\s+passing\s+does\s+not\s+enable\s+apply\./
     );
     expect(combined).not.toContain("handleApplyPatch");
     expect(combined).not.toContain("applyPatch");
@@ -7992,7 +8001,7 @@ describe("desktop source boundaries", () => {
     expect(appSource).toContain("Patch Proposal Validation Preview");
     expect(appSource).toContain("Validation only / no apply");
     expect(appSource).toMatch(
-      /Validation\s+passing\s+does\s+not\s+mean\s+apply\s+is\s+enabled\./
+      /Validation\s+passing\s+does\s+not\s+enable\s+apply\./
     );
     expect(appSource).toContain("Patch Diff Audit Preview");
     expect(appSource).toContain("Audit preview / no raw diff");
@@ -9315,6 +9324,151 @@ describe("desktop source boundaries", () => {
     );
   });
 
+  it("documents the v0.8 DeepSeek proposal preview RC without enabling model or App execution", async () => {
+    const releaseNotes = await readFile(
+      path.join(
+        repoRoot,
+        "docs",
+        "release-notes-v0.8.0-deepseek-proposal-preview-rc.1.md"
+      ),
+      "utf8"
+    );
+    const manualQa = await readFile(
+      path.join(
+        repoRoot,
+        "docs",
+        "app-shell-deepseek-proposal-preview-manual-qa.md"
+      ),
+      "utf8"
+    );
+    const checklist = await readFile(
+      path.join(
+        repoRoot,
+        "docs",
+        "app-shell-deepseek-proposal-preview-rc-checklist.md"
+      ),
+      "utf8"
+    );
+    const docsIndex = await readFile(
+      path.join(repoRoot, "docs", "README.md"),
+      "utf8"
+    );
+    const rootReadme = await readFile(path.join(repoRoot, "README.md"), "utf8");
+    const appReadme = await readFile(path.join(appRoot, "README.md"), "utf8");
+    const combined = `${releaseNotes}\n${manualQa}\n${checklist}\n${docsIndex}\n${rootReadme}\n${appReadme}`;
+
+    expect(releaseNotes).toContain("v0.8.0-deepseek-proposal-preview-rc.1");
+    expect(releaseNotes).toContain(
+      "DeepSeek patch proposal preview pipeline, no live model call"
+    );
+    expect(combined).toContain("v0.7 user workspace runtime prototypes");
+    expect(combined).toContain("P0L DeepSeek Patch Proposal Generation ADR");
+    expect(combined).toContain("Model Patch Proposal Schema");
+    expect(combined).toContain("Offline Fake Model Patch Proposal Harness");
+    expect(combined).toContain("Patch Proposal Dry Adapter");
+    expect(combined).toContain("Proposal Repair / Schema Repair Loop");
+    expect(combined).toContain("App Patch Proposal Import");
+    expect(combined).toContain("Model Proposal Chain Integration");
+    expect(combined).toContain("web_table_to_csv");
+    expect(combined).toContain("Record Draft Event");
+    expect(combined).toContain("Runtime can validate and repair");
+    expect(combined).toContain("without a live model call");
+    expect(combined).toContain("App can import a pasted");
+    expect(combined).toContain("App Shell does not call DeepSeek");
+    expect(combined).toContain("No live DeepSeek proposal generation");
+    expect(combined).toContain("No API key read");
+    expect(combined).toContain("No fetch/network");
+    expect(combined).toContain("No real DeepSeek chat");
+    expect(combined).toContain("No real ControlPlaneRun execution");
+    expect(combined).toContain("No App-side user workspace patch apply");
+    expect(combined).toContain("No App-side rollback");
+    expect(combined).toContain("No App-side apply/rollback EventStore write");
+    expect(combined).toContain("No App approval/rejection execution");
+    expect(combined).toContain("No production PermissionLease issuance");
+    expect(combined).toContain("No Git commit or push");
+    expect(combined).toContain("No shell execution");
+    expect(combined).toContain("No capability invocation");
+    expect(combined).toContain("No MCP/plugin/skills runtime");
+    expect(combined).toContain("No `nativeMessaging` or live bridge");
+    expect(combined).toContain("No desktop action");
+    expect(combined).toContain("schema validation");
+    expect(combined).toContain("Forbidden field guard");
+    expect(combined).toContain("Path guard");
+    expect(combined).toContain("Secret marker guard");
+    expect(combined).toContain("Repair fails closed");
+    expect(combined).toContain("contentDraft");
+    expect(combined).toContain("no tools or `tool_choice`");
+    expect(combined).toContain("reasoning_content");
+    expect(combined).toContain("git status --short");
+    expect(combined).toContain("pnpm verify:ci");
+    expect(combined).toContain("pnpm release:smoke");
+    expect(combined).toContain("pnpm app:qa:check");
+    expect(combined).toContain("pnpm app:dev");
+    expect(combined).toContain("D:\\workspaces\\demo");
+    expect(combined).toContain("web-table-export-p0l.csv");
+    expect(combined).toContain("FILE_EXISTS");
+    expect(combined).toContain("PASSWORD_VALUE_MARKER");
+    expect(combined).toContain("GitHub Actions");
+    expect(combined).toContain("Generated Artifacts");
+    expect(combined).toContain("Rollback Guidance");
+    expect(combined).toContain(
+      "release-notes-v0.8.0-deepseek-proposal-preview-rc.1.md"
+    );
+    expect(combined).toContain(
+      "app-shell-deepseek-proposal-preview-manual-qa.md"
+    );
+    expect(combined).toContain(
+      "app-shell-deepseek-proposal-preview-rc-checklist.md"
+    );
+  });
+
+  it("locks v0.8 App Shell copy as preview-only and no-execution", async () => {
+    const appSource = await readFile(
+      path.join(appRoot, "src", "App.tsx"),
+      "utf8"
+    );
+
+    expect(appSource).toContain("Preview only / no model call");
+    expect(appSource).toMatch(
+      /The\s+App\s+Shell\s+does\s+not\s+call\s+DeepSeek,\s+write\s+files,\s+apply\s+patches,\s+rollback,\s+or\s+write\s+events\./
+    );
+    expect(appSource).toContain("Preview chain / no execution");
+    expect(appSource).toMatch(
+      /No\s+model\s+call,\s+file\s+write,\s+apply,\s+rollback,\s+approval\s+execution,\s+or\s+event\s+write\s+is\s+performed\./
+    );
+    expect(appSource).toContain("Preview only / no apply");
+    expect(appSource).toContain("Validation only / no apply");
+    expect(appSource).toMatch(
+      /Validation\s+passing\s+does\s+not\s+enable\s+apply\./
+    );
+    expect(appSource).toContain("Audit preview / no raw diff");
+    expect(appSource).toContain("Draft only / no approval execution");
+    expect(appSource).toContain("In-memory summary only / no filesystem write");
+    expect(appSource).toContain("Checkpoint preview / no real rollback");
+    expect(appSource).toContain("Disabled by default / runtime prototype only");
+    expect(appSource).toContain("Runtime only / App write disabled");
+    expect(appSource).toContain("Design only / disabled");
+    expect(appSource).toContain(
+      "No prompt is assembled and no model request is sent."
+    );
+    expect(appSource).toMatch(
+      /No\s+capability\s+is\s+invoked\s+and\s+no\s+permission\s+lease\s+is\s+issued\./
+    );
+    expect(appSource).toContain("Event log events");
+    expect(appSource).toContain("Source-tree mode");
+    expect(appSource).toContain("No native bridge");
+    expect(appSource).not.toContain("Generate Live DeepSeek Proposal");
+    expect(appSource).not.toContain("Read DeepSeek API Key");
+    expect(appSource).not.toContain("handleLiveDeepSeekProposal");
+    expect(appSource).not.toContain("handleApplyModelProposal");
+    expect(appSource).not.toContain("handleRollbackModelProposal");
+    expect(appSource).not.toContain("handleWriteModelProposalEvents");
+    expect(appSource).not.toContain("handleApproveModelProposal");
+    expect(appSource).not.toContain("handleRejectModelProposal");
+    expect(appSource).not.toContain("handleCommitModelProposal");
+    expect(appSource).not.toContain("handleExecuteModelProposal");
+  });
+
   it("documents the v0.7 post-release review and P0L DeepSeek proposal roadmap without enabling execution", async () => {
     const review = await readFile(
       path.join(
@@ -9505,7 +9659,11 @@ describe("desktop source boundaries", () => {
 
   it("documents the P0L-003 fake patch proposal harness without live calls or execution", async () => {
     const docs = await readFile(
-      path.join(repoRoot, "docs", "runtime-patch-proposal-fake-harness-v0.7.md"),
+      path.join(
+        repoRoot,
+        "docs",
+        "runtime-patch-proposal-fake-harness-v0.7.md"
+      ),
       "utf8"
     );
     const docsIndex = await readFile(

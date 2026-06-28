@@ -1,11 +1,10 @@
-import { createHash } from "node:crypto";
-
 import {
   parseModelPatchProposalDraft,
   type ModelPatchProposalInput,
   type ModelPatchProposalValidationResult,
   type ModelPatchProposalValidationStatus
 } from "./patch-proposal-schema.js";
+import { stablePreviewHash } from "./stable-preview-hash.js";
 
 export type FakePatchProposalModelResponse = {
   caseId?: string | undefined;
@@ -255,7 +254,9 @@ export async function runPatchProposalHarnessCase(
     validation = parseModelPatchProposalDraft(output);
     findings.push(...findingsFromValidation(input.caseId, validation));
   } catch (error) {
-    findings.push(finding("fake_model", "blocker", "FAKE_MODEL_THROW", input.caseId));
+    findings.push(
+      finding("fake_model", "blocker", "FAKE_MODEL_THROW", input.caseId)
+    );
     const message = error instanceof Error ? error.message : String(error);
     for (const code of unsafeMarkerCodes(message)) {
       findings.push(
@@ -268,7 +269,12 @@ export async function runPatchProposalHarnessCase(
   const actualStatus = statusFrom(validation, findings);
   if (expectedStatus !== undefined && expectedStatus !== actualStatus) {
     findings.push(
-      finding("expectation", "blocker", "EXPECTED_STATUS_MISMATCH", input.caseId)
+      finding(
+        "expectation",
+        "blocker",
+        "EXPECTED_STATUS_MISMATCH",
+        input.caseId
+      )
     );
   }
 
@@ -284,7 +290,9 @@ export async function runPatchProposalHarness(
   }
   const passed = results.filter((result) => result.status === "passed").length;
   const failed = results.filter((result) => result.status === "failed").length;
-  const blocked = results.filter((result) => result.status === "blocked").length;
+  const blocked = results.filter(
+    (result) => result.status === "blocked"
+  ).length;
   const warningCaseCount = results.filter(
     (result) => result.status === "warning"
   ).length;
@@ -384,10 +392,15 @@ function buildRequest(
   return {
     caseId: safeIdentifier(input.caseId, "case"),
     title: safeText(input.title, "Untitled fake harness case"),
-    objectiveSummary: safeText(input.objectiveSummary, "Summary-only objective"),
+    objectiveSummary: safeText(
+      input.objectiveSummary,
+      "Summary-only objective"
+    ),
     workspaceIndexSummaryRefs: safeStringArray(input.workspaceRefs),
     contextAssemblyRefs: safeStringArray(input.contextRefs),
-    userWorkspaceReadinessRefs: safeStringArray(input.userWorkspaceReadinessRefs),
+    userWorkspaceReadinessRefs: safeStringArray(
+      input.userWorkspaceReadinessRefs
+    ),
     allowedPathRefs: safeStringArray(input.allowedPathRefs),
     forbiddenPathPolicy: safeStringArray(input.forbiddenPathPolicy),
     evidenceRefs: safeStringArray(input.evidenceRefs),
@@ -405,7 +418,9 @@ function validateRequest(
     findings.push(finding("request", "blocker", "MISSING_CASE_ID"));
   }
   if (request.title.length === 0) {
-    findings.push(finding("request", "blocker", "MISSING_TITLE", request.caseId));
+    findings.push(
+      finding("request", "blocker", "MISSING_TITLE", request.caseId)
+    );
   }
   if (request.objectiveSummary.length === 0) {
     findings.push(
@@ -557,8 +572,12 @@ function unsafeMarkerCodes(text: string): string[] {
     .map(({ code }) => code);
 }
 
-function isFakeResponse(value: unknown): value is FakePatchProposalModelResponse {
-  return isRecord(value) && Object.prototype.hasOwnProperty.call(value, "output");
+function isFakeResponse(
+  value: unknown
+): value is FakePatchProposalModelResponse {
+  return (
+    isRecord(value) && Object.prototype.hasOwnProperty.call(value, "output")
+  );
 }
 
 function finding(
@@ -590,7 +609,11 @@ function safeMessageFor(code: string): string {
   if (code.includes("EXPECTED_STATUS")) {
     return "Fake patch proposal harness case did not match the expected status.";
   }
-  if (code.includes("KEY") || code.includes("TOKEN") || code.includes("SECRET")) {
+  if (
+    code.includes("KEY") ||
+    code.includes("TOKEN") ||
+    code.includes("SECRET")
+  ) {
     return "Fake patch proposal harness detected a secret-like marker.";
   }
   return `Fake patch proposal harness finding: ${code}`;
@@ -754,11 +777,11 @@ function stableStringify(value: unknown): string {
 }
 
 function hashObject(value: unknown): string {
-  return createHash("sha256").update(stableStringify(value)).digest("hex");
+  return stablePreviewHash(stableStringify(value));
 }
 
 function hashPreview(value: string): string {
-  return createHash("sha256").update(value, "utf8").digest("hex").slice(0, 12);
+  return stablePreviewHash(value).slice(0, 12);
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {

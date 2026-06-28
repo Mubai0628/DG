@@ -70,7 +70,9 @@ function expectExecutionFlagsFalse(value: {
 describe("patch proposal dry adapter", () => {
   it("builds a summary-only request without tools or tool_choice", async () => {
     const safeCase = await readCase("case-safe-basic.json");
-    const request = buildPatchProposalDryRequest(baseInput(safeCase.fakeResponse));
+    const request = buildPatchProposalDryRequest(
+      baseInput(safeCase.fakeResponse)
+    );
     const serialized = JSON.stringify(request);
 
     expect(request.responseFormat).toBe("model_patch_proposal");
@@ -93,7 +95,9 @@ describe("patch proposal dry adapter", () => {
 
   it("generates a proposal from a safe injected dry client response", async () => {
     const safeCase = await readCase("case-safe-basic.json");
-    const result = await runPatchProposalDryAdapter(baseInput(safeCase.fakeResponse));
+    const result = await runPatchProposalDryAdapter(
+      baseInput(safeCase.fakeResponse)
+    );
     const summary = summarizePatchProposalDryAdapterResult(result);
 
     expect(result.status).toBe("warning");
@@ -274,7 +278,9 @@ describe("patch proposal dry adapter", () => {
       throw new Error("network should not be used by dry adapter");
     }) as typeof fetch;
     try {
-      const result = await runPatchProposalDryAdapter(baseInput(safeCase.fakeResponse));
+      const result = await runPatchProposalDryAdapter(
+        baseInput(safeCase.fakeResponse)
+      );
 
       expect(result.blockerCount).toBe(0);
       expect(result.responseHash).toHaveLength(64);
@@ -292,7 +298,9 @@ describe("patch proposal dry adapter", () => {
     process.env.DEEPSEEK_API_KEY = secret;
     process.env.OPENAI_API_KEY = secret;
     try {
-      const result = await runPatchProposalDryAdapter(baseInput(safeCase.fakeResponse));
+      const result = await runPatchProposalDryAdapter(
+        baseInput(safeCase.fakeResponse)
+      );
       const serialized = JSON.stringify(result);
 
       expect(serialized).not.toContain(secret);

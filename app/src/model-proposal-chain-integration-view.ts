@@ -7,11 +7,7 @@ import type { AppPatchProposalCreationPreviewView } from "./patch-proposal-creat
 import type { AppPatchProposalValidationPreviewView } from "./patch-proposal-validation-preview-view.js";
 import type { AppPatchRollbackCheckpointPreviewView } from "./patch-rollback-checkpoint-preview-view.js";
 import type { AppPatchVirtualApplyPreviewView } from "./patch-virtual-apply-preview-view.js";
-import {
-  safeArray,
-  safeErrorMessage,
-  safeText
-} from "./safety.js";
+import { safeArray, safeErrorMessage, safeText } from "./safety.js";
 import type { AppUserWorkspaceApplyPrototypeView } from "./user-workspace-apply-prototype-view.js";
 import type { AppUserWorkspaceEventWriterView } from "./user-workspace-event-writer-view.js";
 import type { AppUserWorkspacePromotionReadinessView } from "./user-workspace-promotion-readiness-view.js";
@@ -225,10 +221,11 @@ export function buildModelProposalChainIntegrationView(
       stages: [],
       findings: inputFindings,
       importCanEnterChain: false,
-      forcedStatus:
-        inputFindings.some((finding) => finding.severity === "blocker")
-          ? "blocked"
-          : "empty"
+      forcedStatus: inputFindings.some(
+        (finding) => finding.severity === "blocker"
+      )
+        ? "blocked"
+        : "empty"
     });
   }
 
@@ -241,7 +238,8 @@ export function buildModelProposalChainIntegrationView(
       label: "Model proposal import",
       status: "blocked",
       refId: modelImport.importId,
-      summary: "Blocked model proposal import. Chain integration does not advance.",
+      summary:
+        "Blocked model proposal import. Chain integration does not advance.",
       warningCodes: modelImport.findings.map((finding) => finding.code)
     });
     return resultFrom({
@@ -296,7 +294,11 @@ export function summarizeModelProposalChainIntegrationView(
 export function modelProposalChainIntegrationSurfaceSummaries(
   view: ModelProposalChainIntegrationView | undefined
 ): AppWorkbenchSurfacesInput["patchProposalSummaries"] {
-  if (view === undefined || view.status === "empty" || view.status === "blocked") {
+  if (
+    view === undefined ||
+    view.status === "empty" ||
+    view.status === "blocked"
+  ) {
     return [];
   }
   return [
@@ -328,7 +330,11 @@ export function modelProposalChainIntegrationSurfaceSummaries(
 export function modelProposalChainIntegrationApprovalRefs(
   view: ModelProposalChainIntegrationView | undefined
 ): AppWorkbenchApprovalRef[] {
-  if (view === undefined || view.status === "empty" || view.status === "blocked") {
+  if (
+    view === undefined ||
+    view.status === "empty" ||
+    view.status === "blocked"
+  ) {
     return [];
   }
   return [
@@ -866,9 +872,13 @@ function warningCodesFrom(value: unknown): string[] {
     return [];
   }
   return uniqueStrings([
-    ...safeArray(value.warningCodes).map((item) => safeCode(safeText(item, ""))),
+    ...safeArray(value.warningCodes).map((item) =>
+      safeCode(safeText(item, ""))
+    ),
     ...safeArray(value.warnings).map((item) =>
-      isRecord(item) ? safeCode(safeText(item.code, "")) : safeCode(safeText(item, ""))
+      isRecord(item)
+        ? safeCode(safeText(item.code, ""))
+        : safeCode(safeText(item, ""))
     )
   ]).filter((code) => code.length > 0);
 }
@@ -892,7 +902,10 @@ function finding(
 }
 
 function safeCode(value: string): string {
-  const code = value.trim().replace(/[^A-Za-z0-9_.-]/g, "_").toUpperCase();
+  const code = value
+    .trim()
+    .replace(/[^A-Za-z0-9_.-]/g, "_")
+    .toUpperCase();
   return /^[A-Z0-9_.-]{1,120}$/.test(code) ? code : "MODEL_CHAIN_WARNING";
 }
 
@@ -935,7 +948,9 @@ function hashText(text: string): string {
     hash ^= text.charCodeAt(index);
     hash = Math.imul(hash, 16777619);
   }
-  return Math.abs(hash >>> 0).toString(16).padStart(12, "0");
+  return Math.abs(hash >>> 0)
+    .toString(16)
+    .padStart(12, "0");
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {

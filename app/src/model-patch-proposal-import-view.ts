@@ -7,10 +7,7 @@ import {
   buildPatchProposalCreationPreviewView,
   type AppPatchProposalCreationPreviewView
 } from "./patch-proposal-creation-preview-view.js";
-import {
-  safeErrorMessage,
-  safeText
-} from "./safety.js";
+import { safeErrorMessage, safeText } from "./safety.js";
 import type {
   AppWorkbenchApprovalRef,
   AppWorkbenchSurfacesInput
@@ -107,7 +104,8 @@ export function buildModelPatchProposalImportView(
   const warningCount = repair.warningCount;
   const preview = previewFromRepair(repair);
   const status = statusFromRepair(repair, preview);
-  const importHash = preview?.proposalHash ?? repair.repairedHash ?? repair.originalHash;
+  const importHash =
+    preview?.proposalHash ?? repair.repairedHash ?? repair.originalHash;
 
   return {
     status,
@@ -275,7 +273,8 @@ function emptyImportView(
       canWriteEventStore: false,
       appCanExecute: false
     },
-    nextAction: "Paste a structured model_patch_proposal JSON draft to preview it.",
+    nextAction:
+      "Paste a structured model_patch_proposal JSON draft to preview it.",
     source: "app_model_patch_proposal_import"
   };
 }
@@ -358,6 +357,9 @@ function nextActionFor(status: ModelPatchProposalImportStatus): string {
 }
 
 function safeCode(value: string): string {
-  const code = value.trim().replace(/[^A-Za-z0-9_.-]/g, "_").toUpperCase();
+  const code = value
+    .trim()
+    .replace(/[^A-Za-z0-9_.-]/g, "_")
+    .toUpperCase();
   return /^[A-Z0-9_.-]{1,96}$/.test(code) ? code : "MODEL_IMPORT_WARNING";
 }

@@ -46,7 +46,9 @@ async function readHarnessFakeResponse(name: string): Promise<unknown> {
   return fixture.fakeResponse;
 }
 
-async function readSchemaFixture(name: string): Promise<Record<string, unknown>> {
+async function readSchemaFixture(
+  name: string
+): Promise<Record<string, unknown>> {
   const text = await readFile(path.join(schemaFixturesDir, name), "utf8");
   return JSON.parse(text) as Record<string, unknown>;
 }
@@ -252,7 +254,9 @@ describe("patch proposal repair loop", () => {
 
   it("preserves contentDraft only as summary output", async () => {
     const result = repairModelPatchProposalDraft(
-      repairInput(await readHarnessFakeResponse("case-warning-content-draft.json"))
+      repairInput(
+        await readHarnessFakeResponse("case-warning-content-draft.json")
+      )
     );
     const serialized = JSON.stringify(result);
 
@@ -350,10 +354,7 @@ describe("patch proposal repair loop", () => {
     });
 
     expect(findings.map((finding) => finding.code)).toEqual(
-      expect.arrayContaining([
-        "MISSING_RAW_CANDIDATE",
-        "INVALID_MAX_ATTEMPTS"
-      ])
+      expect.arrayContaining(["MISSING_RAW_CANDIDATE", "INVALID_MAX_ATTEMPTS"])
     );
   });
 });

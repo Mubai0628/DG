@@ -119,10 +119,7 @@ describe("model patch proposal schema", () => {
     expect(first.proposal).toEqual(second.proposal);
     expect(first.normalizedHash).toBe(second.normalizedHash);
     expect(first.findings.map((finding) => finding.code)).toEqual(
-      expect.arrayContaining([
-        "MISSING_PROPOSAL_ID",
-        "MISSING_OPERATION_ID"
-      ])
+      expect.arrayContaining(["MISSING_PROPOSAL_ID", "MISSING_OPERATION_ID"])
     );
   });
 

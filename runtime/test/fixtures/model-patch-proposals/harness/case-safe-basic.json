@@ -5,8 +5,18 @@
   "workspaceRefs": ["workspace-index-summary"],
   "contextRefs": ["context-assembly-preview"],
   "userWorkspaceReadinessRefs": ["promotion-readiness-summary"],
-  "allowedPathRefs": ["docs/app-shell-preview.md", "runtime/test/model-patch-proposal-schema.test.ts"],
-  "forbiddenPathPolicy": [".git", ".env", "node_modules", "dist", "target", ".tmp"],
+  "allowedPathRefs": [
+    "docs/app-shell-preview.md",
+    "runtime/test/model-patch-proposal-schema.test.ts"
+  ],
+  "forbiddenPathPolicy": [
+    ".git",
+    ".env",
+    "node_modules",
+    "dist",
+    "target",
+    ".tmp"
+  ],
   "evidenceRefs": ["workspace-index-summary", "context-assembly-preview"],
   "expectedStatus": "warning",
   "fakeResponse": {

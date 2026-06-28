@@ -1,4 +1,4 @@
-import { createHash } from "node:crypto";
+import { stablePreviewHash } from "./stable-preview-hash.js";
 
 export type ModelPatchProposalChangeKind =
   | "create"
@@ -430,10 +430,7 @@ function validateTopLevel(
     }
   }
   const schemaVersion = optionalText(record.schemaVersion);
-  if (
-    schemaVersion !== undefined &&
-    schemaVersion !== supportedSchemaVersion
-  ) {
+  if (schemaVersion !== undefined && schemaVersion !== supportedSchemaVersion) {
     findings.push(finding("schema", "blocker", "UNSUPPORTED_SCHEMA_VERSION"));
   }
   if (requiredText(record.title).length === 0) {
@@ -504,13 +501,17 @@ function validateOperationsShape(
     } else {
       fileCount += paths.has(path) ? 0 : 1;
       if (paths.has(path)) {
-        findings.push(finding("path", "blocker", "DUPLICATE_OPERATION_PATH", path));
+        findings.push(
+          finding("path", "blocker", "DUPLICATE_OPERATION_PATH", path)
+        );
       }
       paths.add(path);
       findings.push(...validatePath(path));
     }
     if (!isModelPatchProposalChangeKind(changeKind)) {
-      findings.push(finding("structure", "blocker", "UNKNOWN_CHANGE_KIND", path));
+      findings.push(
+        finding("structure", "blocker", "UNKNOWN_CHANGE_KIND", path)
+      );
     }
     if (summary.length === 0) {
       findings.push(
@@ -519,7 +520,11 @@ function validateOperationsShape(
     }
     findings.push(
       ...validateLineEstimate(value.estimatedLinesAdded, "LINES_ADDED", path),
-      ...validateLineEstimate(value.estimatedLinesRemoved, "LINES_REMOVED", path)
+      ...validateLineEstimate(
+        value.estimatedLinesRemoved,
+        "LINES_REMOVED",
+        path
+      )
     );
     if (hasOwn(value, "contentDraft")) {
       if (changeKind === "delete") {
@@ -533,7 +538,9 @@ function validateOperationsShape(
       );
     }
     if (changeKind === "delete") {
-      findings.push(finding("risk", "warning", "DELETE_OPERATION_PRESENT", path));
+      findings.push(
+        finding("risk", "warning", "DELETE_OPERATION_PRESENT", path)
+      );
       if (!hasHighRiskWarning(warningCodes)) {
         findings.push(
           finding("risk", "blocker", "DELETE_REQUIRES_HIGH_RISK_WARNING", path)
@@ -541,7 +548,9 @@ function validateOperationsShape(
       }
     }
     if (changeKind === "config") {
-      findings.push(finding("risk", "warning", "CONFIG_OPERATION_PRESENT", path));
+      findings.push(
+        finding("risk", "warning", "CONFIG_OPERATION_PRESENT", path)
+      );
       if (!hasApprovalRisk(value, warningCodes)) {
         findings.push(
           finding("risk", "blocker", "CONFIG_REQUIRES_APPROVAL_RISK_NOTE", path)
@@ -556,12 +565,21 @@ function validateOperationsShape(
     if (isSourceMutation(path, changeKind)) {
       sourceMutation = true;
     }
-    if (changeKind === "test" || /(^|\/)(test|tests)\//.test(path) || /\.test\./.test(path)) {
+    if (
+      changeKind === "test" ||
+      /(^|\/)(test|tests)\//.test(path) ||
+      /\.test\./.test(path)
+    ) {
       hasTestOperation = true;
     }
     if (operationId === undefined) {
       findings.push(
-        finding("structure", "warning", "MISSING_OPERATION_ID", path || `${index}`)
+        finding(
+          "structure",
+          "warning",
+          "MISSING_OPERATION_ID",
+          path || `${index}`
+        )
       );
     }
   }
@@ -783,7 +801,9 @@ function normalizationWarnings(
 ): ModelPatchProposalFinding[] {
   const findings: ModelPatchProposalFinding[] = [];
   if (proposal.operations.some((operation) => operation.contentDraftSummary)) {
-    findings.push(finding("content", "warning", "CONTENT_DRAFT_REQUIRES_AUDIT"));
+    findings.push(
+      finding("content", "warning", "CONTENT_DRAFT_REQUIRES_AUDIT")
+    );
   }
   if (proposal.assumptions.length > 0) {
     findings.push(finding("schema", "warning", "ASSUMPTIONS_REQUIRE_REVIEW"));
@@ -900,7 +920,9 @@ function validatePath(path: string): ModelPatchProposalFinding[] {
     findings.push(finding("path", "blocker", "NEWLINE_PATH_REJECTED", path));
   }
   if (/https?:\/\//i.test(path) || /[?#]/.test(path)) {
-    findings.push(finding("path", "blocker", "URL_OR_QUERY_PATH_REJECTED", path));
+    findings.push(
+      finding("path", "blocker", "URL_OR_QUERY_PATH_REJECTED", path)
+    );
   }
   if (/[;&|`$<>*{}[\]!]/.test(path)) {
     findings.push(finding("path", "blocker", "SHELL_META_PATH_REJECTED", path));
@@ -948,13 +970,17 @@ function validateContentDraft(
 ): ModelPatchProposalFinding[] {
   const findings: ModelPatchProposalFinding[] = [];
   if (typeof value !== "string") {
-    findings.push(finding("content", "blocker", "CONTENT_DRAFT_NOT_TEXT", path));
+    findings.push(
+      finding("content", "blocker", "CONTENT_DRAFT_NOT_TEXT", path)
+    );
     return findings;
   }
   if (byteLengthUtf8(value) > defaultMaxContentBytes) {
-    findings.push(finding("content", "blocker", "CONTENT_DRAFT_TOO_LARGE", path));
+    findings.push(
+      finding("content", "blocker", "CONTENT_DRAFT_TOO_LARGE", path)
+    );
   }
-  if (/[\u0000-\u0008\u000B\u000C\u000E-\u001F]/.test(value)) {
+  if (hasDisallowedControlCharacter(value)) {
     findings.push(
       finding("content", "blocker", "BINARY_CONTENT_DRAFT_REJECTED", path)
     );
@@ -963,6 +989,21 @@ function validateContentDraft(
     findings.push(finding("content", "blocker", code, path));
   }
   return findings;
+}
+
+function hasDisallowedControlCharacter(value: string): boolean {
+  for (let index = 0; index < value.length; index += 1) {
+    const code = value.charCodeAt(index);
+    if (
+      (code >= 0 && code <= 8) ||
+      code === 11 ||
+      code === 12 ||
+      (code >= 14 && code <= 31)
+    ) {
+      return true;
+    }
+  }
+  return false;
 }
 
 function validateLineEstimate(
@@ -975,14 +1016,7 @@ function validateLineEstimate(
   }
   return typeof value === "number" && Number.isFinite(value) && value >= 0
     ? []
-    : [
-        finding(
-          "structure",
-          "blocker",
-          `NEGATIVE_OR_INVALID_${label}`,
-          path
-        )
-      ];
+    : [finding("structure", "blocker", `NEGATIVE_OR_INVALID_${label}`, path)];
 }
 
 function findForbiddenFields(value: unknown): ModelPatchProposalFinding[] {
@@ -990,7 +1024,9 @@ function findForbiddenFields(value: unknown): ModelPatchProposalFinding[] {
   walkValue(value, (key) => {
     const lower = key.toLowerCase();
     if (forbiddenRawInputKeys.has(lower)) {
-      findings.push(finding("raw_field", "blocker", "FORBIDDEN_RAW_FIELD", key));
+      findings.push(
+        finding("raw_field", "blocker", "FORBIDDEN_RAW_FIELD", key)
+      );
     }
     if (forbiddenExecutionInputKeys.has(lower)) {
       findings.push(
@@ -1141,7 +1177,11 @@ function safeMessageFor(code: string): string {
   if (code.includes("PATH") || code.includes("TRAVERSAL")) {
     return "Model patch proposal contains an unsafe path.";
   }
-  if (code.includes("SECRET") || code.includes("KEY") || code.includes("TOKEN")) {
+  if (
+    code.includes("SECRET") ||
+    code.includes("KEY") ||
+    code.includes("TOKEN")
+  ) {
     return "Model patch proposal contains a secret-like marker.";
   }
   if (code.includes("EVIDENCE")) {
@@ -1164,7 +1204,9 @@ function optionalText(value: unknown): string | undefined {
 }
 
 function optionalNumber(value: unknown): number | undefined {
-  return typeof value === "number" && Number.isFinite(value) ? value : undefined;
+  return typeof value === "number" && Number.isFinite(value)
+    ? value
+    : undefined;
 }
 
 function optionalNonNegativeInteger(value: unknown): number | undefined {
@@ -1226,7 +1268,9 @@ function isModelPatchProposalChangeKind(
   return typeof value === "string" && allowedChangeKinds.has(value as never);
 }
 
-function isEvidenceKind(value: unknown): value is ModelPatchProposalEvidenceKind {
+function isEvidenceKind(
+  value: unknown
+): value is ModelPatchProposalEvidenceKind {
   return typeof value === "string" && allowedEvidenceKinds.has(value as never);
 }
 
@@ -1277,11 +1321,11 @@ function stableStringify(value: unknown): string {
 }
 
 function hashPatchObject(value: unknown): string {
-  return createHash("sha256").update(stableStringify(value)).digest("hex");
+  return stablePreviewHash(stableStringify(value));
 }
 
 function hashPreview(value: string): string {
-  return createHash("sha256").update(value, "utf8").digest("hex").slice(0, 12);
+  return stablePreviewHash(value).slice(0, 12);
 }
 
 function byteLengthUtf8(value: string): number {

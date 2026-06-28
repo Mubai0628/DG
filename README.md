@@ -175,6 +175,27 @@ v0.7 User Workspace Apply Preview RC references:
 - [App Shell User Workspace Apply RC checklist](docs/app-shell-user-workspace-apply-rc-checklist.md)
 - [v0.7 User Workspace Apply post-release review](docs/v0.7-user-workspace-apply-postrelease-review.md)
 
+## v0.8 DeepSeek Proposal Preview RC status
+
+Recommended tag:
+`v0.8.0-deepseek-proposal-preview-rc.1`.
+
+The P0L DeepSeek proposal preview line adds structured model patch proposal
+schema validation, offline fake and dry proposal generation, deterministic
+repair, App paste/import preview, and Model Proposal Chain Integration. There
+is still no live DeepSeek proposal generation, API key read, fetch/network,
+model-driven file write, App apply/rollback, App approval execution, or
+apply/rollback event write.
+
+The real working flow remains the v0.1 local `web_table_to_csv` Convert path.
+Record Draft Event remains the App/Tauri local summary-event write path.
+
+v0.8 DeepSeek Proposal Preview RC references:
+
+- [v0.8.0 DeepSeek Proposal Preview RC release notes](docs/release-notes-v0.8.0-deepseek-proposal-preview-rc.1.md)
+- [App Shell DeepSeek Proposal Preview manual QA](docs/app-shell-deepseek-proposal-preview-manual-qa.md)
+- [App Shell DeepSeek Proposal Preview RC checklist](docs/app-shell-deepseek-proposal-preview-rc-checklist.md)
+
 ## Current roadmap
 
 P0F is complete after `v0.2.0-app-shell-rc.1`, P0G is complete after
@@ -182,11 +203,11 @@ P0F is complete after `v0.2.0-app-shell-rc.1`, P0G is complete after
 `v0.4.0-controlled-creation-preview-rc.1`, and P0I is complete after
 `v0.5.0-validation-approval-virtual-apply-preview-rc.1`. P0J is complete after
 `v0.6.0-sandbox-apply-preview-rc.1`. P0K is complete after
-`v0.7.0-user-workspace-apply-preview-rc.1`. The current phase is P0L DeepSeek
-Patch Proposal Generation, draft-only and no App execution. DeepSeek may draft
-structured patch proposals only; it must not write files, apply, rollback, or
-bypass validation, audit, approval, rollback, and replay gates. App-side user
-workspace apply, rollback, approval execution, apply/rollback event writes, run
+`v0.7.0-user-workspace-apply-preview-rc.1`. P0L is prepared for
+`v0.8.0-deepseek-proposal-preview-rc.1` with DeepSeek proposal previews only:
+structured proposal schema, fake/dry generation, repair, App import, and chain
+projection. Live model calls, model-driven file writes, App-side user workspace
+apply, rollback, approval execution, apply/rollback event writes, run
 execution, Git execution, shell execution, broad capability invocation,
 production PermissionLease issuing, memory persistence UI, MCP/plugin/skills
 runtime, native bridge, and desktop action remain deferred.
@@ -212,6 +233,7 @@ runtime, native bridge, and desktop action remain deferred.
 - [v0.7.0 User Workspace Apply Preview RC release notes](docs/release-notes-v0.7.0-user-workspace-apply-preview-rc.1.md)
 - [P0L DeepSeek Patch Proposal Generation roadmap](docs/p0l-deepseek-patch-proposal-generation-roadmap.md)
 - [ADR 0007: DeepSeek Patch Proposal Generation](docs/adr/0007-deepseek-patch-proposal-generation.md)
+- [v0.8.0 DeepSeek Proposal Preview RC release notes](docs/release-notes-v0.8.0-deepseek-proposal-preview-rc.1.md)
 
 ## What v0.1.0 does not support
 

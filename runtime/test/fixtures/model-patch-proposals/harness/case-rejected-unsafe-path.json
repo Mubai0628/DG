@@ -5,7 +5,14 @@
   "workspaceRefs": ["workspace-index-summary"],
   "contextRefs": ["context-assembly-preview"],
   "allowedPathRefs": ["docs/safe.md"],
-  "forbiddenPathPolicy": [".git", ".env", "node_modules", "dist", "target", ".tmp"],
+  "forbiddenPathPolicy": [
+    ".git",
+    ".env",
+    "node_modules",
+    "dist",
+    "target",
+    ".tmp"
+  ],
   "evidenceRefs": ["workspace-index-summary"],
   "expectedStatus": "blocked",
   "fakeResponse": {

@@ -1,11 +1,10 @@
-import { createHash } from "node:crypto";
-
 import {
   parseModelPatchProposalDraft,
   type ModelPatchProposalInput,
   type ModelPatchProposalValidationResult,
   type ModelPatchProposalValidationStatus
 } from "./patch-proposal-schema.js";
+import { stablePreviewHash } from "./stable-preview-hash.js";
 
 export type PatchProposalDryModelRequest = {
   schemaVersion: "patch_proposal_dry_request.v1";
@@ -51,7 +50,9 @@ export type PatchProposalDryModelClient = {
   generatePatchProposal:
     | ((
         request: PatchProposalDryModelRequest
-      ) => Promise<PatchProposalDryModelResponse> | PatchProposalDryModelResponse)
+      ) =>
+        | Promise<PatchProposalDryModelResponse>
+        | PatchProposalDryModelResponse)
     | undefined;
 };
 
@@ -231,11 +232,16 @@ export function buildPatchProposalDryRequest(
   return {
     schemaVersion: "patch_proposal_dry_request.v1",
     objectiveSummary: safeText(input.objectiveSummary, ""),
-    intent: safeText(input.intent, "Generate a structured patch proposal draft."),
+    intent: safeText(
+      input.intent,
+      "Generate a structured patch proposal draft."
+    ),
     modelProfileId: safeText(input.modelProfileId, ""),
     workspaceIndexRefs: safeStringArray(input.workspaceIndexRefs),
     contextAssemblyRefs: safeStringArray(input.contextAssemblyRefs),
-    userWorkspaceReadinessRefs: safeStringArray(input.userWorkspaceReadinessRefs),
+    userWorkspaceReadinessRefs: safeStringArray(
+      input.userWorkspaceReadinessRefs
+    ),
     allowedPathRefs: safeStringArray(input.allowedPathRefs),
     forbiddenPathPolicy: safeStringArray(input.forbiddenPathPolicy),
     evidenceRefs: safeStringArray(input.evidenceRefs),
@@ -298,7 +304,9 @@ export async function runPatchProposalDryAdapter(
   try {
     response = await input.dryClient?.generatePatchProposal?.(request);
     if (response === undefined || !isRecord(response)) {
-      findings.push(finding("dry_client", "blocker", "DRY_CLIENT_EMPTY_RESPONSE"));
+      findings.push(
+        finding("dry_client", "blocker", "DRY_CLIENT_EMPTY_RESPONSE")
+      );
     } else {
       responseHash = hashObject(safeResponseFingerprint(response));
       droppedReasoningContent =
@@ -311,7 +319,9 @@ export async function runPatchProposalDryAdapter(
       }
       usageSummary = sanitizeUsageSummary(response.usageSummary);
       if (usageSummary === undefined) {
-        findings.push(finding("dry_client", "warning", "USAGE_SUMMARY_MISSING"));
+        findings.push(
+          finding("dry_client", "warning", "USAGE_SUMMARY_MISSING")
+        );
       }
       findings.push(...findForbiddenResponseFields(response));
       findings.push(...findUnsafeStringMarkers(response, "dry_client"));
@@ -383,10 +393,14 @@ function validateInputAndRequest(
     findings.push(finding("input", "blocker", "MISSING_DRY_CLIENT"));
   }
   if (request.workspaceIndexRefs.length === 0) {
-    findings.push(finding("request", "warning", "WORKSPACE_INDEX_REFS_MISSING"));
+    findings.push(
+      finding("request", "warning", "WORKSPACE_INDEX_REFS_MISSING")
+    );
   }
   if (request.contextAssemblyRefs.length === 0) {
-    findings.push(finding("request", "warning", "CONTEXT_ASSEMBLY_REFS_MISSING"));
+    findings.push(
+      finding("request", "warning", "CONTEXT_ASSEMBLY_REFS_MISSING")
+    );
   }
   if (request.userWorkspaceReadinessRefs.length === 0) {
     findings.push(
@@ -457,7 +471,8 @@ function resultFrom(args: {
     readiness: {
       ...args.readiness,
       canEnterPatchProposalPreview:
-        blockerCount === 0 && args.validation?.readiness.canEnterPatchProposalPreview === true
+        blockerCount === 0 &&
+        args.validation?.readiness.canEnterPatchProposalPreview === true
     },
     nextAction: nextActionFor(status),
     source: "runtime_patch_proposal_dry_adapter"
@@ -541,7 +556,9 @@ function findForbiddenResponseFields(
   const findings: PatchProposalDryAdapterFinding[] = [];
   walkValue(value, (key) => {
     if (forbiddenInputKeys.has(key.toLowerCase())) {
-      findings.push(finding("dry_client", "blocker", "FORBIDDEN_RESPONSE_FIELD"));
+      findings.push(
+        finding("dry_client", "blocker", "FORBIDDEN_RESPONSE_FIELD")
+      );
     }
     return true;
   });
@@ -631,7 +648,11 @@ function safeMessageFor(code: string): string {
   if (code.includes("SCHEMA")) {
     return "Patch proposal dry response failed schema validation.";
   }
-  if (code.includes("KEY") || code.includes("TOKEN") || code.includes("SECRET")) {
+  if (
+    code.includes("KEY") ||
+    code.includes("TOKEN") ||
+    code.includes("SECRET")
+  ) {
     return "Patch proposal dry adapter detected a secret-like marker.";
   }
   return `Patch proposal dry adapter finding: ${code}`;
@@ -767,11 +788,11 @@ function stableStringify(value: unknown): string {
 }
 
 function hashObject(value: unknown): string {
-  return createHash("sha256").update(stableStringify(value)).digest("hex");
+  return stablePreviewHash(stableStringify(value));
 }
 
 function hashPreview(value: string): string {
-  return createHash("sha256").update(value, "utf8").digest("hex").slice(0, 12);
+  return stablePreviewHash(value).slice(0, 12);
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {

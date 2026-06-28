@@ -2548,8 +2548,8 @@ export function DesktopShell(): JSX.Element {
               <div>
                 <dt>Evidence / risk</dt>
                 <dd>
-                  {displayedModelPatchProposalImport.preview?.evidenceRefCount ??
-                    0}{" "}
+                  {displayedModelPatchProposalImport.preview
+                    ?.evidenceRefCount ?? 0}{" "}
                   /{" "}
                   {displayedModelPatchProposalImport.preview?.riskNoteCount ??
                     0}
@@ -2603,9 +2603,11 @@ export function DesktopShell(): JSX.Element {
             ) : null}
 
             <p className="fieldHelp">
-              {summarizeModelPatchProposalImportView(
-                displayedModelPatchProposalImport
-              ).nextAction}
+              {
+                summarizeModelPatchProposalImportView(
+                  displayedModelPatchProposalImport
+                ).nextAction
+              }
             </p>
           </section>
 
@@ -2674,7 +2676,9 @@ export function DesktopShell(): JSX.Element {
               </div>
               <div>
                 <dt>Proposal</dt>
-                <dd>{displayedModelProposalChainIntegration.proposalId ?? "n/a"}</dd>
+                <dd>
+                  {displayedModelProposalChainIntegration.proposalId ?? "n/a"}
+                </dd>
               </div>
               <div>
                 <dt>Stages</dt>
@@ -2685,7 +2689,9 @@ export function DesktopShell(): JSX.Element {
               </div>
               <div>
                 <dt>Missing stages</dt>
-                <dd>{displayedModelProposalChainIntegration.missingStageCount}</dd>
+                <dd>
+                  {displayedModelProposalChainIntegration.missingStageCount}
+                </dd>
               </div>
               <div>
                 <dt>Blockers / warnings</dt>
@@ -2737,9 +2743,11 @@ export function DesktopShell(): JSX.Element {
             ) : null}
 
             <p className="fieldHelp">
-              {summarizeModelProposalChainIntegrationView(
-                displayedModelProposalChainIntegration
-              ).nextAction}
+              {
+                summarizeModelProposalChainIntegrationView(
+                  displayedModelProposalChainIntegration
+                ).nextAction
+              }
             </p>
           </section>
 
@@ -2963,7 +2971,7 @@ export function DesktopShell(): JSX.Element {
             <p className="fieldHelp">
               Validates the patch proposal summary before audit or approval. No
               files are read or written, and no patch is applied. Validation
-              passing does not mean apply is enabled.
+              passing does not enable apply.
             </p>
             <div className="buttonRow">
               <button

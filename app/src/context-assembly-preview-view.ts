@@ -129,9 +129,7 @@ export type AppContextAssemblyPreviewInput = {
     | AppSandboxApplyRollbackEventProjectionView
     | undefined;
   modelPatchProposalImport?: ModelPatchProposalImportView | undefined;
-  modelProposalChainIntegration?:
-    | ModelProposalChainIntegrationView
-    | undefined;
+  modelProposalChainIntegration?: ModelProposalChainIntegrationView | undefined;
   snapshotContract?: AppDisposableWorkspaceSnapshotView | undefined;
   userWorkspaceSnapshotContract?:
     | AppUserWorkspaceSnapshotBackupView
