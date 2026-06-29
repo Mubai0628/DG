@@ -3,6 +3,7 @@ export * from "./deepseek-capability-profile.js";
 export * from "./legacy-alias.js";
 export * from "./live-deepseek-proposal-adapter.js";
 export * from "./live-proposal-golden-case-schema.js";
+export * from "./live-proposal-offline-evaluation-runner.js";
 export * from "./live-proposal-telemetry-redaction-audit.js";
 export * from "./live-proposal-validation-integration.js";
 export * from "./live-proposal-api-key-policy.js";

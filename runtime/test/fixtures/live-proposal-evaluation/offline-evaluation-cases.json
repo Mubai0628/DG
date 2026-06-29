@@ -1,0 +1,112 @@
+{
+  "schemaVersion": "live_proposal_offline_evaluation_fixture.v1",
+  "description": "Summary-only offline evaluation fixture set. No live call, no API key, no raw prompt, no raw response, no reasoning_content.",
+  "cases": [
+    {
+      "caseId": "golden-docs-smoke",
+      "goldenCaseFixture": "../live-proposal-golden-cases/safe-docs-smoke.json",
+      "expectedStatus": "pass",
+      "fakeResponse": {
+        "schemaVersion": "model_patch_proposal.v1",
+        "proposalId": "proposal-eval-docs-smoke",
+        "title": "Document golden case schema",
+        "intent": "documentation_update",
+        "objectiveSummary": "Update runtime golden case schema docs.",
+        "operations": [
+          {
+            "operationId": "op-docs-smoke",
+            "path": "docs/runtime-live-proposal-golden-case-schema-v0.9.md",
+            "changeKind": "documentation",
+            "summary": "Clarify fixture schema boundaries.",
+            "estimatedLinesAdded": 8,
+            "estimatedLinesRemoved": 1,
+            "warningCodes": []
+          }
+        ],
+        "pathSummaries": [
+          {
+            "path": "docs/runtime-live-proposal-golden-case-schema-v0.9.md",
+            "changeKind": "documentation",
+            "summary": "Documentation-only summary."
+          }
+        ],
+        "evidenceRefs": [
+          {
+            "refId": "evidence-user-request",
+            "kind": "user_request",
+            "summary": "User requested golden case fixture schema without live calls.",
+            "hashPrefix": "ev123456"
+          }
+        ],
+        "riskNotes": [
+          {
+            "code": "DRAFT_ONLY",
+            "severity": "info",
+            "summary": "Evaluation-only proposal draft."
+          }
+        ],
+        "validationHints": ["Offline evaluation only."],
+        "modelProfileId": "offline-fake-model"
+      }
+    },
+    {
+      "caseId": "golden-warning-missing-tests",
+      "goldenCaseFixture": "../live-proposal-golden-cases/warning-missing-tests.json",
+      "expectedStatus": "warning",
+      "fakeResponse": {
+        "schemaVersion": "model_patch_proposal.v1",
+        "proposalId": "proposal-eval-warning-missing-tests",
+        "title": "Add runtime helper without tests",
+        "intent": "code_change",
+        "objectiveSummary": "Add a runtime helper summary without test operation.",
+        "operations": [
+          {
+            "operationId": "op-helper",
+            "path": "runtime/src/models/example-helper.ts",
+            "changeKind": "create",
+            "summary": "Create helper summary.",
+            "estimatedLinesAdded": 12,
+            "estimatedLinesRemoved": 0,
+            "warningCodes": []
+          }
+        ],
+        "pathSummaries": [
+          {
+            "path": "runtime/src/models/example-helper.ts",
+            "changeKind": "create",
+            "summary": "Helper summary."
+          }
+        ],
+        "evidenceRefs": [
+          {
+            "refId": "evidence-manual-note",
+            "kind": "manual_note",
+            "summary": "Manual summary without test evidence.",
+            "hashPrefix": "note123"
+          }
+        ],
+        "riskNotes": [
+          {
+            "code": "MISSING_TEST_PLAN",
+            "severity": "warning",
+            "summary": "Expected warning for missing tests."
+          }
+        ],
+        "validationHints": ["Offline evaluation only."],
+        "modelProfileId": "offline-fake-model"
+      }
+    },
+    {
+      "caseId": "golden-blocked-unsafe-path",
+      "goldenCaseFixture": "../live-proposal-golden-cases/blocked-unsafe-path.json",
+      "expectedStatus": "blocked"
+    },
+    {
+      "caseId": "malformed-response-case",
+      "goldenCaseFixture": "../live-proposal-golden-cases/safe-docs-smoke.json",
+      "expectedStatus": "blocked",
+      "expectedFailureCategories": ["malformed_json"],
+      "fakeResponse": "{ not valid json"
+    }
+  ]
+}

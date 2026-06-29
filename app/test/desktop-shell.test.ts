@@ -10790,6 +10790,46 @@ describe("desktop source boundaries", () => {
     );
   });
 
+  it("documents the P0N-003 offline evaluation runner without live calls", async () => {
+    const runtimeDoc = await readFile(
+      path.join(
+        repoRoot,
+        "docs",
+        "runtime-live-proposal-offline-evaluation-runner-v0.9.md"
+      ),
+      "utf8"
+    );
+    const docsIndex = await readFile(
+      path.join(repoRoot, "docs", "README.md"),
+      "utf8"
+    );
+    const combined = `${runtimeDoc}\n${docsIndex}`;
+
+    expect(combined).toContain(
+      "Runtime Live Proposal Offline Evaluation Runner v0.9"
+    );
+    expect(combined).toContain("offline evaluation only");
+    expect(combined).toContain("fake/dry only");
+    expect(combined).toContain("No live DeepSeek call");
+    expect(combined).toContain("No API key read");
+    expect(combined).toContain("No fetch/network");
+    expect(combined).toContain("raw prompt");
+    expect(combined).toContain("raw response");
+    expect(combined).toContain("reasoning_content");
+    expect(combined).toContain("No apply/rollback");
+    expect(combined).toContain("No EventStore write");
+    expect(combined).toContain("Failure Taxonomy");
+    expect(combined).toContain("schema_failure");
+    expect(combined).toContain("malformed_json");
+    expect(combined).toContain("repair_failed");
+    expect(combined).toContain("unsafe_path");
+    expect(combined).toContain("forbidden_field");
+    expect(combined).toContain("secret_marker");
+    expect(docsIndex).toContain(
+      "runtime-live-proposal-offline-evaluation-runner-v0.9.md"
+    );
+  });
+
   it("documents the P0L-001 DeepSeek patch proposal ADR and gates without implementation", async () => {
     const adr = await readFile(
       path.join(
