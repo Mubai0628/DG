@@ -10830,6 +10830,47 @@ describe("desktop source boundaries", () => {
     );
   });
 
+  it("documents the P0N-004 live evaluation runner explicit opt-in boundary", async () => {
+    const runtimeDoc = await readFile(
+      path.join(
+        repoRoot,
+        "docs",
+        "runtime-live-proposal-evaluation-runner-v0.9.md"
+      ),
+      "utf8"
+    );
+    const docsIndex = await readFile(
+      path.join(repoRoot, "docs", "README.md"),
+      "utf8"
+    );
+    const combined = `${runtimeDoc}\n${docsIndex}`;
+
+    expect(combined).toContain("Runtime Live Proposal Evaluation Runner v0.9");
+    expect(combined).toContain("explicit opt-in");
+    expect(combined).toContain("disabled");
+    expect(combined).toContain("dry_run");
+    expect(combined).toContain("injected API key resolver");
+    expect(combined).toContain("injected transport");
+    expect(combined).toContain("No App live call");
+    expect(combined).toContain("No App API key read");
+    expect(combined).toContain("No default fetch/network");
+    expect(combined).toContain("raw prompt");
+    expect(combined).toContain("raw response");
+    expect(combined).toContain("reasoning_content");
+    expect(combined).toContain("No apply/rollback");
+    expect(combined).toContain("No EventStore write");
+    expect(combined).toContain("No Git/shell execution");
+    expect(combined).toContain("No native bridge");
+    expect(combined).toContain("No desktop action");
+    expect(combined).toContain("Failure Taxonomy");
+    expect(combined).toContain("unsafe_path");
+    expect(combined).toContain("secret_marker");
+    expect(combined).toContain("raw_content_leak");
+    expect(docsIndex).toContain(
+      "runtime-live-proposal-evaluation-runner-v0.9.md"
+    );
+  });
+
   it("documents the P0L-001 DeepSeek patch proposal ADR and gates without implementation", async () => {
     const adr = await readFile(
       path.join(

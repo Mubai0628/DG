@@ -133,6 +133,7 @@ foundation.
 - [P0N-002 Golden Case Fixture Schema plan](p0n-002-golden-case-fixture-schema-plan.md)
 - [Runtime Live Proposal Golden Case Schema v0.9](runtime-live-proposal-golden-case-schema-v0.9.md)
 - [Runtime Live Proposal Offline Evaluation Runner v0.9](runtime-live-proposal-offline-evaluation-runner-v0.9.md)
+- [Runtime Live Proposal Evaluation Runner v0.9](runtime-live-proposal-evaluation-runner-v0.9.md)
 - [Runtime Memory Recall Preview v0.3](runtime-memory-recall-preview-v0.3.md)
 - [v0.4.0 Controlled Creation Preview RC release notes](release-notes-v0.4.0-controlled-creation-preview-rc.1.md)
 - [App Shell Controlled Creation manual QA](app-shell-controlled-creation-manual-qa.md)
