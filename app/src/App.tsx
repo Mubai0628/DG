@@ -205,6 +205,11 @@ import {
   type AppApprovalExecutionDesignView
 } from "./app-approval-execution-design-view.js";
 import {
+  buildAppApprovedExecutionReceiptView,
+  summarizeAppApprovedExecutionReceiptView,
+  type AppApprovedExecutionReceiptView
+} from "./app-approved-execution-receipt-view.js";
+import {
   buildDisposablePatchApplyView,
   type AppDisposablePatchApplyView
 } from "./disposable-patch-apply-view.js";
@@ -439,6 +444,18 @@ export function DesktopShell(): JSX.Element {
     userWorkspacePromotionReadinessPreview,
     setUserWorkspacePromotionReadinessPreview
   ] = useState<AppUserWorkspacePromotionReadinessView | undefined>();
+  const [appApprovedApplyConfirmation, setAppApprovedApplyConfirmation] =
+    useState("");
+  const [
+    appApprovedRollbackConfirmation,
+    setAppApprovedRollbackConfirmation
+  ] = useState("");
+  const [appApprovedReceiptPathRefs, setAppApprovedReceiptPathRefs] =
+    useState("");
+  const [
+    appApprovedExecutionReceiptPreview,
+    setAppApprovedExecutionReceiptPreview
+  ] = useState<AppApprovedExecutionReceiptView | undefined>();
   const loadedWorkspaceIndexRef =
     workspaceIndexBridge.status === "loaded" ||
     workspaceIndexBridge.status === "warning"
@@ -1112,6 +1129,8 @@ export function DesktopShell(): JSX.Element {
         userWorkspaceRollbackPrototypeView
       ]
     );
+  const displayedAppApprovedExecutionReceipt =
+    appApprovedExecutionReceiptPreview ?? buildAppApprovedExecutionReceiptView();
   const modelProposalChainIntegrationCandidate =
     useMemo<ModelProposalChainIntegrationView>(
       () =>
@@ -6811,6 +6830,254 @@ export function DesktopShell(): JSX.Element {
             ) : null}
             <p className="fieldHelp">
               {appApprovalExecutionDesignView.nextAction}
+            </p>
+          </section>
+
+          <section
+            className="eventPanel"
+            aria-label="App Approved Execution Receipt"
+          >
+            <div className="panelHeader">
+              <h2>App Approved Execution Receipt</h2>
+              <span className="muted">Receipt preview / no execution</span>
+            </div>
+            <p className="fieldHelp">
+              Previews a narrow apply or rollback approval receipt. The App
+              Shell does not invoke Tauri, write files, apply patches, rollback,
+              write events, issue leases, or execute Git or shell commands.
+            </p>
+            <label>
+              Apply typed confirmation
+              <input
+                value={appApprovedApplyConfirmation}
+                onChange={(event) =>
+                  setAppApprovedApplyConfirmation(event.target.value)
+                }
+                placeholder="APPLY TO USER WORKSPACE"
+                spellCheck={false}
+              />
+            </label>
+            <label>
+              Rollback typed confirmation
+              <input
+                value={appApprovedRollbackConfirmation}
+                onChange={(event) =>
+                  setAppApprovedRollbackConfirmation(event.target.value)
+                }
+                placeholder="ROLLBACK USER WORKSPACE"
+                spellCheck={false}
+              />
+            </label>
+            <label>
+              Allowed relative paths
+              <textarea
+                value={appApprovedReceiptPathRefs}
+                onChange={(event) =>
+                  setAppApprovedReceiptPathRefs(event.target.value)
+                }
+                placeholder="src/safe-file.ts"
+                spellCheck={false}
+              />
+            </label>
+            <div className="buttonRow">
+              <button
+                type="button"
+                className="secondary"
+                onClick={() =>
+                  setAppApprovedExecutionReceiptPreview(
+                    buildAppApprovedExecutionReceiptView({
+                      receiptKind: "apply",
+                      applyTypedConfirmation: appApprovedApplyConfirmation,
+                      rollbackTypedConfirmation:
+                        appApprovedRollbackConfirmation,
+                      allowedRelativePathsText: appApprovedReceiptPathRefs,
+                      workspaceSnapshotBackupContract:
+                        displayedUserWorkspaceSnapshotBackup,
+                      patchProposalPreview: patchProposalCreationPreview,
+                      patchValidationPreview: patchProposalValidationPreview,
+                      patchDiffAuditPreview: patchDiffAuditPreview,
+                      patchApprovalDraft: patchApprovalDraftPreview,
+                      patchRollbackCheckpointPreview:
+                        patchRollbackCheckpointPreview
+                    })
+                  )
+                }
+              >
+                Preview Apply Receipt
+              </button>
+              <button
+                type="button"
+                className="secondary"
+                onClick={() =>
+                  setAppApprovedExecutionReceiptPreview(
+                    buildAppApprovedExecutionReceiptView({
+                      receiptKind: "rollback",
+                      applyTypedConfirmation: appApprovedApplyConfirmation,
+                      rollbackTypedConfirmation:
+                        appApprovedRollbackConfirmation,
+                      allowedRelativePathsText: appApprovedReceiptPathRefs,
+                      workspaceSnapshotBackupContract:
+                        displayedUserWorkspaceSnapshotBackup,
+                      patchProposalPreview: patchProposalCreationPreview,
+                      patchValidationPreview: patchProposalValidationPreview,
+                      patchDiffAuditPreview: patchDiffAuditPreview,
+                      patchApprovalDraft: patchApprovalDraftPreview,
+                      patchRollbackCheckpointPreview:
+                        patchRollbackCheckpointPreview
+                    })
+                  )
+                }
+              >
+                Preview Rollback Receipt
+              </button>
+              <button
+                type="button"
+                className="secondary"
+                onClick={() => {
+                  setAppApprovedExecutionReceiptPreview(undefined);
+                  setAppApprovedApplyConfirmation("");
+                  setAppApprovedRollbackConfirmation("");
+                  setAppApprovedReceiptPathRefs("");
+                }}
+              >
+                Clear Receipt Preview
+              </button>
+            </div>
+            <div className="buttonRow">
+              <button
+                type="button"
+                className="secondary"
+                disabled
+                aria-disabled="true"
+              >
+                Approved Apply Command (disabled)
+              </button>
+              <button
+                type="button"
+                className="secondary"
+                disabled
+                aria-disabled="true"
+              >
+                Approved Rollback Command (disabled)
+              </button>
+            </div>
+            <dl className="summaryGrid compact">
+              <div>
+                <dt>Status</dt>
+                <dd>{displayedAppApprovedExecutionReceipt.status}</dd>
+              </div>
+              <div>
+                <dt>Kind</dt>
+                <dd>{displayedAppApprovedExecutionReceipt.kind}</dd>
+              </div>
+              <div>
+                <dt>Receipt id</dt>
+                <dd>{displayedAppApprovedExecutionReceipt.receiptId}</dd>
+              </div>
+              <div>
+                <dt>Proposal / validation / audit</dt>
+                <dd>
+                  {displayedAppApprovedExecutionReceipt.proposalId || "n/a"} /{" "}
+                  {displayedAppApprovedExecutionReceipt.validationId || "n/a"} /{" "}
+                  {displayedAppApprovedExecutionReceipt.auditId || "n/a"}
+                </dd>
+              </div>
+              <div>
+                <dt>Approval / checkpoint</dt>
+                <dd>
+                  {displayedAppApprovedExecutionReceipt.approvalDraftId ||
+                    "n/a"}{" "}
+                  /{" "}
+                  {displayedAppApprovedExecutionReceipt.checkpointId || "n/a"}
+                </dd>
+              </div>
+              <div>
+                <dt>Allowed paths</dt>
+                <dd>{displayedAppApprovedExecutionReceipt.allowedPathCount}</dd>
+              </div>
+              <div>
+                <dt>Receipt hash</dt>
+                <dd>
+                  {displayedAppApprovedExecutionReceipt.receiptHashPrefix ||
+                    "n/a"}
+                </dd>
+              </div>
+              <div>
+                <dt>Blockers / warnings</dt>
+                <dd>
+                  {displayedAppApprovedExecutionReceipt.blockerCount} /{" "}
+                  {displayedAppApprovedExecutionReceipt.warningCount}
+                </dd>
+              </div>
+              <div>
+                <dt>Can write / events</dt>
+                <dd>
+                  {displayedAppApprovedExecutionReceipt.readiness
+                    .canWriteFilesystem
+                    ? "yes"
+                    : "no"}{" "}
+                  /{" "}
+                  {displayedAppApprovedExecutionReceipt.readiness
+                    .canWriteEventStore
+                    ? "yes"
+                    : "no"}
+                </dd>
+              </div>
+              <div>
+                <dt>Can apply / rollback</dt>
+                <dd>
+                  {displayedAppApprovedExecutionReceipt.readiness.canApplyPatch
+                    ? "yes"
+                    : "no"}{" "}
+                  /{" "}
+                  {displayedAppApprovedExecutionReceipt.readiness.canRollback
+                    ? "yes"
+                    : "no"}
+                </dd>
+              </div>
+              <div>
+                <dt>Can git / shell</dt>
+                <dd>
+                  {displayedAppApprovedExecutionReceipt.readiness.canExecuteGit
+                    ? "yes"
+                    : "no"}{" "}
+                  /{" "}
+                  {displayedAppApprovedExecutionReceipt.readiness
+                    .canExecuteShell
+                    ? "yes"
+                    : "no"}
+                </dd>
+              </div>
+              <div>
+                <dt>App can execute</dt>
+                <dd>
+                  {displayedAppApprovedExecutionReceipt.readiness.appCanExecute
+                    ? "yes"
+                    : "no"}
+                </dd>
+              </div>
+            </dl>
+            <p className="fieldHelp">
+              {summarizeAppApprovedExecutionReceiptView(
+                displayedAppApprovedExecutionReceipt
+              )}
+            </p>
+            {displayedAppApprovedExecutionReceipt.findings.length > 0 ? (
+              <ol className="timeline">
+                {displayedAppApprovedExecutionReceipt.findings.map(
+                  (finding) => (
+                    <li key={`${finding.code}-${finding.path ?? "scope"}`}>
+                      <span className="timelineMeta">
+                        {finding.severity} · {finding.code}
+                      </span>
+                      <span>{finding.safeMessage}</span>
+                    </li>
+                  )
+                )}
+              </ol>
+            ) : null}
+            <p className="fieldHelp">
+              {displayedAppApprovedExecutionReceipt.nextAction}
             </p>
           </section>
 

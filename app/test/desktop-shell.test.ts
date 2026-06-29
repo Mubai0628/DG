@@ -135,6 +135,7 @@ import {
   buildAppApprovalExecutionDesignView,
   summarizeAppApprovalExecutionDesignView
 } from "../src/app-approval-execution-design-view.js";
+import { buildAppApprovedExecutionReceiptView } from "../src/app-approved-execution-receipt-view.js";
 import { buildDisposablePatchApplyView } from "../src/disposable-patch-apply-view.js";
 import { buildApprovalGatedDisposableApplyView } from "../src/approval-gated-disposable-apply-view.js";
 import { buildDisposablePatchRollbackView } from "../src/disposable-patch-rollback-view.js";
@@ -8569,6 +8570,117 @@ describe("app approval execution design", () => {
     expect(appSource).not.toContain("Git execution works");
     expect(appSource).not.toContain("Shell execution works");
     expect(appSource).not.toContain("Native bridge is enabled");
+  });
+});
+
+describe("app approved execution receipt preview", () => {
+  function safeReceiptView(kind: "apply" | "rollback" = "apply") {
+    return buildAppApprovedExecutionReceiptView({
+      receiptKind: kind,
+      applyTypedConfirmation: "APPLY TO USER WORKSPACE",
+      rollbackTypedConfirmation: "ROLLBACK USER WORKSPACE",
+      allowedRelativePathsText: "src/safe-file.ts",
+      workspaceSnapshotBackupContract: {
+        userWorkspaceRootRef: "workspace-ref-demo"
+      },
+      patchProposalPreview: {
+        proposalId: "proposal-1",
+        items: [{ path: "src/safe-file.ts" }]
+      },
+      patchValidationPreview: { validationId: "validation-1" },
+      patchDiffAuditPreview: { auditId: "audit-1" },
+      patchApprovalDraft: { approvalDraftId: "approval-1" },
+      patchRollbackCheckpointPreview: { checkpointPreviewId: "checkpoint-1" },
+      createdAt: "2026-01-01T00:00:00.000Z",
+      idGenerator: () => `receipt-${kind}-1`
+    });
+  }
+
+  it("builds apply and rollback receipt previews without enabling App execution", () => {
+    const applyView = safeReceiptView("apply");
+    const rollbackView = safeReceiptView("rollback");
+
+    expect(applyView.status).toBe("ready");
+    expect(applyView.kind).toBe("apply");
+    expect(rollbackView.status).toBe("ready");
+    expect(rollbackView.kind).toBe("rollback");
+    expect(rollbackView.checkpointId).toBe("checkpoint-1");
+    expect(applyView.readiness.canApplyPatch).toBe(false);
+    expect(applyView.readiness.canRollback).toBe(false);
+    expect(applyView.readiness.canWriteFilesystem).toBe(false);
+    expect(applyView.readiness.canWriteEventStore).toBe(false);
+    expect(applyView.readiness.canExecuteGit).toBe(false);
+    expect(applyView.readiness.canExecuteShell).toBe(false);
+    expect(applyView.readiness.canIssuePermissionLease).toBe(false);
+    expect(applyView.readiness.appCanExecute).toBe(false);
+  });
+
+  it("keeps receipt preview empty and safe before user confirmation", () => {
+    const view = buildAppApprovedExecutionReceiptView();
+
+    expect(view.status).toBe("empty");
+    expect(view.readiness.canPreviewReceipt).toBe(false);
+    expect(view.readiness.canWriteFilesystem).toBe(false);
+    expect(view.readiness.appCanExecute).toBe(false);
+    expect(view.summary).toContain("app_execution:false");
+  });
+
+  it("blocks App receipt preview when confirmation is wrong", () => {
+    const view = buildAppApprovedExecutionReceiptView({
+      receiptKind: "apply",
+      applyTypedConfirmation: "apply",
+      allowedRelativePathsText: "src/safe-file.ts",
+      workspaceSnapshotBackupContract: {
+        userWorkspaceRootRef: "workspace-ref-demo"
+      },
+      patchProposalPreview: { proposalId: "proposal-1" },
+      patchValidationPreview: { validationId: "validation-1" },
+      patchDiffAuditPreview: { auditId: "audit-1" },
+      patchApprovalDraft: { approvalDraftId: "approval-1" }
+    });
+
+    expect(view.status).toBe("blocked");
+    expect(view.findings.map((finding) => finding.code)).toContain(
+      "APP_APPROVED_RECEIPT_CONFIRMATION_MISMATCH"
+    );
+    expect(view.readiness.canPreviewReceipt).toBe(false);
+  });
+
+  it("renders receipt preview panel without Tauri, events, filesystem, or execution handlers", async () => {
+    const appSource = await readFile(
+      path.join(appRoot, "src", "App.tsx"),
+      "utf8"
+    );
+    const viewSource = await readFile(
+      path.join(appRoot, "src", "app-approved-execution-receipt-view.ts"),
+      "utf8"
+    );
+    const desktopFlowSource = await readFile(
+      path.join(appRoot, "src", "desktop-flow.ts"),
+      "utf8"
+    );
+    const combined = `${appSource}\n${viewSource}`;
+
+    expect(appSource).toContain("App Approved Execution Receipt");
+    expect(appSource).toContain("Receipt preview / no execution");
+    expect(appSource).toContain("Apply typed confirmation");
+    expect(appSource).toContain("Rollback typed confirmation");
+    expect(appSource).toContain("Preview Apply Receipt");
+    expect(appSource).toContain("Preview Rollback Receipt");
+    expect(appSource).toContain("Approved Apply Command (disabled)");
+    expect(appSource).toContain("Approved Rollback Command (disabled)");
+    expect(appSource).toMatch(
+      /The App\s+Shell does not invoke Tauri,\s+write files,\s+apply patches,\s+rollback,\s+write events,\s+issue leases,\s+or execute Git or shell commands/
+    );
+    expect(viewSource).not.toContain("safeInvoke");
+    expect(viewSource).not.toContain("recordControlRunDraftEvent");
+    expect(viewSource).not.toContain("writeFile");
+    expect(viewSource).not.toContain("readFile(");
+    expect(combined).not.toContain("handleApprovedApply");
+    expect(combined).not.toContain("handleApprovedRollback");
+    expect(combined).not.toContain("handleIssuePermissionLease");
+    expect(combined).not.toContain("appendEventStore");
+    expect(desktopFlowSource).not.toContain("app_approved_execution_receipt");
   });
 });
 
