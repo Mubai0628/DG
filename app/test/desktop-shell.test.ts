@@ -10871,6 +10871,44 @@ describe("desktop source boundaries", () => {
     );
   });
 
+  it("documents the P0N-005 failure metrics aggregator without execution", async () => {
+    const runtimeDoc = await readFile(
+      path.join(
+        repoRoot,
+        "docs",
+        "runtime-live-proposal-failure-metrics-v0.9.md"
+      ),
+      "utf8"
+    );
+    const docsIndex = await readFile(
+      path.join(repoRoot, "docs", "README.md"),
+      "utf8"
+    );
+    const combined = `${runtimeDoc}\n${docsIndex}`;
+
+    expect(combined).toContain("Runtime Live Proposal Failure Metrics v0.9");
+    expect(combined).toContain("metrics aggregator only");
+    expect(combined).toContain("no live call");
+    expect(combined).toContain("no API key read");
+    expect(combined).toContain("no fetch/network");
+    expect(combined).toContain("no raw prompt");
+    expect(combined).toContain("no raw response");
+    expect(combined).toContain("reasoning_content persistence");
+    expect(combined).toContain("Failure Taxonomy");
+    expect(combined).toContain("Repair Metrics");
+    expect(combined).toContain("Schema metrics");
+    expect(combined).toContain("Usage metrics");
+    expect(combined).toContain("No apply/rollback");
+    expect(combined).toContain("No EventStore write");
+    expect(combined).toContain("No App execution");
+    expect(combined).toContain("No Git/shell execution");
+    expect(combined).toContain("No native bridge");
+    expect(combined).toContain("No desktop action");
+    expect(docsIndex).toContain(
+      "runtime-live-proposal-failure-metrics-v0.9.md"
+    );
+  });
+
   it("documents the P0L-001 DeepSeek patch proposal ADR and gates without implementation", async () => {
     const adr = await readFile(
       path.join(
