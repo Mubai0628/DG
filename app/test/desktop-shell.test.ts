@@ -11645,6 +11645,80 @@ describe("desktop source boundaries", () => {
     );
   });
 
+  it("documents the v0.10 post-release review and P0O approved execution roadmap", async () => {
+    const review = await readFile(
+      path.join(
+        repoRoot,
+        "docs",
+        "v0.10-live-proposal-evaluation-postrelease-review.md"
+      ),
+      "utf8"
+    );
+    const roadmap = await readFile(
+      path.join(repoRoot, "docs", "p0o-app-approved-execution-roadmap.md"),
+      "utf8"
+    );
+    const plan = await readFile(
+      path.join(
+        repoRoot,
+        "docs",
+        "p0o-001-app-approved-execution-gate-plan.md"
+      ),
+      "utf8"
+    );
+    const spec = await readFile(
+      path.join(repoRoot, "docs", "v0.11 — App-side Approved Execution MVP.md"),
+      "utf8"
+    );
+    const docsIndex = await readFile(
+      path.join(repoRoot, "docs", "README.md"),
+      "utf8"
+    );
+    const rootReadme = await readFile(path.join(repoRoot, "README.md"), "utf8");
+    const combined = `${review}\n${roadmap}\n${plan}\n${spec}\n${docsIndex}\n${rootReadme}`;
+
+    expect(combined).toContain("v0.10.0-live-proposal-evaluation-rc.1");
+    expect(combined).toContain(
+      "Live proposal evaluation and golden cases, no App execution"
+    );
+    expect(combined).toContain("P0N is complete");
+    expect(combined).toContain("P0O: App-side Approved Execution MVP");
+    expect(combined).toContain("App-side approved execution MVP");
+    expect(combined).toMatch(/user must explicitly approve/i);
+    expect(combined).toContain("Human approval is required");
+    expect(combined).toContain("Typed confirmation is required");
+    expect(combined).toContain("rollback-capable");
+    expect(combined).toContain("Rollback is available");
+    expect(combined).toMatch(/summary-only apply and rollback events/i);
+    expect(combined).toMatch(/summary events must be replayable/i);
+    expect(combined).toContain("Event Log / Replay can show the chain");
+    expect(combined).toContain("No auto-apply");
+    expect(combined).toContain("No model execution");
+    expect(combined).toContain("No Git command execution");
+    expect(combined).toContain("No shell command execution");
+    expect(combined).toContain("No broad production PermissionLease");
+    expect(combined).toContain("No native bridge");
+    expect(combined).toContain("No desktop action");
+    expect(combined).toContain("No runtime feature implementation");
+    expect(combined).toContain("No Tauri command");
+    expect(combined).toContain("No EventStore writer");
+    expect(combined).toContain("No user workspace mutation");
+    expect(combined).toContain("No DeepSeek call");
+    expect(combined).toContain("No API key read");
+    expect(combined).toContain("No fetch/network");
+    expect(combined).toContain("raw preimage");
+    expect(combined).toContain("never appear in EventStore payloads");
+    expect(combined).toContain("DW-P0O-002");
+    expect(docsIndex).toContain(
+      "v0.11%20%E2%80%94%20App-side%20Approved%20Execution%20MVP.md"
+    );
+    expect(docsIndex).toContain(
+      "v0.10-live-proposal-evaluation-postrelease-review.md"
+    );
+    expect(docsIndex).toContain("p0o-app-approved-execution-roadmap.md");
+    expect(docsIndex).toContain("p0o-001-app-approved-execution-gate-plan.md");
+  });
+
   it("documents the P0L-001 DeepSeek patch proposal ADR and gates without implementation", async () => {
     const adr = await readFile(
       path.join(
