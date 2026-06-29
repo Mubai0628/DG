@@ -59,6 +59,11 @@ Current scope:
   read-only App evaluation summaries, and evaluation telemetry audit while App
   Shell evaluation runs, live calls, API key reads, fetch/network,
   apply/rollback, approval execution, and event writes remain disabled
+- prepare the v0.11 App-side Approved Execution MVP RC with narrow
+  human-approved apply and rollback, exact typed confirmations, private
+  checkpoints, summary-only approved execution events, replay counts, and E2E
+  smoke coverage while auto-apply, model-driven writes, generic commands, Git,
+  shell, native bridge, desktop action, and broad PermissionLease remain absent
 - preview the P0M Live Proposal Opt-in Gate as policy metadata only, with no
   API key read, no environment value read, no vault read, no fetch/network, no
   live DeepSeek call, and no App execution
@@ -93,7 +98,7 @@ Current limitations:
 - no App Shell workspace filesystem crawling; Workspace Index accepts
   summary-only JSON previews
 - no App Shell prompt assembly; Context Assembly Preview is local summary-only
-- no App Shell patch apply; Patch Proposal Creation Preview is local
+- no generic App Shell patch apply; Patch Proposal Creation Preview is local
   summary-only, Patch Proposal Validation Preview validates summaries only, and
   Patch Diff Audit Preview audits proposal/validation summaries without raw diff
   generation; Patch Approval Draft builds a read-only approval request draft
@@ -140,7 +145,12 @@ Current limitations:
   events; Live Proposal Evaluation Telemetry Audit is read-only and accepts
   pasted summary-only audit reports without persisting raw prompt, raw response,
   reasoning_content, API keys, or raw proposal output; none of these App
-  surfaces reads or writes files
+  surfaces reads or writes files; Approved Execution is the only App-side user
+  workspace write path, and it requires an approved receipt, exact typed
+  confirmation, safe path and content gates, private checkpoint metadata, and
+  summary-only events; it does not expose a generic command UI, Git execution,
+  shell execution, native bridge, desktop action, broad PermissionLease, raw
+  content event payload, or model-driven auto-apply
 - no validation, audit, approval, virtual apply, rollback, or replay preview is
   an apply/approval/rollback/execution lane
 - no real DeepSeek API call from the desktop shell

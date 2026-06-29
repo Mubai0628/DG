@@ -243,18 +243,22 @@ v0.10 Live Proposal Evaluation RC references:
 - [P0O App Approved Execution roadmap](docs/p0o-app-approved-execution-roadmap.md)
 - [P0O-001 App Approved Execution Gate plan](docs/p0o-001-app-approved-execution-gate-plan.md)
 - [v0.11 App-side Approved Execution MVP specification](docs/v0.11%20%E2%80%94%20App-side%20Approved%20Execution%20MVP.md)
+- [v0.11.0 App-side Approved Execution MVP RC release notes](docs/release-notes-v0.11.0-app-approved-execution-mvp-rc.1.md)
+- [App Approved Execution manual QA](docs/app-approved-execution-manual-qa.md)
+- [App Approved Execution RC checklist](docs/app-approved-execution-rc-checklist.md)
 
-## v0.11 App-side Approved Execution MVP planning status
+## v0.11 App-side Approved Execution MVP RC status
 
 Recommended tag:
 `v0.11.0-app-approved-execution-mvp-rc.1`.
 
-The P0O line is planned as a narrow App-side approved execution MVP. It may
-enable apply and rollback only after explicit human approval, exact typed
-confirmation, path and content safety checks, checkpoint creation, summary-only
-events, and replay visibility. It must not introduce auto-apply, model
-auto-execution, Git execution, shell execution, native bridge, desktop action,
-broad PermissionLease, arbitrary filesystem writes, or raw content in events.
+The P0O line implements a narrow App-side approved execution MVP. Approved
+apply and rollback are available only after explicit human approval, exact
+typed confirmation, path and content safety checks, checkpoint creation,
+summary-only events, and replay visibility. It does not introduce auto-apply,
+model auto-execution, Git execution, shell execution, native bridge, desktop
+action, broad PermissionLease, arbitrary filesystem writes, or raw content in
+events.
 
 ## Current roadmap
 
@@ -273,14 +277,14 @@ integration, App disabled-only gate previews, and telemetry/redaction audit.
 P0N is complete after `v0.10.0-live-proposal-evaluation-rc.1` with golden case
 schema validation, offline and explicit opt-in live evaluation runners, failure
 taxonomy and repair metrics, App read-only summary display, and evaluation
-telemetry/redaction audit. App-side live model calls, App evaluation runs, App
-API key reads, App fetch/network, model-driven file writes, App-side user
-workspace apply, rollback, approval execution, apply/rollback event writes,
-run execution, Git execution, shell execution, broad capability invocation,
+telemetry/redaction audit. P0O is complete for the v0.11 RC with a narrow
+human-approved App-side apply/rollback MVP, private checkpoints, summary-only
+approved execution events, replay counts, and an E2E approved execution smoke.
+App-side live model calls, App evaluation runs, App API key reads, App
+fetch/network, model-driven auto-apply, approval/rejection execution, run
+execution, Git execution, shell execution, broad capability invocation,
 production PermissionLease issuing, memory persistence UI, MCP/plugin/skills
-runtime, native bridge, and desktop action remain deferred. P0O is now planned
-for a narrow human-approved App-side apply/rollback MVP with rollback and
-summary-only replayable events.
+runtime, native bridge, and desktop action remain deferred.
 
 - [v0.2 App Shell RC post-release review](docs/v0.2-app-shell-rc-postrelease-review.md)
 - [P0G Coding Workflow roadmap](docs/p0g-coding-workflow-roadmap.md)
@@ -311,6 +315,7 @@ summary-only replayable events.
 - [v0.10 Live Proposal Evaluation post-release review](docs/v0.10-live-proposal-evaluation-postrelease-review.md)
 - [P0O App Approved Execution roadmap](docs/p0o-app-approved-execution-roadmap.md)
 - [P0O-001 App Approved Execution Gate plan](docs/p0o-001-app-approved-execution-gate-plan.md)
+- [v0.11.0 App-side Approved Execution MVP RC release notes](docs/release-notes-v0.11.0-app-approved-execution-mvp-rc.1.md)
 
 ## What v0.1.0 does not support
 

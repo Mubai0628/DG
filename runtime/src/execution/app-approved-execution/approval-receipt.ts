@@ -1,11 +1,8 @@
-import { createHash } from "node:crypto";
+import { patchSha256 } from "../patch/hash.js";
 
 export type AppApprovedExecutionKind = "apply" | "rollback";
 
-export type AppApprovedExecutionReceiptStatus =
-  | "ready"
-  | "warning"
-  | "blocked";
+export type AppApprovedExecutionReceiptStatus = "ready" | "warning" | "blocked";
 
 export type AppApprovedExecutionReceiptSeverity =
   | "info"
@@ -321,7 +318,12 @@ function validateNormalizedInput(
     add(findings, "scope", "blocker", "APP_APPROVED_RECEIPT_SCOPE_MISSING");
   }
   if (!input.workspaceRootRef) {
-    add(findings, "scope", "blocker", "APP_APPROVED_RECEIPT_WORKSPACE_ROOT_MISSING");
+    add(
+      findings,
+      "scope",
+      "blocker",
+      "APP_APPROVED_RECEIPT_WORKSPACE_ROOT_MISSING"
+    );
   }
   for (const [field, code] of [
     ["proposalId", "APP_APPROVED_RECEIPT_PROPOSAL_MISSING"],
@@ -334,7 +336,12 @@ function validateNormalizedInput(
     }
   }
   if (input.kind === "rollback" && !input.checkpointId) {
-    add(findings, "scope", "blocker", "APP_APPROVED_RECEIPT_CHECKPOINT_MISSING");
+    add(
+      findings,
+      "scope",
+      "blocker",
+      "APP_APPROVED_RECEIPT_CHECKPOINT_MISSING"
+    );
   }
 
   const expectedConfirmation =
@@ -371,7 +378,12 @@ function validateNormalizedInput(
   if (input.maxFiles <= 0) {
     add(findings, "limit", "blocker", "APP_APPROVED_RECEIPT_MAX_FILES_INVALID");
   } else if (input.allowedRelativePaths.length > input.maxFiles) {
-    add(findings, "limit", "blocker", "APP_APPROVED_RECEIPT_MAX_FILES_EXCEEDED");
+    add(
+      findings,
+      "limit",
+      "blocker",
+      "APP_APPROVED_RECEIPT_MAX_FILES_EXCEEDED"
+    );
   }
   if (input.maxBytes <= 0) {
     add(findings, "limit", "blocker", "APP_APPROVED_RECEIPT_MAX_BYTES_INVALID");
@@ -447,12 +459,9 @@ function summaryFor(code: string): string {
       "Receipt scope is required before App-approved execution can be previewed.",
     APP_APPROVED_RECEIPT_WORKSPACE_ROOT_MISSING:
       "Workspace root reference is missing.",
-    APP_APPROVED_RECEIPT_PROPOSAL_MISSING:
-      "Proposal reference is missing.",
-    APP_APPROVED_RECEIPT_VALIDATION_MISSING:
-      "Validation reference is missing.",
-    APP_APPROVED_RECEIPT_AUDIT_MISSING:
-      "Audit reference is missing.",
+    APP_APPROVED_RECEIPT_PROPOSAL_MISSING: "Proposal reference is missing.",
+    APP_APPROVED_RECEIPT_VALIDATION_MISSING: "Validation reference is missing.",
+    APP_APPROVED_RECEIPT_AUDIT_MISSING: "Audit reference is missing.",
     APP_APPROVED_RECEIPT_APPROVAL_DRAFT_MISSING:
       "Approval draft reference is missing.",
     APP_APPROVED_RECEIPT_CHECKPOINT_MISSING:
@@ -461,8 +470,7 @@ function summaryFor(code: string): string {
       "Typed confirmation does not match the requested receipt kind.",
     APP_APPROVED_RECEIPT_EXPIRY_INVALID:
       "Receipt expiry is missing or invalid.",
-    APP_APPROVED_RECEIPT_EXPIRED:
-      "Receipt is expired and must fail closed.",
+    APP_APPROVED_RECEIPT_EXPIRED: "Receipt is expired and must fail closed.",
     APP_APPROVED_RECEIPT_PATHS_MISSING:
       "At least one allowed relative path is required.",
     APP_APPROVED_RECEIPT_DUPLICATE_PATH:
@@ -520,7 +528,11 @@ function unsafeRelativePathCode(relativePath: string): string | undefined {
   ) {
     return "APP_APPROVED_RECEIPT_BLOCKED_PATH";
   }
-  if (/(^|[\/._-])(secret|token|password|credential|api[-_]?key)([\/._-]|$)/i.test(normalized)) {
+  if (
+    /(^|[/._-])(secret|token|password|credential|api[-_]?key)([/._-]|$)/i.test(
+      normalized
+    )
+  ) {
     return "APP_APPROVED_RECEIPT_SECRET_PATH";
   }
   return undefined;
@@ -579,7 +591,9 @@ function visitUnknown(
 ): void {
   visitor(value, path);
   if (Array.isArray(value)) {
-    value.forEach((item, index) => visitUnknown(item, visitor, [...path, String(index)]));
+    value.forEach((item, index) =>
+      visitUnknown(item, visitor, [...path, String(index)])
+    );
     return;
   }
   if (isRecord(value)) {
@@ -636,7 +650,7 @@ function disabledReadiness(): AppApprovedExecutionReadiness {
 }
 
 function hashStable(value: unknown): string {
-  return createHash("sha256").update(stableStringify(value)).digest("hex");
+  return patchSha256(stableStringify(value));
 }
 
 function stableStringify(value: unknown): string {

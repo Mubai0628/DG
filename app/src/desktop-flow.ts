@@ -410,9 +410,7 @@ function normalizeApprovedApplyResult(
   raw: unknown
 ): ApprovedUserWorkspaceApplyResult {
   const record = isRecord(raw) ? raw : {};
-  const eventPreview = isRecord(record.eventPreview)
-    ? record.eventPreview
-    : {};
+  const eventPreview = isRecord(record.eventPreview) ? record.eventPreview : {};
   if (
     record.ok !== true ||
     typeof record.applyId !== "string" ||
@@ -439,13 +437,13 @@ function normalizeApprovedApplyResult(
     });
   }
   const warningCodes = Array.isArray(record.warningCodes)
-    ? record.warningCodes.filter((value): value is string =>
-        typeof value === "string"
+    ? record.warningCodes.filter(
+        (value): value is string => typeof value === "string"
       )
     : [];
   const eventWarningCodes = Array.isArray(eventPreview.warningCodes)
-    ? eventPreview.warningCodes.filter((value): value is string =>
-        typeof value === "string"
+    ? eventPreview.warningCodes.filter(
+        (value): value is string => typeof value === "string"
       )
     : [];
   const pathSummaries = eventPreview.pathSummaries.filter(
@@ -482,7 +480,9 @@ function normalizeApprovedApplyResult(
       filesDeleted: Number(eventPreview.filesDeleted ?? 0),
       bytesWritten: Number(eventPreview.bytesWritten ?? 0),
       pathSummaries,
-      pathSummaryCount: Number(eventPreview.pathSummaryCount ?? pathSummaries.length),
+      pathSummaryCount: Number(
+        eventPreview.pathSummaryCount ?? pathSummaries.length
+      ),
       resultHash: safeErrorMessage(String(eventPreview.resultHash ?? "")),
       warningCodes: eventWarningCodes,
       notWritten: true
@@ -495,9 +495,7 @@ function normalizeApprovedRollbackResult(
   raw: unknown
 ): ApprovedUserWorkspaceRollbackResult {
   const record = isRecord(raw) ? raw : {};
-  const eventPreview = isRecord(record.eventPreview)
-    ? record.eventPreview
-    : {};
+  const eventPreview = isRecord(record.eventPreview) ? record.eventPreview : {};
   if (
     record.ok !== true ||
     typeof record.rollbackId !== "string" ||
@@ -522,13 +520,13 @@ function normalizeApprovedRollbackResult(
     });
   }
   const warningCodes = Array.isArray(record.warningCodes)
-    ? record.warningCodes.filter((value): value is string =>
-        typeof value === "string"
+    ? record.warningCodes.filter(
+        (value): value is string => typeof value === "string"
       )
     : [];
   const eventWarningCodes = Array.isArray(eventPreview.warningCodes)
-    ? eventPreview.warningCodes.filter((value): value is string =>
-        typeof value === "string"
+    ? eventPreview.warningCodes.filter(
+        (value): value is string => typeof value === "string"
       )
     : [];
   const pathSummaries = eventPreview.pathSummaries.filter(
@@ -562,7 +560,9 @@ function normalizeApprovedRollbackResult(
       filesRemoved: Number(eventPreview.filesRemoved ?? 0),
       filesRestored: Number(eventPreview.filesRestored ?? 0),
       pathSummaries,
-      pathSummaryCount: Number(eventPreview.pathSummaryCount ?? pathSummaries.length),
+      pathSummaryCount: Number(
+        eventPreview.pathSummaryCount ?? pathSummaries.length
+      ),
       restoredSnapshotHash: safeErrorMessage(
         String(eventPreview.restoredSnapshotHash ?? "")
       ),
@@ -595,7 +595,9 @@ function normalizeApprovedExecutionEventRecordResult(
     });
   }
   const warnings = Array.isArray(record.warnings)
-    ? record.warnings.filter((value): value is string => typeof value === "string")
+    ? record.warnings.filter(
+        (value): value is string => typeof value === "string"
+      )
     : [];
   return {
     ok: true,

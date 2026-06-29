@@ -154,7 +154,9 @@ describe("app approved execution receipt", () => {
 
     expect(receipt.status).toBe("blocked");
     expect(findingCodes(receipt)).toContain("APP_APPROVED_RECEIPT_UNSAFE_PATH");
-    expect(findingCodes(receipt)).toContain("APP_APPROVED_RECEIPT_BLOCKED_PATH");
+    expect(findingCodes(receipt)).toContain(
+      "APP_APPROVED_RECEIPT_BLOCKED_PATH"
+    );
     expect(findingCodes(receipt)).toContain("APP_APPROVED_RECEIPT_SECRET_PATH");
   });
 

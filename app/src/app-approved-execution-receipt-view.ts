@@ -3,7 +3,7 @@ import {
   summarizeAppApprovedExecutionReceipt,
   type AppApprovedExecutionKind,
   type AppApprovedExecutionReceipt
-} from "../../runtime/src/execution/index.js";
+} from "../../runtime/src/execution/app-approved-execution/approval-receipt.js";
 import { safeArray, safeErrorMessage, safeText } from "./safety.js";
 
 export type AppApprovedExecutionReceiptViewStatus =

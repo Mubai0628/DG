@@ -72,7 +72,9 @@ export type AppApprovedExecutionFlowInput = {
   contentDraft?: string | undefined;
   applyResult?: ApprovedUserWorkspaceApplyResult | undefined;
   rollbackResult?: ApprovedUserWorkspaceRollbackResult | undefined;
-  eventRecordResult?: ApprovedUserWorkspaceExecutionEventRecordResult | undefined;
+  eventRecordResult?:
+    | ApprovedUserWorkspaceExecutionEventRecordResult
+    | undefined;
 };
 
 export function buildAppApprovedExecutionFlowView(
@@ -80,7 +82,8 @@ export function buildAppApprovedExecutionFlowView(
 ): AppApprovedExecutionFlowView {
   const receipt = input.receiptView;
   const findings: AppApprovedExecutionFlowFinding[] = [];
-  const workspaceRootPresent = safeText(input.workspaceRoot, "").trim().length > 0;
+  const workspaceRootPresent =
+    safeText(input.workspaceRoot, "").trim().length > 0;
   const receiptKind = receipt?.kind ?? "unknown";
   const contentSummary = summarizeContentDraft(input.contentDraft);
   const applyResult = input.applyResult;
@@ -119,7 +122,8 @@ export function buildAppApprovedExecutionFlowView(
     }
   }
 
-  const allowedPaths = receipt?.receiptPayload?.scope.allowedRelativePaths ?? [];
+  const allowedPaths =
+    receipt?.receiptPayload?.scope.allowedRelativePaths ?? [];
   if (allowedPaths.length === 0) {
     add(findings, "APP_APPROVED_EXECUTION_PATHS_MISSING", "blocker");
   }
@@ -155,7 +159,9 @@ export function buildAppApprovedExecutionFlowView(
   const blockerCount = count(findings, "blocker");
   const warningCount = count(findings, "warning");
   const canApply =
-    blockerCount === 0 && receipt?.kind === "apply" && applyResult === undefined;
+    blockerCount === 0 &&
+    receipt?.kind === "apply" &&
+    applyResult === undefined;
   const canRollback =
     blockerCount === 0 &&
     receipt?.kind === "rollback" &&
@@ -178,12 +184,16 @@ export function buildAppApprovedExecutionFlowView(
     workspaceRootPresent,
     receiptId: receipt?.receiptId ?? "",
     receiptKind,
-    proposalId: receipt?.proposalId ?? safeRef(input.patchProposalPreview, "proposalId"),
+    proposalId:
+      receipt?.proposalId ?? safeRef(input.patchProposalPreview, "proposalId"),
     validationId:
-      receipt?.validationId ?? safeRef(input.patchValidationPreview, "validationId"),
-    auditId: receipt?.auditId ?? safeRef(input.patchDiffAuditPreview, "auditId"),
+      receipt?.validationId ??
+      safeRef(input.patchValidationPreview, "validationId"),
+    auditId:
+      receipt?.auditId ?? safeRef(input.patchDiffAuditPreview, "auditId"),
     approvalDraftId:
-      receipt?.approvalDraftId ?? safeRef(input.patchApprovalDraft, "approvalDraftId"),
+      receipt?.approvalDraftId ??
+      safeRef(input.patchApprovalDraft, "approvalDraftId"),
     checkpointId: receipt?.checkpointId ?? applyResult?.checkpointId ?? "",
     checkpointHashPrefix: applyResult?.checkpointHash.slice(0, 12),
     allowedPathCount: allowedPaths.length,
@@ -240,7 +250,10 @@ export function buildApprovedApplyRequestFromExecutionFlow(
   input: AppApprovedExecutionFlowInput
 ): ApprovedUserWorkspaceApplyRequest {
   const view = buildAppApprovedExecutionFlowView(input);
-  if (!view.readiness.canApplyApprovedPatch || input.receiptView?.receiptPayload === undefined) {
+  if (
+    !view.readiness.canApplyApprovedPatch ||
+    input.receiptView?.receiptPayload === undefined
+  ) {
     throw new Error(view.nextAction);
   }
   const receipt = input.receiptView.receiptPayload;
@@ -420,7 +433,9 @@ function changeKindForPath(
   return normalizeChangeKind(match?.changeKind ?? firstChangeKind(value));
 }
 
-function normalizeChangeKind(value: unknown): ApprovedUserWorkspaceApplyChangeKind {
+function normalizeChangeKind(
+  value: unknown
+): ApprovedUserWorkspaceApplyChangeKind {
   return value === "create" || value === "delete" || value === "update"
     ? value
     : "update";
@@ -434,7 +449,9 @@ function summaryRef(value: unknown, key: string): Record<string, unknown> {
 }
 
 function safeRef(value: unknown, key: string): string {
-  return safeErrorMessage(safeText(isRecord(value) ? value[key] : undefined, ""));
+  return safeErrorMessage(
+    safeText(isRecord(value) ? value[key] : undefined, "")
+  );
 }
 
 function summarizeContentDraft(value: unknown): {
@@ -475,9 +492,17 @@ function unsafeRelativePath(path: string): boolean {
   }
   const segments = value.split("/");
   return segments.some((segment) =>
-    ["", ".", "..", ".git", ".env", "node_modules", "dist", "target", ".tmp"].includes(
-      segment.toLowerCase()
-    )
+    [
+      "",
+      ".",
+      "..",
+      ".git",
+      ".env",
+      "node_modules",
+      "dist",
+      "target",
+      ".tmp"
+    ].includes(segment.toLowerCase())
   );
 }
 

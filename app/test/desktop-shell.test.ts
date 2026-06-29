@@ -883,8 +883,7 @@ describe("desktop command wrapper", () => {
         operationId: "approved-apply-1",
         checkpointId: "checkpoint-1",
         eventLogPath: "D:\\workspace\\.deepseek-workbench\\events.jsonl",
-        safeMessage:
-          "Summary-only approved execution event recorded locally.",
+        safeMessage: "Summary-only approved execution event recorded locally.",
         warnings: []
       } as never;
     };
@@ -12496,9 +12495,7 @@ describe("desktop source boundaries", () => {
     expect(combined).toContain("eventPreview");
     expect(combined).toContain("notWritten: true");
     expect(combined).toContain("No EventStore write");
-    expect(combined).toContain(
-      "Rollback is handled by the separate P0O-005"
-    );
+    expect(combined).toContain("Rollback is handled by the separate P0O-005");
     expect(combined).toContain("No Git or shell execution");
     expect(combined).toContain("No PermissionLease issuing");
     expect(combined).toContain("No raw content");
@@ -12599,6 +12596,95 @@ describe("desktop source boundaries", () => {
     expect(combined).toContain("No Git or shell execution");
     expect(combined).toContain("No raw content");
     expect(docsIndex).toContain("app-approved-execution-smoke.md");
+  });
+
+  it("documents the v0.11 approved execution RC release boundary", async () => {
+    const releaseNotes = await readFile(
+      path.join(
+        repoRoot,
+        "docs",
+        "release-notes-v0.11.0-app-approved-execution-mvp-rc.1.md"
+      ),
+      "utf8"
+    );
+    const manualQa = await readFile(
+      path.join(repoRoot, "docs", "app-approved-execution-manual-qa.md"),
+      "utf8"
+    );
+    const rcChecklist = await readFile(
+      path.join(repoRoot, "docs", "app-approved-execution-rc-checklist.md"),
+      "utf8"
+    );
+    const docsIndex = await readFile(
+      path.join(repoRoot, "docs", "README.md"),
+      "utf8"
+    );
+    const rootReadme = await readFile(path.join(repoRoot, "README.md"), "utf8");
+    const appReadme = await readFile(
+      path.join(repoRoot, "app", "README.md"),
+      "utf8"
+    );
+    const appSource = await readFile(
+      path.join(repoRoot, "app", "src", "App.tsx"),
+      "utf8"
+    );
+    const combined = `${releaseNotes}\n${manualQa}\n${rcChecklist}\n${docsIndex}\n${rootReadme}\n${appReadme}`;
+
+    expect(combined).toContain("v0.11.0-app-approved-execution-mvp-rc.1");
+    expect(combined).toContain("App-side approved apply and rollback MVP");
+    expect(combined).toContain("web_table_to_csv");
+    expect(combined).toContain("Record Draft Event");
+    expect(combined).toContain("App-side approved apply is available");
+    expect(combined).toContain("App-side approved rollback is available");
+    expect(combined).toContain("summary-only");
+    expect(combined).toContain("Event Log / Replay");
+    expect(combined).toContain("DeepSeek does not auto-apply");
+    expect(combined).toContain("No auto-apply");
+    expect(combined).toContain("No Git commit or push");
+    expect(combined).toContain("No shell execution");
+    expect(combined).toContain("No broad PermissionLease");
+    expect(combined).toContain("No MCP/plugin/skills runtime");
+    expect(combined).toContain("No native bridge");
+    expect(combined).toContain("No desktop action");
+    expect(combined).toContain("typed confirmation");
+    expect(combined).toContain("approved execution receipt");
+    expect(combined).toContain("Path guard");
+    expect(combined).toContain("Secret and raw-content markers");
+    expect(combined).toContain("checkpoint");
+    expect(combined).toContain("rollback");
+    expect(combined).toContain("replay");
+    expect(combined).toContain("Convert Smoke");
+    expect(combined).toContain("Approved Docs-only Apply");
+    expect(combined).toContain("Event Log Apply Summary");
+    expect(combined).toContain("Refresh events");
+    expect(combined).toContain("Event Log Rollback Summary");
+    expect(combined).toContain("Duplicate / Conflict Apply");
+    expect(combined).toContain("raw content is written to events");
+    expect(combined).toContain("pnpm install");
+    expect(combined).toContain("pnpm verify:ci");
+    expect(combined).toContain("pnpm release:smoke");
+    expect(combined).toContain("pnpm app:qa:check");
+    expect(combined).toContain("GitHub Actions");
+    expect(docsIndex).toContain(
+      "release-notes-v0.11.0-app-approved-execution-mvp-rc.1.md"
+    );
+    expect(docsIndex).toContain("app-approved-execution-manual-qa.md");
+    expect(docsIndex).toContain("app-approved-execution-rc-checklist.md");
+    expect(rootReadme).toContain(
+      "v0.11 App-side Approved Execution MVP RC status"
+    );
+    expect(appReadme).toContain("v0.11 App-side Approved Execution MVP RC");
+    expect(appSource).toContain("Human approved / narrow write path");
+    expect(appSource).toContain("Apply Approved Patch");
+    expect(appSource).toContain("Rollback Approved Patch");
+    expect(appSource).toContain("Call DeepSeek (disabled)");
+    expect(appSource).toContain("Run Evaluation (disabled)");
+    expect(appSource).not.toContain("DeepSeek auto-apply enabled");
+    expect(appSource).not.toContain("Git execution works");
+    expect(appSource).not.toContain("Shell execution works");
+    expect(appSource).not.toContain("Native bridge is enabled");
+    expect(appSource).not.toMatch(/>\s*Execute Run\s*</);
+    expect(appSource).not.toMatch(/>\s*Commit\s*</);
   });
 
   it("documents the P0L-001 DeepSeek patch proposal ADR and gates without implementation", async () => {

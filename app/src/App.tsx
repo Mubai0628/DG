@@ -460,10 +460,8 @@ export function DesktopShell(): JSX.Element {
   ] = useState<AppUserWorkspacePromotionReadinessView | undefined>();
   const [appApprovedApplyConfirmation, setAppApprovedApplyConfirmation] =
     useState("");
-  const [
-    appApprovedRollbackConfirmation,
-    setAppApprovedRollbackConfirmation
-  ] = useState("");
+  const [appApprovedRollbackConfirmation, setAppApprovedRollbackConfirmation] =
+    useState("");
   const [appApprovedReceiptPathRefs, setAppApprovedReceiptPathRefs] =
     useState("");
   const [
@@ -474,16 +472,17 @@ export function DesktopShell(): JSX.Element {
     appApprovedExecutionContentDraft,
     setAppApprovedExecutionContentDraft
   ] = useState("");
-  const [appApprovedApplyResult, setAppApprovedApplyResult] =
-    useState<ApprovedUserWorkspaceApplyResult | undefined>();
-  const [appApprovedRollbackResult, setAppApprovedRollbackResult] =
-    useState<ApprovedUserWorkspaceRollbackResult | undefined>();
-  const [
-    appApprovedExecutionEventResult,
-    setAppApprovedExecutionEventResult
-  ] = useState<ApprovedUserWorkspaceExecutionEventRecordResult | undefined>();
-  const [appApprovedExecutionError, setAppApprovedExecutionError] =
-    useState<string | undefined>();
+  const [appApprovedApplyResult, setAppApprovedApplyResult] = useState<
+    ApprovedUserWorkspaceApplyResult | undefined
+  >();
+  const [appApprovedRollbackResult, setAppApprovedRollbackResult] = useState<
+    ApprovedUserWorkspaceRollbackResult | undefined
+  >();
+  const [appApprovedExecutionEventResult, setAppApprovedExecutionEventResult] =
+    useState<ApprovedUserWorkspaceExecutionEventRecordResult | undefined>();
+  const [appApprovedExecutionError, setAppApprovedExecutionError] = useState<
+    string | undefined
+  >();
   const loadedWorkspaceIndexRef =
     workspaceIndexBridge.status === "loaded" ||
     workspaceIndexBridge.status === "warning"
@@ -1158,39 +1157,38 @@ export function DesktopShell(): JSX.Element {
       ]
     );
   const displayedAppApprovedExecutionReceipt =
-    appApprovedExecutionReceiptPreview ?? buildAppApprovedExecutionReceiptView();
-  const appApprovedExecutionFlowInput =
-    useMemo<AppApprovedExecutionFlowInput>(
-      () => ({
-        workspaceRoot,
-        receiptView: displayedAppApprovedExecutionReceipt,
-        patchProposalPreview: patchProposalCreationPreview,
-        patchValidationPreview: patchProposalValidationPreview,
-        patchDiffAuditPreview,
-        patchApprovalDraft: patchApprovalDraftPreview,
-        contentDraft: appApprovedExecutionContentDraft,
-        applyResult: appApprovedApplyResult,
-        rollbackResult: appApprovedRollbackResult,
-        eventRecordResult: appApprovedExecutionEventResult
-      }),
-      [
-        appApprovedApplyResult,
-        appApprovedExecutionContentDraft,
-        appApprovedExecutionEventResult,
-        appApprovedRollbackResult,
-        displayedAppApprovedExecutionReceipt,
-        patchApprovalDraftPreview,
-        patchDiffAuditPreview,
-        patchProposalCreationPreview,
-        patchProposalValidationPreview,
-        workspaceRoot
-      ]
-    );
-  const appApprovedExecutionFlowView =
-    useMemo<AppApprovedExecutionFlowView>(
-      () => buildAppApprovedExecutionFlowView(appApprovedExecutionFlowInput),
-      [appApprovedExecutionFlowInput]
-    );
+    appApprovedExecutionReceiptPreview ??
+    buildAppApprovedExecutionReceiptView();
+  const appApprovedExecutionFlowInput = useMemo<AppApprovedExecutionFlowInput>(
+    () => ({
+      workspaceRoot,
+      receiptView: displayedAppApprovedExecutionReceipt,
+      patchProposalPreview: patchProposalCreationPreview,
+      patchValidationPreview: patchProposalValidationPreview,
+      patchDiffAuditPreview,
+      patchApprovalDraft: patchApprovalDraftPreview,
+      contentDraft: appApprovedExecutionContentDraft,
+      applyResult: appApprovedApplyResult,
+      rollbackResult: appApprovedRollbackResult,
+      eventRecordResult: appApprovedExecutionEventResult
+    }),
+    [
+      appApprovedApplyResult,
+      appApprovedExecutionContentDraft,
+      appApprovedExecutionEventResult,
+      appApprovedRollbackResult,
+      displayedAppApprovedExecutionReceipt,
+      patchApprovalDraftPreview,
+      patchDiffAuditPreview,
+      patchProposalCreationPreview,
+      patchProposalValidationPreview,
+      workspaceRoot
+    ]
+  );
+  const appApprovedExecutionFlowView = useMemo<AppApprovedExecutionFlowView>(
+    () => buildAppApprovedExecutionFlowView(appApprovedExecutionFlowInput),
+    [appApprovedExecutionFlowInput]
+  );
   const modelProposalChainIntegrationCandidate =
     useMemo<ModelProposalChainIntegrationView>(
       () =>
@@ -7089,8 +7087,7 @@ export function DesktopShell(): JSX.Element {
                 <dd>
                   {displayedAppApprovedExecutionReceipt.approvalDraftId ||
                     "n/a"}{" "}
-                  /{" "}
-                  {displayedAppApprovedExecutionReceipt.checkpointId || "n/a"}
+                  / {displayedAppApprovedExecutionReceipt.checkpointId || "n/a"}
                 </dd>
               </div>
               <div>
@@ -7193,9 +7190,10 @@ export function DesktopShell(): JSX.Element {
             </div>
             <p className="fieldHelp">
               Runs only the fixed approved apply or rollback command after the
-              receipt, typed confirmation, proposal, validation, audit, approval,
-              path, and byte gates pass. No generic command UI, Git, shell,
-              PermissionLease, native bridge, or desktop action is available.
+              receipt, typed confirmation, proposal, validation, audit,
+              approval, path, and byte gates pass. No generic command UI, Git,
+              shell, PermissionLease, native bridge, or desktop action is
+              available.
             </p>
             <label>
               Explicit content for create/update
@@ -7317,7 +7315,8 @@ export function DesktopShell(): JSX.Element {
                 {appApprovedExecutionFlowView.applyResultSummary}
               </p>
             ) : null}
-            {appApprovedExecutionFlowView.rollbackResultSummary !== undefined ? (
+            {appApprovedExecutionFlowView.rollbackResultSummary !==
+            undefined ? (
               <p className="fieldHelp">
                 {appApprovedExecutionFlowView.rollbackResultSummary}
               </p>
