@@ -11719,6 +11719,87 @@ describe("desktop source boundaries", () => {
     expect(docsIndex).toContain("p0o-001-app-approved-execution-gate-plan.md");
   });
 
+  it("documents the P0O-002 app approved execution gate design before implementation", async () => {
+    const adr = await readFile(
+      path.join(repoRoot, "docs", "adr", "0010-app-approved-execution-gate.md"),
+      "utf8"
+    );
+    const threatModel = await readFile(
+      path.join(
+        repoRoot,
+        "docs",
+        "app-approved-execution-threat-model-v0.10.md"
+      ),
+      "utf8"
+    );
+    const implementationGate = await readFile(
+      path.join(
+        repoRoot,
+        "docs",
+        "app-approved-execution-implementation-gate-v0.10.md"
+      ),
+      "utf8"
+    );
+    const nextPlan = await readFile(
+      path.join(repoRoot, "docs", "p0o-003-app-approval-receipt-plan.md"),
+      "utf8"
+    );
+    const docsIndex = await readFile(
+      path.join(repoRoot, "docs", "README.md"),
+      "utf8"
+    );
+    const combined = `${adr}\n${threatModel}\n${implementationGate}\n${nextPlan}\n${docsIndex}`;
+
+    expect(combined).toContain("App Approved Execution Gate");
+    expect(combined).toContain("Proposed / Accepted for P0O design gate");
+    expect(combined).toContain("explicit approval receipt");
+    expect(combined).toContain("patch proposal exists");
+    expect(combined).toContain("patch proposal validation passes");
+    expect(combined).toContain("diff/audit passes");
+    expect(combined).toContain("approval draft exists");
+    expect(combined).toContain("snapshot or preimage requirement exists");
+    expect(combined).toContain("rollback checkpoint can be created");
+    expect(combined).toContain("apply result exists");
+    expect(combined).toContain("checkpoint verifies");
+    expect(combined).toContain("must not auto-apply from model output");
+    expect(combined).toMatch(/must not execute Git or\s+shell commands/);
+    expect(combined).toContain("summary-only");
+    expect(combined).toContain("Raw preimage may exist only");
+    expect(combined).toMatch(/malicious proposal/i);
+    expect(combined).toContain("Stale Snapshot Risks");
+    expect(combined).toContain("Path Traversal Risks");
+    expect(combined).toContain("Symlink / Junction / Reparse Point Risks");
+    expect(combined).toContain("Generated / Dependency Path Mutation Risks");
+    expect(combined).toContain("Secret Path Mutation Risks");
+    expect(combined).toContain("Raw Preimage Leakage Risks");
+    expect(combined).toContain("Event Tampering / Replay Mismatch Risks");
+    expect(combined).toContain("Approval Bypass Risks");
+    expect(combined).toContain("Rollback Failure Risks");
+    expect(combined).toContain("Interrupted Apply Risks");
+    expect(combined).toContain("Windows Path Risks");
+    expect(combined).toContain("Path Safety");
+    expect(combined).toContain("Content Safety");
+    expect(combined).toContain("Approval Safety");
+    expect(combined).toContain("Checkpoint Safety");
+    expect(combined).toContain("Rollback Safety");
+    expect(combined).toContain("EventStore Safety");
+    expect(combined).toContain("Replay Safety");
+    expect(combined).toContain("UI Safety");
+    expect(combined).toContain("CI / Boundary Safety");
+    expect(combined).toMatch(/not a (?:broad\s+)?production\s+PermissionLease/);
+    expect(combined).toContain("APPLY TO USER WORKSPACE");
+    expect(combined).toContain("ROLLBACK USER WORKSPACE");
+    expect(combined).toContain("No Tauri invoke");
+    expect(combined).toContain("No file write");
+    expect(combined).toContain("No EventStore write");
+    expect(docsIndex).toContain("adr/0010-app-approved-execution-gate.md");
+    expect(docsIndex).toContain("app-approved-execution-threat-model-v0.10.md");
+    expect(docsIndex).toContain(
+      "app-approved-execution-implementation-gate-v0.10.md"
+    );
+    expect(docsIndex).toContain("p0o-003-app-approval-receipt-plan.md");
+  });
+
   it("documents the P0L-001 DeepSeek patch proposal ADR and gates without implementation", async () => {
     const adr = await readFile(
       path.join(
