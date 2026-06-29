@@ -41,6 +41,7 @@ export type AppApprovedExecutionReceiptView = {
   };
   summary: string;
   nextAction: string;
+  receiptPayload?: AppApprovedExecutionReceipt | undefined;
 };
 
 export type AppApprovedExecutionReceiptViewInput = {
@@ -54,6 +55,7 @@ export type AppApprovedExecutionReceiptViewInput = {
   patchDiffAuditPreview?: unknown;
   patchApprovalDraft?: unknown;
   patchRollbackCheckpointPreview?: unknown;
+  approvedApplyResult?: unknown;
   createdAt?: string | undefined;
   idGenerator?: (() => string) | undefined;
 };
@@ -83,10 +85,9 @@ export function buildAppApprovedExecutionReceiptView(
       validationId: safeRef(input.patchValidationPreview, "validationId"),
       auditId: safeRef(input.patchDiffAuditPreview, "auditId"),
       approvalDraftId: safeRef(input.patchApprovalDraft, "approvalDraftId"),
-      checkpointId: safeRef(
-        input.patchRollbackCheckpointPreview,
-        "checkpointPreviewId"
-      ),
+      checkpointId:
+        safeRef(input.approvedApplyResult, "checkpointId") ||
+        safeRef(input.patchRollbackCheckpointPreview, "checkpointPreviewId"),
       allowedRelativePaths,
       maxFiles: Math.max(1, allowedRelativePaths.length),
       maxBytes: 1_048_576,
@@ -140,7 +141,8 @@ export function buildAppApprovedExecutionReceiptView(
     nextAction:
       status === "empty"
         ? "Enter the exact apply or rollback confirmation to preview a receipt. No Tauri command, file write, or EventStore write is performed."
-        : receipt.nextAction
+        : receipt.nextAction,
+    receiptPayload: status === "empty" ? undefined : receipt
   };
 }
 

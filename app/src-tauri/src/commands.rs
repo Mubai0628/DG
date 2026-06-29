@@ -17,6 +17,10 @@ const RUNNER_TIMEOUT: Duration = Duration::from_secs(60);
 const PREFLIGHT_TIMEOUT: Duration = Duration::from_secs(5);
 const APPLY_CONFIRMATION: &str = "APPLY TO USER WORKSPACE";
 const ROLLBACK_CONFIRMATION: &str = "ROLLBACK USER WORKSPACE";
+const APPROVED_APPLY_PREVIEW_TYPE: &str = "user_workspace.patch_apply.approved_result";
+const APPROVED_ROLLBACK_PREVIEW_TYPE: &str = "user_workspace.patch_rollback.approved_result";
+const APPROVED_APPLY_EXECUTED_TYPE: &str = "user_workspace.patch_apply.app_executed";
+const APPROVED_ROLLBACK_EXECUTED_TYPE: &str = "user_workspace.patch_rollback.app_executed";
 
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -214,6 +218,9 @@ pub struct WorkspaceEventSummary {
     task_count: usize,
     completed_task_count: usize,
     draft_count: usize,
+    approved_apply_count: usize,
+    approved_rollback_count: usize,
+    latest_approved_execution_summary: Option<String>,
     last_event_at: Option<String>,
     type_counts: BTreeMap<String, usize>,
     timeline: Vec<EventTimelineItem>,
@@ -229,6 +236,19 @@ pub struct RunDraftEventRecordResult {
     event_id: String,
     event_type: String,
     draft_id: String,
+    event_log_path: String,
+    safe_message: String,
+    warnings: Vec<String>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ApprovedExecutionEventRecordResult {
+    ok: bool,
+    event_id: String,
+    event_type: String,
+    operation_id: String,
+    checkpoint_id: String,
     event_log_path: String,
     safe_message: String,
     warnings: Vec<String>,
@@ -317,6 +337,8 @@ pub struct ApprovedApplyEventPreview {
     files_updated: usize,
     files_deleted: usize,
     bytes_written: usize,
+    path_summaries: Vec<String>,
+    path_summary_count: usize,
     result_hash: String,
     warning_codes: Vec<String>,
     not_written: bool,
@@ -378,6 +400,8 @@ pub struct ApprovedRollbackEventPreview {
     operation_count: usize,
     files_removed: usize,
     files_restored: usize,
+    path_summaries: Vec<String>,
+    path_summary_count: usize,
     restored_snapshot_hash: String,
     result_hash: String,
     warning_codes: Vec<String>,
@@ -577,6 +601,80 @@ pub fn record_control_run_draft_event(
         draft_id,
         event_log_path: event_log_path.to_string_lossy().to_string(),
         safe_message: "Summary-only draft event recorded locally. No run was created.".to_string(),
+        warnings: Vec::new(),
+    })
+}
+
+#[tauri::command(rename_all = "camelCase")]
+pub fn record_approved_user_workspace_execution_event(
+    workspace_root: String,
+    event_preview: Value,
+) -> Result<ApprovedExecutionEventRecordResult, DesktopFlowError> {
+    let workspace_root = validate_workspace_root(&workspace_root).map_err(|message| {
+        DesktopFlowError::new("WORKSPACE_INVALID", message, "record_approved_execution_event")
+    })?;
+    let approved_event = build_approved_execution_event_payload(&event_preview).map_err(|message| {
+        DesktopFlowError::invalid_payload(message).with_stage("record_approved_execution_event")
+    })?;
+    let event_log_path =
+        resolve_safe_event_log_path(&workspace_root, "Approved execution event")?;
+
+    let millis = unix_epoch_millis();
+    let event_id = format!("approved-execution-{millis}");
+    let timestamp = format!("unix-ms-{millis}");
+    let event = serde_json::json!({
+        "id": event_id,
+        "ts": timestamp,
+        "type": approved_event.event_type,
+        "schemaVersion": 1,
+        "taskId": Value::Null,
+        "payload": approved_event.payload
+    });
+    let event_line = serde_json::to_string(&event).map_err(|_| {
+        DesktopFlowError::new(
+            "EVENT_SERIALIZE_FAILED",
+            "Approved execution event could not be serialized",
+            "record_approved_execution_event",
+        )
+    })?;
+    if event_line.as_bytes().len() > MAX_RUN_DRAFT_EVENT_PAYLOAD_BYTES + 4096
+        || contains_approved_apply_sensitive_marker(&event_line)
+    {
+        return Err(DesktopFlowError::new(
+            "APPROVED_EXECUTION_EVENT_REJECTED",
+            "Approved execution event payload failed final safety validation",
+            "record_approved_execution_event",
+        ));
+    }
+
+    use std::io::Write;
+    let mut file = fs::OpenOptions::new()
+        .create(true)
+        .append(true)
+        .open(&event_log_path)
+        .map_err(|_| {
+            DesktopFlowError::new(
+                "EVENT_LOG_WRITE_FAILED",
+                "Approved execution event could not be written",
+                "record_approved_execution_event",
+            )
+        })?;
+    writeln!(file, "{event_line}").map_err(|_| {
+        DesktopFlowError::new(
+            "EVENT_LOG_WRITE_FAILED",
+            "Approved execution event could not be written",
+            "record_approved_execution_event",
+        )
+    })?;
+
+    Ok(ApprovedExecutionEventRecordResult {
+        ok: true,
+        event_id,
+        event_type: approved_event.event_type,
+        operation_id: approved_event.operation_id,
+        checkpoint_id: approved_event.checkpoint_id,
+        event_log_path: event_log_path.to_string_lossy().to_string(),
+        safe_message: "Summary-only approved execution event recorded locally.".to_string(),
         warnings: Vec::new(),
     })
 }
@@ -889,8 +987,9 @@ fn run_approved_user_workspace_apply(
     let result_hash = short_hash(&format!(
         "{apply_id}:{checkpoint_id}:{checkpoint_hash}:{input_snapshot_hash}:{output_snapshot_hash}:{bytes_written}"
     ));
+    let path_summaries = approved_apply_path_summaries(&operation_results);
     let event_preview = ApprovedApplyEventPreview {
-        event_type: "user_workspace.patch_apply.approved_result".to_string(),
+        event_type: APPROVED_APPLY_PREVIEW_TYPE.to_string(),
         apply_id: apply_id.clone(),
         checkpoint_id: checkpoint_id.clone(),
         checkpoint_hash: checkpoint_hash.clone(),
@@ -900,6 +999,8 @@ fn run_approved_user_workspace_apply(
         files_updated,
         files_deleted,
         bytes_written,
+        path_summary_count: path_summaries.len(),
+        path_summaries,
         result_hash: result_hash.clone(),
         warning_codes: Vec::new(),
         not_written: true,
@@ -1058,8 +1159,9 @@ fn run_approved_user_workspace_rollback(
         "{rollback_id}:{}:{}:{checkpoint_hash}:{restored_snapshot_hash}:{}:{}",
         request.apply_id, request.checkpoint_id, files_removed, files_restored
     ));
+    let path_summaries = approved_rollback_path_summaries(&operation_results);
     let event_preview = ApprovedRollbackEventPreview {
-        event_type: "user_workspace.patch_rollback.approved_result".to_string(),
+        event_type: APPROVED_ROLLBACK_PREVIEW_TYPE.to_string(),
         rollback_id: rollback_id.clone(),
         apply_id: request.apply_id.clone(),
         checkpoint_id: request.checkpoint_id.clone(),
@@ -1068,6 +1170,8 @@ fn run_approved_user_workspace_rollback(
         operation_count: operation_results.len(),
         files_removed,
         files_restored,
+        path_summary_count: path_summaries.len(),
+        path_summaries,
         restored_snapshot_hash: restored_snapshot_hash.clone(),
         result_hash: result_hash.clone(),
         warning_codes: warning_codes.clone(),
@@ -1857,6 +1961,9 @@ fn load_event_summary(workspace_root: &str, max_events: Option<usize>) -> Worksp
     let mut task_status: BTreeMap<String, String> = BTreeMap::new();
     let mut type_counts: BTreeMap<String, usize> = BTreeMap::new();
     let mut draft_count = 0usize;
+    let mut approved_apply_count = 0usize;
+    let mut approved_rollback_count = 0usize;
+    let mut latest_approved_execution_summary: Option<String> = None;
     let mut last_event_at: Option<String> = None;
 
     for event in &events {
@@ -1875,6 +1982,14 @@ fn load_event_summary(workspace_root: &str, max_events: Option<usize>) -> Worksp
         }
         if event_type == "fs.draft_written" {
             draft_count += 1;
+        }
+        if event_type == APPROVED_APPLY_EXECUTED_TYPE {
+            approved_apply_count += 1;
+            latest_approved_execution_summary = Some(summarize_safe_event(event));
+        }
+        if event_type == APPROVED_ROLLBACK_EXECUTED_TYPE {
+            approved_rollback_count += 1;
+            latest_approved_execution_summary = Some(summarize_safe_event(event));
         }
     }
 
@@ -1897,6 +2012,9 @@ fn load_event_summary(workspace_root: &str, max_events: Option<usize>) -> Worksp
             .filter(|status| status.as_str() == "completed")
             .count(),
         draft_count,
+        approved_apply_count,
+        approved_rollback_count,
+        latest_approved_execution_summary,
         last_event_at,
         type_counts,
         timeline,
@@ -1919,6 +2037,9 @@ fn empty_event_summary(
         task_count: 0,
         completed_task_count: 0,
         draft_count: 0,
+        approved_apply_count: 0,
+        approved_rollback_count: 0,
+        latest_approved_execution_summary: None,
         last_event_at: None,
         type_counts: BTreeMap::new(),
         timeline: Vec::new(),
@@ -1941,6 +2062,9 @@ fn event_summary_error(code: &str, message: String) -> WorkspaceEventSummary {
         task_count: 0,
         completed_task_count: 0,
         draft_count: 0,
+        approved_apply_count: 0,
+        approved_rollback_count: 0,
+        latest_approved_execution_summary: None,
         last_event_at: None,
         type_counts: BTreeMap::new(),
         timeline: Vec::new(),
@@ -1975,8 +2099,12 @@ fn safe_payload_keys(payload: &serde_json::Map<String, Value>) -> BTreeSet<Strin
         "acceptanceCriteriaCount",
         "agentRouteSummary",
         "argumentSummary",
+        "applyId",
         "bytes",
+        "bytesWritten",
         "capabilityPlanSummary",
+        "checkpointHash",
+        "checkpointId",
         "columnCount",
         "contentType",
         "contextCartSummary",
@@ -1986,6 +2114,11 @@ fn safe_payload_keys(payload: &serde_json::Map<String, Value>) -> BTreeSet<Strin
         "errorKind",
         "eventKind",
         "formulaEscapedCount",
+        "filesCreated",
+        "filesDeleted",
+        "filesRemoved",
+        "filesRestored",
+        "filesUpdated",
         "injectionRiskCount",
         "intent",
         "localOnly",
@@ -1994,14 +2127,21 @@ fn safe_payload_keys(payload: &serde_json::Map<String, Value>) -> BTreeSet<Strin
         "metadataSummary",
         "noExecution",
         "objectiveSummary",
+        "operationCount",
         "overwritten",
+        "pathSummaries",
+        "pathSummaryCount",
         "previewOnly",
         "redactedTextCount",
         "redaction",
         "relativePath",
+        "restoredSnapshotHash",
         "resultSummary",
+        "resultHash",
         "riskLevel",
+        "rollbackId",
         "rowCount",
+        "safetyScanOk",
         "schemaVersion",
         "selectedTableId",
         "sha256",
@@ -2016,8 +2156,12 @@ fn safe_payload_keys(payload: &serde_json::Map<String, Value>) -> BTreeSet<Strin
         "warningCount",
         "warningCodes",
         "workspaceIndexRef",
+        "workspaceRootRef",
         "workspaceRootHash",
         "workspaceSummary",
+        "summaryOnly",
+        "noPreimage",
+        "noRawContent",
     ];
     allowed
         .into_iter()
@@ -2093,6 +2237,37 @@ fn summarize_safe_event(event: &Value) -> String {
                 nested_string(payload, "objectiveSummary"),
                 nested_display(payload, "acceptanceCriteriaCount", "criteria"),
                 nested_array_display(payload, "warningCodes", "warning codes"),
+            ],
+        ),
+        APPROVED_APPLY_EXECUTED_TYPE => format_parts(
+            "approved apply executed",
+            [
+                nested_string(payload, "applyId"),
+                nested_string(payload, "checkpointId")
+                    .map(|value| format!("checkpoint {value}")),
+                nested_display(payload, "operationCount", "operations"),
+                nested_display(payload, "filesCreated", "created"),
+                nested_display(payload, "filesUpdated", "updated"),
+                nested_display(payload, "filesDeleted", "deleted"),
+                nested_string(payload, "resultHash").map(|value| {
+                    let prefix = value.chars().take(12).collect::<String>();
+                    format!("result {prefix}")
+                }),
+            ],
+        ),
+        APPROVED_ROLLBACK_EXECUTED_TYPE => format_parts(
+            "approved rollback executed",
+            [
+                nested_string(payload, "rollbackId"),
+                nested_string(payload, "checkpointId")
+                    .map(|value| format!("checkpoint {value}")),
+                nested_display(payload, "operationCount", "operations"),
+                nested_display(payload, "filesRemoved", "removed"),
+                nested_display(payload, "filesRestored", "restored"),
+                nested_string(payload, "resultHash").map(|value| {
+                    let prefix = value.chars().take(12).collect::<String>();
+                    format!("result {prefix}")
+                }),
             ],
         ),
         _ => format_parts(
@@ -2398,6 +2573,40 @@ fn approved_rollback_operation_results_hash(results: &[ApprovedRollbackOperation
     short_hash(&text)
 }
 
+fn approved_apply_path_summaries(results: &[ApprovedApplyOperationResult]) -> Vec<String> {
+    results
+        .iter()
+        .map(|result| {
+            format!(
+                "{} {}",
+                approved_change_kind_label(result.change_kind),
+                result.path
+            )
+        })
+        .collect()
+}
+
+fn approved_rollback_path_summaries(results: &[ApprovedRollbackOperationResult]) -> Vec<String> {
+    results
+        .iter()
+        .map(|result| {
+            format!(
+                "{} {}",
+                approved_change_kind_label(result.change_kind),
+                result.path
+            )
+        })
+        .collect()
+}
+
+fn approved_change_kind_label(change_kind: ApprovedApplyChangeKind) -> &'static str {
+    match change_kind {
+        ApprovedApplyChangeKind::Create => "create",
+        ApprovedApplyChangeKind::Update => "update",
+        ApprovedApplyChangeKind::Delete => "delete",
+    }
+}
+
 fn short_hash(text: &str) -> String {
     short_hash_bytes(text.as_bytes())
 }
@@ -2430,6 +2639,307 @@ fn approved_rollback_io(message: impl Into<String>) -> DesktopFlowError {
         message.into(),
         "approved_rollback",
     )
+}
+
+struct ApprovedExecutionEventPayload {
+    event_type: String,
+    operation_id: String,
+    checkpoint_id: String,
+    payload: Value,
+}
+
+fn resolve_safe_event_log_path(
+    workspace_root: &Path,
+    label: &str,
+) -> Result<PathBuf, DesktopFlowError> {
+    let event_dir = workspace_root.join(".deepseek-workbench");
+    fs::create_dir_all(&event_dir).map_err(|_| {
+        DesktopFlowError::new(
+            "EVENT_LOG_WRITE_FAILED",
+            format!("{label} log directory could not be created"),
+            "record_approved_execution_event",
+        )
+    })?;
+    let canonical_event_dir = event_dir.canonicalize().map_err(|_| {
+        DesktopFlowError::new(
+            "EVENT_LOG_WRITE_FAILED",
+            format!("{label} log directory could not be resolved"),
+            "record_approved_execution_event",
+        )
+    })?;
+    if !canonical_event_dir.starts_with(workspace_root) || !canonical_event_dir.is_dir() {
+        return Err(DesktopFlowError::new(
+            "EVENT_LOG_PATH_ESCAPE",
+            format!("{label} log path is outside the workspace"),
+            "record_approved_execution_event",
+        ));
+    }
+    let event_log_path = canonical_event_dir.join("events.jsonl");
+    if event_log_path.exists() {
+        let canonical_event_log = event_log_path.canonicalize().map_err(|_| {
+            DesktopFlowError::new(
+                "EVENT_LOG_WRITE_FAILED",
+                format!("{label} log could not be resolved"),
+                "record_approved_execution_event",
+            )
+        })?;
+        if !canonical_event_log.starts_with(workspace_root) || !canonical_event_log.is_file() {
+            return Err(DesktopFlowError::new(
+                "EVENT_LOG_PATH_ESCAPE",
+                format!("{label} log path is outside the workspace"),
+                "record_approved_execution_event",
+            ));
+        }
+    }
+    Ok(event_log_path)
+}
+
+fn build_approved_execution_event_payload(
+    event_preview: &Value,
+) -> Result<ApprovedExecutionEventPayload, String> {
+    let object = event_preview
+        .as_object()
+        .ok_or_else(|| "Approved execution event preview must be an object".to_string())?;
+    if let Some(key) = find_forbidden_approved_apply_key(event_preview) {
+        return Err(format!(
+            "Approved execution event preview contains forbidden field {key}"
+        ));
+    }
+    let serialized = serde_json::to_string(event_preview)
+        .map_err(|_| "Approved execution event preview could not be serialized".to_string())?;
+    if contains_approved_apply_sensitive_marker(&serialized) {
+        return Err("Approved execution event preview contains unsafe marker".to_string());
+    }
+    if object.get("notWritten").and_then(Value::as_bool) != Some(true) {
+        return Err("Approved execution event preview must be notWritten".to_string());
+    }
+    match required_event_string(object, "type")?.as_str() {
+        APPROVED_APPLY_PREVIEW_TYPE => build_approved_apply_event_payload(object),
+        APPROVED_ROLLBACK_PREVIEW_TYPE => build_approved_rollback_event_payload(object),
+        _ => Err("Approved execution event preview type is unsupported".to_string()),
+    }
+}
+
+fn build_approved_apply_event_payload(
+    object: &serde_json::Map<String, Value>,
+) -> Result<ApprovedExecutionEventPayload, String> {
+    let apply_id = required_event_string(object, "applyId")?;
+    let checkpoint_id = required_event_string(object, "checkpointId")?;
+    let checkpoint_hash = required_event_string(object, "checkpointHash")?;
+    let workspace_root_ref = required_event_string(object, "workspaceRootRef")?;
+    let result_hash = required_event_string(object, "resultHash")?;
+    for (field, value) in [
+        ("applyId", &apply_id),
+        ("checkpointId", &checkpoint_id),
+        ("checkpointHash", &checkpoint_hash),
+        ("workspaceRootRef", &workspace_root_ref),
+        ("resultHash", &result_hash),
+    ] {
+        validate_approved_rollback_safe_ref(value, field)?;
+    }
+    let path_summaries = safe_event_path_summaries(object)?;
+    let path_summary_count = required_event_usize(object, "pathSummaryCount")?;
+    if path_summary_count != path_summaries.len() {
+        return Err("Approved apply event path summary count mismatch".to_string());
+    }
+    let warning_codes = safe_event_warning_codes(object)?;
+    let payload = serde_json::json!({
+        "eventKind": APPROVED_APPLY_EXECUTED_TYPE,
+        "schemaVersion": 1,
+        "summaryOnly": true,
+        "safetyScanOk": true,
+        "noRawContent": true,
+        "noPreimage": true,
+        "applyId": apply_id,
+        "checkpointId": checkpoint_id,
+        "checkpointHash": checkpoint_hash,
+        "workspaceRootRef": workspace_root_ref,
+        "operationCount": required_event_usize(object, "operationCount")?,
+        "filesCreated": required_event_usize(object, "filesCreated")?,
+        "filesUpdated": required_event_usize(object, "filesUpdated")?,
+        "filesDeleted": required_event_usize(object, "filesDeleted")?,
+        "bytesWritten": required_event_usize(object, "bytesWritten")?,
+        "pathSummaryCount": path_summary_count,
+        "pathSummaries": path_summaries,
+        "resultHash": result_hash,
+        "warningCodes": warning_codes
+    });
+    Ok(ApprovedExecutionEventPayload {
+        event_type: APPROVED_APPLY_EXECUTED_TYPE.to_string(),
+        operation_id: required_event_string(object, "applyId")?,
+        checkpoint_id: required_event_string(object, "checkpointId")?,
+        payload,
+    })
+}
+
+fn build_approved_rollback_event_payload(
+    object: &serde_json::Map<String, Value>,
+) -> Result<ApprovedExecutionEventPayload, String> {
+    let rollback_id = required_event_string(object, "rollbackId")?;
+    let apply_id = required_event_string(object, "applyId")?;
+    let checkpoint_id = required_event_string(object, "checkpointId")?;
+    let checkpoint_hash = required_event_string(object, "checkpointHash")?;
+    let workspace_root_ref = required_event_string(object, "workspaceRootRef")?;
+    let restored_snapshot_hash = required_event_string(object, "restoredSnapshotHash")?;
+    let result_hash = required_event_string(object, "resultHash")?;
+    for (field, value) in [
+        ("rollbackId", &rollback_id),
+        ("applyId", &apply_id),
+        ("checkpointId", &checkpoint_id),
+        ("checkpointHash", &checkpoint_hash),
+        ("workspaceRootRef", &workspace_root_ref),
+        ("restoredSnapshotHash", &restored_snapshot_hash),
+        ("resultHash", &result_hash),
+    ] {
+        validate_approved_rollback_safe_ref(value, field)?;
+    }
+    let path_summaries = safe_event_path_summaries(object)?;
+    let path_summary_count = required_event_usize(object, "pathSummaryCount")?;
+    if path_summary_count != path_summaries.len() {
+        return Err("Approved rollback event path summary count mismatch".to_string());
+    }
+    let warning_codes = safe_event_warning_codes(object)?;
+    let payload = serde_json::json!({
+        "eventKind": APPROVED_ROLLBACK_EXECUTED_TYPE,
+        "schemaVersion": 1,
+        "summaryOnly": true,
+        "safetyScanOk": true,
+        "noRawContent": true,
+        "noPreimage": true,
+        "rollbackId": rollback_id,
+        "applyId": apply_id,
+        "checkpointId": checkpoint_id,
+        "checkpointHash": checkpoint_hash,
+        "workspaceRootRef": workspace_root_ref,
+        "operationCount": required_event_usize(object, "operationCount")?,
+        "filesRemoved": required_event_usize(object, "filesRemoved")?,
+        "filesRestored": required_event_usize(object, "filesRestored")?,
+        "pathSummaryCount": path_summary_count,
+        "pathSummaries": path_summaries,
+        "restoredSnapshotHash": restored_snapshot_hash,
+        "resultHash": result_hash,
+        "warningCodes": warning_codes
+    });
+    Ok(ApprovedExecutionEventPayload {
+        event_type: APPROVED_ROLLBACK_EXECUTED_TYPE.to_string(),
+        operation_id: required_event_string(object, "rollbackId")?,
+        checkpoint_id: required_event_string(object, "checkpointId")?,
+        payload,
+    })
+}
+
+fn required_event_string(
+    object: &serde_json::Map<String, Value>,
+    key: &str,
+) -> Result<String, String> {
+    object
+        .get(key)
+        .and_then(Value::as_str)
+        .filter(|value| !value.trim().is_empty())
+        .map(str::to_string)
+        .ok_or_else(|| format!("Approved execution event preview is missing {key}"))
+}
+
+fn required_event_usize(
+    object: &serde_json::Map<String, Value>,
+    key: &str,
+) -> Result<usize, String> {
+    object
+        .get(key)
+        .and_then(Value::as_u64)
+        .and_then(|value| usize::try_from(value).ok())
+        .ok_or_else(|| format!("Approved execution event preview is missing {key}"))
+}
+
+fn safe_event_path_summaries(
+    object: &serde_json::Map<String, Value>,
+) -> Result<Vec<String>, String> {
+    let values = object
+        .get("pathSummaries")
+        .and_then(Value::as_array)
+        .ok_or_else(|| "Approved execution event preview path summaries are missing".to_string())?;
+    if values.is_empty() {
+        return Err("Approved execution event preview path summaries are missing".to_string());
+    }
+    values
+        .iter()
+        .map(|value| {
+            let summary = value.as_str().ok_or_else(|| {
+                "Approved execution event path summary must be a string".to_string()
+            })?;
+            let trimmed = summary.trim();
+            if trimmed.is_empty() || trimmed.len() > 240 {
+                return Err("Approved execution event path summary is invalid".to_string());
+            }
+            if trimmed.contains('\0')
+                || trimmed.contains('\r')
+                || trimmed.contains('\n')
+                || trimmed.contains("..")
+                || approved_event_summary_path_unsafe(trimmed)
+                || contains_approved_apply_sensitive_marker(trimmed)
+            {
+                return Err("Approved execution event path summary is unsafe".to_string());
+            }
+            Ok(trimmed.to_string())
+        })
+        .collect()
+}
+
+fn approved_event_summary_path_unsafe(summary: &str) -> bool {
+    let path_part = summary
+        .split_once(' ')
+        .map(|(_, path)| path.trim())
+        .unwrap_or(summary.trim());
+    if path_part.is_empty()
+        || path_part.starts_with('/')
+        || path_part.starts_with('\\')
+        || looks_like_windows_absolute_path(path_part)
+        || path_part.starts_with("//")
+    {
+        return true;
+    }
+    path_part
+        .replace('\\', "/")
+        .split('/')
+        .any(|segment| {
+            matches!(
+                segment.to_ascii_lowercase().as_str(),
+                "" | "." | ".." | ".git" | ".env" | "node_modules" | "dist" | "target" | ".tmp"
+            )
+        })
+}
+
+fn looks_like_windows_absolute_path(value: &str) -> bool {
+    let bytes = value.as_bytes();
+    bytes.len() >= 3
+        && bytes[0].is_ascii_alphabetic()
+        && bytes[1] == b':'
+        && (bytes[2] == b'\\' || bytes[2] == b'/')
+}
+
+fn safe_event_warning_codes(
+    object: &serde_json::Map<String, Value>,
+) -> Result<Vec<String>, String> {
+    let values = object
+        .get("warningCodes")
+        .and_then(Value::as_array)
+        .ok_or_else(|| "Approved execution event warning codes are missing".to_string())?;
+    values
+        .iter()
+        .map(|value| {
+            let code = value.as_str().ok_or_else(|| {
+                "Approved execution event warning code must be a string".to_string()
+            })?;
+            if code.len() > 80
+                || !code
+                    .chars()
+                    .all(|ch| ch.is_ascii_uppercase() || ch.is_ascii_digit() || ch == '_')
+            {
+                return Err("Approved execution event warning code is invalid".to_string());
+            }
+            Ok(code.to_string())
+        })
+        .collect()
 }
 
 fn validate_payload_size(payload_json: &str) -> Result<(), String> {
@@ -4014,6 +4524,150 @@ mod tests {
 
         let _ = fs::remove_dir_all(workspace);
         let _ = fs::remove_dir_all(outside);
+    }
+
+    #[test]
+    fn approved_execution_event_records_apply_summary_only() {
+        let workspace = temp_workspace("approved-apply-event");
+        fs::create_dir_all(workspace.join("src")).expect("src dir");
+        let apply_result = apply_approved_user_workspace_patch(safe_approved_apply_request(
+            &workspace,
+            vec![ApprovedApplyOperation {
+                path: "src/event-file.txt".to_string(),
+                change_kind: ApprovedApplyChangeKind::Create,
+                content: Some("event summary safe content".to_string()),
+                expected_before_hash: None,
+                expected_exists_before: Some(false),
+            }],
+            &["src/event-file.txt"],
+        ))
+        .expect("approved apply");
+
+        let event_record = record_approved_user_workspace_execution_event(
+            workspace.to_string_lossy().to_string(),
+            serde_json::to_value(&apply_result.event_preview).expect("event preview"),
+        )
+        .expect("record event");
+        let event_log = fs::read_to_string(
+            workspace
+                .join(".deepseek-workbench")
+                .join("events.jsonl"),
+        )
+        .expect("event log");
+        let summary = load_event_summary(workspace.to_string_lossy().as_ref(), Some(10));
+
+        assert_eq!(event_record.event_type, APPROVED_APPLY_EXECUTED_TYPE);
+        assert_eq!(event_record.operation_id, apply_result.apply_id);
+        assert!(event_log.contains(APPROVED_APPLY_EXECUTED_TYPE));
+        assert!(event_log.contains("pathSummaries"));
+        assert!(!event_log.contains("event summary safe content"));
+        assert!(!event_log.contains("preimage"));
+        assert_eq!(summary.approved_apply_count, 1);
+        assert_eq!(summary.approved_rollback_count, 0);
+        assert!(summary
+            .latest_approved_execution_summary
+            .as_deref()
+            .unwrap_or_default()
+            .contains("approved apply executed"));
+        assert!(summary.safety_scan.ok);
+
+        let _ = fs::remove_dir_all(workspace);
+    }
+
+    #[test]
+    fn approved_execution_event_records_rollback_summary_only() {
+        let workspace = temp_workspace("approved-rollback-event");
+        fs::create_dir_all(workspace.join("src")).expect("src dir");
+        let apply_result = apply_approved_user_workspace_patch(safe_approved_apply_request(
+            &workspace,
+            vec![ApprovedApplyOperation {
+                path: "src/event-file.txt".to_string(),
+                change_kind: ApprovedApplyChangeKind::Create,
+                content: Some("rollback event safe content".to_string()),
+                expected_before_hash: None,
+                expected_exists_before: Some(false),
+            }],
+            &["src/event-file.txt"],
+        ))
+        .expect("approved apply");
+        let rollback_result =
+            rollback_approved_user_workspace_patch(safe_approved_rollback_request(
+                &workspace,
+                &apply_result,
+                &["src/event-file.txt"],
+            ))
+            .expect("approved rollback");
+
+        let event_record = record_approved_user_workspace_execution_event(
+            workspace.to_string_lossy().to_string(),
+            serde_json::to_value(&rollback_result.event_preview).expect("event preview"),
+        )
+        .expect("record rollback event");
+        let event_log = fs::read_to_string(
+            workspace
+                .join(".deepseek-workbench")
+                .join("events.jsonl"),
+        )
+        .expect("event log");
+        let summary = load_event_summary(workspace.to_string_lossy().as_ref(), Some(10));
+
+        assert_eq!(event_record.event_type, APPROVED_ROLLBACK_EXECUTED_TYPE);
+        assert_eq!(event_record.operation_id, rollback_result.rollback_id);
+        assert_eq!(event_record.checkpoint_id, apply_result.checkpoint_id);
+        assert!(event_log.contains(APPROVED_ROLLBACK_EXECUTED_TYPE));
+        assert!(!event_log.contains("rollback event safe content"));
+        assert!(!event_log.contains("preimage"));
+        assert_eq!(summary.approved_apply_count, 0);
+        assert_eq!(summary.approved_rollback_count, 1);
+        assert!(summary
+            .latest_approved_execution_summary
+            .as_deref()
+            .unwrap_or_default()
+            .contains("approved rollback executed"));
+        assert!(summary.safety_scan.ok);
+
+        let _ = fs::remove_dir_all(workspace);
+    }
+
+    #[test]
+    fn approved_execution_event_blocks_raw_or_unsafe_preview() {
+        let workspace = temp_workspace("approved-apply-event-blocked");
+        fs::create_dir_all(workspace.join("src")).expect("src dir");
+        let apply_result = apply_approved_user_workspace_patch(safe_approved_apply_request(
+            &workspace,
+            vec![ApprovedApplyOperation {
+                path: "src/event-file.txt".to_string(),
+                change_kind: ApprovedApplyChangeKind::Create,
+                content: Some("safe content".to_string()),
+                expected_before_hash: None,
+                expected_exists_before: Some(false),
+            }],
+            &["src/event-file.txt"],
+        ))
+        .expect("approved apply");
+
+        let mut raw_preview =
+            serde_json::to_value(&apply_result.event_preview).expect("event preview");
+        let raw_prompt_key = ["raw", "Prompt"].concat();
+        raw_preview[raw_prompt_key] = Value::String("do not keep".to_string());
+        let raw_error = record_approved_user_workspace_execution_event(
+            workspace.to_string_lossy().to_string(),
+            raw_preview,
+        )
+        .expect_err("raw preview should block");
+        assert_eq!(raw_error.error_code, "INVALID_PAYLOAD");
+
+        let mut unsafe_path_preview =
+            serde_json::to_value(&apply_result.event_preview).expect("event preview");
+        unsafe_path_preview["pathSummaries"] = serde_json::json!(["create .git/config"]);
+        let path_error = record_approved_user_workspace_execution_event(
+            workspace.to_string_lossy().to_string(),
+            unsafe_path_preview,
+        )
+        .expect_err("unsafe path summary should block");
+        assert_eq!(path_error.error_code, "INVALID_PAYLOAD");
+
+        let _ = fs::remove_dir_all(workspace);
     }
 
     #[test]

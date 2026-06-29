@@ -82,6 +82,9 @@ export type WorkspaceEventSummary = {
   taskCount: number;
   completedTaskCount: number;
   draftCount: number;
+  approvedApplyCount: number;
+  approvedRollbackCount: number;
+  latestApprovedExecutionSummary?: string;
   lastEventAt?: string;
   typeCounts: Record<string, number>;
   timeline: unknown[];
@@ -130,6 +133,9 @@ export type EventLogPanelModel = {
   taskCount: number;
   completedTaskCount: number;
   draftCount: number;
+  approvedApplyCount: number;
+  approvedRollbackCount: number;
+  latestApprovedExecutionSummary?: string;
   lastEventAt?: string;
   safetyOk: boolean;
   safetyFindingCount: number;
@@ -444,6 +450,11 @@ export function normalizeWorkspaceEventSummary(
   const timeline = safeArray(value.timeline);
   const eventLogPath = readString(value, "eventLogPath", "event_log_path");
   const lastEventAt = readString(value, "lastEventAt", "last_event_at");
+  const latestApprovedExecutionSummary = readString(
+    value,
+    "latestApprovedExecutionSummary",
+    "latest_approved_execution_summary"
+  );
   const safeMessage = readString(value, "safeMessage", "safe_message");
   const warnings = Array.isArray(value.warnings)
     ? readStringArray(value, "warnings")
@@ -462,6 +473,15 @@ export function normalizeWorkspaceEventSummary(
       readValue(value, "completedTaskCount", "completed_task_count")
     ),
     draftCount: finiteNumber(readValue(value, "draftCount", "draft_count")),
+    approvedApplyCount: finiteNumber(
+      readValue(value, "approvedApplyCount", "approved_apply_count")
+    ),
+    approvedRollbackCount: finiteNumber(
+      readValue(value, "approvedRollbackCount", "approved_rollback_count")
+    ),
+    ...(latestApprovedExecutionSummary !== undefined
+      ? { latestApprovedExecutionSummary }
+      : {}),
     ...(lastEventAt !== undefined ? { lastEventAt } : {}),
     typeCounts: isRecord(readValue(value, "typeCounts", "type_counts"))
       ? Object.fromEntries(
@@ -576,6 +596,15 @@ export function buildEventLogPanelModel(
     taskCount: finiteNumber(summary.taskCount),
     completedTaskCount: finiteNumber(summary.completedTaskCount),
     draftCount: finiteNumber(summary.draftCount),
+    approvedApplyCount: finiteNumber(summary.approvedApplyCount),
+    approvedRollbackCount: finiteNumber(summary.approvedRollbackCount),
+    ...(typeof summary.latestApprovedExecutionSummary === "string"
+      ? {
+          latestApprovedExecutionSummary: safeErrorMessage(
+            summary.latestApprovedExecutionSummary
+          )
+        }
+      : {}),
     ...(typeof summary.lastEventAt === "string"
       ? { lastEventAt: summary.lastEventAt }
       : {}),
@@ -1054,6 +1083,8 @@ function invalidWorkspaceEventSummary(message: string): WorkspaceEventSummary {
     taskCount: 0,
     completedTaskCount: 0,
     draftCount: 0,
+    approvedApplyCount: 0,
+    approvedRollbackCount: 0,
     typeCounts: {},
     timeline: [],
     safetyScan: {

@@ -74,6 +74,8 @@ export type ApprovedUserWorkspaceApplyResult = {
     filesUpdated: number;
     filesDeleted: number;
     bytesWritten: number;
+    pathSummaries: string[];
+    pathSummaryCount: number;
     resultHash: string;
     warningCodes: string[];
     notWritten: true;
@@ -113,6 +115,8 @@ export type ApprovedUserWorkspaceRollbackResult = {
     operationCount: number;
     filesRemoved: number;
     filesRestored: number;
+    pathSummaries: string[];
+    pathSummaryCount: number;
     restoredSnapshotHash: string;
     resultHash: string;
     warningCodes: string[];
@@ -121,12 +125,33 @@ export type ApprovedUserWorkspaceRollbackResult = {
   safeMessage: string;
 };
 
+export type ApprovedUserWorkspaceExecutionEventRequest = {
+  workspaceRoot: string;
+  eventPreview:
+    | ApprovedUserWorkspaceApplyResult["eventPreview"]
+    | ApprovedUserWorkspaceRollbackResult["eventPreview"];
+};
+
+export type ApprovedUserWorkspaceExecutionEventRecordResult = {
+  ok: true;
+  eventId: string;
+  eventType:
+    | "user_workspace.patch_apply.app_executed"
+    | "user_workspace.patch_rollback.app_executed";
+  operationId: string;
+  checkpointId: string;
+  eventLogPath: string;
+  safeMessage: string;
+  warnings: string[];
+};
+
 export const allowedDesktopCommands = [
   "get_app_version",
   "apply_approved_user_workspace_patch",
   "rollback_approved_user_workspace_patch",
   "check_runner_preflight",
   "load_workspace_event_summary",
+  "record_approved_user_workspace_execution_event",
   "record_control_run_draft_event",
   "run_web_table_to_csv_flow"
 ] as const;
@@ -249,6 +274,21 @@ export async function rollbackApprovedUserWorkspacePatch(
   );
 }
 
+export async function recordApprovedUserWorkspaceExecutionEvent(
+  request: ApprovedUserWorkspaceExecutionEventRequest,
+  invokeImpl?: TauriInvoke
+): Promise<ApprovedUserWorkspaceExecutionEventRecordResult> {
+  validateApprovedExecutionEventRequest(request);
+  return invokeAllowedCommand<ApprovedUserWorkspaceExecutionEventRecordResult>(
+    "record_approved_user_workspace_execution_event",
+    {
+      workspaceRoot: request.workspaceRoot,
+      eventPreview: request.eventPreview
+    },
+    invokeImpl
+  );
+}
+
 export async function invokeAllowedCommand<T>(
   command: string,
   args: Record<string, unknown>,
@@ -295,6 +335,8 @@ function normalizeAllowedCommandResponse(
       return normalizeWorkspaceEventSummary(raw);
     case "record_control_run_draft_event":
       return normalizeRunDraftEventRecordResult(raw);
+    case "record_approved_user_workspace_execution_event":
+      return normalizeApprovedExecutionEventRecordResult(raw);
     case "apply_approved_user_workspace_patch":
       return normalizeApprovedApplyResult(raw);
     case "rollback_approved_user_workspace_patch":
@@ -346,6 +388,24 @@ function validateApprovedRollbackRequest(
   }
 }
 
+function validateApprovedExecutionEventRequest(
+  request: ApprovedUserWorkspaceExecutionEventRequest
+): void {
+  if (request.workspaceRoot.trim().length === 0) {
+    throw new Error("Workspace root is required");
+  }
+  const preview: Record<string, unknown> = isRecord(request.eventPreview)
+    ? request.eventPreview
+    : {};
+  if (
+    preview.notWritten !== true ||
+    (preview.type !== "user_workspace.patch_apply.approved_result" &&
+      preview.type !== "user_workspace.patch_rollback.approved_result")
+  ) {
+    throw new Error("Approved execution event preview is required");
+  }
+}
+
 function normalizeApprovedApplyResult(
   raw: unknown
 ): ApprovedUserWorkspaceApplyResult {
@@ -369,7 +429,8 @@ function normalizeApprovedApplyResult(
     typeof record.resultHash !== "string" ||
     typeof record.safeMessage !== "string" ||
     eventPreview.type !== "user_workspace.patch_apply.approved_result" ||
-    eventPreview.notWritten !== true
+    eventPreview.notWritten !== true ||
+    !Array.isArray(eventPreview.pathSummaries)
   ) {
     throw normalizeDesktopCommandError({
       errorCode: "INVALID_RESPONSE",
@@ -387,6 +448,9 @@ function normalizeApprovedApplyResult(
         typeof value === "string"
       )
     : [];
+  const pathSummaries = eventPreview.pathSummaries.filter(
+    (value): value is string => typeof value === "string"
+  );
   return {
     ok: true,
     applyId: safeErrorMessage(record.applyId),
@@ -417,6 +481,8 @@ function normalizeApprovedApplyResult(
       filesUpdated: Number(eventPreview.filesUpdated ?? 0),
       filesDeleted: Number(eventPreview.filesDeleted ?? 0),
       bytesWritten: Number(eventPreview.bytesWritten ?? 0),
+      pathSummaries,
+      pathSummaryCount: Number(eventPreview.pathSummaryCount ?? pathSummaries.length),
       resultHash: safeErrorMessage(String(eventPreview.resultHash ?? "")),
       warningCodes: eventWarningCodes,
       notWritten: true
@@ -446,7 +512,8 @@ function normalizeApprovedRollbackResult(
     typeof record.resultHash !== "string" ||
     typeof record.safeMessage !== "string" ||
     eventPreview.type !== "user_workspace.patch_rollback.approved_result" ||
-    eventPreview.notWritten !== true
+    eventPreview.notWritten !== true ||
+    !Array.isArray(eventPreview.pathSummaries)
   ) {
     throw normalizeDesktopCommandError({
       errorCode: "INVALID_RESPONSE",
@@ -464,6 +531,9 @@ function normalizeApprovedRollbackResult(
         typeof value === "string"
       )
     : [];
+  const pathSummaries = eventPreview.pathSummaries.filter(
+    (value): value is string => typeof value === "string"
+  );
   return {
     ok: true,
     rollbackId: safeErrorMessage(record.rollbackId),
@@ -491,6 +561,8 @@ function normalizeApprovedRollbackResult(
       operationCount: Number(eventPreview.operationCount ?? 0),
       filesRemoved: Number(eventPreview.filesRemoved ?? 0),
       filesRestored: Number(eventPreview.filesRestored ?? 0),
+      pathSummaries,
+      pathSummaryCount: Number(eventPreview.pathSummaryCount ?? pathSummaries.length),
       restoredSnapshotHash: safeErrorMessage(
         String(eventPreview.restoredSnapshotHash ?? "")
       ),
@@ -499,6 +571,41 @@ function normalizeApprovedRollbackResult(
       notWritten: true
     },
     safeMessage: safeErrorMessage(record.safeMessage)
+  };
+}
+
+function normalizeApprovedExecutionEventRecordResult(
+  raw: unknown
+): ApprovedUserWorkspaceExecutionEventRecordResult {
+  const record = isRecord(raw) ? raw : {};
+  if (
+    record.ok !== true ||
+    typeof record.eventId !== "string" ||
+    (record.eventType !== "user_workspace.patch_apply.app_executed" &&
+      record.eventType !== "user_workspace.patch_rollback.app_executed") ||
+    typeof record.operationId !== "string" ||
+    typeof record.checkpointId !== "string" ||
+    typeof record.eventLogPath !== "string" ||
+    typeof record.safeMessage !== "string"
+  ) {
+    throw normalizeDesktopCommandError({
+      errorCode: "INVALID_RESPONSE",
+      safeMessage: "Approved execution event record response was invalid",
+      stage: "normalize_response"
+    });
+  }
+  const warnings = Array.isArray(record.warnings)
+    ? record.warnings.filter((value): value is string => typeof value === "string")
+    : [];
+  return {
+    ok: true,
+    eventId: safeErrorMessage(record.eventId),
+    eventType: record.eventType,
+    operationId: safeErrorMessage(record.operationId),
+    checkpointId: safeErrorMessage(record.checkpointId),
+    eventLogPath: safeErrorMessage(record.eventLogPath),
+    safeMessage: safeErrorMessage(record.safeMessage),
+    warnings
   };
 }
 

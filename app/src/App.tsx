@@ -9,11 +9,17 @@ import {
 } from "react";
 
 import {
+  applyApprovedUserWorkspacePatch,
   checkDesktopRunnerPreflight,
   getDesktopAppVersion,
   loadWorkspaceEventSummary,
+  recordApprovedUserWorkspaceExecutionEvent,
   recordControlRunDraftEvent,
-  runDesktopWebTableToCsvFlow
+  rollbackApprovedUserWorkspacePatch,
+  runDesktopWebTableToCsvFlow,
+  type ApprovedUserWorkspaceApplyResult,
+  type ApprovedUserWorkspaceRollbackResult,
+  type ApprovedUserWorkspaceExecutionEventRecordResult
 } from "./desktop-flow.js";
 import {
   buildControlPlaneProjectionView,
@@ -209,6 +215,14 @@ import {
   summarizeAppApprovedExecutionReceiptView,
   type AppApprovedExecutionReceiptView
 } from "./app-approved-execution-receipt-view.js";
+import {
+  buildAppApprovedExecutionFlowView,
+  buildApprovedApplyRequestFromExecutionFlow,
+  buildApprovedRollbackRequestFromExecutionFlow,
+  summarizeAppApprovedExecutionFlowView,
+  type AppApprovedExecutionFlowInput,
+  type AppApprovedExecutionFlowView
+} from "./app-approved-execution-flow-view.js";
 import {
   buildDisposablePatchApplyView,
   type AppDisposablePatchApplyView
@@ -456,6 +470,20 @@ export function DesktopShell(): JSX.Element {
     appApprovedExecutionReceiptPreview,
     setAppApprovedExecutionReceiptPreview
   ] = useState<AppApprovedExecutionReceiptView | undefined>();
+  const [
+    appApprovedExecutionContentDraft,
+    setAppApprovedExecutionContentDraft
+  ] = useState("");
+  const [appApprovedApplyResult, setAppApprovedApplyResult] =
+    useState<ApprovedUserWorkspaceApplyResult | undefined>();
+  const [appApprovedRollbackResult, setAppApprovedRollbackResult] =
+    useState<ApprovedUserWorkspaceRollbackResult | undefined>();
+  const [
+    appApprovedExecutionEventResult,
+    setAppApprovedExecutionEventResult
+  ] = useState<ApprovedUserWorkspaceExecutionEventRecordResult | undefined>();
+  const [appApprovedExecutionError, setAppApprovedExecutionError] =
+    useState<string | undefined>();
   const loadedWorkspaceIndexRef =
     workspaceIndexBridge.status === "loaded" ||
     workspaceIndexBridge.status === "warning"
@@ -1131,6 +1159,38 @@ export function DesktopShell(): JSX.Element {
     );
   const displayedAppApprovedExecutionReceipt =
     appApprovedExecutionReceiptPreview ?? buildAppApprovedExecutionReceiptView();
+  const appApprovedExecutionFlowInput =
+    useMemo<AppApprovedExecutionFlowInput>(
+      () => ({
+        workspaceRoot,
+        receiptView: displayedAppApprovedExecutionReceipt,
+        patchProposalPreview: patchProposalCreationPreview,
+        patchValidationPreview: patchProposalValidationPreview,
+        patchDiffAuditPreview,
+        patchApprovalDraft: patchApprovalDraftPreview,
+        contentDraft: appApprovedExecutionContentDraft,
+        applyResult: appApprovedApplyResult,
+        rollbackResult: appApprovedRollbackResult,
+        eventRecordResult: appApprovedExecutionEventResult
+      }),
+      [
+        appApprovedApplyResult,
+        appApprovedExecutionContentDraft,
+        appApprovedExecutionEventResult,
+        appApprovedRollbackResult,
+        displayedAppApprovedExecutionReceipt,
+        patchApprovalDraftPreview,
+        patchDiffAuditPreview,
+        patchProposalCreationPreview,
+        patchProposalValidationPreview,
+        workspaceRoot
+      ]
+    );
+  const appApprovedExecutionFlowView =
+    useMemo<AppApprovedExecutionFlowView>(
+      () => buildAppApprovedExecutionFlowView(appApprovedExecutionFlowInput),
+      [appApprovedExecutionFlowInput]
+    );
   const modelProposalChainIntegrationCandidate =
     useMemo<ModelProposalChainIntegrationView>(
       () =>
@@ -1883,6 +1943,60 @@ export function DesktopShell(): JSX.Element {
     } catch (caught) {
       setRunDraftEventError(safeErrorMessage(caught));
       setRunDraftEventStatus("error");
+    }
+  }
+
+  async function handleApplyApprovedPatch(): Promise<void> {
+    setAppApprovedExecutionError(undefined);
+    try {
+      const request = buildApprovedApplyRequestFromExecutionFlow(
+        appApprovedExecutionFlowInput
+      );
+      const applyResult = await applyApprovedUserWorkspacePatch(request);
+      setAppApprovedApplyResult(applyResult);
+      setAppApprovedRollbackResult(undefined);
+      const eventResult = await recordApprovedUserWorkspaceExecutionEvent({
+        workspaceRoot,
+        eventPreview: applyResult.eventPreview
+      });
+      setAppApprovedExecutionEventResult(eventResult);
+      setAppApprovedExecutionReceiptPreview(
+        buildAppApprovedExecutionReceiptView({
+          receiptKind: "rollback",
+          applyTypedConfirmation: appApprovedApplyConfirmation,
+          rollbackTypedConfirmation: appApprovedRollbackConfirmation,
+          allowedRelativePathsText: appApprovedReceiptPathRefs,
+          workspaceSnapshotBackupContract: displayedUserWorkspaceSnapshotBackup,
+          patchProposalPreview: patchProposalCreationPreview,
+          patchValidationPreview: patchProposalValidationPreview,
+          patchDiffAuditPreview,
+          patchApprovalDraft: patchApprovalDraftPreview,
+          patchRollbackCheckpointPreview,
+          approvedApplyResult: applyResult
+        })
+      );
+      await refreshEvents(workspaceRoot);
+    } catch (caught) {
+      setAppApprovedExecutionError(safeErrorMessage(caught));
+    }
+  }
+
+  async function handleRollbackApprovedPatch(): Promise<void> {
+    setAppApprovedExecutionError(undefined);
+    try {
+      const request = buildApprovedRollbackRequestFromExecutionFlow(
+        appApprovedExecutionFlowInput
+      );
+      const rollbackResult = await rollbackApprovedUserWorkspacePatch(request);
+      setAppApprovedRollbackResult(rollbackResult);
+      const eventResult = await recordApprovedUserWorkspaceExecutionEvent({
+        workspaceRoot,
+        eventPreview: rollbackResult.eventPreview
+      });
+      setAppApprovedExecutionEventResult(eventResult);
+      await refreshEvents(workspaceRoot);
+    } catch (caught) {
+      setAppApprovedExecutionError(safeErrorMessage(caught));
     }
   }
 
@@ -6898,7 +7012,8 @@ export function DesktopShell(): JSX.Element {
                       patchDiffAuditPreview: patchDiffAuditPreview,
                       patchApprovalDraft: patchApprovalDraftPreview,
                       patchRollbackCheckpointPreview:
-                        patchRollbackCheckpointPreview
+                        patchRollbackCheckpointPreview,
+                      approvedApplyResult: appApprovedApplyResult
                     })
                   )
                 }
@@ -6938,27 +7053,14 @@ export function DesktopShell(): JSX.Element {
                   setAppApprovedApplyConfirmation("");
                   setAppApprovedRollbackConfirmation("");
                   setAppApprovedReceiptPathRefs("");
+                  setAppApprovedExecutionContentDraft("");
+                  setAppApprovedApplyResult(undefined);
+                  setAppApprovedRollbackResult(undefined);
+                  setAppApprovedExecutionEventResult(undefined);
+                  setAppApprovedExecutionError(undefined);
                 }}
               >
                 Clear Receipt Preview
-              </button>
-            </div>
-            <div className="buttonRow">
-              <button
-                type="button"
-                className="secondary"
-                disabled
-                aria-disabled="true"
-              >
-                Approved Apply Command (disabled)
-              </button>
-              <button
-                type="button"
-                className="secondary"
-                disabled
-                aria-disabled="true"
-              >
-                Approved Rollback Command (disabled)
               </button>
             </div>
             <dl className="summaryGrid compact">
@@ -7078,6 +7180,162 @@ export function DesktopShell(): JSX.Element {
             ) : null}
             <p className="fieldHelp">
               {displayedAppApprovedExecutionReceipt.nextAction}
+            </p>
+          </section>
+
+          <section className="eventPanel" aria-label="Approved Execution">
+            <div className="panelHeader">
+              <h2>Approved Execution</h2>
+              <span className="muted">Human approved / narrow write path</span>
+              {appApprovedApplyResult !== undefined ? (
+                <span className="muted">Rollback available</span>
+              ) : null}
+            </div>
+            <p className="fieldHelp">
+              Runs only the fixed approved apply or rollback command after the
+              receipt, typed confirmation, proposal, validation, audit, approval,
+              path, and byte gates pass. No generic command UI, Git, shell,
+              PermissionLease, native bridge, or desktop action is available.
+            </p>
+            <label>
+              Explicit content for create/update
+              <textarea
+                value={appApprovedExecutionContentDraft}
+                onChange={(event) =>
+                  setAppApprovedExecutionContentDraft(event.target.value)
+                }
+                placeholder="User-approved file content for the allowed path"
+                spellCheck={false}
+              />
+            </label>
+            <div className="buttonRow">
+              <button
+                type="button"
+                className="primary"
+                disabled={
+                  !appApprovedExecutionFlowView.readiness.canApplyApprovedPatch
+                }
+                aria-disabled={
+                  !appApprovedExecutionFlowView.readiness.canApplyApprovedPatch
+                }
+                onClick={(event) => {
+                  event.preventDefault();
+                  event.stopPropagation();
+                  void handleApplyApprovedPatch();
+                }}
+              >
+                Apply Approved Patch
+              </button>
+              <button
+                type="button"
+                className="secondary"
+                disabled={
+                  !appApprovedExecutionFlowView.readiness
+                    .canRollbackApprovedPatch
+                }
+                aria-disabled={
+                  !appApprovedExecutionFlowView.readiness
+                    .canRollbackApprovedPatch
+                }
+                onClick={(event) => {
+                  event.preventDefault();
+                  event.stopPropagation();
+                  void handleRollbackApprovedPatch();
+                }}
+              >
+                Rollback Approved Patch
+              </button>
+            </div>
+            <dl className="summaryGrid compact">
+              <div>
+                <dt>Status</dt>
+                <dd>{appApprovedExecutionFlowView.status}</dd>
+              </div>
+              <div>
+                <dt>Receipt</dt>
+                <dd>
+                  {appApprovedExecutionFlowView.receiptKind} /{" "}
+                  {appApprovedExecutionFlowView.receiptId || "n/a"}
+                </dd>
+              </div>
+              <div>
+                <dt>Allowed paths</dt>
+                <dd>{appApprovedExecutionFlowView.allowedPathCount}</dd>
+              </div>
+              <div>
+                <dt>Content summary</dt>
+                <dd>
+                  {appApprovedExecutionFlowView.contentDraftBytes} bytes /{" "}
+                  {appApprovedExecutionFlowView.contentDraftLineCount} lines /{" "}
+                  {appApprovedExecutionFlowView.contentDraftHashPrefix ?? "n/a"}
+                </dd>
+              </div>
+              <div>
+                <dt>Checkpoint</dt>
+                <dd>
+                  {appApprovedExecutionFlowView.checkpointId || "n/a"} /{" "}
+                  {appApprovedExecutionFlowView.checkpointHashPrefix ?? "n/a"}
+                </dd>
+              </div>
+              <div>
+                <dt>Blockers / warnings</dt>
+                <dd>
+                  {appApprovedExecutionFlowView.blockerCount} /{" "}
+                  {appApprovedExecutionFlowView.warningCount}
+                </dd>
+              </div>
+              <div>
+                <dt>Apply / rollback enabled</dt>
+                <dd>
+                  {appApprovedExecutionFlowView.readiness.canApplyApprovedPatch
+                    ? "yes"
+                    : "no"}{" "}
+                  /{" "}
+                  {appApprovedExecutionFlowView.readiness
+                    .canRollbackApprovedPatch
+                    ? "yes"
+                    : "no"}
+                </dd>
+              </div>
+              <div>
+                <dt>Summary event</dt>
+                <dd>
+                  {appApprovedExecutionFlowView.eventRecordSummary ?? "n/a"}
+                </dd>
+              </div>
+            </dl>
+            <p className="fieldHelp">
+              {summarizeAppApprovedExecutionFlowView(
+                appApprovedExecutionFlowView
+              )}
+            </p>
+            {appApprovedExecutionError !== undefined ? (
+              <p className="error">{appApprovedExecutionError}</p>
+            ) : null}
+            {appApprovedExecutionFlowView.applyResultSummary !== undefined ? (
+              <p className="fieldHelp">
+                {appApprovedExecutionFlowView.applyResultSummary}
+              </p>
+            ) : null}
+            {appApprovedExecutionFlowView.rollbackResultSummary !== undefined ? (
+              <p className="fieldHelp">
+                {appApprovedExecutionFlowView.rollbackResultSummary}
+              </p>
+            ) : null}
+            {appApprovedExecutionFlowView.findings.length > 0 ? (
+              <ol className="timeline">
+                {appApprovedExecutionFlowView.findings.map((finding) => (
+                  <li key={finding.code}>
+                    <span className="timelineMeta">
+                      {finding.severity} · {finding.code}
+                    </span>
+                    <span>{finding.safeMessage}</span>
+                  </li>
+                ))}
+              </ol>
+            ) : null}
+            <p className="fieldHelp">
+              {appApprovedExecutionFlowView.nextAction}
             </p>
           </section>
 
@@ -8399,6 +8657,20 @@ export function DesktopShell(): JSX.Element {
                   <div>
                     <dt>Drafts</dt>
                     <dd>{eventPanel.draftCount}</dd>
+                  </div>
+                  <div>
+                    <dt>Approved applies</dt>
+                    <dd>{eventPanel.approvedApplyCount}</dd>
+                  </div>
+                  <div>
+                    <dt>Approved rollbacks</dt>
+                    <dd>{eventPanel.approvedRollbackCount}</dd>
+                  </div>
+                  <div>
+                    <dt>Latest approved execution</dt>
+                    <dd>
+                      {eventPanel.latestApprovedExecutionSummary ?? "n/a"}
+                    </dd>
                   </div>
                   <div>
                     <dt>Tasks completed</dt>

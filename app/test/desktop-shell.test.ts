@@ -11,10 +11,13 @@ import {
   invokeAllowedCommand,
   isAllowedDesktopCommand,
   loadWorkspaceEventSummary,
+  recordApprovedUserWorkspaceExecutionEvent,
   recordControlRunDraftEvent,
   rollbackApprovedUserWorkspacePatch,
   runDesktopWebTableToCsvFlow,
   safeInvoke,
+  type ApprovedUserWorkspaceApplyResult,
+  type ApprovedUserWorkspaceRollbackResult,
   type TauriInvoke
 } from "../src/desktop-flow.js";
 import { buildControlPlaneProjectionView } from "../src/control-plane-view.js";
@@ -138,6 +141,11 @@ import {
   summarizeAppApprovalExecutionDesignView
 } from "../src/app-approval-execution-design-view.js";
 import { buildAppApprovedExecutionReceiptView } from "../src/app-approved-execution-receipt-view.js";
+import {
+  buildAppApprovedExecutionFlowView,
+  buildApprovedApplyRequestFromExecutionFlow,
+  buildApprovedRollbackRequestFromExecutionFlow
+} from "../src/app-approved-execution-flow-view.js";
 import { buildDisposablePatchApplyView } from "../src/disposable-patch-apply-view.js";
 import { buildApprovalGatedDisposableApplyView } from "../src/approval-gated-disposable-apply-view.js";
 import { buildDisposablePatchRollbackView } from "../src/disposable-patch-rollback-view.js";
@@ -272,6 +280,8 @@ function fixedEventSummary(
     taskCount: 1,
     completedTaskCount: 1,
     draftCount: 1,
+    approvedApplyCount: 0,
+    approvedRollbackCount: 0,
     lastEventAt: "2026-06-16T00:00:01.000Z",
     typeCounts: {
       "task.completed": 1,
@@ -710,6 +720,9 @@ describe("desktop command wrapper", () => {
     expect(
       isAllowedDesktopCommand("rollback_approved_user_workspace_patch")
     ).toBe(true);
+    expect(
+      isAllowedDesktopCommand("record_approved_user_workspace_execution_event")
+    ).toBe(true);
     expect(isAllowedDesktopCommand("run_web_table_to_csv_flow")).toBe(true);
   });
 
@@ -750,6 +763,8 @@ describe("desktop command wrapper", () => {
           filesUpdated: 0,
           filesDeleted: 0,
           bytesWritten: 12,
+          pathSummaries: ["create src/file.ts"],
+          pathSummaryCount: 1,
           resultHash: "result-hash",
           warningCodes: [],
           notWritten: true
@@ -821,6 +836,8 @@ describe("desktop command wrapper", () => {
           operationCount: 1,
           filesRemoved: 1,
           filesRestored: 0,
+          pathSummaries: ["create src/file.ts"],
+          pathSummaryCount: 1,
           restoredSnapshotHash: "restored-hash",
           resultHash: "rollback-result-hash",
           warningCodes: [],
@@ -846,6 +863,60 @@ describe("desktop command wrapper", () => {
     expect(result.ok).toBe(true);
     expect(result.eventPreview.notWritten).toBe(true);
     expect(JSON.stringify(result)).not.toContain("preimage content");
+  });
+
+  it("records approved execution summaries only through the fixed wrapper", async () => {
+    const invoke: TauriInvoke = async (command, args) => {
+      expect(command).toBe("record_approved_user_workspace_execution_event");
+      expect(args).toMatchObject({
+        workspaceRoot: "D:\\workspace",
+        eventPreview: {
+          type: "user_workspace.patch_apply.approved_result",
+          applyId: "approved-apply-1",
+          notWritten: true
+        }
+      });
+      return {
+        ok: true,
+        eventId: "approved-execution-1",
+        eventType: "user_workspace.patch_apply.app_executed",
+        operationId: "approved-apply-1",
+        checkpointId: "checkpoint-1",
+        eventLogPath: "D:\\workspace\\.deepseek-workbench\\events.jsonl",
+        safeMessage:
+          "Summary-only approved execution event recorded locally.",
+        warnings: []
+      } as never;
+    };
+
+    const result = await recordApprovedUserWorkspaceExecutionEvent(
+      {
+        workspaceRoot: "D:\\workspace",
+        eventPreview: {
+          type: "user_workspace.patch_apply.approved_result",
+          applyId: "approved-apply-1",
+          checkpointId: "checkpoint-1",
+          checkpointHash: "checkpoint-hash",
+          workspaceRootRef: "workspace-ref-test",
+          operationCount: 1,
+          filesCreated: 1,
+          filesUpdated: 0,
+          filesDeleted: 0,
+          bytesWritten: 12,
+          pathSummaries: ["create src/file.ts"],
+          pathSummaryCount: 1,
+          resultHash: "result-hash",
+          warningCodes: [],
+          notWritten: true
+        }
+      },
+      invoke
+    );
+
+    expect(result.ok).toBe(true);
+    expect(result.eventType).toBe("user_workspace.patch_apply.app_executed");
+    expect(JSON.stringify(result)).not.toContain("safe content");
+    expect(JSON.stringify(result)).not.toContain("preimage");
   });
 
   it("reads runner preflight through the fixed command", async () => {
@@ -6293,7 +6364,7 @@ describe("app patch virtual apply preview", () => {
     expect(serialized).not.toContain("beforeContent");
   });
 
-  it("keeps App UI in-memory-only without Tauri, EventStore, fs, apply, rollback, or execution handlers", async () => {
+  it("keeps virtual apply UI in-memory-only without generic execution handlers", async () => {
     const appSource = await readFile(
       path.join(appRoot, "src", "App.tsx"),
       "utf8"
@@ -6315,7 +6386,8 @@ describe("app patch virtual apply preview", () => {
       "No files are read or written, no rollback is executed"
     );
     expect(combined).not.toContain("handleApplyPatch");
-    expect(combined).not.toContain("handleRollback");
+    expect(combined).not.toContain("handleRollbackPatch");
+    expect(combined).not.toContain("handleRollbackUserWorkspace");
     expect(combined).not.toContain("handleCommit");
     expect(combined).not.toContain("approvePatch");
     expect(combined).not.toContain("rejectPatch");
@@ -6596,7 +6668,7 @@ describe("app patch rollback checkpoint preview", () => {
     expect(serialized).not.toContain("beforeContent");
   });
 
-  it("keeps App UI checkpoint-only without Tauri, EventStore, fs, rollback, apply, or execution handlers", async () => {
+  it("keeps rollback checkpoint UI checkpoint-only without generic execution handlers", async () => {
     const appSource = await readFile(
       path.join(appRoot, "src", "App.tsx"),
       "utf8"
@@ -6616,7 +6688,8 @@ describe("app patch rollback checkpoint preview", () => {
     expect(appSource).toContain("handlePreviewRollbackCheckpoint");
     expect(appSource).toContain("No checkpoint file is written");
     expect(combined).not.toContain("handleApplyPatch");
-    expect(combined).not.toContain("handleRollback");
+    expect(combined).not.toContain("handleRollbackPatch");
+    expect(combined).not.toContain("handleRollbackUserWorkspace");
     expect(combined).not.toContain("handleCommit");
     expect(combined).not.toContain("approvePatch");
     expect(combined).not.toContain("rejectPatch");
@@ -6675,6 +6748,8 @@ describe("app controlled creation replay projection", () => {
       taskCount: 1,
       completedTaskCount: 0,
       draftCount: 0,
+      approvedApplyCount: 0,
+      approvedRollbackCount: 0,
       lastEventAt: "2026-06-25T00:00:00.000Z",
       typeCounts: {
         "control.run.draft_recorded": 1
@@ -8730,12 +8805,13 @@ describe("app approved execution receipt preview", () => {
       applyTypedConfirmation: "APPLY TO USER WORKSPACE",
       rollbackTypedConfirmation: "ROLLBACK USER WORKSPACE",
       allowedRelativePathsText: "src/safe-file.ts",
+      approvedApplyResult: kind === "rollback" ? safeApplyResult() : undefined,
       workspaceSnapshotBackupContract: {
         userWorkspaceRootRef: "workspace-ref-demo"
       },
       patchProposalPreview: {
         proposalId: "proposal-1",
-        items: [{ path: "src/safe-file.ts" }]
+        items: [{ path: "src/safe-file.ts", changeKind: "create" }]
       },
       patchValidationPreview: { validationId: "validation-1" },
       patchDiffAuditPreview: { auditId: "audit-1" },
@@ -8744,6 +8820,80 @@ describe("app approved execution receipt preview", () => {
       createdAt: "2026-01-01T00:00:00.000Z",
       idGenerator: () => `receipt-${kind}-1`
     });
+  }
+
+  function safeApplyResult(): ApprovedUserWorkspaceApplyResult {
+    return {
+      ok: true,
+      applyId: "approved-apply-1",
+      checkpointId: "checkpoint-1",
+      checkpointHash: "checkpoint-hash-123456",
+      workspaceRootRef: "workspace-ref-demo",
+      operationCount: 1,
+      filesCreated: 1,
+      filesUpdated: 0,
+      filesDeleted: 0,
+      bytesWritten: 12,
+      warningCodes: [],
+      inputSnapshotHash: "input-hash",
+      outputSnapshotHash: "output-hash",
+      resultHash: "result-hash",
+      eventPreview: {
+        type: "user_workspace.patch_apply.approved_result",
+        applyId: "approved-apply-1",
+        checkpointId: "checkpoint-1",
+        checkpointHash: "checkpoint-hash-123456",
+        workspaceRootRef: "workspace-ref-demo",
+        operationCount: 1,
+        filesCreated: 1,
+        filesUpdated: 0,
+        filesDeleted: 0,
+        bytesWritten: 12,
+        pathSummaries: ["create src/safe-file.ts"],
+        pathSummaryCount: 1,
+        resultHash: "result-hash",
+        warningCodes: [],
+        notWritten: true
+      },
+      safeMessage:
+        "Approved user workspace apply completed with a summary-only result. Event preview was not written."
+    };
+  }
+
+  function safeRollbackResult(): ApprovedUserWorkspaceRollbackResult {
+    return {
+      ok: true,
+      rollbackId: "approved-rollback-1",
+      applyId: "approved-apply-1",
+      checkpointId: "checkpoint-1",
+      checkpointHash: "checkpoint-hash-123456",
+      workspaceRootRef: "workspace-ref-demo",
+      operationCount: 1,
+      filesRemoved: 1,
+      filesRestored: 0,
+      restoredSnapshotHash: "restored-hash",
+      resultHash: "rollback-result-hash",
+      warningCodes: [],
+      eventPreview: {
+        type: "user_workspace.patch_rollback.approved_result",
+        rollbackId: "approved-rollback-1",
+        applyId: "approved-apply-1",
+        checkpointId: "checkpoint-1",
+        checkpointHash: "checkpoint-hash-123456",
+        workspaceRootRef: "workspace-ref-demo",
+        operationCount: 1,
+        filesRemoved: 1,
+        filesRestored: 0,
+        pathSummaries: ["create src/safe-file.ts"],
+        pathSummaryCount: 1,
+        restoredSnapshotHash: "restored-hash",
+        resultHash: "rollback-result-hash",
+        warningCodes: [],
+        notWritten: true
+      },
+      safeMessage:
+        "Approved user workspace rollback completed with a summary-only result. Event preview was not written."
+    };
   }
 
   it("builds apply and rollback receipt previews without enabling App execution", () => {
@@ -8796,7 +8946,176 @@ describe("app approved execution receipt preview", () => {
     expect(view.readiness.canPreviewReceipt).toBe(false);
   });
 
-  it("renders receipt preview panel without Tauri, events, filesystem, or execution handlers", async () => {
+  it("enables apply only after strict receipt, path, and content gates", () => {
+    const receiptView = safeReceiptView("apply");
+    const view = buildAppApprovedExecutionFlowView({
+      workspaceRoot: "D:\\workspace",
+      receiptView,
+      patchProposalPreview: {
+        proposalId: "proposal-1",
+        items: [{ path: "src/safe-file.ts", changeKind: "create" }]
+      },
+      patchValidationPreview: { validationId: "validation-1" },
+      patchDiffAuditPreview: { auditId: "audit-1" },
+      patchApprovalDraft: { approvalDraftId: "approval-1" },
+      contentDraft: "summary safe content"
+    });
+    const request = buildApprovedApplyRequestFromExecutionFlow({
+      workspaceRoot: "D:\\workspace",
+      receiptView,
+      patchProposalPreview: {
+        proposalId: "proposal-1",
+        items: [{ path: "src/safe-file.ts", changeKind: "create" }]
+      },
+      patchValidationPreview: { validationId: "validation-1" },
+      patchDiffAuditPreview: { auditId: "audit-1" },
+      patchApprovalDraft: { approvalDraftId: "approval-1" },
+      contentDraft: "summary safe content"
+    });
+    const serializedView = JSON.stringify(view);
+
+    expect(view.status).toBe("apply_ready");
+    expect(view.readiness.canApplyApprovedPatch).toBe(true);
+    expect(view.readiness.canRollbackApprovedPatch).toBe(false);
+    expect(view.readiness.canUseGenericCommand).toBe(false);
+    expect(request.operations).toHaveLength(1);
+    expect(request.operations[0]?.path).toBe("src/safe-file.ts");
+    expect(request.operations[0]?.content).toBe("summary safe content");
+    expect(serializedView).not.toContain("summary safe content");
+    expect(serializedView).not.toContain("rawPrompt");
+  });
+
+  it("blocks apply when content or confirmation gates are missing", () => {
+    const missingContent = buildAppApprovedExecutionFlowView({
+      workspaceRoot: "D:\\workspace",
+      receiptView: safeReceiptView("apply"),
+      patchProposalPreview: {
+        proposalId: "proposal-1",
+        items: [{ path: "src/safe-file.ts", changeKind: "create" }]
+      },
+      patchValidationPreview: { validationId: "validation-1" },
+      patchDiffAuditPreview: { auditId: "audit-1" },
+      patchApprovalDraft: { approvalDraftId: "approval-1" },
+      contentDraft: ""
+    });
+    const blockedReceipt = buildAppApprovedExecutionReceiptView({
+      receiptKind: "apply",
+      applyTypedConfirmation: "apply",
+      allowedRelativePathsText: "src/safe-file.ts",
+      workspaceSnapshotBackupContract: {
+        userWorkspaceRootRef: "workspace-ref-demo"
+      },
+      patchProposalPreview: { proposalId: "proposal-1" },
+      patchValidationPreview: { validationId: "validation-1" },
+      patchDiffAuditPreview: { auditId: "audit-1" },
+      patchApprovalDraft: { approvalDraftId: "approval-1" }
+    });
+    const wrongConfirmation = buildAppApprovedExecutionFlowView({
+      workspaceRoot: "D:\\workspace",
+      receiptView: blockedReceipt,
+      contentDraft: "safe content"
+    });
+
+    expect(missingContent.status).toBe("blocked");
+    expect(missingContent.readiness.canApplyApprovedPatch).toBe(false);
+    expect(missingContent.findings.map((finding) => finding.code)).toContain(
+      "APP_APPROVED_EXECUTION_CONTENT_MISSING"
+    );
+    expect(wrongConfirmation.status).toBe("blocked");
+    expect(wrongConfirmation.findings.map((finding) => finding.code)).toContain(
+      "APP_APPROVED_EXECUTION_RECEIPT_BLOCKED"
+    );
+  });
+
+  it("enables rollback only after apply checkpoint and matching rollback receipt", () => {
+    const receiptView = safeReceiptView("rollback");
+    const view = buildAppApprovedExecutionFlowView({
+      workspaceRoot: "D:\\workspace",
+      receiptView,
+      patchProposalPreview: {
+        proposalId: "proposal-1",
+        items: [{ path: "src/safe-file.ts", changeKind: "create" }]
+      },
+      patchValidationPreview: { validationId: "validation-1" },
+      patchDiffAuditPreview: { auditId: "audit-1" },
+      patchApprovalDraft: { approvalDraftId: "approval-1" },
+      applyResult: safeApplyResult()
+    });
+    const request = buildApprovedRollbackRequestFromExecutionFlow({
+      workspaceRoot: "D:\\workspace",
+      receiptView,
+      patchProposalPreview: {
+        proposalId: "proposal-1",
+        items: [{ path: "src/safe-file.ts", changeKind: "create" }]
+      },
+      patchValidationPreview: { validationId: "validation-1" },
+      patchDiffAuditPreview: { auditId: "audit-1" },
+      patchApprovalDraft: { approvalDraftId: "approval-1" },
+      applyResult: safeApplyResult()
+    });
+
+    expect(view.status).toBe("rollback_ready");
+    expect(view.readiness.canApplyApprovedPatch).toBe(false);
+    expect(view.readiness.canRollbackApprovedPatch).toBe(true);
+    expect(request.checkpointId).toBe("checkpoint-1");
+    expect(request.checkpointRef).toBe("checkpoint-hash-123456");
+  });
+
+  it("summarizes completed apply and rollback without raw content", () => {
+    const applied = buildAppApprovedExecutionFlowView({
+      workspaceRoot: "D:\\workspace",
+      receiptView: safeReceiptView("apply"),
+      contentDraft: "summary safe content",
+      applyResult: safeApplyResult()
+    });
+    const rolledBack = buildAppApprovedExecutionFlowView({
+      workspaceRoot: "D:\\workspace",
+      receiptView: safeReceiptView("rollback"),
+      applyResult: safeApplyResult(),
+      rollbackResult: safeRollbackResult()
+    });
+    const serialized = JSON.stringify({ applied, rolledBack });
+
+    expect(applied.status).toBe("applied");
+    expect(rolledBack.status).toBe("rolled_back");
+    expect(applied.applyResultSummary).toContain("approved-apply-1");
+    expect(rolledBack.rollbackResultSummary).toContain("approved-rollback-1");
+    expect(serialized).not.toContain("summary safe content");
+    expect(serialized).not.toContain("preimage");
+  });
+
+  it("projects approved execution replay counts into the event log panel", () => {
+    const model = buildEventLogPanelModel(
+      fixedEventSummary({
+        approvedApplyCount: 1,
+        approvedRollbackCount: 1,
+        latestApprovedExecutionSummary:
+          "approved rollback executed: op approved-rollback-1 · checkpoint checkpoint-1 · files 1",
+        typeCounts: {
+          "user_workspace.patch_apply.app_executed": 1,
+          "user_workspace.patch_rollback.app_executed": 1
+        },
+        timeline: [
+          {
+            id: "approved-event-1",
+            type: "user_workspace.patch_apply.app_executed",
+            summary:
+              "approved apply executed: op approved-apply-1 · checkpoint checkpoint-1 · files 1",
+            safePayloadKeys: ["pathSummaries", "pathSummaryCount"]
+          }
+        ]
+      })
+    );
+
+    expect(model).toBeDefined();
+    expect(model?.approvedApplyCount).toBe(1);
+    expect(model?.approvedRollbackCount).toBe(1);
+    expect(model?.latestApprovedExecutionSummary).toContain(
+      "approved rollback executed"
+    );
+  });
+
+  it("renders approved execution flow with fixed commands and summary events only", async () => {
     const appSource = await readFile(
       path.join(appRoot, "src", "App.tsx"),
       "utf8"
@@ -8805,11 +9124,15 @@ describe("app approved execution receipt preview", () => {
       path.join(appRoot, "src", "app-approved-execution-receipt-view.ts"),
       "utf8"
     );
+    const flowSource = await readFile(
+      path.join(appRoot, "src", "app-approved-execution-flow-view.ts"),
+      "utf8"
+    );
     const desktopFlowSource = await readFile(
       path.join(appRoot, "src", "desktop-flow.ts"),
       "utf8"
     );
-    const combined = `${appSource}\n${viewSource}`;
+    const combined = `${appSource}\n${viewSource}\n${flowSource}`;
 
     expect(appSource).toContain("App Approved Execution Receipt");
     expect(appSource).toContain("Receipt preview / no execution");
@@ -8817,8 +9140,13 @@ describe("app approved execution receipt preview", () => {
     expect(appSource).toContain("Rollback typed confirmation");
     expect(appSource).toContain("Preview Apply Receipt");
     expect(appSource).toContain("Preview Rollback Receipt");
-    expect(appSource).toContain("Approved Apply Command (disabled)");
-    expect(appSource).toContain("Approved Rollback Command (disabled)");
+    expect(appSource).toContain("Approved Execution");
+    expect(appSource).toContain("Human approved / narrow write path");
+    expect(appSource).toContain("Rollback available");
+    expect(appSource).toContain("Apply Approved Patch");
+    expect(appSource).toContain("Rollback Approved Patch");
+    expect(appSource).toContain("No generic command UI");
+    expect(appSource).toContain("Latest approved execution");
     expect(appSource).toMatch(
       /The App\s+Shell does not invoke Tauri,\s+write files,\s+apply patches,\s+rollback,\s+write events,\s+issue leases,\s+or execute Git or shell commands/
     );
@@ -8826,11 +9154,20 @@ describe("app approved execution receipt preview", () => {
     expect(viewSource).not.toContain("recordControlRunDraftEvent");
     expect(viewSource).not.toContain("writeFile");
     expect(viewSource).not.toContain("readFile(");
-    expect(combined).not.toContain("handleApprovedApply");
-    expect(combined).not.toContain("handleApprovedRollback");
+    expect(flowSource).not.toContain("safeInvoke");
+    expect(flowSource).not.toContain("writeFile");
+    expect(flowSource).not.toContain("readFile(");
     expect(combined).not.toContain("handleIssuePermissionLease");
     expect(combined).not.toContain("appendEventStore");
-    expect(desktopFlowSource).not.toContain("app_approved_execution_receipt");
+    expect(desktopFlowSource).toContain("apply_approved_user_workspace_patch");
+    expect(desktopFlowSource).toContain(
+      "rollback_approved_user_workspace_patch"
+    );
+    expect(desktopFlowSource).toContain(
+      "record_approved_user_workspace_execution_event"
+    );
+    expect(desktopFlowSource).not.toContain("gitCommand");
+    expect(desktopFlowSource).not.toContain("shellCommand");
   });
 });
 
@@ -9573,7 +9910,8 @@ describe("desktop source boundaries", () => {
     expect(appSource).not.toContain("auto approval");
     expect(appSource).not.toContain("Auto Convert");
     expect(appSource).not.toContain("handleApprove");
-    expect(appSource).not.toContain("handleApply");
+    expect(appSource).not.toContain("handleApplyUserWorkspace");
+    expect(appSource).not.toContain("handleGenericApply");
     expect(appSource).not.toContain("handleExecute");
     expect(appSource).not.toContain("handleCommitMemory");
     expect(appSource).not.toContain("handleRevokeMemory");
@@ -12130,6 +12468,33 @@ describe("desktop source boundaries", () => {
     expect(docsIndex).toContain(
       "app-approved-user-workspace-rollback-command-v0.11.md"
     );
+  });
+
+  it("documents the P0O-006 approved execution flow and replay surface", async () => {
+    const flowDoc = await readFile(
+      path.join(repoRoot, "docs", "app-approved-execution-flow-v0.11.md"),
+      "utf8"
+    );
+    const docsIndex = await readFile(
+      path.join(repoRoot, "docs", "README.md"),
+      "utf8"
+    );
+    const combined = `${flowDoc}\n${docsIndex}`;
+
+    expect(combined).toContain("App Approved Execution Flow v0.11");
+    expect(combined).toContain("DW-P0O-006");
+    expect(combined).toContain("Apply Approved Patch");
+    expect(combined).toContain("Rollback Approved Patch");
+    expect(combined).toContain("summary-only execution events");
+    expect(combined).toContain("user_workspace.patch_apply.app_executed");
+    expect(combined).toContain("user_workspace.patch_rollback.app_executed");
+    expect(combined).toContain("Event Log / Replay");
+    expect(combined).toContain("No generic command UI");
+    expect(combined).toContain("No Git or shell execution");
+    expect(combined).toContain("No production PermissionLease issuing");
+    expect(combined).toContain("No raw content");
+    expect(combined).toContain("No model call");
+    expect(docsIndex).toContain("app-approved-execution-flow-v0.11.md");
   });
 
   it("documents the P0L-001 DeepSeek patch proposal ADR and gates without implementation", async () => {
