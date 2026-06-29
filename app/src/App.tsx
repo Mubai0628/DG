@@ -111,6 +111,11 @@ import {
   type LiveProposalTelemetryAuditView
 } from "./live-proposal-telemetry-audit-view.js";
 import {
+  buildLiveProposalEvaluationSummaryView,
+  summarizeLiveProposalEvaluationSummaryView,
+  type LiveProposalEvaluationSummaryView
+} from "./live-proposal-evaluation-summary-view.js";
+import {
   buildPatchProposalValidationPreviewView,
   patchProposalValidationApprovalRefs,
   patchProposalValidationAuditWarningCodes,
@@ -368,6 +373,14 @@ export function DesktopShell(): JSX.Element {
     liveProposalTelemetryAuditPreview,
     setLiveProposalTelemetryAuditPreview
   ] = useState<LiveProposalTelemetryAuditView | undefined>();
+  const [
+    liveProposalEvaluationSummaryText,
+    setLiveProposalEvaluationSummaryText
+  ] = useState("");
+  const [
+    liveProposalEvaluationSummaryPreview,
+    setLiveProposalEvaluationSummaryPreview
+  ] = useState<LiveProposalEvaluationSummaryView | undefined>();
   const [patchProposalCreationPreview, setPatchProposalCreationPreview] =
     useState<AppPatchProposalCreationPreviewView | undefined>();
   const [patchProposalValidationPreview, setPatchProposalValidationPreview] =
@@ -1212,6 +1225,18 @@ export function DesktopShell(): JSX.Element {
     );
   const displayedLiveProposalTelemetryAudit =
     liveProposalTelemetryAuditPreview ?? buildLiveProposalTelemetryAuditView();
+  const liveProposalEvaluationSummaryCandidate =
+    useMemo<LiveProposalEvaluationSummaryView>(
+      () =>
+        buildLiveProposalEvaluationSummaryView({
+          summaryJsonText: liveProposalEvaluationSummaryText,
+          sourceKind: "paste"
+        }),
+      [liveProposalEvaluationSummaryText]
+    );
+  const displayedLiveProposalEvaluationSummary =
+    liveProposalEvaluationSummaryPreview ??
+    buildLiveProposalEvaluationSummaryView();
   useEffect(() => {
     setLiveProposalTelemetryAuditPreview(undefined);
   }, [
@@ -1221,6 +1246,9 @@ export function DesktopShell(): JSX.Element {
     modelPatchProposalImportPreview,
     modelProposalChainIntegrationPreview
   ]);
+  useEffect(() => {
+    setLiveProposalEvaluationSummaryPreview(undefined);
+  }, [liveProposalEvaluationSummaryText]);
   const contextAssemblyCandidate = useMemo<AppContextAssemblyPreviewView>(
     () =>
       buildContextAssemblyPreviewView({
@@ -1649,6 +1677,17 @@ export function DesktopShell(): JSX.Element {
 
   function handlePreviewLiveProposalTelemetryAudit(): void {
     setLiveProposalTelemetryAuditPreview(liveProposalTelemetryAuditCandidate);
+  }
+
+  function handlePreviewLiveProposalEvaluationSummary(): void {
+    setLiveProposalEvaluationSummaryPreview(
+      liveProposalEvaluationSummaryCandidate
+    );
+  }
+
+  function handleClearLiveProposalEvaluationSummary(): void {
+    setLiveProposalEvaluationSummaryText("");
+    setLiveProposalEvaluationSummaryPreview(undefined);
   }
 
   function handleValidatePatchProposal(): void {
@@ -3764,6 +3803,261 @@ export function DesktopShell(): JSX.Element {
                 ).source
               }{" "}
               · {displayedLiveProposalTelemetryAudit.nextAction}
+            </p>
+          </section>
+
+          <section
+            className="eventPanel"
+            aria-label="Live Proposal Evaluation Summary"
+          >
+            <div className="panelHeader">
+              <h2>Live Proposal Evaluation Summary</h2>
+              <span className="muted">Read-only / no live call</span>
+            </div>
+            <p className="fieldHelp">
+              Displays summary-only evaluation metrics for live proposal golden
+              cases. The App Shell does not run evaluation, call DeepSeek, read
+              API keys, fetch network, apply patches, rollback, or write events.
+            </p>
+
+            <label>
+              <span>Summary-only metrics JSON</span>
+              <textarea
+                className="compactTextarea"
+                value={liveProposalEvaluationSummaryText}
+                onChange={(event) => {
+                  setLiveProposalEvaluationSummaryText(event.target.value);
+                }}
+                placeholder="Paste summary-only evaluation metrics JSON"
+                spellCheck={false}
+              />
+              <p className="fieldHelp">
+                Accepts evaluation counts, rates, taxonomy categories, usage
+                numbers, and hashes only. Raw prompts, raw responses,
+                reasoning_content, source text, diffs, and keys are rejected.
+              </p>
+            </label>
+
+            <div className="buttonRow">
+              <button
+                type="button"
+                className="secondary"
+                onClick={(event) => {
+                  event.preventDefault();
+                  event.stopPropagation();
+                  handlePreviewLiveProposalEvaluationSummary();
+                }}
+              >
+                Preview Evaluation Summary
+              </button>
+              <button
+                type="button"
+                className="secondary"
+                onClick={(event) => {
+                  event.preventDefault();
+                  event.stopPropagation();
+                  handleClearLiveProposalEvaluationSummary();
+                }}
+              >
+                Clear Evaluation Summary
+              </button>
+              <button type="button" className="secondary" disabled>
+                Run Evaluation (disabled)
+              </button>
+              <button type="button" className="secondary" disabled>
+                Call DeepSeek for Evaluation (disabled)
+              </button>
+            </div>
+
+            {displayedLiveProposalEvaluationSummary.status === "empty" ? (
+              <p className="empty">
+                No evaluation summary loaded. Paste summary-only metrics to
+                inspect read-only evaluation health.
+              </p>
+            ) : null}
+
+            {displayedLiveProposalEvaluationSummary.status === "blocked" ? (
+              <div className="errorBox">
+                <strong>Evaluation summary blocked</strong>
+                <p>{displayedLiveProposalEvaluationSummary.nextAction}</p>
+              </div>
+            ) : null}
+
+            <dl className="summaryGrid compact">
+              <div>
+                <dt>Status</dt>
+                <dd>{displayedLiveProposalEvaluationSummary.status}</dd>
+              </div>
+              <div>
+                <dt>Summary</dt>
+                <dd>{displayedLiveProposalEvaluationSummary.summaryId}</dd>
+              </div>
+              <div>
+                <dt>Reports / cases</dt>
+                <dd>
+                  {displayedLiveProposalEvaluationSummary.reportCount} /{" "}
+                  {displayedLiveProposalEvaluationSummary.caseCount}
+                </dd>
+              </div>
+              <div>
+                <dt>Offline / live cases</dt>
+                <dd>
+                  {displayedLiveProposalEvaluationSummary.offlineCaseCount} /{" "}
+                  {displayedLiveProposalEvaluationSummary.liveCaseCount}
+                </dd>
+              </div>
+              <div>
+                <dt>Pass / warn / block</dt>
+                <dd>
+                  {
+                    displayedLiveProposalEvaluationSummary.passWarnBlockSummary
+                      .passedCount
+                  }{" "}
+                  /{" "}
+                  {
+                    displayedLiveProposalEvaluationSummary.passWarnBlockSummary
+                      .warningCount
+                  }{" "}
+                  /{" "}
+                  {
+                    displayedLiveProposalEvaluationSummary.passWarnBlockSummary
+                      .blockedCount
+                  }
+                </dd>
+              </div>
+              <div>
+                <dt>Failed expectations</dt>
+                <dd>
+                  {
+                    displayedLiveProposalEvaluationSummary.passWarnBlockSummary
+                      .failedExpectationCount
+                  }
+                </dd>
+              </div>
+              <div>
+                <dt>Schema / repair rate</dt>
+                <dd>
+                  {displayedLiveProposalEvaluationSummary.schemaPassRate ??
+                    "n/a"}{" "}
+                  /{" "}
+                  {displayedLiveProposalEvaluationSummary.repairSuccessRate ??
+                    "n/a"}
+                </dd>
+              </div>
+              <div>
+                <dt>Taxonomy categories</dt>
+                <dd>
+                  {
+                    displayedLiveProposalEvaluationSummary.taxonomySummary
+                      .totalFailureCategoryCount
+                  }
+                </dd>
+              </div>
+              <div>
+                <dt>Dominant taxonomy</dt>
+                <dd>
+                  {displayedLiveProposalEvaluationSummary.taxonomySummary
+                    .dominantCategories.length > 0
+                    ? displayedLiveProposalEvaluationSummary.taxonomySummary
+                        .dominantCategories.join(", ")
+                    : "none"}
+                </dd>
+              </div>
+              <div>
+                <dt>Usage tokens</dt>
+                <dd>
+                  {displayedLiveProposalEvaluationSummary.usageSummary ===
+                  undefined
+                    ? "n/a"
+                    : `${displayedLiveProposalEvaluationSummary.usageSummary.totalTokens ?? 0} token(s)`}
+                </dd>
+              </div>
+              <div>
+                <dt>Blockers / warnings</dt>
+                <dd>
+                  {displayedLiveProposalEvaluationSummary.blockerCount} /{" "}
+                  {displayedLiveProposalEvaluationSummary.warningCount}
+                </dd>
+              </div>
+              <div>
+                <dt>Hash</dt>
+                <dd>
+                  {displayedLiveProposalEvaluationSummary.hashPrefix ?? "n/a"}
+                </dd>
+              </div>
+              <div>
+                <dt>Display / run evaluation</dt>
+                <dd>
+                  {displayedLiveProposalEvaluationSummary.readiness
+                    .canDisplaySummary
+                    ? "yes"
+                    : "no"}{" "}
+                  /{" "}
+                  {displayedLiveProposalEvaluationSummary.readiness
+                    .canRunEvaluation
+                    ? "yes"
+                    : "no"}
+                </dd>
+              </div>
+              <div>
+                <dt>Model call / key read</dt>
+                <dd>
+                  {displayedLiveProposalEvaluationSummary.readiness
+                    .canCallLiveModel
+                    ? "yes"
+                    : "no"}{" "}
+                  /{" "}
+                  {displayedLiveProposalEvaluationSummary.readiness
+                    .canReadApiKey
+                    ? "yes"
+                    : "no"}
+                </dd>
+              </div>
+              <div>
+                <dt>Fetch / event write</dt>
+                <dd>
+                  {displayedLiveProposalEvaluationSummary.readiness
+                    .canFetchNetwork
+                    ? "yes"
+                    : "no"}{" "}
+                  /{" "}
+                  {displayedLiveProposalEvaluationSummary.readiness
+                    .canWriteEventStore
+                    ? "yes"
+                    : "no"}
+                </dd>
+              </div>
+              <div>
+                <dt>Apply / rollback</dt>
+                <dd>
+                  {displayedLiveProposalEvaluationSummary.readiness
+                    .canApplyPatch
+                    ? "yes"
+                    : "no"}{" "}
+                  /{" "}
+                  {displayedLiveProposalEvaluationSummary.readiness.canRollback
+                    ? "yes"
+                    : "no"}
+                </dd>
+              </div>
+            </dl>
+
+            {displayedLiveProposalEvaluationSummary.findings.length > 0 ? (
+              <p className="muted">
+                findings{" "}
+                {displayedLiveProposalEvaluationSummary.findings
+                  .map((finding) => finding.code)
+                  .join(", ")}
+              </p>
+            ) : null}
+
+            <p className="fieldHelp">
+              {
+                summarizeLiveProposalEvaluationSummaryView(
+                  displayedLiveProposalEvaluationSummary
+                ).source
+              }{" "}
+              · {displayedLiveProposalEvaluationSummary.nextAction}
             </p>
           </section>
 

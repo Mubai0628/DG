@@ -62,6 +62,10 @@ import { buildLiveProposalValidationIntegrationView } from "../src/live-proposal
 import { buildLiveProposalPreviewGateView } from "../src/live-proposal-preview-gate-view.js";
 import { buildLiveProposalTelemetryAuditView } from "../src/live-proposal-telemetry-audit-view.js";
 import {
+  buildLiveProposalEvaluationSummaryView,
+  parseLiveProposalEvaluationSummaryJson
+} from "../src/live-proposal-evaluation-summary-view.js";
+import {
   buildPatchProposalValidationPreviewView,
   patchProposalValidationApprovalRefs,
   patchProposalValidationAuditWarningCodes,
@@ -4616,6 +4620,269 @@ describe("app live proposal telemetry redaction audit", () => {
     );
     expect(docsIndex).toContain(
       "app-shell-live-proposal-telemetry-redaction-audit-v0.8.md"
+    );
+  });
+});
+
+describe("app live proposal evaluation summary surface", () => {
+  const safeEvaluationSummary = {
+    source: "runtime_live_proposal_failure_metrics",
+    metricsId: "metrics-safe",
+    reportCount: 2,
+    caseCount: 5,
+    offlineCaseCount: 3,
+    liveCaseCount: 2,
+    taxonomyMetrics: {
+      categories: {
+        schema_failure: 0,
+        malformed_json: 0,
+        repair_failed: 0,
+        unsafe_path: 1,
+        forbidden_field: 0,
+        secret_marker: 0,
+        missing_evidence: 0,
+        missing_test_plan: 1,
+        high_risk_operation: 0,
+        hallucinated_path: 0,
+        poor_objective_fit: 0,
+        raw_content_leak: 0,
+        reasoning_content_leak: 0,
+        usage_summary_missing: 0,
+        no_failure_expected: 0
+      },
+      totalFailureCategoryCount: 2,
+      dominantCategories: ["unsafe_path", "missing_test_plan"]
+    },
+    repairMetrics: {
+      repairAttemptCount: 4,
+      repairSuccessCount: 3,
+      repairFailureCount: 1,
+      repairSuccessRate: 0.75
+    },
+    schemaMetrics: {
+      schemaEvaluatedCaseCount: 5,
+      schemaPassedCount: 4,
+      schemaBlockedCount: 1,
+      schemaWarningCount: 1,
+      schemaPassRate: 0.8
+    },
+    expectationMetrics: {
+      passedCount: 3,
+      warningCount: 1,
+      blockedCount: 1,
+      failedExpectationCount: 1,
+      matchedExpectationCount: 4
+    },
+    usageMetrics: {
+      usageSummaryCaseCount: 2,
+      requestCount: 2,
+      responseCount: 2,
+      totalPromptTokens: 30,
+      totalCompletionTokens: 17,
+      totalTokens: 47
+    },
+    blockerCount: 0,
+    warningCount: 3,
+    findingCount: 3,
+    metricsHash: "abcdef1234567890"
+  };
+
+  it("builds empty, safe, and blocked read-only summary views", () => {
+    const empty = buildLiveProposalEvaluationSummaryView();
+    const parsed = parseLiveProposalEvaluationSummaryJson(
+      JSON.stringify(safeEvaluationSummary)
+    );
+    const safe = buildLiveProposalEvaluationSummaryView({
+      summaryJsonText: JSON.stringify(safeEvaluationSummary)
+    });
+    const blocked = buildLiveProposalEvaluationSummaryView({
+      summaryJsonText: JSON.stringify({
+        ...safeEvaluationSummary,
+        readiness: {
+          canRunEvaluation: true,
+          appCanExecute: true
+        }
+      })
+    });
+    const serialized = JSON.stringify({ empty, safe, blocked });
+
+    expect(parsed.ok).toBe(true);
+    expect(empty.status).toBe("empty");
+    expect(empty.readiness.canDisplaySummary).toBe(false);
+    expect(safe.status).toBe("warning");
+    expect(safe.source).toBe("app_live_proposal_evaluation_summary");
+    expect(safe.reportCount).toBe(2);
+    expect(safe.caseCount).toBe(5);
+    expect(safe.passWarnBlockSummary).toMatchObject({
+      passedCount: 3,
+      warningCount: 1,
+      blockedCount: 1,
+      failedExpectationCount: 1
+    });
+    expect(safe.schemaPassRate).toBe(0.8);
+    expect(safe.repairSuccessRate).toBe(0.75);
+    expect(safe.taxonomySummary.categories.unsafe_path).toBe(1);
+    expect(safe.usageSummary?.totalTokens).toBe(47);
+    expect(safe.readiness.canDisplaySummary).toBe(true);
+    expect(safe.readiness.canRunEvaluation).toBe(false);
+    expect(safe.readiness.canCallLiveModel).toBe(false);
+    expect(safe.readiness.canReadApiKey).toBe(false);
+    expect(safe.readiness.canFetchNetwork).toBe(false);
+    expect(safe.readiness.canWriteEventStore).toBe(false);
+    expect(safe.readiness.canApplyPatch).toBe(false);
+    expect(safe.readiness.canRollback).toBe(false);
+    expect(safe.readiness.canExecuteGit).toBe(false);
+    expect(safe.readiness.canExecuteShell).toBe(false);
+    expect(safe.readiness.appCanExecute).toBe(false);
+    expect(blocked.status).toBe("blocked");
+    expect(blocked.findings.map((finding) => finding.code)).toContain(
+      "EVALUATION_SUMMARY_EXECUTION_FLAG_TRUE"
+    );
+    expect(serialized).not.toContain("sk-");
+    expect(serialized).not.toContain("model prompt text");
+    expect(serialized).not.toContain("model response text");
+    expect(serialized).not.toContain("Authorization:");
+  });
+
+  it("blocks malformed JSON, raw fields, secret markers, unknown taxonomy, and raw usage text", () => {
+    const malformed = buildLiveProposalEvaluationSummaryView({
+      summaryJsonText: "{not json"
+    });
+    const rawPrompt = buildLiveProposalEvaluationSummaryView({
+      summaryJsonText: JSON.stringify({
+        ...safeEvaluationSummary,
+        rawPrompt: "blocked"
+      })
+    });
+    const secretMarker = buildLiveProposalEvaluationSummaryView({
+      summaryJsonText: JSON.stringify({
+        ...safeEvaluationSummary,
+        safeLabel: "Bearer fake-token-12345678"
+      })
+    });
+    const unknownTaxonomy = buildLiveProposalEvaluationSummaryView({
+      summaryJsonText: JSON.stringify({
+        ...safeEvaluationSummary,
+        taxonomyMetrics: {
+          categories: {
+            unknown_failure: 1
+          }
+        }
+      })
+    });
+    const rawUsage = buildLiveProposalEvaluationSummaryView({
+      summaryJsonText: JSON.stringify({
+        ...safeEvaluationSummary,
+        usageMetrics: {
+          totalTokens: 47,
+          modelResponseText: "raw usage text"
+        }
+      })
+    });
+    const badRate = buildLiveProposalEvaluationSummaryView({
+      summaryJsonText: JSON.stringify({
+        ...safeEvaluationSummary,
+        schemaMetrics: {
+          schemaPassRate: 1.5
+        }
+      })
+    });
+
+    expect(malformed.status).toBe("blocked");
+    expect(rawPrompt.status).toBe("blocked");
+    expect(rawPrompt.findings.map((finding) => finding.code)).toContain(
+      "RAWPROMPT_FIELD_REJECTED"
+    );
+    expect(secretMarker.status).toBe("blocked");
+    expect(secretMarker.findings.map((finding) => finding.code)).toContain(
+      "BEARER_TOKEN_MARKER"
+    );
+    expect(unknownTaxonomy.status).toBe("blocked");
+    expect(unknownTaxonomy.findings.map((finding) => finding.code)).toContain(
+      "UNKNOWN_TAXONOMY_CATEGORY"
+    );
+    expect(rawUsage.status).toBe("blocked");
+    expect(rawUsage.findings.map((finding) => finding.code)).toContain(
+      "USAGE_SUMMARY_RAW_TEXT_REJECTED"
+    );
+    expect(badRate.status).toBe("blocked");
+    expect(badRate.findings.map((finding) => finding.code)).toContain(
+      "INVALID_RATE_METRIC"
+    );
+  });
+
+  it("keeps App evaluation summary surface read-only without runner or live call wiring", async () => {
+    const appSource = await readFile(
+      path.join(appRoot, "src", "App.tsx"),
+      "utf8"
+    );
+    const viewSource = await readFile(
+      path.join(appRoot, "src", "live-proposal-evaluation-summary-view.ts"),
+      "utf8"
+    );
+    const combined = `${appSource}\n${viewSource}`;
+    const normalizedAppSource = appSource.replace(/\s+/g, " ");
+
+    expect(appSource).toContain("Live Proposal Evaluation Summary");
+    expect(appSource).toContain("Read-only / no live call");
+    expect(appSource).toContain("Preview Evaluation Summary");
+    expect(appSource).toContain("Run Evaluation (disabled)");
+    expect(appSource).toContain("Call DeepSeek for Evaluation (disabled)");
+    expect(normalizedAppSource).toContain(
+      "The App Shell does not run evaluation, call DeepSeek, read API keys, fetch network, apply patches, rollback, or write events."
+    );
+    expect(appSource).not.toContain('type="password"');
+    expect(appSource).not.toContain("Authorization input");
+    expect(appSource).not.toContain("handleRunLiveProposalEvaluation");
+    expect(appSource).not.toContain("handleCallDeepSeekEvaluation");
+    expect(viewSource).not.toContain("process.env");
+    expect(viewSource).not.toContain("fetch(");
+    expect(viewSource).not.toContain("safeInvoke");
+    expect(viewSource).not.toContain("recordControlRunDraftEvent");
+    expect(viewSource).not.toContain("runLiveProposalEvaluation(");
+    expect(viewSource).not.toContain("runLiveDeepSeekProposalAdapter");
+    expect(combined).not.toContain("writeLiveProposalEvaluationEvent");
+    expect(combined).not.toContain("readLiveProposalApiKey");
+  });
+
+  it("documents the App live proposal evaluation summary boundary", async () => {
+    const appDoc = await readFile(
+      path.join(
+        repoRoot,
+        "docs",
+        "app-shell-live-proposal-evaluation-summary-v0.9.md"
+      ),
+      "utf8"
+    );
+    const docsIndex = await readFile(
+      path.join(repoRoot, "docs", "README.md"),
+      "utf8"
+    );
+    const combined = `${appDoc}\n${docsIndex}`;
+
+    expect(combined).toContain(
+      "App Shell Live Proposal Evaluation Summary v0.9"
+    );
+    expect(combined).toContain("read-only summary surface");
+    expect(combined).toContain("no evaluator execution");
+    expect(combined).toContain("no live call");
+    expect(combined).toContain("no API key read");
+    expect(combined).toContain("no fetch/network");
+    expect(combined).toContain("no raw prompt persistence");
+    expect(combined).toContain("no raw response persistence");
+    expect(combined).toContain("no reasoning_content persistence");
+    expect(combined).toContain("Failure Taxonomy");
+    expect(combined).toContain("schema_failure");
+    expect(combined).toContain("repair_failed");
+    expect(combined).toContain("unsafe_path");
+    expect(combined).toContain("secret_marker");
+    expect(combined).toContain("No apply/rollback");
+    expect(combined).toContain("No EventStore write");
+    expect(combined).toContain("No Git/shell execution");
+    expect(combined).toContain("No native bridge");
+    expect(combined).toContain("No desktop action");
+    expect(docsIndex).toContain(
+      "app-shell-live-proposal-evaluation-summary-v0.9.md"
     );
   });
 });
