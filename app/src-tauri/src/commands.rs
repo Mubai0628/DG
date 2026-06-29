@@ -4671,6 +4671,222 @@ mod tests {
     }
 
     #[test]
+    fn approved_execution_e2e_smoke_apply_event_rollback_replay() {
+        let fixture_path = repo_root()
+            .expect("repo root")
+            .join("app")
+            .join("test")
+            .join("fixtures")
+            .join("approved-execution-smoke-proposal.json");
+        let fixture: Value = serde_json::from_str(
+            &fs::read_to_string(fixture_path).expect("smoke proposal fixture"),
+        )
+        .expect("smoke proposal json");
+        let path = fixture
+            .get("path")
+            .and_then(Value::as_str)
+            .expect("fixture path");
+        let content = fixture
+            .get("contentDraft")
+            .and_then(Value::as_str)
+            .expect("fixture content");
+        let workspace_root_ref = fixture
+            .get("workspaceRootRef")
+            .and_then(Value::as_str)
+            .expect("workspace root ref");
+        let proposal_id = fixture
+            .get("proposalId")
+            .and_then(Value::as_str)
+            .expect("proposal id");
+        let validation_id = fixture
+            .get("validationId")
+            .and_then(Value::as_str)
+            .expect("validation id");
+        let audit_id = fixture
+            .get("auditId")
+            .and_then(Value::as_str)
+            .expect("audit id");
+        let approval_draft_id = fixture
+            .get("approvalDraftId")
+            .and_then(Value::as_str)
+            .expect("approval draft id");
+        let workspace = temp_workspace("approved-execution-e2e-smoke");
+        fs::create_dir_all(workspace.join("docs")).expect("docs dir");
+        let target = workspace.join(path);
+        let apply_receipt = serde_json::json!({
+            "status": "ready",
+            "receiptId": "receipt-apply-smoke",
+            "kind": "apply",
+            "source": "runtime_app_approved_execution_receipt",
+            "summaryOnly": true,
+            "scope": {
+                "receiptId": "receipt-apply-smoke",
+                "kind": "apply",
+                "workspaceRootRef": workspace_root_ref,
+                "proposalId": proposal_id,
+                "validationId": validation_id,
+                "auditId": audit_id,
+                "approvalDraftId": approval_draft_id,
+                "allowedRelativePaths": [path],
+                "maxFiles": 1,
+                "maxBytes": 4096,
+                "expiresAt": "2099-01-01T00:00:00.000Z",
+                "typedConfirmation": APPLY_CONFIRMATION,
+                "receiptHash": "receipt-smoke-hash"
+            },
+            "readiness": {
+                "canApplyPatch": false,
+                "canRollback": false,
+                "canWriteFilesystem": false,
+                "canWriteEventStore": false,
+                "canExecuteGit": false,
+                "canExecuteShell": false,
+                "canIssuePermissionLease": false,
+                "appCanExecute": false
+            }
+        });
+        let apply_request = ApprovedApplyRequest {
+            workspace_root: workspace.to_string_lossy().to_string(),
+            workspace_root_ref: workspace_root_ref.to_string(),
+            receipt: apply_receipt.clone(),
+            operations: vec![ApprovedApplyOperation {
+                path: path.to_string(),
+                change_kind: ApprovedApplyChangeKind::Create,
+                content: Some(content.to_string()),
+                expected_before_hash: None,
+                expected_exists_before: Some(false),
+            }],
+            proposal_summary: serde_json::json!({"proposalId": proposal_id}),
+            validation_summary: serde_json::json!({"validationId": validation_id}),
+            audit_summary: serde_json::json!({"auditId": audit_id}),
+            approval_summary: serde_json::json!({"approvalDraftId": approval_draft_id}),
+            max_files: 1,
+            max_bytes: 4096,
+        };
+
+        let apply_result =
+            apply_approved_user_workspace_patch(apply_request).expect("approved apply smoke");
+        assert!(target.is_file());
+        assert_eq!(fs::read_to_string(&target).expect("target content"), content);
+        let checkpoint_path = workspace
+            .join(".deepseek-workbench")
+            .join("checkpoints")
+            .join(format!("{}.json", apply_result.checkpoint_id));
+        assert!(checkpoint_path.is_file());
+
+        record_approved_user_workspace_execution_event(
+            workspace.to_string_lossy().to_string(),
+            serde_json::to_value(&apply_result.event_preview).expect("apply preview"),
+        )
+        .expect("record apply event");
+        let apply_summary = load_event_summary(workspace.to_string_lossy().as_ref(), Some(20));
+        assert_eq!(apply_summary.approved_apply_count, 1);
+        assert_eq!(apply_summary.approved_rollback_count, 0);
+        assert!(apply_summary.safety_scan.ok);
+        assert!(apply_summary
+            .latest_approved_execution_summary
+            .as_deref()
+            .unwrap_or_default()
+            .contains("approved apply executed"));
+
+        let conflict_request = ApprovedApplyRequest {
+            workspace_root: workspace.to_string_lossy().to_string(),
+            workspace_root_ref: workspace_root_ref.to_string(),
+            receipt: apply_receipt,
+            operations: vec![ApprovedApplyOperation {
+                path: path.to_string(),
+                change_kind: ApprovedApplyChangeKind::Create,
+                content: Some(content.to_string()),
+                expected_before_hash: None,
+                expected_exists_before: Some(false),
+            }],
+            proposal_summary: serde_json::json!({"proposalId": proposal_id}),
+            validation_summary: serde_json::json!({"validationId": validation_id}),
+            audit_summary: serde_json::json!({"auditId": audit_id}),
+            approval_summary: serde_json::json!({"approvalDraftId": approval_draft_id}),
+            max_files: 1,
+            max_bytes: 4096,
+        };
+        let conflict_error = apply_approved_user_workspace_patch(conflict_request)
+            .expect_err("duplicate create should block");
+        assert_eq!(conflict_error.error_code, "APPROVED_APPLY_BLOCKED");
+
+        let rollback_receipt = serde_json::json!({
+            "status": "ready",
+            "receiptId": "receipt-rollback-smoke",
+            "kind": "rollback",
+            "source": "runtime_app_approved_execution_receipt",
+            "summaryOnly": true,
+            "scope": {
+                "receiptId": "receipt-rollback-smoke",
+                "kind": "rollback",
+                "workspaceRootRef": workspace_root_ref,
+                "proposalId": proposal_id,
+                "validationId": validation_id,
+                "auditId": audit_id,
+                "approvalDraftId": approval_draft_id,
+                "checkpointId": apply_result.checkpoint_id,
+                "allowedRelativePaths": [path],
+                "maxFiles": 1,
+                "maxBytes": 4096,
+                "expiresAt": "2099-01-01T00:00:00.000Z",
+                "typedConfirmation": ROLLBACK_CONFIRMATION,
+                "receiptHash": "receipt-rollback-smoke-hash"
+            },
+            "readiness": {
+                "canApplyPatch": false,
+                "canRollback": false,
+                "canWriteFilesystem": false,
+                "canWriteEventStore": false,
+                "canExecuteGit": false,
+                "canExecuteShell": false,
+                "canIssuePermissionLease": false,
+                "appCanExecute": false
+            }
+        });
+        let rollback_result = rollback_approved_user_workspace_patch(ApprovedRollbackRequest {
+            workspace_root: workspace.to_string_lossy().to_string(),
+            workspace_root_ref: workspace_root_ref.to_string(),
+            receipt: rollback_receipt,
+            apply_id: apply_result.apply_id.clone(),
+            checkpoint_id: apply_result.checkpoint_id.clone(),
+            checkpoint_ref: apply_result.checkpoint_hash.clone(),
+        })
+        .expect("approved rollback smoke");
+        assert!(!target.exists());
+        record_approved_user_workspace_execution_event(
+            workspace.to_string_lossy().to_string(),
+            serde_json::to_value(&rollback_result.event_preview).expect("rollback preview"),
+        )
+        .expect("record rollback event");
+        let replay_summary = load_event_summary(workspace.to_string_lossy().as_ref(), Some(20));
+        let event_log = fs::read_to_string(
+            workspace
+                .join(".deepseek-workbench")
+                .join("events.jsonl"),
+        )
+        .expect("event log");
+
+        assert_eq!(replay_summary.approved_apply_count, 1);
+        assert_eq!(replay_summary.approved_rollback_count, 1);
+        assert!(replay_summary.safety_scan.ok);
+        assert!(replay_summary
+            .latest_approved_execution_summary
+            .as_deref()
+            .unwrap_or_default()
+            .contains("approved rollback executed"));
+        assert!(event_log.contains(APPROVED_APPLY_EXECUTED_TYPE));
+        assert!(event_log.contains(APPROVED_ROLLBACK_EXECUTED_TYPE));
+        assert!(!event_log.contains(content));
+        assert!(!event_log.contains("preimage"));
+        assert!(!event_log.to_ascii_lowercase().contains("deepseek"));
+        let api_key_marker = ["api", " key"].concat();
+        assert!(!event_log.to_ascii_lowercase().contains(&api_key_marker));
+
+        let _ = fs::remove_dir_all(workspace);
+    }
+
+    #[test]
     fn redaction_password_values_dropped_does_not_trigger_password_warning() {
         let workspace = temp_workspace("redaction-password-safe");
         write_event_log(

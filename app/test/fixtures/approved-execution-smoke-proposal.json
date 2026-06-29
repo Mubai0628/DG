@@ -1,0 +1,18 @@
+{
+  "schemaVersion": 1,
+  "proposalId": "p0o-007-approved-execution-smoke",
+  "title": "Create approved execution smoke doc",
+  "intent": "documentation",
+  "workspaceRootRef": "workspace-ref-approved-execution-smoke",
+  "validationId": "validation-approved-execution-smoke",
+  "auditId": "audit-approved-execution-smoke",
+  "approvalDraftId": "approval-approved-execution-smoke",
+  "checkpointPreviewId": "checkpoint-preview-approved-execution-smoke",
+  "path": "docs/app-approved-execution-smoke.md",
+  "changeKind": "create",
+  "contentDraft": "# App Approved Execution Smoke\n\nThis file is created inside a temp workspace by the P0O-007 smoke test.\n",
+  "applyTypedConfirmation": "APPLY TO USER WORKSPACE",
+  "rollbackTypedConfirmation": "ROLLBACK USER WORKSPACE",
+  "summaryOnly": true,
+  "warningCodes": []
+}

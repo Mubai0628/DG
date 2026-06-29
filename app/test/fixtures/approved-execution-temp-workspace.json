@@ -1,0 +1,12 @@
+{
+  "schemaVersion": 1,
+  "workspaceRootRef": "workspace-ref-approved-execution-smoke",
+  "fixtureKind": "temp_workspace_contract",
+  "expectedCreatedPath": "docs/app-approved-execution-smoke.md",
+  "privateEventLogPath": ".deepseek-workbench/events.jsonl",
+  "privateCheckpointDir": ".deepseek-workbench/checkpoints",
+  "summaryOnlyEvents": true,
+  "noGitShell": true,
+  "noDeepSeekCall": true,
+  "noApiKeyRead": true
+}

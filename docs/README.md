@@ -152,6 +152,7 @@ foundation.
 - [App Approved User Workspace Apply Command v0.11](app-approved-user-workspace-apply-command-v0.11.md)
 - [App Approved User Workspace Rollback Command v0.11](app-approved-user-workspace-rollback-command-v0.11.md)
 - [App Approved Execution Flow v0.11](app-approved-execution-flow-v0.11.md)
+- [App Approved Execution Smoke](app-approved-execution-smoke.md)
 - [Runtime Memory Recall Preview v0.3](runtime-memory-recall-preview-v0.3.md)
 - [v0.4.0 Controlled Creation Preview RC release notes](release-notes-v0.4.0-controlled-creation-preview-rc.1.md)
 - [App Shell Controlled Creation manual QA](app-shell-controlled-creation-manual-qa.md)

@@ -9084,6 +9084,78 @@ describe("app approved execution receipt preview", () => {
     expect(serialized).not.toContain("preimage");
   });
 
+  it("builds the P0O-007 approved execution smoke request from fixtures", async () => {
+    const fixture = JSON.parse(
+      await readFile(
+        path.join(
+          appRoot,
+          "test",
+          "fixtures",
+          "approved-execution-smoke-proposal.json"
+        ),
+        "utf8"
+      )
+    ) as Record<string, string>;
+    const workspaceFixture = JSON.parse(
+      await readFile(
+        path.join(
+          appRoot,
+          "test",
+          "fixtures",
+          "approved-execution-temp-workspace.json"
+        ),
+        "utf8"
+      )
+    ) as Record<string, string | boolean>;
+    const receiptView = buildAppApprovedExecutionReceiptView({
+      receiptKind: "apply",
+      applyTypedConfirmation: fixture.applyTypedConfirmation,
+      allowedRelativePathsText: fixture.path,
+      workspaceSnapshotBackupContract: {
+        userWorkspaceRootRef: fixture.workspaceRootRef
+      },
+      patchProposalPreview: {
+        proposalId: fixture.proposalId,
+        items: [{ path: fixture.path, changeKind: fixture.changeKind }]
+      },
+      patchValidationPreview: { validationId: fixture.validationId },
+      patchDiffAuditPreview: { auditId: fixture.auditId },
+      patchApprovalDraft: { approvalDraftId: fixture.approvalDraftId },
+      createdAt: "2026-01-01T00:00:00.000Z",
+      idGenerator: () => "receipt-smoke-fixture"
+    });
+    const input = {
+      workspaceRoot: "D:\\workspace",
+      receiptView,
+      patchProposalPreview: {
+        proposalId: fixture.proposalId,
+        items: [{ path: fixture.path, changeKind: fixture.changeKind }]
+      },
+      patchValidationPreview: { validationId: fixture.validationId },
+      patchDiffAuditPreview: { auditId: fixture.auditId },
+      patchApprovalDraft: { approvalDraftId: fixture.approvalDraftId },
+      contentDraft: fixture.contentDraft
+    };
+    const view = buildAppApprovedExecutionFlowView(input);
+    const request = buildApprovedApplyRequestFromExecutionFlow(input);
+    const serialized = JSON.stringify(view);
+
+    expect(workspaceFixture.fixtureKind).toBe("temp_workspace_contract");
+    expect(workspaceFixture.summaryOnlyEvents).toBe(true);
+    expect(view.status).toBe("apply_ready");
+    expect(request.operations[0]?.path).toBe(
+      "docs/app-approved-execution-smoke.md"
+    );
+    expect(request.operations[0]?.changeKind).toBe("create");
+    expect(request.workspaceRootRef).toBe(
+      "workspace-ref-approved-execution-smoke"
+    );
+    expect(receiptView.workspaceRootRef).toBe(request.workspaceRootRef);
+    expect(serialized).not.toContain(fixture.contentDraft);
+    expect(serialized).not.toContain("rawPrompt");
+    expect(serialized).not.toContain(["api", "Key"].join(""));
+  });
+
   it("projects approved execution replay counts into the event log panel", () => {
     const model = buildEventLogPanelModel(
       fixedEventSummary({
@@ -12495,6 +12567,38 @@ describe("desktop source boundaries", () => {
     expect(combined).toContain("No raw content");
     expect(combined).toContain("No model call");
     expect(docsIndex).toContain("app-approved-execution-flow-v0.11.md");
+  });
+
+  it("documents the P0O-007 approved execution e2e smoke path", async () => {
+    const smokeDoc = await readFile(
+      path.join(repoRoot, "docs", "app-approved-execution-smoke.md"),
+      "utf8"
+    );
+    const docsIndex = await readFile(
+      path.join(repoRoot, "docs", "README.md"),
+      "utf8"
+    );
+    const combined = `${smokeDoc}\n${docsIndex}`;
+
+    expect(combined).toContain("DW-P0O-007");
+    expect(combined).toContain("docs/app-approved-execution-smoke.md");
+    expect(combined).toContain("proposal import");
+    expect(combined).toContain("summary event");
+    expect(combined).toContain("rollback receipt");
+    expect(combined).toContain("replay projection");
+    expect(combined).toContain("user_workspace.patch_apply.app_executed");
+    expect(combined).toContain("user_workspace.patch_rollback.app_executed");
+    expect(combined).toContain(
+      "app/test/fixtures/approved-execution-smoke-proposal.json"
+    );
+    expect(combined).toContain(
+      "app/test/fixtures/approved-execution-temp-workspace.json"
+    );
+    expect(combined).toContain("No DeepSeek call");
+    expect(combined).toContain("No API key read");
+    expect(combined).toContain("No Git or shell execution");
+    expect(combined).toContain("No raw content");
+    expect(docsIndex).toContain("app-approved-execution-smoke.md");
   });
 
   it("documents the P0L-001 DeepSeek patch proposal ADR and gates without implementation", async () => {
