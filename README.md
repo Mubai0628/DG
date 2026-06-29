@@ -246,6 +246,10 @@ v0.10 Live Proposal Evaluation RC references:
 - [v0.11.0 App-side Approved Execution MVP RC release notes](docs/release-notes-v0.11.0-app-approved-execution-mvp-rc.1.md)
 - [App Approved Execution manual QA](docs/app-approved-execution-manual-qa.md)
 - [App Approved Execution RC checklist](docs/app-approved-execution-rc-checklist.md)
+- [v0.11 App Approved Execution post-release review](docs/v0.11-app-approved-execution-postrelease-review.md)
+- [v0.12 Git / Shell Safe Lanes MVP prompts](docs/v0.12-git-shell-safe-lanes-mvp-prompts.md)
+- [P0P Git / Shell Safe Lanes roadmap](docs/p0p-git-shell-safe-lanes-roadmap.md)
+- [P0P-001 Git / Shell Safe Lanes plan](docs/p0p-001-git-shell-safe-lanes-plan.md)
 
 ## v0.11 App-side Approved Execution MVP RC status
 
@@ -259,6 +263,18 @@ summary-only events, and replay visibility. It does not introduce auto-apply,
 model auto-execution, Git execution, shell execution, native bridge, desktop
 action, broad PermissionLease, arbitrary filesystem writes, or raw content in
 events.
+
+## v0.12 Git / Shell Safe Lanes MVP planning status
+
+Recommended tag:
+`v0.12.0-git-shell-safe-lanes-mvp-rc.1`.
+
+P0P is planned as a narrow verification-lane MVP after approved apply /
+rollback. Git starts only as fixed read-only summary lanes, shell starts only
+as fixed verification templates, and all outputs must be summary-only,
+redacted, replayable, and unable to perform Git writes, arbitrary shell,
+install, network, destructive command, native bridge, desktop action, or broad
+PermissionLease operations.
 
 ## Current roadmap
 
@@ -280,11 +296,14 @@ taxonomy and repair metrics, App read-only summary display, and evaluation
 telemetry/redaction audit. P0O is complete for the v0.11 RC with a narrow
 human-approved App-side apply/rollback MVP, private checkpoints, summary-only
 approved execution events, replay counts, and an E2E approved execution smoke.
-App-side live model calls, App evaluation runs, App API key reads, App
-fetch/network, model-driven auto-apply, approval/rejection execution, run
-execution, Git execution, shell execution, broad capability invocation,
-production PermissionLease issuing, memory persistence UI, MCP/plugin/skills
-runtime, native bridge, and desktop action remain deferred.
+P0P is now planned for fixed Git read-only summary lanes and fixed shell
+verification templates. App-side live model calls, App evaluation runs, App API
+key reads, App fetch/network, model-driven auto-apply, approval/rejection
+execution, run execution, arbitrary Git execution, arbitrary shell execution,
+Git write commands, install/network/destructive shell commands, broad
+capability invocation, production PermissionLease issuing, memory persistence
+UI, MCP/plugin/skills runtime, native bridge, and desktop action remain
+deferred.
 
 - [v0.2 App Shell RC post-release review](docs/v0.2-app-shell-rc-postrelease-review.md)
 - [P0G Coding Workflow roadmap](docs/p0g-coding-workflow-roadmap.md)
@@ -316,6 +335,10 @@ runtime, native bridge, and desktop action remain deferred.
 - [P0O App Approved Execution roadmap](docs/p0o-app-approved-execution-roadmap.md)
 - [P0O-001 App Approved Execution Gate plan](docs/p0o-001-app-approved-execution-gate-plan.md)
 - [v0.11.0 App-side Approved Execution MVP RC release notes](docs/release-notes-v0.11.0-app-approved-execution-mvp-rc.1.md)
+- [v0.11 App Approved Execution post-release review](docs/v0.11-app-approved-execution-postrelease-review.md)
+- [v0.12 Git / Shell Safe Lanes MVP prompts](docs/v0.12-git-shell-safe-lanes-mvp-prompts.md)
+- [P0P Git / Shell Safe Lanes roadmap](docs/p0p-git-shell-safe-lanes-roadmap.md)
+- [P0P-001 Git / Shell Safe Lanes plan](docs/p0p-001-git-shell-safe-lanes-plan.md)
 
 ## What v0.1.0 does not support
 

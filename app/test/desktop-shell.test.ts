@@ -12687,6 +12687,80 @@ describe("desktop source boundaries", () => {
     expect(appSource).not.toMatch(/>\s*Commit\s*</);
   });
 
+  it("documents the v0.11 post-release review and P0P git shell safe lanes roadmap", async () => {
+    const review = await readFile(
+      path.join(
+        repoRoot,
+        "docs",
+        "v0.11-app-approved-execution-postrelease-review.md"
+      ),
+      "utf8"
+    );
+    const roadmap = await readFile(
+      path.join(repoRoot, "docs", "p0p-git-shell-safe-lanes-roadmap.md"),
+      "utf8"
+    );
+    const plan = await readFile(
+      path.join(repoRoot, "docs", "p0p-001-git-shell-safe-lanes-plan.md"),
+      "utf8"
+    );
+    const prompts = await readFile(
+      path.join(repoRoot, "docs", "v0.12-git-shell-safe-lanes-mvp-prompts.md"),
+      "utf8"
+    );
+    const docsIndex = await readFile(
+      path.join(repoRoot, "docs", "README.md"),
+      "utf8"
+    );
+    const rootReadme = await readFile(path.join(repoRoot, "README.md"), "utf8");
+    const combined = `${review}\n${roadmap}\n${plan}\n${prompts}\n${docsIndex}\n${rootReadme}`;
+
+    expect(combined).toContain("v0.11.0-app-approved-execution-mvp-rc.1");
+    expect(combined).toContain("App-side approved apply and rollback MVP");
+    expect(combined).toContain("P0O is complete");
+    expect(combined).toContain("P0P: Git / Shell Safe Lanes MVP");
+    expect(combined).toContain("Git / Shell Safe Lanes MVP");
+    expect(combined).toContain("Git starts only as fixed read-only");
+    expect(combined).toContain("Shell appears only as fixed verification");
+    expect(combined).toContain("status_summary");
+    expect(combined).toContain("diff_summary");
+    expect(combined).toContain("log_summary");
+    expect(combined).toContain("branch_summary");
+    expect(combined).toContain("pnpm.typecheck");
+    expect(combined).toContain("pnpm.lint");
+    expect(combined).toContain("pnpm.test.scoped");
+    expect(combined).toContain("cargo.check_tauri");
+    expect(combined).toContain("app.typecheck");
+    expect(combined).toContain("No arbitrary command");
+    expect(combined).toContain("No Git write command");
+    expect(combined).toContain("No shell install command");
+    expect(combined).toContain("No network command");
+    expect(combined).toContain("No destructive command");
+    expect(combined).toContain("No Tauri command");
+    expect(combined).toContain("No EventStore writer");
+    expect(combined).toContain("No user workspace mutation");
+    expect(combined).toContain("No DeepSeek call");
+    expect(combined).toContain("No API key read");
+    expect(combined).toContain("No fetch/network");
+    expect(combined).toContain("No native bridge");
+    expect(combined).toContain("No desktop action");
+    expect(combined).toContain("No PermissionLease issuance");
+    expect(combined).toMatch(/summary-only event payloads/i);
+    expect(combined).toContain("Raw stdout/stderr");
+    expect(combined).toContain("raw diff, raw source, raw preimage");
+    expect(combined).toContain("DW-P0P-002");
+    expect(docsIndex).toContain(
+      "v0.11-app-approved-execution-postrelease-review.md"
+    );
+    expect(docsIndex).toContain("v0.12-git-shell-safe-lanes-mvp-prompts.md");
+    expect(docsIndex).toContain("p0p-git-shell-safe-lanes-roadmap.md");
+    expect(docsIndex).toContain("p0p-001-git-shell-safe-lanes-plan.md");
+    expect(rootReadme).toContain("v0.12-git-shell-safe-lanes-mvp-prompts.md");
+    expect(rootReadme).toContain(
+      "v0.12 Git / Shell Safe Lanes MVP planning status"
+    );
+  });
+
   it("documents the P0L-001 DeepSeek patch proposal ADR and gates without implementation", async () => {
     const adr = await readFile(
       path.join(
