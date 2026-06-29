@@ -15,6 +15,10 @@ const MAX_RUNNER_STDOUT_BYTES: usize = 65_536;
 const MAX_EVENT_LOG_BYTES: u64 = 2_000_000;
 const RUNNER_TIMEOUT: Duration = Duration::from_secs(60);
 const PREFLIGHT_TIMEOUT: Duration = Duration::from_secs(5);
+const GIT_READ_LANE_DEFAULT_TIMEOUT: Duration = Duration::from_secs(5);
+const GIT_READ_LANE_MAX_TIMEOUT_MS: u64 = 30_000;
+const GIT_READ_LANE_DEFAULT_MAX_OUTPUT_BYTES: usize = 64 * 1024;
+const GIT_READ_LANE_MAX_OUTPUT_BYTES: usize = 256 * 1024;
 const APPLY_CONFIRMATION: &str = "APPLY TO USER WORKSPACE";
 const ROLLBACK_CONFIRMATION: &str = "ROLLBACK USER WORKSPACE";
 const APPROVED_APPLY_PREVIEW_TYPE: &str = "user_workspace.patch_apply.approved_result";
@@ -408,6 +412,69 @@ pub struct ApprovedRollbackEventPreview {
     not_written: bool,
 }
 
+#[derive(Debug, Serialize, Deserialize, Clone, Copy, PartialEq, Eq, Hash)]
+#[serde(rename_all = "snake_case")]
+pub enum GitReadLane {
+    StatusSummary,
+    DiffSummary,
+    LogSummary,
+    BranchSummary,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct GitReadLaneRequest {
+    workspace_root: String,
+    workspace_root_ref: String,
+    lane: GitReadLane,
+    pathspecs: Option<Vec<String>>,
+    timeout_ms: Option<u64>,
+    max_output_bytes: Option<usize>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct GitReadLaneResult {
+    ok: bool,
+    lane: GitReadLane,
+    status: String,
+    workspace_root_ref: String,
+    branch_summary: String,
+    file_count: usize,
+    changed_file_count: usize,
+    added_line_count: usize,
+    deleted_line_count: usize,
+    changed_path_summaries: Vec<String>,
+    warning_codes: Vec<String>,
+    command_hash: String,
+    output_hash: String,
+    duration_ms: u128,
+    truncated: bool,
+    raw_diff_included: bool,
+    raw_stdout_included: bool,
+    raw_stderr_included: bool,
+    event_preview: GitReadLaneEventPreview,
+    safe_message: String,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct GitReadLaneEventPreview {
+    #[serde(rename = "type")]
+    event_type: String,
+    lane: GitReadLane,
+    workspace_root_ref: String,
+    command_hash: String,
+    result_hash: String,
+    changed_file_count: usize,
+    added_line_count: usize,
+    deleted_line_count: usize,
+    warning_codes: Vec<String>,
+    truncated: bool,
+    summary_only: bool,
+    not_written: bool,
+}
+
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 struct ApprovedApplyCheckpoint {
@@ -611,13 +678,17 @@ pub fn record_approved_user_workspace_execution_event(
     event_preview: Value,
 ) -> Result<ApprovedExecutionEventRecordResult, DesktopFlowError> {
     let workspace_root = validate_workspace_root(&workspace_root).map_err(|message| {
-        DesktopFlowError::new("WORKSPACE_INVALID", message, "record_approved_execution_event")
+        DesktopFlowError::new(
+            "WORKSPACE_INVALID",
+            message,
+            "record_approved_execution_event",
+        )
     })?;
-    let approved_event = build_approved_execution_event_payload(&event_preview).map_err(|message| {
-        DesktopFlowError::invalid_payload(message).with_stage("record_approved_execution_event")
-    })?;
-    let event_log_path =
-        resolve_safe_event_log_path(&workspace_root, "Approved execution event")?;
+    let approved_event =
+        build_approved_execution_event_payload(&event_preview).map_err(|message| {
+            DesktopFlowError::invalid_payload(message).with_stage("record_approved_execution_event")
+        })?;
+    let event_log_path = resolve_safe_event_log_path(&workspace_root, "Approved execution event")?;
 
     let millis = unix_epoch_millis();
     let event_id = format!("approved-execution-{millis}");
@@ -694,6 +765,13 @@ pub fn rollback_approved_user_workspace_patch(
 }
 
 #[tauri::command(rename_all = "camelCase")]
+pub fn run_git_read_lane(
+    request: GitReadLaneRequest,
+) -> Result<GitReadLaneResult, DesktopFlowError> {
+    run_git_read_lane_summary(request)
+}
+
+#[tauri::command(rename_all = "camelCase")]
 pub fn run_web_table_to_csv_flow(
     workspace_root: String,
     payload_json: String,
@@ -745,6 +823,468 @@ pub fn run_web_table_to_csv_flow(
 
     let _ = fs::remove_file(payload_path);
     result
+}
+
+fn run_git_read_lane_summary(
+    request: GitReadLaneRequest,
+) -> Result<GitReadLaneResult, DesktopFlowError> {
+    let workspace_root = validate_workspace_root(&request.workspace_root)
+        .map_err(|message| git_read_lane_error("GIT_WORKSPACE_INVALID", message))?;
+    if request.workspace_root_ref.trim().is_empty() {
+        return Err(git_read_lane_error(
+            "GIT_WORKSPACE_REF_REQUIRED",
+            "Workspace root ref is required",
+        ));
+    }
+    if contains_sensitive_marker(&request.workspace_root_ref) {
+        return Err(git_read_lane_error(
+            "GIT_WORKSPACE_REF_REJECTED",
+            "Workspace root ref failed safety validation",
+        ));
+    }
+
+    let pathspecs = validate_git_read_pathspecs(request.pathspecs.as_deref())?;
+    if request.lane == GitReadLane::BranchSummary && !pathspecs.is_empty() {
+        return Err(git_read_lane_error(
+            "GIT_PATHSPEC_UNSUPPORTED",
+            "Pathspecs are not supported for branch_summary",
+        ));
+    }
+    let timeout = git_read_lane_timeout(request.timeout_ms)?;
+    let max_output_bytes = git_read_lane_max_output_bytes(request.max_output_bytes)?;
+    let args = git_read_lane_args(request.lane, &pathspecs);
+    let command_hash = short_hash(&format!("{:?}:{:?}", request.lane, args));
+    let command_output = run_git_fixed_args(&args, &workspace_root, timeout, max_output_bytes)?;
+    let output_text = String::from_utf8_lossy(&command_output.stdout).to_string();
+    let stderr_text = String::from_utf8_lossy(&command_output.stderr).to_string();
+    if contains_sensitive_marker(&output_text) || contains_sensitive_marker(&stderr_text) {
+        return Err(git_read_lane_error(
+            "GIT_OUTPUT_REDACTED",
+            "Git read lane output failed redaction safety validation",
+        ));
+    }
+    if command_output.exit_code != Some(0) {
+        return Err(
+            git_read_lane_error("GIT_READ_LANE_FAILED", "Git read lane failed safely")
+                .with_exit_code(command_output.exit_code),
+        );
+    }
+
+    let summary = summarize_git_lane_output(request.lane, &output_text, command_output.truncated);
+    let output_hash = short_hash_bytes(&command_output.stdout);
+    let result_hash = short_hash(&format!(
+        "{:?}:{command_hash}:{output_hash}:{}:{}:{}",
+        request.lane,
+        summary.changed_file_count,
+        summary.added_line_count,
+        summary.deleted_line_count
+    ));
+    let event_preview = GitReadLaneEventPreview {
+        event_type: "git.read_lane.executed".to_string(),
+        lane: request.lane,
+        workspace_root_ref: sanitize_safe_message(&request.workspace_root_ref),
+        command_hash: command_hash.clone(),
+        result_hash: result_hash.clone(),
+        changed_file_count: summary.changed_file_count,
+        added_line_count: summary.added_line_count,
+        deleted_line_count: summary.deleted_line_count,
+        warning_codes: summary.warning_codes.clone(),
+        truncated: command_output.truncated,
+        summary_only: true,
+        not_written: true,
+    };
+
+    Ok(GitReadLaneResult {
+        ok: true,
+        lane: request.lane,
+        status: summary.status,
+        workspace_root_ref: sanitize_safe_message(&request.workspace_root_ref),
+        branch_summary: summary.branch_summary,
+        file_count: summary.file_count,
+        changed_file_count: summary.changed_file_count,
+        added_line_count: summary.added_line_count,
+        deleted_line_count: summary.deleted_line_count,
+        changed_path_summaries: summary.changed_path_summaries,
+        warning_codes: summary.warning_codes,
+        command_hash,
+        output_hash,
+        duration_ms: command_output.duration_ms,
+        truncated: command_output.truncated,
+        raw_diff_included: false,
+        raw_stdout_included: false,
+        raw_stderr_included: false,
+        event_preview,
+        safe_message: "Git read lane summary generated. No raw diff/stdout/stderr returned."
+            .to_string(),
+    })
+}
+
+struct GitCommandOutput {
+    exit_code: Option<i32>,
+    stdout: Vec<u8>,
+    stderr: Vec<u8>,
+    duration_ms: u128,
+    truncated: bool,
+}
+
+struct GitLaneParsedSummary {
+    status: String,
+    branch_summary: String,
+    file_count: usize,
+    changed_file_count: usize,
+    added_line_count: usize,
+    deleted_line_count: usize,
+    changed_path_summaries: Vec<String>,
+    warning_codes: Vec<String>,
+}
+
+fn git_read_lane_args(lane: GitReadLane, pathspecs: &[String]) -> Vec<String> {
+    let mut args = match lane {
+        GitReadLane::StatusSummary => vec![
+            "status".to_string(),
+            "--short".to_string(),
+            "--branch".to_string(),
+        ],
+        GitReadLane::DiffSummary => vec!["diff".to_string(), "--numstat".to_string()],
+        GitReadLane::LogSummary => vec![
+            "log".to_string(),
+            "--oneline".to_string(),
+            "-n".to_string(),
+            "5".to_string(),
+        ],
+        GitReadLane::BranchSummary => vec!["branch".to_string(), "--show-current".to_string()],
+    };
+    if !pathspecs.is_empty() {
+        args.push("--".to_string());
+        args.extend(pathspecs.iter().cloned());
+    }
+    args
+}
+
+fn run_git_fixed_args(
+    args: &[String],
+    cwd: &Path,
+    timeout: Duration,
+    max_output_bytes: usize,
+) -> Result<GitCommandOutput, DesktopFlowError> {
+    let mut child = Command::new("git")
+        .args(args)
+        .current_dir(cwd)
+        .env_clear()
+        .envs(sanitized_command_env())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .spawn()
+        .map_err(|_| git_read_lane_error("GIT_START_FAILED", "Git read lane could not start"))?;
+
+    let started_at = Instant::now();
+    loop {
+        if started_at.elapsed() >= timeout {
+            let _ = child.kill();
+            let _ = child.wait();
+            return Err(git_read_lane_error(
+                "GIT_READ_LANE_TIMEOUT",
+                "Git read lane timed out",
+            ));
+        }
+        if child
+            .try_wait()
+            .map_err(|_| git_read_lane_error("GIT_STATUS_FAILED", "Git read lane status failed"))?
+            .is_some()
+        {
+            break;
+        }
+        thread::sleep(Duration::from_millis(50));
+    }
+
+    let duration_ms = started_at.elapsed().as_millis();
+    let output = child.wait_with_output().map_err(|_| {
+        git_read_lane_error(
+            "GIT_OUTPUT_FAILED",
+            "Git read lane output could not be read",
+        )
+    })?;
+    let mut stdout = output.stdout;
+    let mut stderr = output.stderr;
+    let mut truncated = false;
+    if stdout.len() > max_output_bytes {
+        stdout.truncate(max_output_bytes);
+        truncated = true;
+    }
+    if stderr.len() > max_output_bytes {
+        stderr.truncate(max_output_bytes);
+        truncated = true;
+    }
+
+    Ok(GitCommandOutput {
+        exit_code: output.status.code(),
+        stdout,
+        stderr,
+        duration_ms,
+        truncated,
+    })
+}
+
+fn summarize_git_lane_output(
+    lane: GitReadLane,
+    output: &str,
+    truncated: bool,
+) -> GitLaneParsedSummary {
+    match lane {
+        GitReadLane::StatusSummary => summarize_git_status_output(output, truncated),
+        GitReadLane::DiffSummary => summarize_git_diff_numstat_output(output, truncated),
+        GitReadLane::LogSummary => summarize_git_log_output(output, truncated),
+        GitReadLane::BranchSummary => summarize_git_branch_output(output, truncated),
+    }
+}
+
+fn summarize_git_status_output(output: &str, truncated: bool) -> GitLaneParsedSummary {
+    let mut branch_summary = "unknown".to_string();
+    let mut path_summaries = Vec::new();
+    for line in output
+        .lines()
+        .map(str::trim)
+        .filter(|line| !line.is_empty())
+    {
+        if let Some(branch) = line.strip_prefix("## ") {
+            branch_summary = sanitize_git_summary_text(branch);
+            continue;
+        }
+        if path_summaries.len() < 25 {
+            path_summaries.push(sanitize_git_summary_text(line));
+        }
+    }
+    let mut warning_codes = Vec::new();
+    if truncated {
+        warning_codes.push("GIT_OUTPUT_TRUNCATED".to_string());
+    }
+    let changed_file_count = path_summaries.len();
+    GitLaneParsedSummary {
+        status: if changed_file_count == 0 {
+            "clean".to_string()
+        } else {
+            "changed".to_string()
+        },
+        branch_summary,
+        file_count: changed_file_count,
+        changed_file_count,
+        added_line_count: 0,
+        deleted_line_count: 0,
+        changed_path_summaries: path_summaries,
+        warning_codes,
+    }
+}
+
+fn summarize_git_diff_numstat_output(output: &str, truncated: bool) -> GitLaneParsedSummary {
+    let mut added_line_count = 0usize;
+    let mut deleted_line_count = 0usize;
+    let mut path_summaries = Vec::new();
+    let mut warning_codes = Vec::new();
+    for line in output
+        .lines()
+        .map(str::trim)
+        .filter(|line| !line.is_empty())
+    {
+        let parts = line.split('\t').collect::<Vec<_>>();
+        if parts.len() < 3 {
+            warning_codes.push("GIT_DIFF_NUMSTAT_UNPARSED".to_string());
+            continue;
+        }
+        let added = parse_git_numstat_count(parts[0], &mut warning_codes);
+        let deleted = parse_git_numstat_count(parts[1], &mut warning_codes);
+        added_line_count += added;
+        deleted_line_count += deleted;
+        if path_summaries.len() < 25 {
+            path_summaries.push(format!(
+                "{} +{} -{}",
+                sanitize_git_summary_text(parts[2]),
+                added,
+                deleted
+            ));
+        }
+    }
+    if truncated {
+        warning_codes.push("GIT_OUTPUT_TRUNCATED".to_string());
+    }
+    let changed_file_count = path_summaries.len();
+    GitLaneParsedSummary {
+        status: if changed_file_count == 0 {
+            "clean".to_string()
+        } else {
+            "changed".to_string()
+        },
+        branch_summary: "diff summary".to_string(),
+        file_count: changed_file_count,
+        changed_file_count,
+        added_line_count,
+        deleted_line_count,
+        changed_path_summaries: path_summaries,
+        warning_codes,
+    }
+}
+
+fn summarize_git_log_output(output: &str, truncated: bool) -> GitLaneParsedSummary {
+    let mut path_summaries = Vec::new();
+    for line in output
+        .lines()
+        .map(str::trim)
+        .filter(|line| !line.is_empty())
+    {
+        if path_summaries.len() >= 5 {
+            break;
+        }
+        let hash = line.split_whitespace().next().unwrap_or("unknown");
+        path_summaries.push(format!("commit {}", sanitize_git_summary_text(hash)));
+    }
+    let mut warning_codes = Vec::new();
+    if truncated {
+        warning_codes.push("GIT_OUTPUT_TRUNCATED".to_string());
+    }
+    GitLaneParsedSummary {
+        status: "summary".to_string(),
+        branch_summary: path_summaries
+            .first()
+            .cloned()
+            .unwrap_or_else(|| "no commits".to_string()),
+        file_count: path_summaries.len(),
+        changed_file_count: 0,
+        added_line_count: 0,
+        deleted_line_count: 0,
+        changed_path_summaries: path_summaries,
+        warning_codes,
+    }
+}
+
+fn summarize_git_branch_output(output: &str, truncated: bool) -> GitLaneParsedSummary {
+    let branch_summary = output
+        .lines()
+        .map(str::trim)
+        .find(|line| !line.is_empty())
+        .map(sanitize_git_summary_text)
+        .unwrap_or_else(|| "detached-or-unknown".to_string());
+    let mut warning_codes = Vec::new();
+    if truncated {
+        warning_codes.push("GIT_OUTPUT_TRUNCATED".to_string());
+    }
+    GitLaneParsedSummary {
+        status: "summary".to_string(),
+        branch_summary,
+        file_count: 0,
+        changed_file_count: 0,
+        added_line_count: 0,
+        deleted_line_count: 0,
+        changed_path_summaries: Vec::new(),
+        warning_codes,
+    }
+}
+
+fn parse_git_numstat_count(value: &str, warning_codes: &mut Vec<String>) -> usize {
+    if value == "-" {
+        warning_codes.push("GIT_BINARY_DIFF_SUMMARY".to_string());
+        return 0;
+    }
+    value.parse::<usize>().unwrap_or_else(|_| {
+        warning_codes.push("GIT_DIFF_NUMSTAT_UNPARSED".to_string());
+        0
+    })
+}
+
+fn sanitize_git_summary_text(text: &str) -> String {
+    let clipped = text.chars().take(160).collect::<String>();
+    if contains_sensitive_marker(&clipped) {
+        return "redacted-summary".to_string();
+    }
+    clipped
+}
+
+fn validate_git_read_pathspecs(
+    pathspecs: Option<&[String]>,
+) -> Result<Vec<String>, DesktopFlowError> {
+    let Some(pathspecs) = pathspecs else {
+        return Ok(Vec::new());
+    };
+    if pathspecs.len() > 25 {
+        return Err(git_read_lane_error(
+            "GIT_PATHSPEC_REJECTED",
+            "Too many Git pathspecs",
+        ));
+    }
+    let mut safe = Vec::new();
+    for pathspec in pathspecs {
+        let trimmed = pathspec.trim();
+        if trimmed.is_empty() || !is_safe_git_pathspec(trimmed) {
+            return Err(git_read_lane_error(
+                "GIT_PATHSPEC_REJECTED",
+                "Git pathspec failed safety validation",
+            ));
+        }
+        safe.push(trimmed.replace('\\', "/"));
+    }
+    Ok(safe)
+}
+
+fn is_safe_git_pathspec(pathspec: &str) -> bool {
+    let normalized = pathspec.replace('\\', "/");
+    let lower = normalized.to_ascii_lowercase();
+    if pathspec != normalized {
+        return false;
+    }
+    if normalized.starts_with('/')
+        || normalized.starts_with("//")
+        || normalized.contains('\0')
+        || normalized.contains('\n')
+        || normalized.contains('\r')
+        || lower.contains("://")
+        || lower.contains('?')
+        || lower.contains(':')
+        || lower.contains("..")
+        || contains_sensitive_marker(&lower)
+    {
+        return false;
+    }
+    if normalized.chars().any(|ch| {
+        matches!(
+            ch,
+            ';' | '&' | '|' | '$' | '`' | '(' | ')' | '<' | '>' | '"' | '\''
+        )
+    }) {
+        return false;
+    }
+    normalized.split('/').all(|segment| {
+        !segment.is_empty()
+            && !matches!(
+                segment,
+                ".git" | ".env" | "node_modules" | "dist" | "target" | ".tmp"
+            )
+    })
+}
+
+fn git_read_lane_timeout(timeout_ms: Option<u64>) -> Result<Duration, DesktopFlowError> {
+    let ms = timeout_ms.unwrap_or(GIT_READ_LANE_DEFAULT_TIMEOUT.as_millis() as u64);
+    if ms == 0 || ms > GIT_READ_LANE_MAX_TIMEOUT_MS {
+        return Err(git_read_lane_error(
+            "GIT_TIMEOUT_REJECTED",
+            "Git read lane timeout is outside the allowed range",
+        ));
+    }
+    Ok(Duration::from_millis(ms))
+}
+
+fn git_read_lane_max_output_bytes(
+    max_output_bytes: Option<usize>,
+) -> Result<usize, DesktopFlowError> {
+    let bytes = max_output_bytes.unwrap_or(GIT_READ_LANE_DEFAULT_MAX_OUTPUT_BYTES);
+    if bytes == 0 || bytes > GIT_READ_LANE_MAX_OUTPUT_BYTES {
+        return Err(git_read_lane_error(
+            "GIT_OUTPUT_LIMIT_REJECTED",
+            "Git read lane output limit is outside the allowed range",
+        ));
+    }
+    Ok(bytes)
+}
+
+fn git_read_lane_error(code: &str, message: impl Into<String>) -> DesktopFlowError {
+    DesktopFlowError::new(code, message.into(), "git_read_lane")
 }
 
 fn run_runner_preflight(workspace_root: Option<&str>, mode: RunnerMode) -> RunnerPreflightSummary {
@@ -2243,8 +2783,7 @@ fn summarize_safe_event(event: &Value) -> String {
             "approved apply executed",
             [
                 nested_string(payload, "applyId"),
-                nested_string(payload, "checkpointId")
-                    .map(|value| format!("checkpoint {value}")),
+                nested_string(payload, "checkpointId").map(|value| format!("checkpoint {value}")),
                 nested_display(payload, "operationCount", "operations"),
                 nested_display(payload, "filesCreated", "created"),
                 nested_display(payload, "filesUpdated", "updated"),
@@ -2259,8 +2798,7 @@ fn summarize_safe_event(event: &Value) -> String {
             "approved rollback executed",
             [
                 nested_string(payload, "rollbackId"),
-                nested_string(payload, "checkpointId")
-                    .map(|value| format!("checkpoint {value}")),
+                nested_string(payload, "checkpointId").map(|value| format!("checkpoint {value}")),
                 nested_display(payload, "operationCount", "operations"),
                 nested_display(payload, "filesRemoved", "removed"),
                 nested_display(payload, "filesRestored", "restored"),
@@ -2898,15 +3436,12 @@ fn approved_event_summary_path_unsafe(summary: &str) -> bool {
     {
         return true;
     }
-    path_part
-        .replace('\\', "/")
-        .split('/')
-        .any(|segment| {
-            matches!(
-                segment.to_ascii_lowercase().as_str(),
-                "" | "." | ".." | ".git" | ".env" | "node_modules" | "dist" | "target" | ".tmp"
-            )
-        })
+    path_part.replace('\\', "/").split('/').any(|segment| {
+        matches!(
+            segment.to_ascii_lowercase().as_str(),
+            "" | "." | ".." | ".git" | ".env" | "node_modules" | "dist" | "target" | ".tmp"
+        )
+    })
 }
 
 fn looks_like_windows_absolute_path(value: &str) -> bool {
@@ -3482,6 +4017,50 @@ mod tests {
         }
     }
 
+    fn run_git_setup(workspace: &Path, args: &[&str]) {
+        let output = Command::new("git")
+            .args(args)
+            .current_dir(workspace)
+            .output()
+            .expect("git command should start");
+        assert!(
+            output.status.success(),
+            "git setup command failed: {:?}",
+            args
+        );
+    }
+
+    fn temp_git_workspace(label: &str) -> Option<PathBuf> {
+        if Command::new("git").arg("--version").output().is_err() {
+            return None;
+        }
+        let workspace = temp_workspace(label);
+        run_git_setup(&workspace, &["init"]);
+        run_git_setup(
+            &workspace,
+            &["config", "user.email", "test@example.invalid"],
+        );
+        run_git_setup(
+            &workspace,
+            &["config", "user.name", "DeepSeek Workbench Test"],
+        );
+        fs::write(workspace.join("README.md"), "initial\n").expect("readme");
+        run_git_setup(&workspace, &["add", "README.md"]);
+        run_git_setup(&workspace, &["commit", "-m", "initial"]);
+        Some(workspace)
+    }
+
+    fn safe_git_read_request(workspace: &Path, lane: GitReadLane) -> GitReadLaneRequest {
+        GitReadLaneRequest {
+            workspace_root: workspace.to_string_lossy().to_string(),
+            workspace_root_ref: "workspace-ref-test".to_string(),
+            lane,
+            pathspecs: None,
+            timeout_ms: Some(5_000),
+            max_output_bytes: Some(65_536),
+        }
+    }
+
     #[test]
     fn strips_sensitive_env_keys() {
         let sanitized = sanitize_env_vars([
@@ -3498,6 +4077,124 @@ mod tests {
         assert!(!keys.contains(&"OPENAI_API_KEY".to_string()));
         assert!(!keys.contains(&"SERVICE_TOKEN".to_string()));
         assert!(!keys.contains(&"AUTHORIZATION".to_string()));
+    }
+
+    #[test]
+    fn git_read_lane_status_summary_with_temp_repo() {
+        let Some(workspace) = temp_git_workspace("git-status-summary") else {
+            return;
+        };
+        fs::write(workspace.join("README.md"), "changed\n").expect("change");
+
+        let result = run_git_read_lane(safe_git_read_request(
+            &workspace,
+            GitReadLane::StatusSummary,
+        ))
+        .expect("status summary");
+
+        assert_eq!(result.lane, GitReadLane::StatusSummary);
+        assert_eq!(result.status, "changed");
+        assert!(result.changed_file_count >= 1);
+        assert!(!result.raw_diff_included);
+        assert!(!result.raw_stdout_included);
+        assert!(!result.raw_stderr_included);
+        assert!(result.event_preview.not_written);
+    }
+
+    #[test]
+    fn git_read_lane_diff_summary_with_temp_repo() {
+        let Some(workspace) = temp_git_workspace("git-diff-summary") else {
+            return;
+        };
+        fs::write(workspace.join("README.md"), "initial\nadded\n").expect("change");
+
+        let result = run_git_read_lane(safe_git_read_request(&workspace, GitReadLane::DiffSummary))
+            .expect("diff summary");
+
+        assert_eq!(result.lane, GitReadLane::DiffSummary);
+        assert_eq!(result.status, "changed");
+        assert!(result.changed_file_count >= 1);
+        assert!(result.added_line_count >= 1);
+        assert!(result
+            .changed_path_summaries
+            .iter()
+            .any(|item| item.contains("README.md")));
+        let serialized = serde_json::to_string(&result).expect("serialize");
+        assert!(!serialized.contains("diff --git"));
+        assert!(!serialized.contains("initial\nadded"));
+    }
+
+    #[test]
+    fn git_read_lane_log_and_branch_summaries() {
+        let Some(workspace) = temp_git_workspace("git-log-branch-summary") else {
+            return;
+        };
+
+        let log = run_git_read_lane(safe_git_read_request(&workspace, GitReadLane::LogSummary))
+            .expect("log summary");
+        let branch = run_git_read_lane(safe_git_read_request(
+            &workspace,
+            GitReadLane::BranchSummary,
+        ))
+        .expect("branch summary");
+
+        assert_eq!(log.status, "summary");
+        assert!(log.file_count >= 1);
+        assert!(log.changed_path_summaries[0].starts_with("commit "));
+        assert_eq!(branch.status, "summary");
+        assert!(!branch.branch_summary.is_empty());
+    }
+
+    #[test]
+    fn git_read_lane_blocks_unsafe_pathspec() {
+        let Some(workspace) = temp_git_workspace("git-unsafe-pathspec") else {
+            return;
+        };
+        let mut request = safe_git_read_request(&workspace, GitReadLane::StatusSummary);
+        request.pathspecs = Some(vec!["../secret.txt".to_string()]);
+
+        let error = run_git_read_lane(request).expect_err("unsafe pathspec should block");
+
+        assert_eq!(error.error_code, "GIT_PATHSPEC_REJECTED");
+        assert_eq!(error.stage, "git_read_lane");
+    }
+
+    #[test]
+    fn git_read_lane_write_command_is_not_deserializable() {
+        let value = serde_json::json!({
+            "workspaceRoot": "D:\\workspace",
+            "workspaceRootRef": "workspace-ref-test",
+            "lane": "commit"
+        });
+
+        let parsed = serde_json::from_value::<GitReadLaneRequest>(value);
+
+        assert!(parsed.is_err());
+    }
+
+    #[test]
+    fn git_read_lane_truncates_without_raw_output() {
+        let Some(workspace) = temp_git_workspace("git-truncation-summary") else {
+            return;
+        };
+        for index in 0..12 {
+            fs::write(
+                workspace.join(format!("file-{index}.md")),
+                format!("safe summary file {index}\n"),
+            )
+            .expect("write changed file");
+        }
+        let mut request = safe_git_read_request(&workspace, GitReadLane::StatusSummary);
+        request.max_output_bytes = Some(20);
+
+        let result = run_git_read_lane(request).expect("truncated status");
+
+        assert!(result.truncated);
+        assert!(result
+            .warning_codes
+            .contains(&"GIT_OUTPUT_TRUNCATED".to_string()));
+        let serialized = serde_json::to_string(&result).expect("serialize");
+        assert!(!serialized.contains("safe summary file"));
     }
 
     #[test]
@@ -4548,12 +5245,9 @@ mod tests {
             serde_json::to_value(&apply_result.event_preview).expect("event preview"),
         )
         .expect("record event");
-        let event_log = fs::read_to_string(
-            workspace
-                .join(".deepseek-workbench")
-                .join("events.jsonl"),
-        )
-        .expect("event log");
+        let event_log =
+            fs::read_to_string(workspace.join(".deepseek-workbench").join("events.jsonl"))
+                .expect("event log");
         let summary = load_event_summary(workspace.to_string_lossy().as_ref(), Some(10));
 
         assert_eq!(event_record.event_type, APPROVED_APPLY_EXECUTED_TYPE);
@@ -4590,25 +5284,19 @@ mod tests {
             &["src/event-file.txt"],
         ))
         .expect("approved apply");
-        let rollback_result =
-            rollback_approved_user_workspace_patch(safe_approved_rollback_request(
-                &workspace,
-                &apply_result,
-                &["src/event-file.txt"],
-            ))
-            .expect("approved rollback");
+        let rollback_result = rollback_approved_user_workspace_patch(
+            safe_approved_rollback_request(&workspace, &apply_result, &["src/event-file.txt"]),
+        )
+        .expect("approved rollback");
 
         let event_record = record_approved_user_workspace_execution_event(
             workspace.to_string_lossy().to_string(),
             serde_json::to_value(&rollback_result.event_preview).expect("event preview"),
         )
         .expect("record rollback event");
-        let event_log = fs::read_to_string(
-            workspace
-                .join(".deepseek-workbench")
-                .join("events.jsonl"),
-        )
-        .expect("event log");
+        let event_log =
+            fs::read_to_string(workspace.join(".deepseek-workbench").join("events.jsonl"))
+                .expect("event log");
         let summary = load_event_summary(workspace.to_string_lossy().as_ref(), Some(10));
 
         assert_eq!(event_record.event_type, APPROVED_ROLLBACK_EXECUTED_TYPE);
@@ -4767,7 +5455,10 @@ mod tests {
         let apply_result =
             apply_approved_user_workspace_patch(apply_request).expect("approved apply smoke");
         assert!(target.is_file());
-        assert_eq!(fs::read_to_string(&target).expect("target content"), content);
+        assert_eq!(
+            fs::read_to_string(&target).expect("target content"),
+            content
+        );
         let checkpoint_path = workspace
             .join(".deepseek-workbench")
             .join("checkpoints")
@@ -4860,12 +5551,9 @@ mod tests {
         )
         .expect("record rollback event");
         let replay_summary = load_event_summary(workspace.to_string_lossy().as_ref(), Some(20));
-        let event_log = fs::read_to_string(
-            workspace
-                .join(".deepseek-workbench")
-                .join("events.jsonl"),
-        )
-        .expect("event log");
+        let event_log =
+            fs::read_to_string(workspace.join(".deepseek-workbench").join("events.jsonl"))
+                .expect("event log");
 
         assert_eq!(replay_summary.approved_apply_count, 1);
         assert_eq!(replay_summary.approved_rollback_count, 1);

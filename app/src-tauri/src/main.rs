@@ -7,6 +7,7 @@ fn main() {
             commands::get_app_version,
             commands::apply_approved_user_workspace_patch,
             commands::rollback_approved_user_workspace_patch,
+            commands::run_git_read_lane,
             commands::load_workspace_event_summary,
             commands::record_approved_user_workspace_execution_event,
             commands::record_control_run_draft_event,

@@ -145,6 +145,57 @@ export type ApprovedUserWorkspaceExecutionEventRecordResult = {
   warnings: string[];
 };
 
+export type GitReadLane =
+  | "status_summary"
+  | "diff_summary"
+  | "log_summary"
+  | "branch_summary";
+
+export type GitReadLaneRequest = {
+  workspaceRoot: string;
+  workspaceRootRef: string;
+  lane: GitReadLane;
+  pathspecs?: string[] | undefined;
+  timeoutMs?: number | undefined;
+  maxOutputBytes?: number | undefined;
+};
+
+export type GitReadLaneResult = {
+  ok: true;
+  lane: GitReadLane;
+  status: "clean" | "changed" | "summary" | "warning";
+  workspaceRootRef: string;
+  branchSummary: string;
+  fileCount: number;
+  changedFileCount: number;
+  addedLineCount: number;
+  deletedLineCount: number;
+  changedPathSummaries: string[];
+  warningCodes: string[];
+  commandHash: string;
+  outputHash: string;
+  durationMs: number;
+  truncated: boolean;
+  rawDiffIncluded: false;
+  rawStdoutIncluded: false;
+  rawStderrIncluded: false;
+  eventPreview: {
+    type: "git.read_lane.executed";
+    lane: GitReadLane;
+    workspaceRootRef: string;
+    commandHash: string;
+    resultHash: string;
+    changedFileCount: number;
+    addedLineCount: number;
+    deletedLineCount: number;
+    warningCodes: string[];
+    truncated: boolean;
+    summaryOnly: true;
+    notWritten: true;
+  };
+  safeMessage: string;
+};
+
 export const allowedDesktopCommands = [
   "get_app_version",
   "apply_approved_user_workspace_patch",
@@ -153,6 +204,7 @@ export const allowedDesktopCommands = [
   "load_workspace_event_summary",
   "record_approved_user_workspace_execution_event",
   "record_control_run_draft_event",
+  "run_git_read_lane",
   "run_web_table_to_csv_flow"
 ] as const;
 
@@ -289,6 +341,18 @@ export async function recordApprovedUserWorkspaceExecutionEvent(
   );
 }
 
+export async function runGitReadLane(
+  request: GitReadLaneRequest,
+  invokeImpl?: TauriInvoke
+): Promise<GitReadLaneResult> {
+  validateGitReadLaneRequest(request);
+  return invokeAllowedCommand<GitReadLaneResult>(
+    "run_git_read_lane",
+    { request },
+    invokeImpl
+  );
+}
+
 export async function invokeAllowedCommand<T>(
   command: string,
   args: Record<string, unknown>,
@@ -337,6 +401,8 @@ function normalizeAllowedCommandResponse(
       return normalizeRunDraftEventRecordResult(raw);
     case "record_approved_user_workspace_execution_event":
       return normalizeApprovedExecutionEventRecordResult(raw);
+    case "run_git_read_lane":
+      return normalizeGitReadLaneResult(raw);
     case "apply_approved_user_workspace_patch":
       return normalizeApprovedApplyResult(raw);
     case "rollback_approved_user_workspace_patch":
@@ -403,6 +469,33 @@ function validateApprovedExecutionEventRequest(
       preview.type !== "user_workspace.patch_rollback.approved_result")
   ) {
     throw new Error("Approved execution event preview is required");
+  }
+}
+
+function validateGitReadLaneRequest(request: GitReadLaneRequest): void {
+  if (request.workspaceRoot.trim().length === 0) {
+    throw new Error("Workspace root is required");
+  }
+  if (request.workspaceRootRef.trim().length === 0) {
+    throw new Error("Workspace root ref is required");
+  }
+  if (
+    request.lane !== "status_summary" &&
+    request.lane !== "diff_summary" &&
+    request.lane !== "log_summary" &&
+    request.lane !== "branch_summary"
+  ) {
+    throw new Error("Git read lane is not allowed");
+  }
+  if (request.pathspecs !== undefined) {
+    if (!Array.isArray(request.pathspecs)) {
+      throw new Error("Git pathspecs must be a list");
+    }
+    for (const pathspec of request.pathspecs) {
+      if (typeof pathspec !== "string" || pathspec.trim().length === 0) {
+        throw new Error("Git pathspecs must be non-empty strings");
+      }
+    }
   }
 }
 
@@ -485,6 +578,95 @@ function normalizeApprovedApplyResult(
       ),
       resultHash: safeErrorMessage(String(eventPreview.resultHash ?? "")),
       warningCodes: eventWarningCodes,
+      notWritten: true
+    },
+    safeMessage: safeErrorMessage(record.safeMessage)
+  };
+}
+
+function normalizeGitReadLaneResult(raw: unknown): GitReadLaneResult {
+  const record = isRecord(raw) ? raw : {};
+  const eventPreview = isRecord(record.eventPreview) ? record.eventPreview : {};
+  if (
+    record.ok !== true ||
+    (record.lane !== "status_summary" &&
+      record.lane !== "diff_summary" &&
+      record.lane !== "log_summary" &&
+      record.lane !== "branch_summary") ||
+    (record.status !== "clean" &&
+      record.status !== "changed" &&
+      record.status !== "summary" &&
+      record.status !== "warning") ||
+    typeof record.workspaceRootRef !== "string" ||
+    typeof record.branchSummary !== "string" ||
+    typeof record.fileCount !== "number" ||
+    typeof record.changedFileCount !== "number" ||
+    typeof record.addedLineCount !== "number" ||
+    typeof record.deletedLineCount !== "number" ||
+    !Array.isArray(record.changedPathSummaries) ||
+    !Array.isArray(record.warningCodes) ||
+    typeof record.commandHash !== "string" ||
+    typeof record.outputHash !== "string" ||
+    typeof record.durationMs !== "number" ||
+    typeof record.truncated !== "boolean" ||
+    record.rawDiffIncluded !== false ||
+    record.rawStdoutIncluded !== false ||
+    record.rawStderrIncluded !== false ||
+    typeof record.safeMessage !== "string" ||
+    eventPreview.type !== "git.read_lane.executed" ||
+    eventPreview.notWritten !== true ||
+    eventPreview.summaryOnly !== true
+  ) {
+    throw normalizeDesktopCommandError({
+      errorCode: "INVALID_RESPONSE",
+      safeMessage: "Git read lane response was invalid",
+      stage: "normalize_response"
+    });
+  }
+  const changedPathSummaries = record.changedPathSummaries.filter(
+    (value): value is string => typeof value === "string"
+  );
+  const warningCodes = record.warningCodes.filter(
+    (value): value is string => typeof value === "string"
+  );
+  const eventWarningCodes = Array.isArray(eventPreview.warningCodes)
+    ? eventPreview.warningCodes.filter(
+        (value): value is string => typeof value === "string"
+      )
+    : [];
+  return {
+    ok: true,
+    lane: record.lane,
+    status: record.status,
+    workspaceRootRef: safeErrorMessage(record.workspaceRootRef),
+    branchSummary: safeErrorMessage(record.branchSummary),
+    fileCount: record.fileCount,
+    changedFileCount: record.changedFileCount,
+    addedLineCount: record.addedLineCount,
+    deletedLineCount: record.deletedLineCount,
+    changedPathSummaries,
+    warningCodes,
+    commandHash: safeErrorMessage(record.commandHash),
+    outputHash: safeErrorMessage(record.outputHash),
+    durationMs: record.durationMs,
+    truncated: record.truncated,
+    rawDiffIncluded: false,
+    rawStdoutIncluded: false,
+    rawStderrIncluded: false,
+    eventPreview: {
+      type: "git.read_lane.executed",
+      lane: record.lane,
+      workspaceRootRef: safeErrorMessage(
+        String(eventPreview.workspaceRootRef ?? "")
+      ),
+      commandHash: safeErrorMessage(String(eventPreview.commandHash ?? "")),
+      resultHash: safeErrorMessage(String(eventPreview.resultHash ?? "")),
+      changedFileCount: Number(eventPreview.changedFileCount ?? 0),
+      addedLineCount: Number(eventPreview.addedLineCount ?? 0),
+      deletedLineCount: Number(eventPreview.deletedLineCount ?? 0),
+      warningCodes: eventWarningCodes,
+      truncated: Boolean(eventPreview.truncated),
+      summaryOnly: true,
       notWritten: true
     },
     safeMessage: safeErrorMessage(record.safeMessage)

@@ -15,9 +15,11 @@ import {
   recordControlRunDraftEvent,
   rollbackApprovedUserWorkspacePatch,
   runDesktopWebTableToCsvFlow,
+  runGitReadLane,
   safeInvoke,
   type ApprovedUserWorkspaceApplyResult,
   type ApprovedUserWorkspaceRollbackResult,
+  type GitReadLaneResult,
   type TauriInvoke
 } from "../src/desktop-flow.js";
 import { buildControlPlaneProjectionView } from "../src/control-plane-view.js";
@@ -265,6 +267,48 @@ function fixedPreflight(
     runnerStatus: "Ready",
     packagedStandaloneSupport: "Source-tree runner",
     nextAction: "Run Convert with a sanitized BrowserDomPayload",
+    ...overrides
+  };
+}
+
+function fixedGitReadLaneResult(
+  overrides: Partial<GitReadLaneResult> = {}
+): GitReadLaneResult {
+  return {
+    ok: true,
+    lane: "status_summary",
+    status: "changed",
+    workspaceRootRef: "workspace-ref-test",
+    branchSummary: "main",
+    fileCount: 1,
+    changedFileCount: 1,
+    addedLineCount: 0,
+    deletedLineCount: 0,
+    changedPathSummaries: ["M docs/example.md"],
+    warningCodes: [],
+    commandHash: "command-hash",
+    outputHash: "output-hash",
+    durationMs: 12,
+    truncated: false,
+    rawDiffIncluded: false,
+    rawStdoutIncluded: false,
+    rawStderrIncluded: false,
+    eventPreview: {
+      type: "git.read_lane.executed",
+      lane: "status_summary",
+      workspaceRootRef: "workspace-ref-test",
+      commandHash: "command-hash",
+      resultHash: "result-hash",
+      changedFileCount: 1,
+      addedLineCount: 0,
+      deletedLineCount: 0,
+      warningCodes: [],
+      truncated: false,
+      summaryOnly: true,
+      notWritten: true
+    },
+    safeMessage:
+      "Git read lane summary generated. No raw diff/stdout/stderr returned.",
     ...overrides
   };
 }
@@ -1172,6 +1216,74 @@ describe("desktop command wrapper", () => {
     expect(summary.ok).toBe(true);
     expect(summary.draftCount).toBe(1);
     expect(JSON.stringify(summary)).not.toContain("csvContent");
+  });
+
+  it("runs Git read lanes only through the fixed summary command", async () => {
+    const invoke: TauriInvoke = async (command, args) => {
+      expect(command).toBe("run_git_read_lane");
+      expect(args).toEqual({
+        request: {
+          workspaceRoot: "D:\\workspace",
+          workspaceRootRef: "workspace-ref-test",
+          lane: "status_summary",
+          pathspecs: ["docs/example.md"],
+          timeoutMs: 5000,
+          maxOutputBytes: 65536
+        }
+      });
+      return fixedGitReadLaneResult() as never;
+    };
+
+    const result = await runGitReadLane(
+      {
+        workspaceRoot: "D:\\workspace",
+        workspaceRootRef: "workspace-ref-test",
+        lane: "status_summary",
+        pathspecs: ["docs/example.md"],
+        timeoutMs: 5000,
+        maxOutputBytes: 65536
+      },
+      invoke
+    );
+
+    expect(result.ok).toBe(true);
+    expect(result.eventPreview.notWritten).toBe(true);
+    expect(result.rawDiffIncluded).toBe(false);
+    expect(result.rawStdoutIncluded).toBe(false);
+    expect(result.rawStderrIncluded).toBe(false);
+    expect(JSON.stringify(result)).not.toContain("diff --git");
+  });
+
+  it("keeps Git Read Lanes UI fixed and summary-only", async () => {
+    const appSource = await readFile(
+      path.join(appRoot, "src", "App.tsx"),
+      "utf8"
+    );
+    const desktopFlowSource = await readFile(
+      path.join(appRoot, "src", "desktop-flow.ts"),
+      "utf8"
+    );
+
+    expect(appSource).toContain("Git Read Lanes");
+    expect(appSource).toContain("Read-only / fixed lanes");
+    expect(appSource).toContain("Run Git Read Lane");
+    expect(appSource).toContain("status_summary");
+    expect(appSource).toContain("diff_summary");
+    expect(appSource).toContain("log_summary");
+    expect(appSource).toContain("branch_summary");
+    expect(appSource).toContain("No raw diff");
+    expect(appSource).toContain("No raw diff,");
+    expect(appSource).not.toMatch(/>\s*Git Commit\s*</);
+    expect(appSource).not.toMatch(/>\s*Git Push\s*</);
+    expect(appSource).not.toMatch(/>\s*Git Checkout\s*</);
+    expect(appSource).not.toMatch(/>\s*Git Reset\s*</);
+    expect(appSource).not.toContain("gitCommand");
+    expect(appSource).not.toContain("shellCommand");
+    expect(desktopFlowSource).toContain('"run_git_read_lane"');
+    expect(desktopFlowSource).not.toContain("run_git_command");
+    expect(desktopFlowSource).not.toContain("rawDiff:");
+    expect(desktopFlowSource).not.toContain("rawStdout:");
+    expect(desktopFlowSource).not.toContain("rawStderr:");
   });
 
   it("builds a safe no-events model", () => {
@@ -10001,7 +10113,10 @@ describe("desktop source boundaries", () => {
     expect(appSource).not.toContain("handleCommitSandboxApply");
     expect(appSource).not.toContain("handleDryRunCapability");
     expect(appSource).not.toContain("handleSendToDeepSeek");
-    expect(appSource).not.toContain("handleRunGit");
+    expect(appSource).not.toContain("handleRunGitCommand");
+    expect(appSource).not.toContain("handleRunGitWrite");
+    expect(appSource).not.toContain("handleGitCommit");
+    expect(appSource).not.toContain("handleGitPush");
     expect(appSource).not.toContain("handleRunShell");
     expect(appSource).not.toContain("handleEnableBridge");
     expect(appSource).not.toContain("Send to DeepSeek");
@@ -10017,7 +10132,9 @@ describe("desktop source boundaries", () => {
     expect(appSource).not.toMatch(
       />\s*(Apply|Rollback|Commit|Approve|Reject|Execute)\s*</
     );
-    expect(appSource).not.toContain("Run Git");
+    expect(appSource).toContain("Run Git Read Lane");
+    expect(appSource).not.toContain("Run Git Command");
+    expect(appSource).not.toContain("Run Git Write");
     expect(appSource).not.toContain("Run Shell");
     expect(appSource).not.toContain("Enable native bridge");
     expect(appSource).not.toContain("Native bridge enabled");

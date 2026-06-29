@@ -17,9 +17,12 @@ import {
   recordControlRunDraftEvent,
   rollbackApprovedUserWorkspacePatch,
   runDesktopWebTableToCsvFlow,
+  runGitReadLane,
   type ApprovedUserWorkspaceApplyResult,
   type ApprovedUserWorkspaceRollbackResult,
-  type ApprovedUserWorkspaceExecutionEventRecordResult
+  type ApprovedUserWorkspaceExecutionEventRecordResult,
+  type GitReadLane,
+  type GitReadLaneResult
 } from "./desktop-flow.js";
 import {
   buildControlPlaneProjectionView,
@@ -258,6 +261,7 @@ import {
 type RunStatus = "idle" | "running" | "done" | "error";
 type EventStatus = "idle" | "loading" | "loaded" | "error";
 type DraftEventStatus = "idle" | "recording" | "recorded" | "error";
+type GitReadLaneStatus = "idle" | "running" | "done" | "error";
 
 type ErrorBoundaryState = {
   error?: unknown;
@@ -306,6 +310,14 @@ export function App(): JSX.Element {
       <DesktopShell />
     </DesktopErrorBoundary>
   );
+}
+
+export function parseGitReadLanePathspecs(text: string): string[] | undefined {
+  const values = text
+    .split(/[\n,]+/)
+    .map((value) => value.trim())
+    .filter((value) => value.length > 0);
+  return values.length === 0 ? undefined : values;
 }
 
 export function DesktopShell(): JSX.Element {
@@ -481,6 +493,16 @@ export function DesktopShell(): JSX.Element {
   const [appApprovedExecutionEventResult, setAppApprovedExecutionEventResult] =
     useState<ApprovedUserWorkspaceExecutionEventRecordResult | undefined>();
   const [appApprovedExecutionError, setAppApprovedExecutionError] = useState<
+    string | undefined
+  >();
+  const [gitReadLane, setGitReadLane] = useState<GitReadLane>("status_summary");
+  const [gitReadPathspecs, setGitReadPathspecs] = useState("");
+  const [gitReadLaneStatus, setGitReadLaneStatus] =
+    useState<GitReadLaneStatus>("idle");
+  const [gitReadLaneResult, setGitReadLaneResult] = useState<
+    GitReadLaneResult | undefined
+  >();
+  const [gitReadLaneError, setGitReadLaneError] = useState<
     string | undefined
   >();
   const loadedWorkspaceIndexRef =
@@ -1998,6 +2020,27 @@ export function DesktopShell(): JSX.Element {
     }
   }
 
+  async function handleRunGitReadLane(): Promise<void> {
+    setGitReadLaneStatus("running");
+    setGitReadLaneResult(undefined);
+    setGitReadLaneError(undefined);
+    try {
+      const laneResult = await runGitReadLane({
+        workspaceRoot,
+        workspaceRootRef: "app-workspace-root",
+        lane: gitReadLane,
+        pathspecs: parseGitReadLanePathspecs(gitReadPathspecs),
+        timeoutMs: 5000,
+        maxOutputBytes: 65536
+      });
+      setGitReadLaneResult(laneResult);
+      setGitReadLaneStatus("done");
+    } catch (caught) {
+      setGitReadLaneError(safeErrorMessage(caught));
+      setGitReadLaneStatus("error");
+    }
+  }
+
   async function handleConvert(): Promise<void> {
     setStatus("running");
     setResult(undefined);
@@ -2321,6 +2364,135 @@ export function DesktopShell(): JSX.Element {
           >
             {status === "running" ? "Converting..." : "Convert"}
           </button>
+
+          <section className="bridgePreview" aria-label="Git Read Lanes">
+            <div className="panelHeader">
+              <h2>Git Read Lanes</h2>
+              <span className="muted">Read-only / fixed lanes</span>
+            </div>
+            <p className="fieldHelp">
+              Runs a fixed read-only Git summary lane. No raw diff,
+              stdout/stderr, Git write command, or EventStore write is exposed.
+            </p>
+            <label>
+              <span>Lane</span>
+              <select
+                value={gitReadLane}
+                onChange={(event) =>
+                  setGitReadLane(event.target.value as GitReadLane)
+                }
+              >
+                <option value="status_summary">status_summary</option>
+                <option value="diff_summary">diff_summary</option>
+                <option value="log_summary">log_summary</option>
+                <option value="branch_summary">branch_summary</option>
+              </select>
+            </label>
+            <label>
+              <span>Safe pathspecs</span>
+              <textarea
+                value={gitReadPathspecs}
+                onChange={(event) => setGitReadPathspecs(event.target.value)}
+                placeholder="Optional relative pathspecs, one per line"
+                spellCheck={false}
+              />
+            </label>
+            <div className="buttonRow">
+              <button
+                type="button"
+                className="secondary"
+                disabled={
+                  workspaceRoot.trim().length === 0 ||
+                  gitReadLaneStatus === "running"
+                }
+                onClick={(event) => {
+                  event.preventDefault();
+                  event.stopPropagation();
+                  void handleRunGitReadLane();
+                }}
+              >
+                {gitReadLaneStatus === "running"
+                  ? "Running Git Read Lane..."
+                  : "Run Git Read Lane"}
+              </button>
+            </div>
+            {gitReadLaneResult !== undefined ? (
+              <dl className="summaryGrid compact">
+                <div>
+                  <dt>Status</dt>
+                  <dd>{gitReadLaneResult.status}</dd>
+                </div>
+                <div>
+                  <dt>Lane</dt>
+                  <dd>{gitReadLaneResult.lane}</dd>
+                </div>
+                <div>
+                  <dt>Branch</dt>
+                  <dd>{gitReadLaneResult.branchSummary}</dd>
+                </div>
+                <div>
+                  <dt>Changed files</dt>
+                  <dd>{gitReadLaneResult.changedFileCount}</dd>
+                </div>
+                <div>
+                  <dt>Lines +/-</dt>
+                  <dd>
+                    {gitReadLaneResult.addedLineCount} /{" "}
+                    {gitReadLaneResult.deletedLineCount}
+                  </dd>
+                </div>
+                <div>
+                  <dt>Truncated</dt>
+                  <dd>{gitReadLaneResult.truncated ? "yes" : "no"}</dd>
+                </div>
+                <div>
+                  <dt>Command hash</dt>
+                  <dd>{gitReadLaneResult.commandHash.substring(0, 12)}</dd>
+                </div>
+                <div>
+                  <dt>Output hash</dt>
+                  <dd>{gitReadLaneResult.outputHash.substring(0, 12)}</dd>
+                </div>
+                <div>
+                  <dt>Event preview</dt>
+                  <dd>
+                    {gitReadLaneResult.eventPreview.notWritten
+                      ? "not written"
+                      : "unexpected"}
+                  </dd>
+                </div>
+                <div>
+                  <dt>Raw output</dt>
+                  <dd>
+                    {gitReadLaneResult.rawDiffIncluded ||
+                    gitReadLaneResult.rawStdoutIncluded ||
+                    gitReadLaneResult.rawStderrIncluded
+                      ? "blocked"
+                      : "absent"}
+                  </dd>
+                </div>
+              </dl>
+            ) : null}
+            {gitReadLaneResult?.changedPathSummaries.length ? (
+              <ol className="timeline">
+                {gitReadLaneResult.changedPathSummaries.map(
+                  (summary, index) => (
+                    <li key={`${summary}-${index}`}>
+                      <span>{summary}</span>
+                    </li>
+                  )
+                )}
+              </ol>
+            ) : null}
+            {gitReadLaneResult?.warningCodes.length ? (
+              <p className="muted">
+                warnings {gitReadLaneResult.warningCodes.join(", ")}
+              </p>
+            ) : null}
+            {gitReadLaneError !== undefined ? (
+              <p className="errorText">{gitReadLaneError}</p>
+            ) : null}
+          </section>
         </form>
 
         <section className="panel resultPanel" aria-live="polite">
