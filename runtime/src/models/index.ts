@@ -2,6 +2,7 @@ export * from "./capability-probe.js";
 export * from "./deepseek-capability-profile.js";
 export * from "./legacy-alias.js";
 export * from "./live-deepseek-proposal-adapter.js";
+export * from "./live-proposal-evaluation-telemetry-audit.js";
 export * from "./live-proposal-evaluation-runner.js";
 export * from "./live-proposal-failure-metrics.js";
 export * from "./live-proposal-golden-case-schema.js";

@@ -136,6 +136,8 @@ foundation.
 - [Runtime Live Proposal Evaluation Runner v0.9](runtime-live-proposal-evaluation-runner-v0.9.md)
 - [Runtime Live Proposal Failure Metrics v0.9](runtime-live-proposal-failure-metrics-v0.9.md)
 - [App Shell Live Proposal Evaluation Summary v0.9](app-shell-live-proposal-evaluation-summary-v0.9.md)
+- [Runtime Live Proposal Evaluation Telemetry Audit v0.9](runtime-live-proposal-evaluation-telemetry-audit-v0.9.md)
+- [App Shell Live Proposal Evaluation Telemetry Audit v0.9](app-shell-live-proposal-evaluation-telemetry-audit-v0.9.md)
 - [Runtime Memory Recall Preview v0.3](runtime-memory-recall-preview-v0.3.md)
 - [v0.4.0 Controlled Creation Preview RC release notes](release-notes-v0.4.0-controlled-creation-preview-rc.1.md)
 - [App Shell Controlled Creation manual QA](app-shell-controlled-creation-manual-qa.md)

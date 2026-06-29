@@ -65,6 +65,7 @@ import {
   buildLiveProposalEvaluationSummaryView,
   parseLiveProposalEvaluationSummaryJson
 } from "../src/live-proposal-evaluation-summary-view.js";
+import { buildLiveProposalEvaluationTelemetryAuditView } from "../src/live-proposal-evaluation-telemetry-audit-view.js";
 import {
   buildPatchProposalValidationPreviewView,
   patchProposalValidationApprovalRefs,
@@ -4883,6 +4884,278 @@ describe("app live proposal evaluation summary surface", () => {
     expect(combined).toContain("No desktop action");
     expect(docsIndex).toContain(
       "app-shell-live-proposal-evaluation-summary-v0.9.md"
+    );
+  });
+});
+
+describe("app live proposal evaluation telemetry audit surface", () => {
+  const safeAuditReport = {
+    status: "audit_ready",
+    source: "runtime_live_proposal_evaluation_telemetry_audit",
+    auditId: "audit-safe",
+    auditMode: "summary_only_audit",
+    recordCount: 3,
+    offlineReportCount: 1,
+    liveReportCount: 1,
+    metricsReportCount: 1,
+    appSummaryCount: 1,
+    rawFieldDetectedCount: 0,
+    redactedFieldCount: 0,
+    apiKeyLeakDetected: false,
+    rawPromptDetected: false,
+    rawResponseDetected: false,
+    reasoningContentPersisted: false,
+    usageSummary: {
+      usageSummaryCaseCount: 2,
+      requestCount: 2,
+      responseCount: 2,
+      totalPromptTokens: 30,
+      totalCompletionTokens: 15,
+      totalTokens: 45
+    },
+    redactionSummary: {
+      redactedFieldCount: 0,
+      rawFieldDetectedCount: 0,
+      apiKeyLeakDetected: false,
+      rawPromptDetected: false,
+      rawResponseDetected: false,
+      reasoningContentPersisted: false,
+      rawSourceDetected: false,
+      rawDiffDetected: false,
+      outputSummaryOnly: true
+    },
+    records: [
+      {
+        recordId: "usage-summary-record",
+        kind: "usage_summary",
+        source: "runtime_live_proposal_evaluation_telemetry_audit",
+        status: "passed",
+        summary: "tokens:45",
+        warningCodes: []
+      }
+    ],
+    findings: [],
+    blockerCount: 0,
+    warningCount: 0,
+    findingCount: 0,
+    auditHash: "abcdef1234567890",
+    readiness: {
+      canEnterRcSummary: true,
+      canWriteTelemetryEvent: false,
+      canPersistRawPrompt: false,
+      canPersistRawResponse: false,
+      canPersistReasoningContent: false,
+      canReadApiKey: false,
+      canCallLiveModel: false,
+      canFetchNetwork: false,
+      canWriteEventStore: false,
+      canApplyPatch: false,
+      canRollback: false,
+      canExecuteGit: false,
+      canExecuteShell: false,
+      appCanExecute: false
+    },
+    nextAction: "summary only"
+  };
+
+  it("builds empty and safe read-only audit views", () => {
+    const empty = buildLiveProposalEvaluationTelemetryAuditView();
+    const safe = buildLiveProposalEvaluationTelemetryAuditView({
+      auditJsonText: JSON.stringify(safeAuditReport)
+    });
+    const fromSummary = buildLiveProposalEvaluationTelemetryAuditView({
+      appEvaluationSummaryView: buildLiveProposalEvaluationSummaryView({
+        summaryJsonText: JSON.stringify({
+          source: "runtime_live_proposal_failure_metrics",
+          metricsId: "metrics-safe",
+          reportCount: 1,
+          caseCount: 1,
+          usageMetrics: {
+            usageSummaryCaseCount: 1,
+            requestCount: 1,
+            responseCount: 1,
+            totalTokens: 9
+          },
+          taxonomyMetrics: {
+            categories: {
+              no_failure_expected: 1
+            }
+          },
+          repairMetrics: {
+            repairSuccessRate: 1
+          },
+          schemaMetrics: {
+            schemaPassRate: 1
+          },
+          expectationMetrics: {
+            passedCount: 1,
+            warningCount: 0,
+            blockedCount: 0,
+            failedExpectationCount: 0
+          },
+          metricsHash: "metrics-safe-hash"
+        })
+      })
+    });
+    const serialized = JSON.stringify({ empty, safe, fromSummary });
+
+    expect(empty.status).toBe("empty");
+    expect(empty.readiness.canEnterRcSummary).toBe(false);
+    expect(safe.status).toBe("audit_ready");
+    expect(safe.source).toBe("runtime_live_proposal_evaluation_telemetry_audit");
+    expect(safe.recordCount).toBe(3);
+    expect(safe.usageSummary?.totalTokens).toBe(45);
+    expect(safe.apiKeyLeakDetected).toBe(false);
+    expect(safe.rawPromptDetected).toBe(false);
+    expect(safe.rawResponseDetected).toBe(false);
+    expect(safe.reasoningContentPersisted).toBe(false);
+    expect(safe.readiness.canWriteTelemetryEvent).toBe(false);
+    expect(safe.readiness.canCallLiveModel).toBe(false);
+    expect(safe.readiness.canReadApiKey).toBe(false);
+    expect(safe.readiness.canFetchNetwork).toBe(false);
+    expect(safe.readiness.canApplyPatch).toBe(false);
+    expect(safe.readiness.canRollback).toBe(false);
+    expect(safe.readiness.canExecuteGit).toBe(false);
+    expect(safe.readiness.canExecuteShell).toBe(false);
+    expect(safe.readiness.appCanExecute).toBe(false);
+    expect(fromSummary.status).toBe("warning");
+    expect(fromSummary.appSummaryCount).toBe(1);
+    expect(serialized).not.toContain("sk-");
+    expect(serialized).not.toContain("model prompt text");
+    expect(serialized).not.toContain("model response text");
+    expect(serialized).not.toContain("Authorization:");
+  });
+
+  it("blocks raw prompt, raw response, reasoning_content, and API key markers", () => {
+    const rawPrompt = buildLiveProposalEvaluationTelemetryAuditView({
+      auditJsonText: JSON.stringify({
+        ...safeAuditReport,
+        rawPrompt: "blocked"
+      })
+    });
+    const rawResponse = buildLiveProposalEvaluationTelemetryAuditView({
+      auditJsonText: JSON.stringify({
+        ...safeAuditReport,
+        rawResponse: "blocked"
+      })
+    });
+    const reasoning = buildLiveProposalEvaluationTelemetryAuditView({
+      auditJsonText: JSON.stringify({
+        ...safeAuditReport,
+        reasoning_content: "blocked"
+      })
+    });
+    const secret = buildLiveProposalEvaluationTelemetryAuditView({
+      auditJsonText: JSON.stringify({
+        ...safeAuditReport,
+        safeLabel: "Bearer fake-token-12345678"
+      })
+    });
+
+    expect(rawPrompt.status).toBe("blocked");
+    expect(rawPrompt.findings.map((finding) => finding.code)).toContain(
+      "RAWPROMPT_FIELD_REJECTED"
+    );
+    expect(rawResponse.status).toBe("blocked");
+    expect(rawResponse.findings.map((finding) => finding.code)).toContain(
+      "RAWRESPONSE_FIELD_REJECTED"
+    );
+    expect(reasoning.status).toBe("blocked");
+    expect(reasoning.findings.map((finding) => finding.code)).toContain(
+      "REASONING_CONTENT_FIELD_REJECTED"
+    );
+    expect(secret.status).toBe("blocked");
+    expect(secret.findings.map((finding) => finding.code)).toContain(
+      "BEARER_TOKEN_MARKER"
+    );
+  });
+
+  it("keeps App source telemetry audit read-only without runner or live call wiring", async () => {
+    const appSource = await readFile(
+      path.join(appRoot, "src", "App.tsx"),
+      "utf8"
+    );
+    const viewSource = await readFile(
+      path.join(
+        appRoot,
+        "src",
+        "live-proposal-evaluation-telemetry-audit-view.ts"
+      ),
+      "utf8"
+    );
+    const combined = `${appSource}\n${viewSource}`;
+    const normalizedAppSource = appSource.replace(/\s+/g, " ");
+
+    expect(appSource).toContain("Live Proposal Evaluation Telemetry Audit");
+    expect(appSource).toContain("Read-only / no raw output");
+    expect(appSource).toContain("Preview Evaluation Telemetry Audit");
+    expect(appSource).toContain("Run Telemetry Audit (disabled)");
+    expect(appSource).toContain("Write Telemetry Event (disabled)");
+    expect(normalizedAppSource).toContain(
+      "The App Shell does not run evaluation, call DeepSeek, fetch network, apply patches, rollback, or write events."
+    );
+    expect(appSource).not.toContain('type="password"');
+    expect(appSource).not.toContain("Authorization input");
+    expect(appSource).not.toContain("handleRunEvaluationTelemetryAudit");
+    expect(appSource).not.toContain("handleWriteEvaluationTelemetryEvent");
+    expect(viewSource).not.toContain("process.env");
+    expect(viewSource).not.toContain("fetch(");
+    expect(viewSource).not.toContain("safeInvoke");
+    expect(viewSource).not.toContain("recordControlRunDraftEvent");
+    expect(viewSource).not.toContain("runLiveProposalEvaluation(");
+    expect(viewSource).not.toContain("runLiveDeepSeekProposalAdapter");
+    expect(combined).not.toContain("writeLiveProposalEvaluationTelemetryEvent");
+    expect(combined).not.toContain("readLiveProposalApiKey");
+  });
+
+  it("documents runtime and App evaluation telemetry audit boundaries", async () => {
+    const runtimeDoc = await readFile(
+      path.join(
+        repoRoot,
+        "docs",
+        "runtime-live-proposal-evaluation-telemetry-audit-v0.9.md"
+      ),
+      "utf8"
+    );
+    const appDoc = await readFile(
+      path.join(
+        repoRoot,
+        "docs",
+        "app-shell-live-proposal-evaluation-telemetry-audit-v0.9.md"
+      ),
+      "utf8"
+    );
+    const docsIndex = await readFile(
+      path.join(repoRoot, "docs", "README.md"),
+      "utf8"
+    );
+    const combined = `${runtimeDoc}\n${appDoc}\n${docsIndex}`;
+
+    expect(combined).toContain(
+      "Runtime Live Proposal Evaluation Telemetry Audit v0.9"
+    );
+    expect(combined).toContain(
+      "App Shell Live Proposal Evaluation Telemetry Audit v0.9"
+    );
+    expect(combined).toContain("telemetry audit only");
+    expect(combined).toContain("no evaluator execution");
+    expect(combined).toContain("no live call");
+    expect(combined).toContain("no API key read");
+    expect(combined).toContain("no fetch/network");
+    expect(combined).toContain("no raw prompt");
+    expect(combined).toContain("no raw response");
+    expect(combined).toContain("no reasoning_content persistence");
+    expect(combined).toContain("No EventStore write");
+    expect(combined).toContain("No apply/rollback");
+    expect(combined).toContain("No App execution");
+    expect(combined).toContain("No Git/shell execution");
+    expect(combined).toContain("No native bridge");
+    expect(combined).toContain("No desktop action");
+    expect(docsIndex).toContain(
+      "runtime-live-proposal-evaluation-telemetry-audit-v0.9.md"
+    );
+    expect(docsIndex).toContain(
+      "app-shell-live-proposal-evaluation-telemetry-audit-v0.9.md"
     );
   });
 });

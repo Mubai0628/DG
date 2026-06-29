@@ -116,6 +116,11 @@ import {
   type LiveProposalEvaluationSummaryView
 } from "./live-proposal-evaluation-summary-view.js";
 import {
+  buildLiveProposalEvaluationTelemetryAuditView,
+  summarizeLiveProposalEvaluationTelemetryAuditView,
+  type LiveProposalEvaluationTelemetryAuditView
+} from "./live-proposal-evaluation-telemetry-audit-view.js";
+import {
   buildPatchProposalValidationPreviewView,
   patchProposalValidationApprovalRefs,
   patchProposalValidationAuditWarningCodes,
@@ -381,6 +386,14 @@ export function DesktopShell(): JSX.Element {
     liveProposalEvaluationSummaryPreview,
     setLiveProposalEvaluationSummaryPreview
   ] = useState<LiveProposalEvaluationSummaryView | undefined>();
+  const [
+    liveProposalEvaluationTelemetryAuditText,
+    setLiveProposalEvaluationTelemetryAuditText
+  ] = useState("");
+  const [
+    liveProposalEvaluationTelemetryAuditPreview,
+    setLiveProposalEvaluationTelemetryAuditPreview
+  ] = useState<LiveProposalEvaluationTelemetryAuditView | undefined>();
   const [patchProposalCreationPreview, setPatchProposalCreationPreview] =
     useState<AppPatchProposalCreationPreviewView | undefined>();
   const [patchProposalValidationPreview, setPatchProposalValidationPreview] =
@@ -1237,6 +1250,24 @@ export function DesktopShell(): JSX.Element {
   const displayedLiveProposalEvaluationSummary =
     liveProposalEvaluationSummaryPreview ??
     buildLiveProposalEvaluationSummaryView();
+  const liveProposalEvaluationTelemetryAuditCandidate =
+    useMemo<LiveProposalEvaluationTelemetryAuditView>(
+      () =>
+        buildLiveProposalEvaluationTelemetryAuditView({
+          auditJsonText: liveProposalEvaluationTelemetryAuditText,
+          appEvaluationSummaryView:
+            displayedLiveProposalEvaluationSummary.status === "empty"
+              ? undefined
+              : displayedLiveProposalEvaluationSummary
+        }),
+      [
+        displayedLiveProposalEvaluationSummary,
+        liveProposalEvaluationTelemetryAuditText
+      ]
+    );
+  const displayedLiveProposalEvaluationTelemetryAudit =
+    liveProposalEvaluationTelemetryAuditPreview ??
+    buildLiveProposalEvaluationTelemetryAuditView();
   useEffect(() => {
     setLiveProposalTelemetryAuditPreview(undefined);
   }, [
@@ -1249,6 +1280,13 @@ export function DesktopShell(): JSX.Element {
   useEffect(() => {
     setLiveProposalEvaluationSummaryPreview(undefined);
   }, [liveProposalEvaluationSummaryText]);
+  useEffect(() => {
+    setLiveProposalEvaluationTelemetryAuditPreview(undefined);
+  }, [
+    liveProposalEvaluationSummaryPreview,
+    liveProposalEvaluationSummaryText,
+    liveProposalEvaluationTelemetryAuditText
+  ]);
   const contextAssemblyCandidate = useMemo<AppContextAssemblyPreviewView>(
     () =>
       buildContextAssemblyPreviewView({
@@ -1688,6 +1726,17 @@ export function DesktopShell(): JSX.Element {
   function handleClearLiveProposalEvaluationSummary(): void {
     setLiveProposalEvaluationSummaryText("");
     setLiveProposalEvaluationSummaryPreview(undefined);
+  }
+
+  function handlePreviewLiveProposalEvaluationTelemetryAudit(): void {
+    setLiveProposalEvaluationTelemetryAuditPreview(
+      liveProposalEvaluationTelemetryAuditCandidate
+    );
+  }
+
+  function handleClearLiveProposalEvaluationTelemetryAudit(): void {
+    setLiveProposalEvaluationTelemetryAuditText("");
+    setLiveProposalEvaluationTelemetryAuditPreview(undefined);
   }
 
   function handleValidatePatchProposal(): void {
@@ -4058,6 +4107,286 @@ export function DesktopShell(): JSX.Element {
                 ).source
               }{" "}
               · {displayedLiveProposalEvaluationSummary.nextAction}
+            </p>
+          </section>
+
+          <section
+            className="eventPanel"
+            aria-label="Live Proposal Evaluation Telemetry Audit"
+          >
+            <div className="panelHeader">
+              <h2>Live Proposal Evaluation Telemetry Audit</h2>
+              <span className="muted">Read-only / no raw output</span>
+            </div>
+            <p className="fieldHelp">
+              Audits evaluation telemetry summaries for raw prompt, raw
+              response, reasoning_content, API key, and execution leaks. The App
+              Shell does not run evaluation, call DeepSeek, fetch network, apply
+              patches, rollback, or write events.
+            </p>
+
+            <label>
+              <span>Summary-only telemetry audit JSON</span>
+              <textarea
+                className="compactTextarea"
+                value={liveProposalEvaluationTelemetryAuditText}
+                onChange={(event) => {
+                  setLiveProposalEvaluationTelemetryAuditText(
+                    event.target.value
+                  );
+                }}
+                placeholder="Paste summary-only evaluation telemetry audit JSON"
+                spellCheck={false}
+              />
+              <p className="fieldHelp">
+                Accepts summary artifact JSON or a summary-only audit report.
+                Raw prompts, raw responses, reasoning_content, source text,
+                diffs, and keys are rejected before display.
+              </p>
+            </label>
+
+            <div className="buttonRow">
+              <button
+                type="button"
+                className="secondary"
+                onClick={(event) => {
+                  event.preventDefault();
+                  event.stopPropagation();
+                  handlePreviewLiveProposalEvaluationTelemetryAudit();
+                }}
+              >
+                Preview Evaluation Telemetry Audit
+              </button>
+              <button
+                type="button"
+                className="secondary"
+                onClick={(event) => {
+                  event.preventDefault();
+                  event.stopPropagation();
+                  handleClearLiveProposalEvaluationTelemetryAudit();
+                }}
+              >
+                Clear Telemetry Audit
+              </button>
+              <button type="button" className="secondary" disabled>
+                Run Telemetry Audit (disabled)
+              </button>
+              <button type="button" className="secondary" disabled>
+                Write Telemetry Event (disabled)
+              </button>
+            </div>
+
+            {displayedLiveProposalEvaluationTelemetryAudit.status ===
+            "empty" ? (
+              <p className="empty">
+                No evaluation telemetry audit loaded. Preview the audit to
+                inspect summary-only redaction status.
+              </p>
+            ) : null}
+
+            {displayedLiveProposalEvaluationTelemetryAudit.status ===
+            "blocked" ? (
+              <div className="errorBox">
+                <strong>Evaluation telemetry audit blocked</strong>
+                <p>{displayedLiveProposalEvaluationTelemetryAudit.nextAction}</p>
+              </div>
+            ) : null}
+
+            <dl className="summaryGrid compact">
+              <div>
+                <dt>Status</dt>
+                <dd>{displayedLiveProposalEvaluationTelemetryAudit.status}</dd>
+              </div>
+              <div>
+                <dt>Audit</dt>
+                <dd>{displayedLiveProposalEvaluationTelemetryAudit.auditId}</dd>
+              </div>
+              <div>
+                <dt>Records</dt>
+                <dd>{displayedLiveProposalEvaluationTelemetryAudit.recordCount}</dd>
+              </div>
+              <div>
+                <dt>Offline / live reports</dt>
+                <dd>
+                  {
+                    displayedLiveProposalEvaluationTelemetryAudit
+                      .offlineReportCount
+                  }{" "}
+                  /{" "}
+                  {displayedLiveProposalEvaluationTelemetryAudit.liveReportCount}
+                </dd>
+              </div>
+              <div>
+                <dt>Metrics / App summaries</dt>
+                <dd>
+                  {
+                    displayedLiveProposalEvaluationTelemetryAudit
+                      .metricsReportCount
+                  }{" "}
+                  /{" "}
+                  {displayedLiveProposalEvaluationTelemetryAudit.appSummaryCount}
+                </dd>
+              </div>
+              <div>
+                <dt>Raw / redacted fields</dt>
+                <dd>
+                  {
+                    displayedLiveProposalEvaluationTelemetryAudit
+                      .rawFieldDetectedCount
+                  }{" "}
+                  /{" "}
+                  {
+                    displayedLiveProposalEvaluationTelemetryAudit
+                      .redactedFieldCount
+                  }
+                </dd>
+              </div>
+              <div>
+                <dt>Key / prompt leak</dt>
+                <dd>
+                  {displayedLiveProposalEvaluationTelemetryAudit
+                    .apiKeyLeakDetected
+                    ? "yes"
+                    : "no"}{" "}
+                  /{" "}
+                  {displayedLiveProposalEvaluationTelemetryAudit
+                    .rawPromptDetected
+                    ? "yes"
+                    : "no"}
+                </dd>
+              </div>
+              <div>
+                <dt>Response / reasoning persisted</dt>
+                <dd>
+                  {displayedLiveProposalEvaluationTelemetryAudit
+                    .rawResponseDetected
+                    ? "yes"
+                    : "no"}{" "}
+                  /{" "}
+                  {displayedLiveProposalEvaluationTelemetryAudit
+                    .reasoningContentPersisted
+                    ? "yes"
+                    : "no"}
+                </dd>
+              </div>
+              <div>
+                <dt>Usage tokens</dt>
+                <dd>
+                  {displayedLiveProposalEvaluationTelemetryAudit.usageSummary ===
+                  undefined
+                    ? "n/a"
+                    : `${displayedLiveProposalEvaluationTelemetryAudit.usageSummary.totalTokens ?? 0} token(s)`}
+                </dd>
+              </div>
+              <div>
+                <dt>Blockers / warnings</dt>
+                <dd>
+                  {displayedLiveProposalEvaluationTelemetryAudit.blockerCount} /{" "}
+                  {displayedLiveProposalEvaluationTelemetryAudit.warningCount}
+                </dd>
+              </div>
+              <div>
+                <dt>Hash</dt>
+                <dd>
+                  {displayedLiveProposalEvaluationTelemetryAudit.auditHashPrefix}
+                </dd>
+              </div>
+              <div>
+                <dt>RC summary / telemetry write</dt>
+                <dd>
+                  {displayedLiveProposalEvaluationTelemetryAudit.readiness
+                    .canEnterRcSummary
+                    ? "yes"
+                    : "no"}{" "}
+                  /{" "}
+                  {displayedLiveProposalEvaluationTelemetryAudit.readiness
+                    .canWriteTelemetryEvent
+                    ? "yes"
+                    : "no"}
+                </dd>
+              </div>
+              <div>
+                <dt>Model call / key read</dt>
+                <dd>
+                  {displayedLiveProposalEvaluationTelemetryAudit.readiness
+                    .canCallLiveModel
+                    ? "yes"
+                    : "no"}{" "}
+                  /{" "}
+                  {displayedLiveProposalEvaluationTelemetryAudit.readiness
+                    .canReadApiKey
+                    ? "yes"
+                    : "no"}
+                </dd>
+              </div>
+              <div>
+                <dt>Fetch / event write</dt>
+                <dd>
+                  {displayedLiveProposalEvaluationTelemetryAudit.readiness
+                    .canFetchNetwork
+                    ? "yes"
+                    : "no"}{" "}
+                  /{" "}
+                  {displayedLiveProposalEvaluationTelemetryAudit.readiness
+                    .canWriteEventStore
+                    ? "yes"
+                    : "no"}
+                </dd>
+              </div>
+              <div>
+                <dt>Apply / rollback</dt>
+                <dd>
+                  {displayedLiveProposalEvaluationTelemetryAudit.readiness
+                    .canApplyPatch
+                    ? "yes"
+                    : "no"}{" "}
+                  /{" "}
+                  {displayedLiveProposalEvaluationTelemetryAudit.readiness
+                    .canRollback
+                    ? "yes"
+                    : "no"}
+                </dd>
+              </div>
+            </dl>
+
+            {displayedLiveProposalEvaluationTelemetryAudit.records.length >
+            0 ? (
+              <ol className="timeline">
+                {displayedLiveProposalEvaluationTelemetryAudit.records.map(
+                  (record) => (
+                    <li key={`${record.kind}-${record.source}`}>
+                      <span className="timelineMeta">
+                        {record.kind} · {record.status}
+                      </span>
+                      <span>{record.summary}</span>
+                      {record.warningCodes.length > 0 ? (
+                        <span className="timelineMeta">
+                          Warnings: {record.warningCodes.join(", ")}
+                        </span>
+                      ) : null}
+                    </li>
+                  )
+                )}
+              </ol>
+            ) : null}
+
+            {displayedLiveProposalEvaluationTelemetryAudit.findings.length >
+            0 ? (
+              <p className="muted">
+                findings{" "}
+                {displayedLiveProposalEvaluationTelemetryAudit.findings
+                  .map((finding) => finding.code)
+                  .join(", ")}
+              </p>
+            ) : null}
+
+            <p className="fieldHelp">
+              {
+                summarizeLiveProposalEvaluationTelemetryAuditView(
+                  displayedLiveProposalEvaluationTelemetryAudit
+                ).source
+              }{" "}
+              · {displayedLiveProposalEvaluationTelemetryAudit.nextAction}
             </p>
           </section>
 
