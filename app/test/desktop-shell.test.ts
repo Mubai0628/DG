@@ -12761,6 +12761,106 @@ describe("desktop source boundaries", () => {
     );
   });
 
+  it("documents the P0P-002 Git and shell safe lanes ADR and implementation gate", async () => {
+    const adr = await readFile(
+      path.join(repoRoot, "docs", "adr", "0011-git-shell-safe-lanes.md"),
+      "utf8"
+    );
+    const threatModel = await readFile(
+      path.join(repoRoot, "docs", "git-shell-safe-lanes-threat-model-v0.11.md"),
+      "utf8"
+    );
+    const implementationGate = await readFile(
+      path.join(
+        repoRoot,
+        "docs",
+        "git-shell-safe-lanes-implementation-gate-v0.11.md"
+      ),
+      "utf8"
+    );
+    const gitPlan = await readFile(
+      path.join(repoRoot, "docs", "p0p-003-git-read-lanes-command-plan.md"),
+      "utf8"
+    );
+    const shellPlan = await readFile(
+      path.join(
+        repoRoot,
+        "docs",
+        "p0p-004-shell-verification-allowlist-command-plan.md"
+      ),
+      "utf8"
+    );
+    const docsIndex = await readFile(
+      path.join(repoRoot, "docs", "README.md"),
+      "utf8"
+    );
+    const combined = `${adr}\n${threatModel}\n${implementationGate}\n${gitPlan}\n${shellPlan}\n${docsIndex}`;
+
+    expect(combined).toContain("ADR 0011: Git / Shell Safe Lanes");
+    expect(combined).toContain("fixed read-only lanes");
+    expect(combined).toContain("fixed verification templates");
+    expect(combined).toContain("No arbitrary command input");
+    expect(combined).toContain("No command string passed to shell");
+    expect(combined).toContain("No Git write command");
+    expect(combined).toContain("No shell install command");
+    expect(combined).toContain("No shell network command");
+    expect(combined).toContain("No destructive shell command");
+    expect(combined).toContain("Output is summary-only");
+    expect(combined).toContain("Raw diff, raw stdout, and raw stderr");
+    expect(combined).toContain("EventStore");
+    expect(combined).toContain("Agent evidence refs");
+    expect(combined).toContain("Context volatile tail summaries");
+    expect(combined).toContain("controlled verification UI only");
+    expect(combined).toContain("status_summary");
+    expect(combined).toContain("diff_summary");
+    expect(combined).toContain("log_summary");
+    expect(combined).toContain("branch_summary");
+    expect(combined).toContain("pnpm.typecheck");
+    expect(combined).toContain("pnpm.lint");
+    expect(combined).toContain("pnpm.test.scoped");
+    expect(combined).toContain("cargo.check_tauri");
+    expect(combined).toContain("app.typecheck");
+    expect(combined).toContain("command injection");
+    expect(combined).toContain("shell metacharacters");
+    expect(combined).toMatch(/path\s+traversal/);
+    expect(combined).toContain("unsafe cwd");
+    expect(combined).toContain("Git write command bypass");
+    expect(combined).toContain("output leakage");
+    expect(combined).toMatch(/API key leakage\s+in stdout\/stderr/);
+    expect(combined).toMatch(/raw diff leakage/);
+    expect(combined).toMatch(/long output \/ memory exhaustion/);
+    expect(combined).toContain("process hang");
+    expect(combined).toContain("Windows path issues");
+    expect(combined).toMatch(
+      /workspace symlink \/\s+junction \/ reparse point/
+    );
+    expect(combined).toContain("Every item below must be testable");
+    expect(combined).toContain("command template safety");
+    expect(combined).toContain("argv safety");
+    expect(combined).toContain("cwd safety");
+    expect(combined).toContain("pathspec safety");
+    expect(combined).toContain("output redaction");
+    expect(combined).toContain("timeout safety");
+    expect(combined).toContain("event safety");
+    expect(combined).toContain("replay safety");
+    expect(combined).toContain("UI safety");
+    expect(combined).toContain("boundary checker safety");
+    expect(combined).toContain("No generic Git runner");
+    expect(combined).toContain("No arbitrary shell command");
+    expect(combined).toContain("rawDiffIncluded: false");
+    expect(combined).toContain("rawStdoutIncluded: false");
+    expect(combined).toContain("rawStderrIncluded: false");
+    expect(docsIndex).toContain("adr/0011-git-shell-safe-lanes.md");
+    expect(docsIndex).toContain("git-shell-safe-lanes-threat-model-v0.11.md");
+    expect(docsIndex).toContain(
+      "git-shell-safe-lanes-implementation-gate-v0.11.md"
+    );
+    expect(docsIndex).toContain("p0p-003-git-read-lanes-command-plan.md");
+    expect(docsIndex).toContain(
+      "p0p-004-shell-verification-allowlist-command-plan.md"
+    );
+  });
+
   it("documents the P0L-001 DeepSeek patch proposal ADR and gates without implementation", async () => {
     const adr = await readFile(
       path.join(
