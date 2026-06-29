@@ -54,6 +54,11 @@ Current scope:
   explicit opt-in live proposal adapter support while App Shell live calls, API
   key reads, fetch/network, apply/rollback, approval execution, and event writes
   remain disabled
+- prepare the v0.10 Live Proposal Evaluation RC with golden case schema,
+  offline and explicit opt-in live evaluation runners, failure metrics,
+  read-only App evaluation summaries, and evaluation telemetry audit while App
+  Shell evaluation runs, live calls, API key reads, fetch/network,
+  apply/rollback, approval execution, and event writes remain disabled
 - preview the P0M Live Proposal Opt-in Gate as policy metadata only, with no
   API key read, no environment value read, no vault read, no fetch/network, no
   live DeepSeek call, and no App execution
@@ -69,6 +74,14 @@ Current scope:
 - preview the P0M Live Proposal Telemetry / Redaction Audit as summary-only
   redaction evidence with no raw prompt, raw response, reasoning_content, API
   key, telemetry write, fetch/network, or App execution
+- preview the P0N Live Proposal Evaluation Summary as read-only metrics with
+  no App evaluation run, no App live DeepSeek call, no API key read, no
+  fetch/network, no raw prompt/response/reasoning persistence, and no
+  apply/rollback
+- preview the P0N Live Proposal Evaluation Telemetry Audit as read-only
+  redaction evidence with no raw output, no App evaluation run, no App live
+  DeepSeek call, no telemetry event write, no EventStore write, and no App
+  execution
 
 Current limitations:
 
@@ -121,7 +134,13 @@ Current limitations:
   Redaction Audit is audit-only with no raw prompt persistence, no raw response
   persistence, no reasoning_content persistence, no API key read, no telemetry
   event write, no fetch/network, no Tauri command, no apply/rollback, and no
-  App execution; none of these App surfaces reads or writes files
+  App execution; Live Proposal Evaluation Summary is read-only and accepts
+  pasted summary-only metrics without running evaluation, calling DeepSeek,
+  reading API keys, fetching network, applying patches, rolling back, or writing
+  events; Live Proposal Evaluation Telemetry Audit is read-only and accepts
+  pasted summary-only audit reports without persisting raw prompt, raw response,
+  reasoning_content, API keys, or raw proposal output; none of these App
+  surfaces reads or writes files
 - no validation, audit, approval, virtual apply, rollback, or replay preview is
   an apply/approval/rollback/execution lane
 - no real DeepSeek API call from the desktop shell

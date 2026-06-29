@@ -221,6 +221,25 @@ v0.9 Live DeepSeek Proposal Preview RC references:
 - [P0N Live Proposal Evaluation roadmap](docs/p0n-live-proposal-evaluation-roadmap.md)
 - [P0N-001 Live Proposal Golden Cases plan](docs/p0n-001-live-proposal-golden-cases-plan.md)
 
+## v0.10 Live Proposal Evaluation RC status
+
+Recommended tag:
+`v0.10.0-live-proposal-evaluation-rc.1`.
+
+The P0N live proposal evaluation line adds golden case fixture validation,
+offline fake/dry evaluation, runtime-only explicit opt-in live evaluation,
+failure taxonomy and repair metrics, App read-only evaluation summary display,
+and evaluation telemetry/redaction audit. App Shell surfaces remain read-only
+or disabled-only and cannot run evaluation, call DeepSeek, read API keys, fetch
+network, apply, rollback, approve, reject, issue leases, write events, execute
+Git, execute shell, enable a native bridge, or perform desktop actions.
+
+v0.10 Live Proposal Evaluation RC references:
+
+- [v0.10.0 Live Proposal Evaluation RC release notes](docs/release-notes-v0.10.0-live-proposal-evaluation-rc.1.md)
+- [App Shell Live Proposal Evaluation manual QA](docs/app-shell-live-proposal-evaluation-manual-qa.md)
+- [App Shell Live Proposal Evaluation RC checklist](docs/app-shell-live-proposal-evaluation-rc-checklist.md)
+
 ## Current roadmap
 
 P0F is complete after `v0.2.0-app-shell-rc.1`, P0G is complete after
@@ -235,13 +254,15 @@ projection. P0M is complete after
 `v0.9.0-live-deepseek-proposal-preview-rc.1` with runtime-only explicit opt-in
 live DeepSeek proposal adapter support, summary request building, validation
 integration, App disabled-only gate previews, and telemetry/redaction audit.
-P0N is planned for live proposal evaluation and golden cases. App-side live
-model calls, App API key reads, App fetch/network, model-driven file writes,
-App-side user workspace apply, rollback, approval execution,
-apply/rollback event writes, run execution, Git execution, shell execution,
-broad capability invocation, production PermissionLease issuing, memory
-persistence UI, MCP/plugin/skills runtime, native bridge, and desktop action
-remain deferred.
+P0N is complete after `v0.10.0-live-proposal-evaluation-rc.1` with golden case
+schema validation, offline and explicit opt-in live evaluation runners, failure
+taxonomy and repair metrics, App read-only summary display, and evaluation
+telemetry/redaction audit. App-side live model calls, App evaluation runs, App
+API key reads, App fetch/network, model-driven file writes, App-side user
+workspace apply, rollback, approval execution, apply/rollback event writes,
+run execution, Git execution, shell execution, broad capability invocation,
+production PermissionLease issuing, memory persistence UI, MCP/plugin/skills
+runtime, native bridge, and desktop action remain deferred.
 
 - [v0.2 App Shell RC post-release review](docs/v0.2-app-shell-rc-postrelease-review.md)
 - [P0G Coding Workflow roadmap](docs/p0g-coding-workflow-roadmap.md)

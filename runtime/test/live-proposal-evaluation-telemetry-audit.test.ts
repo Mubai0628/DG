@@ -210,7 +210,9 @@ function failureMetrics(
     liveCaseCount: 1,
     taxonomyMetrics: {
       categories: categories(),
-      filteredCategories: Object.keys(categories()) as LiveProposalGoldenCaseFailureCategory[],
+      filteredCategories: Object.keys(
+        categories()
+      ) as LiveProposalGoldenCaseFailureCategory[],
       totalFailureCategoryCount: 0,
       dominantCategories: [],
       unsafePathBlockedCount: 0,

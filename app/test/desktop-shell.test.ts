@@ -5002,7 +5002,9 @@ describe("app live proposal evaluation telemetry audit surface", () => {
     expect(empty.status).toBe("empty");
     expect(empty.readiness.canEnterRcSummary).toBe(false);
     expect(safe.status).toBe("audit_ready");
-    expect(safe.source).toBe("runtime_live_proposal_evaluation_telemetry_audit");
+    expect(safe.source).toBe(
+      "runtime_live_proposal_evaluation_telemetry_audit"
+    );
     expect(safe.recordCount).toBe(3);
     expect(safe.usageSummary?.totalTokens).toBe(45);
     expect(safe.apiKeyLeakDetected).toBe(false);
@@ -10865,6 +10867,200 @@ describe("desktop source boundaries", () => {
     expect(appSource).not.toContain("Create Run works");
     expect(appSource).not.toContain("Execute Run works");
     expect(appSource).not.toContain("Enable native bridge");
+    expect(appSource).not.toContain("handleCallDeepSeek");
+    expect(appSource).not.toContain("handleSendLiveProposalRequest");
+    expect(appSource).not.toContain("handleReadDeepSeekApiKey");
+    expect(appSource).not.toContain("handleFetchLiveProposal");
+    expect(appSource).not.toContain("handleApplyLiveProposal");
+    expect(appSource).not.toContain("handleRollbackLiveProposal");
+    expect(appSource).not.toContain("handleWriteLiveProposalEvents");
+    expect(appSource).not.toContain("handleApproveLiveProposal");
+    expect(appSource).not.toContain("handleRejectLiveProposal");
+    expect(appSource).not.toContain("handleCommitLiveProposal");
+    expect(appSource).not.toContain("handleExecuteLiveProposal");
+  });
+
+  it("documents the v0.10 live proposal evaluation RC without enabling App evaluation", async () => {
+    const releaseNotes = await readFile(
+      path.join(
+        repoRoot,
+        "docs",
+        "release-notes-v0.10.0-live-proposal-evaluation-rc.1.md"
+      ),
+      "utf8"
+    );
+    const manualQa = await readFile(
+      path.join(
+        repoRoot,
+        "docs",
+        "app-shell-live-proposal-evaluation-manual-qa.md"
+      ),
+      "utf8"
+    );
+    const checklist = await readFile(
+      path.join(
+        repoRoot,
+        "docs",
+        "app-shell-live-proposal-evaluation-rc-checklist.md"
+      ),
+      "utf8"
+    );
+    const docsIndex = await readFile(
+      path.join(repoRoot, "docs", "README.md"),
+      "utf8"
+    );
+    const rootReadme = await readFile(path.join(repoRoot, "README.md"), "utf8");
+    const appReadme = await readFile(path.join(appRoot, "README.md"), "utf8");
+    const combined = `${releaseNotes}\n${manualQa}\n${checklist}\n${docsIndex}\n${rootReadme}\n${appReadme}`;
+
+    expect(releaseNotes).toContain("v0.10.0-live-proposal-evaluation-rc.1");
+    expect(releaseNotes).toContain(
+      "Live proposal evaluation and golden cases, no App execution"
+    );
+    expect(combined).toContain("v0.9 live DeepSeek proposal adapter");
+    expect(combined).toContain("P0N Live Proposal Golden Cases ADR/design");
+    expect(combined).toContain("Golden Case Fixture Schema");
+    expect(combined).toContain("Offline Evaluation Runner");
+    expect(combined).toContain("Live Evaluation Runner");
+    expect(combined).toContain("Failure Taxonomy and Repair Metrics");
+    expect(combined).toContain("App Evaluation Summary Surface");
+    expect(combined).toContain("Evaluation Telemetry / Redaction Audit");
+    expect(combined).toContain("web_table_to_csv");
+    expect(combined).toContain("Record Draft Event");
+    expect(combined).toContain(
+      "Runtime can validate live proposal golden cases"
+    );
+    expect(combined).toContain("offline fake/dry evaluations");
+    expect(combined).toContain("explicit opt-in live evaluations");
+    expect(combined).toContain("injected resolver");
+    expect(combined).toContain("injected transport");
+    expect(combined).toContain("failure taxonomy");
+    expect(combined).toContain(
+      "repair, schema, expectation, and usage metrics"
+    );
+    expect(combined).toContain(
+      "App Shell does not run evaluation, call DeepSeek"
+    );
+    expect(combined).toContain("No App-side live DeepSeek call");
+    expect(combined).toContain("No App-side evaluation runner");
+    expect(combined).toContain("No App API key read");
+    expect(combined).toContain("No App fetch/network");
+    expect(combined).toContain("No autonomous DeepSeek coding loop");
+    expect(combined).toContain("No real DeepSeek chat UI");
+    expect(combined).toContain("No real ControlPlaneRun execution");
+    expect(combined).toContain("No App-side user workspace patch apply");
+    expect(combined).toContain("No App-side rollback");
+    expect(combined).toContain("No App-side apply/rollback EventStore write");
+    expect(combined).toContain("No App approval/rejection execution");
+    expect(combined).toContain("No production PermissionLease issuance");
+    expect(combined).toContain("No Git commit or push");
+    expect(combined).toContain("No shell execution");
+    expect(combined).toContain("No capability invocation");
+    expect(combined).toContain("No MCP/plugin/skills runtime");
+    expect(combined).toContain("No `nativeMessaging` or live bridge");
+    expect(combined).toContain("No desktop action");
+    expect(combined).toContain("Golden cases are summary-only");
+    expect(combined).toContain(
+      "Raw prompt, raw response, and reasoning_content are not persisted"
+    );
+    expect(combined).toContain("Live evaluation requires explicit opt-in");
+    expect(combined).toContain("There is no default environment read");
+    expect(combined).toContain("There is no default fetch/network path");
+    expect(combined).toContain(
+      "Usage is recorded as safe numeric summary only"
+    );
+    expect(combined).toContain("Telemetry / Redaction Audit blocks raw output");
+    expect(combined).toContain("git status --short");
+    expect(combined).toContain("pnpm verify:ci");
+    expect(combined).toContain("pnpm release:smoke");
+    expect(combined).toContain("pnpm app:qa:check");
+    expect(combined).toContain("pnpm app:dev");
+    expect(combined).toContain("D:\\workspaces\\demo");
+    expect(combined).toContain("web-table-export-p0n.csv");
+    expect(combined).toContain("Live Proposal Evaluation Summary");
+    expect(combined).toContain("Live Proposal Evaluation Telemetry Audit");
+    expect(combined).toContain("no App evaluation run");
+    expect(combined).toContain("no App live DeepSeek call");
+    expect(combined).toContain("no API key input");
+    expect(combined).toContain("no fetch/network");
+    expect(combined).toContain("no raw prompt/response/reasoning displayed");
+    expect(combined).toContain("FILE_EXISTS");
+    expect(combined).toContain("PASSWORD_VALUE_MARKER");
+    expect(combined).toContain("GitHub Actions");
+    expect(combined).toContain("Generated Artifacts");
+    expect(combined).toContain("Rollback Guidance");
+    expect(combined).toContain("full docs path links");
+    expect(combined).toContain(
+      "release-notes-v0.10.0-live-proposal-evaluation-rc.1.md"
+    );
+    expect(combined).toContain(
+      "app-shell-live-proposal-evaluation-manual-qa.md"
+    );
+    expect(combined).toContain(
+      "app-shell-live-proposal-evaluation-rc-checklist.md"
+    );
+  });
+
+  it("locks v0.10 App Shell copy as read-only evaluation preview", async () => {
+    const appSource = await readFile(
+      path.join(appRoot, "src", "App.tsx"),
+      "utf8"
+    );
+    const normalizedAppSource = appSource.replace(/\s+/g, " ");
+
+    expect(appSource).toContain("Live Proposal Evaluation Summary");
+    expect(appSource).toContain("Read-only / no live call");
+    expect(normalizedAppSource).toContain(
+      "The App Shell does not run evaluation, call DeepSeek, read API keys, fetch network, apply patches, rollback, or write events."
+    );
+    expect(appSource).toContain("Live Proposal Evaluation Telemetry Audit");
+    expect(appSource).toContain("Read-only / no raw output");
+    expect(normalizedAppSource).toContain(
+      "The App Shell does not run evaluation, call DeepSeek, fetch network, apply patches, rollback, or write events."
+    );
+    expect(appSource).toContain("Run Evaluation (disabled)");
+    expect(appSource).toContain("Call DeepSeek for Evaluation (disabled)");
+    expect(appSource).toContain("Run Telemetry Audit (disabled)");
+    expect(appSource).toContain("Write Telemetry Event (disabled)");
+    expect(appSource).toContain("Policy only / no API key read");
+    expect(appSource).toContain("Request preview / no network");
+    expect(appSource).toContain("The App Shell does not send live requests.");
+    expect(appSource).toContain("Summary only / no execution");
+    expect(appSource).toContain("Disabled by default / no App live call");
+    expect(appSource).toContain("Summary only / no raw prompt");
+    expect(appSource).toContain("Preview only / no model call");
+    expect(appSource).toContain("Preview chain / no execution");
+    expect(appSource).toContain("Disabled by default / runtime prototype only");
+    expect(appSource).toContain("Runtime only / App write disabled");
+    expect(appSource).toContain("Design only / disabled");
+    expect(appSource).toContain(
+      "No prompt is assembled and no model request is sent."
+    );
+    expect(appSource).toMatch(
+      /No\s+capability\s+is\s+invoked\s+and\s+no\s+permission\s+lease\s+is\s+issued\./
+    );
+    expect(appSource).toContain("Event log events");
+    expect(appSource).toContain("Source-tree mode");
+    expect(appSource).toContain("No native bridge");
+    expect(appSource).not.toMatch(/>\s*Run Evaluation\s*</);
+    expect(appSource).not.toMatch(/>\s*Call DeepSeek\s*</);
+    expect(appSource).not.toMatch(/>\s*Send Live Proposal Request\s*</);
+    expect(appSource).not.toMatch(/>\s*Apply\s*</);
+    expect(appSource).not.toMatch(/>\s*Rollback\s*</);
+    expect(appSource).not.toMatch(/>\s*Write Events\s*</);
+    expect(appSource).not.toMatch(/>\s*Approve\s*</);
+    expect(appSource).not.toMatch(/>\s*Reject\s*</);
+    expect(appSource).not.toMatch(/>\s*Commit\s*</);
+    expect(appSource).not.toMatch(/>\s*Execute\s*</);
+    expect(appSource).not.toContain("DeepSeek chat works");
+    expect(appSource).not.toContain("Run live evaluation");
+    expect(appSource).not.toContain("Generate Live DeepSeek Proposal");
+    expect(appSource).not.toContain("Read DeepSeek API Key");
+    expect(appSource).not.toContain("Fetch Live DeepSeek Proposal");
+    expect(appSource).not.toContain("Create Run works");
+    expect(appSource).not.toContain("Execute Run works");
+    expect(appSource).not.toContain("Enable native bridge");
+    expect(appSource).not.toContain("handleRunEvaluation");
     expect(appSource).not.toContain("handleCallDeepSeek");
     expect(appSource).not.toContain("handleSendLiveProposalRequest");
     expect(appSource).not.toContain("handleReadDeepSeekApiKey");

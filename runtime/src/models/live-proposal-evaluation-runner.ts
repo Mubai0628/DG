@@ -20,8 +20,7 @@ import {
 import {
   buildLiveProposalTelemetryRedactionAudit,
   summarizeLiveProposalTelemetryRedactionAudit,
-  type LiveProposalTelemetryRedactionAudit,
-  type LiveProposalTelemetryUsageSummary
+  type LiveProposalTelemetryRedactionAudit
 } from "./live-proposal-telemetry-redaction-audit.js";
 import {
   buildLiveProposalValidationIntegration,

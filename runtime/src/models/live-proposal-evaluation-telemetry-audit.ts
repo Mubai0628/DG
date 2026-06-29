@@ -464,7 +464,9 @@ function buildRecords(
   }
   const records: LiveProposalEvaluationTelemetryRecord[] = [];
   for (const report of input.offlineEvaluationReports ?? []) {
-    records.push(artifactRecord("offline_evaluation_summary", report, findings));
+    records.push(
+      artifactRecord("offline_evaluation_summary", report, findings)
+    );
   }
   for (const report of input.liveEvaluationReports ?? []) {
     records.push(artifactRecord("live_evaluation_summary", report, findings));
@@ -555,8 +557,7 @@ function redactionRecord(
   const summary = redactionSummaryFrom(input, findings);
   const relevant = findings.filter(
     (findingItem) =>
-      findingItem.kind === "redaction" ||
-      findingItem.kind === "raw_leak_scan"
+      findingItem.kind === "redaction" || findingItem.kind === "raw_leak_scan"
   );
   return record({
     kind: "redaction_summary",
@@ -685,7 +686,11 @@ function validateOptionalTelemetryRecords(
       const kind = asRecord(recordItem)?.kind;
       if (typeof kind === "string" && !recordKinds.has(kind as never)) {
         findings.push(
-          finding("telemetry_record", "blocker", "UNKNOWN_TELEMETRY_RECORD_KIND")
+          finding(
+            "telemetry_record",
+            "blocker",
+            "UNKNOWN_TELEMETRY_RECORD_KIND"
+          )
         );
       }
     }
@@ -735,7 +740,9 @@ function addWarnings(
   if (aggregateUsage(input) === undefined) {
     findings.push(finding("usage_summary", "warning", "NO_USAGE_SUMMARY"));
   }
-  if ((input.liveEvaluationReports ?? []).some((item) => item.usedLiveNetwork)) {
+  if (
+    (input.liveEvaluationReports ?? []).some((item) => item.usedLiveNetwork)
+  ) {
     findings.push(
       finding("live_evaluation_summary", "warning", "LIVE_REPORT_USED_NETWORK")
     );
@@ -752,13 +759,15 @@ function addWarnings(
     );
   }
   if (counts.apiKeyLeakCount > 0) {
-    findings.push(
-      finding("raw_leak_scan", "warning", "API_KEY_LEAK_DETECTED")
-    );
+    findings.push(finding("raw_leak_scan", "warning", "API_KEY_LEAK_DETECTED"));
   }
   if (failedExpectationCount(input) > 0) {
     findings.push(
-      finding("failure_metrics_summary", "warning", "FAILED_EXPECTATIONS_PRESENT")
+      finding(
+        "failure_metrics_summary",
+        "warning",
+        "FAILED_EXPECTATIONS_PRESENT"
+      )
     );
   }
   if (artifactBlockerCount(input) > 0) {
@@ -787,7 +796,9 @@ function scanObject(
       }
     }
     if (looksLikeLongToken(value)) {
-      findings.push(finding("redaction", "blocker", "TOKEN_LIKE_VALUE_REJECTED"));
+      findings.push(
+        finding("redaction", "blocker", "TOKEN_LIKE_VALUE_REJECTED")
+      );
     }
     return;
   }
@@ -818,11 +829,7 @@ function scanObject(
     }
     if (executionReadinessKeys.has(normalizedKey) && nestedValue === true) {
       findings.push(
-        finding(
-          "readiness",
-          "blocker",
-          "EXECUTION_READINESS_TRUE_REJECTED"
-        )
+        finding("readiness", "blocker", "EXECUTION_READINESS_TRUE_REJECTED")
       );
     }
     scanObject(nestedValue, findings, seen);
@@ -920,7 +927,9 @@ function aggregateUsage(
 
 function mergeUsage(
   target: LiveProposalEvaluationUsageTelemetrySummary,
-  usage: LiveProposalOfflineEvaluationUsageSummary | LiveProposalEvaluationUsageSummary
+  usage:
+    | LiveProposalOfflineEvaluationUsageSummary
+    | LiveProposalEvaluationUsageSummary
 ): void {
   target.requestCount += usage.requestCount ?? 0;
   target.responseCount += usage.responseCount ?? 0;
@@ -1036,7 +1045,9 @@ function leakCountsFrom(input: LiveProposalEvaluationTelemetryAuditInput): {
     if (recordValue?.apiKeyLeakDetected === true) {
       apiKeyLeakCount += 1;
     }
-    const taxonomy = asRecord(recordValue?.taxonomySummary) ?? asRecord(recordValue?.taxonomyMetrics);
+    const taxonomy =
+      asRecord(recordValue?.taxonomySummary) ??
+      asRecord(recordValue?.taxonomyMetrics);
     const categories = asRecord(taxonomy?.categories);
     rawLeakCount += safeNumber(categories?.raw_content_leak);
     reasoningLeakCount += safeNumber(categories?.reasoning_content_leak);
@@ -1060,7 +1071,9 @@ function redactedFieldCountFrom(
   for (const artifact of artifacts(input)) {
     const recordValue = asRecord(artifact.value);
     count += safeNumber(recordValue?.redactedFieldCount);
-    count += safeNumber(asRecord(recordValue?.redactionSummary)?.redactedFieldCount);
+    count += safeNumber(
+      asRecord(recordValue?.redactionSummary)?.redactedFieldCount
+    );
   }
   return count;
 }
@@ -1072,8 +1085,12 @@ function failedExpectationCount(
   for (const artifact of artifacts(input)) {
     const recordValue = asRecord(artifact.value);
     count += safeNumber(recordValue?.failedExpectationCount);
-    count += safeNumber(asRecord(recordValue?.expectationMetrics)?.failedExpectationCount);
-    count += safeNumber(asRecord(recordValue?.passWarnBlockSummary)?.failedExpectationCount);
+    count += safeNumber(
+      asRecord(recordValue?.expectationMetrics)?.failedExpectationCount
+    );
+    count += safeNumber(
+      asRecord(recordValue?.passWarnBlockSummary)?.failedExpectationCount
+    );
   }
   return count;
 }
@@ -1115,7 +1132,9 @@ function artifacts(input: LiveProposalEvaluationTelemetryAuditInput): Array<{
   ];
 }
 
-function hasAnyArtifact(input: LiveProposalEvaluationTelemetryAuditInput): boolean {
+function hasAnyArtifact(
+  input: LiveProposalEvaluationTelemetryAuditInput
+): boolean {
   return artifacts(input).length > 0;
 }
 
@@ -1299,7 +1318,8 @@ function safeMessageFor(code: string): string {
   const messages: Record<string, string> = {
     UNKNOWN_AUDIT_MODE: "Evaluation telemetry audit mode is unsupported.",
     AUDIT_MODE_DISABLED: "Evaluation telemetry audit mode is disabled.",
-    UNKNOWN_SUMMARY_SOURCE: "Evaluation telemetry artifact source is unsupported.",
+    UNKNOWN_SUMMARY_SOURCE:
+      "Evaluation telemetry artifact source is unsupported.",
     UNKNOWN_TELEMETRY_RECORD_KIND:
       "Evaluation telemetry record kind is unsupported.",
     DUPLICATE_REPORT_ID_CONFLICT:
@@ -1331,18 +1351,23 @@ function safeMessageFor(code: string): string {
     RAW_DIFF_MARKER: "Raw diff marker was rejected.",
     REASONING_CONTENT_MARKER: "reasoning_content marker was rejected.",
     TOKEN_LIKE_VALUE_REJECTED: "Long token-like value was rejected.",
-    EXECUTION_READINESS_TRUE_REJECTED:
-      "Execution readiness must remain false."
+    EXECUTION_READINESS_TRUE_REJECTED: "Execution readiness must remain false."
   };
   return messages[code] ?? "Evaluation telemetry audit finding.";
 }
 
 function safeSummaryText(value: string): string {
-  return value.replace(/[\r\n\t]+/g, " ").trim().slice(0, 240);
+  return value
+    .replace(/[\r\n\t]+/g, " ")
+    .trim()
+    .slice(0, 240);
 }
 
 function safeCode(value: string): string {
-  return value.replace(/[^A-Z0-9_]/gi, "_").toUpperCase().slice(0, 120);
+  return value
+    .replace(/[^A-Z0-9_]/gi, "_")
+    .toUpperCase()
+    .slice(0, 120);
 }
 
 function safeString(value: unknown, fallback: string): string {

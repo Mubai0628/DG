@@ -4007,8 +4007,9 @@ export function DesktopShell(): JSX.Element {
                 <dd>
                   {displayedLiveProposalEvaluationSummary.taxonomySummary
                     .dominantCategories.length > 0
-                    ? displayedLiveProposalEvaluationSummary.taxonomySummary
-                        .dominantCategories.join(", ")
+                    ? displayedLiveProposalEvaluationSummary.taxonomySummary.dominantCategories.join(
+                        ", "
+                      )
                     : "none"}
                 </dd>
               </div>
@@ -4188,7 +4189,9 @@ export function DesktopShell(): JSX.Element {
             "blocked" ? (
               <div className="errorBox">
                 <strong>Evaluation telemetry audit blocked</strong>
-                <p>{displayedLiveProposalEvaluationTelemetryAudit.nextAction}</p>
+                <p>
+                  {displayedLiveProposalEvaluationTelemetryAudit.nextAction}
+                </p>
               </div>
             ) : null}
 
@@ -4203,54 +4206,54 @@ export function DesktopShell(): JSX.Element {
               </div>
               <div>
                 <dt>Records</dt>
-                <dd>{displayedLiveProposalEvaluationTelemetryAudit.recordCount}</dd>
+                <dd>
+                  {displayedLiveProposalEvaluationTelemetryAudit.recordCount}
+                </dd>
               </div>
               <div>
                 <dt>Offline / live reports</dt>
                 <dd>
                   {
-                    displayedLiveProposalEvaluationTelemetryAudit
-                      .offlineReportCount
+                    displayedLiveProposalEvaluationTelemetryAudit.offlineReportCount
                   }{" "}
                   /{" "}
-                  {displayedLiveProposalEvaluationTelemetryAudit.liveReportCount}
+                  {
+                    displayedLiveProposalEvaluationTelemetryAudit.liveReportCount
+                  }
                 </dd>
               </div>
               <div>
                 <dt>Metrics / App summaries</dt>
                 <dd>
                   {
-                    displayedLiveProposalEvaluationTelemetryAudit
-                      .metricsReportCount
+                    displayedLiveProposalEvaluationTelemetryAudit.metricsReportCount
                   }{" "}
                   /{" "}
-                  {displayedLiveProposalEvaluationTelemetryAudit.appSummaryCount}
+                  {
+                    displayedLiveProposalEvaluationTelemetryAudit.appSummaryCount
+                  }
                 </dd>
               </div>
               <div>
                 <dt>Raw / redacted fields</dt>
                 <dd>
                   {
-                    displayedLiveProposalEvaluationTelemetryAudit
-                      .rawFieldDetectedCount
+                    displayedLiveProposalEvaluationTelemetryAudit.rawFieldDetectedCount
                   }{" "}
                   /{" "}
                   {
-                    displayedLiveProposalEvaluationTelemetryAudit
-                      .redactedFieldCount
+                    displayedLiveProposalEvaluationTelemetryAudit.redactedFieldCount
                   }
                 </dd>
               </div>
               <div>
                 <dt>Key / prompt leak</dt>
                 <dd>
-                  {displayedLiveProposalEvaluationTelemetryAudit
-                    .apiKeyLeakDetected
+                  {displayedLiveProposalEvaluationTelemetryAudit.apiKeyLeakDetected
                     ? "yes"
                     : "no"}{" "}
                   /{" "}
-                  {displayedLiveProposalEvaluationTelemetryAudit
-                    .rawPromptDetected
+                  {displayedLiveProposalEvaluationTelemetryAudit.rawPromptDetected
                     ? "yes"
                     : "no"}
                 </dd>
@@ -4258,13 +4261,11 @@ export function DesktopShell(): JSX.Element {
               <div>
                 <dt>Response / reasoning persisted</dt>
                 <dd>
-                  {displayedLiveProposalEvaluationTelemetryAudit
-                    .rawResponseDetected
+                  {displayedLiveProposalEvaluationTelemetryAudit.rawResponseDetected
                     ? "yes"
                     : "no"}{" "}
                   /{" "}
-                  {displayedLiveProposalEvaluationTelemetryAudit
-                    .reasoningContentPersisted
+                  {displayedLiveProposalEvaluationTelemetryAudit.reasoningContentPersisted
                     ? "yes"
                     : "no"}
                 </dd>
@@ -4288,7 +4289,9 @@ export function DesktopShell(): JSX.Element {
               <div>
                 <dt>Hash</dt>
                 <dd>
-                  {displayedLiveProposalEvaluationTelemetryAudit.auditHashPrefix}
+                  {
+                    displayedLiveProposalEvaluationTelemetryAudit.auditHashPrefix
+                  }
                 </dd>
               </div>
               <div>

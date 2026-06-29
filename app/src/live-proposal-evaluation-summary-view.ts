@@ -362,7 +362,11 @@ export function buildLiveProposalEvaluationSummaryView(
     offlineCaseCount: readCount(parsed.value, "offlineCaseCount"),
     liveCaseCount: readCount(parsed.value, "liveCaseCount"),
     passWarnBlockSummary: readPassWarnBlock(parsed.value),
-    schemaPassRate: readRateFrom(parsed.value, "schemaMetrics", "schemaPassRate"),
+    schemaPassRate: readRateFrom(
+      parsed.value,
+      "schemaMetrics",
+      "schemaPassRate"
+    ),
     repairSuccessRate: readRateFrom(
       parsed.value,
       "repairMetrics",
@@ -445,7 +449,9 @@ function viewFrom(args: {
     schemaPassRate: args.schemaPassRate,
     repairSuccessRate: args.repairSuccessRate,
     taxonomySummary: args.taxonomySummary,
-    ...(args.usageSummary !== undefined ? { usageSummary: args.usageSummary } : {}),
+    ...(args.usageSummary !== undefined
+      ? { usageSummary: args.usageSummary }
+      : {}),
     findingSummary: {
       blockerCodes: args.findings
         .filter((findingItem) => findingItem.severity === "blocker")
@@ -689,11 +695,7 @@ function addSummaryWarnings(
       )
     );
   }
-  const repairRate = readRateFrom(
-    value,
-    "repairMetrics",
-    "repairSuccessRate"
-  );
+  const repairRate = readRateFrom(value, "repairMetrics", "repairSuccessRate");
   if (repairRate !== undefined && repairRate < 0.8) {
     findings.push(
       finding(
@@ -737,14 +739,19 @@ function readTaxonomySummary(
     }
   }
   const explicitTotal =
-    numberValue(recordValue(value, "taxonomyMetrics"), "totalFailureCategoryCount") ??
-    numberValue(recordValue(value, "taxonomySummary"), "totalFailureCategoryCount");
+    numberValue(
+      recordValue(value, "taxonomyMetrics"),
+      "totalFailureCategoryCount"
+    ) ??
+    numberValue(
+      recordValue(value, "taxonomySummary"),
+      "totalFailureCategoryCount"
+    );
   const total =
     explicitTotal ??
     taxonomyCategories.reduce((sum, category) => sum + categories[category], 0);
-  const dominantCategories = readDominantCategories(value).filter(
-    isTaxonomyCategory
-  );
+  const dominantCategories =
+    readDominantCategories(value).filter(isTaxonomyCategory);
   return {
     categories,
     totalFailureCategoryCount: finiteNumber(total),
@@ -797,9 +804,7 @@ function readTaxonomyRecord(
   );
 }
 
-function readDominantCategories(
-  value: Record<string, unknown>
-): string[] {
+function readDominantCategories(value: Record<string, unknown>): string[] {
   const taxonomyMetrics = recordValue(value, "taxonomyMetrics");
   const taxonomySummary = recordValue(value, "taxonomySummary");
   const raw =
@@ -812,7 +817,9 @@ function readDominantCategories(
 function readUsageRecord(
   value: Record<string, unknown>
 ): Record<string, unknown> | undefined {
-  return recordValue(value, "usageMetrics") ?? recordValue(value, "usageSummary");
+  return (
+    recordValue(value, "usageMetrics") ?? recordValue(value, "usageSummary")
+  );
 }
 
 function readCount(value: Record<string, unknown>, key: string): number {
@@ -824,7 +831,10 @@ function readRateFrom(
   recordKey: string,
   rateKey: string
 ): number | undefined {
-  return numberValue(recordValue(value, recordKey), rateKey) ?? numberValue(value, rateKey);
+  return (
+    numberValue(recordValue(value, recordKey), rateKey) ??
+    numberValue(value, rateKey)
+  );
 }
 
 function recordValue(
@@ -895,7 +905,9 @@ function emptyTaxonomyCategories(): Record<
   ) as Record<LiveProposalEvaluationFailureCategory, number>;
 }
 
-function safeSummarySeed(value: Record<string, unknown>): Record<string, unknown> {
+function safeSummarySeed(
+  value: Record<string, unknown>
+): Record<string, unknown> {
   return {
     reportCount: readCount(value, "reportCount"),
     caseCount: readCount(value, "caseCount"),
@@ -903,7 +915,11 @@ function safeSummarySeed(value: Record<string, unknown>): Record<string, unknown
     liveCaseCount: readCount(value, "liveCaseCount"),
     passWarnBlock: readPassWarnBlock(value),
     schemaPassRate: readRateFrom(value, "schemaMetrics", "schemaPassRate"),
-    repairSuccessRate: readRateFrom(value, "repairMetrics", "repairSuccessRate"),
+    repairSuccessRate: readRateFrom(
+      value,
+      "repairMetrics",
+      "repairSuccessRate"
+    ),
     taxonomy: readTaxonomySummary(value),
     usage: readUsageSummary(value),
     metricsHash:

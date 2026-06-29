@@ -5,7 +5,6 @@ import { describe, expect, it } from "vitest";
 import {
   buildLiveProposalApiKeyPolicy,
   runLiveProposalEvaluation,
-  runLiveProposalEvaluationCase,
   summarizeLiveProposalEvaluationReport,
   validateLiveProposalEvaluationInput,
   type LiveDeepSeekApiKeyResolver,

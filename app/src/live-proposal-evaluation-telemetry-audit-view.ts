@@ -160,9 +160,9 @@ function parseSummaryJson(text: string): JsonParseResult {
   }
 }
 
-function inputFromSummaryArtifact(value: Record<string, unknown>): Parameters<
-  typeof buildLiveProposalEvaluationTelemetryAudit
->[0] {
+function inputFromSummaryArtifact(
+  value: Record<string, unknown>
+): Parameters<typeof buildLiveProposalEvaluationTelemetryAudit>[0] {
   if (Array.isArray(value.offlineEvaluationReports)) {
     return {
       offlineEvaluationReports: value.offlineEvaluationReports as never[],
@@ -249,19 +249,20 @@ function viewFromReport(
 function coerceAuditReport(
   value: Record<string, unknown>
 ): LiveProposalEvaluationTelemetryAuditReport {
-  const redactionSummary: LiveProposalEvaluationTelemetryAuditReport["redactionSummary"] = isRecord(value.redactionSummary)
-    ? (value.redactionSummary as LiveProposalEvaluationTelemetryAuditReport["redactionSummary"])
-    : {
-        redactedFieldCount: 0,
-        rawFieldDetectedCount: 0,
-        apiKeyLeakDetected: false,
-        rawPromptDetected: false,
-        rawResponseDetected: false,
-        reasoningContentPersisted: false,
-        rawSourceDetected: false,
-        rawDiffDetected: false,
-        outputSummaryOnly: true
-      };
+  const redactionSummary: LiveProposalEvaluationTelemetryAuditReport["redactionSummary"] =
+    isRecord(value.redactionSummary)
+      ? (value.redactionSummary as LiveProposalEvaluationTelemetryAuditReport["redactionSummary"])
+      : {
+          redactedFieldCount: 0,
+          rawFieldDetectedCount: 0,
+          apiKeyLeakDetected: false,
+          rawPromptDetected: false,
+          rawResponseDetected: false,
+          reasoningContentPersisted: false,
+          rawSourceDetected: false,
+          rawDiffDetected: false,
+          outputSummaryOnly: true
+        };
   return {
     status: safeAuditStatus(value.status),
     auditId: safeText(value.auditId, "pasted-evaluation-telemetry-audit"),
@@ -421,7 +422,9 @@ function containsUnsafeTextMarker(value: string): boolean {
     : false;
 }
 
-function safeAuditStatus(value: unknown): LiveProposalEvaluationTelemetryAuditStatus {
+function safeAuditStatus(
+  value: unknown
+): LiveProposalEvaluationTelemetryAuditStatus {
   return value === "audit_ready" ||
     value === "warning" ||
     value === "blocked" ||
