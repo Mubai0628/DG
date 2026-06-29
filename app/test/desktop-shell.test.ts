@@ -7,6 +7,7 @@ import { afterEach, describe, expect, it } from "vitest";
 
 import {
   checkDesktopRunnerPreflight,
+  applyApprovedUserWorkspacePatch,
   invokeAllowedCommand,
   isAllowedDesktopCommand,
   loadWorkspaceEventSummary,
@@ -702,7 +703,81 @@ describe("desktop command wrapper", () => {
     expect(isAllowedDesktopCommand("record_control_run_draft_event")).toBe(
       true
     );
+    expect(isAllowedDesktopCommand("apply_approved_user_workspace_patch")).toBe(
+      true
+    );
     expect(isAllowedDesktopCommand("run_web_table_to_csv_flow")).toBe(true);
+  });
+
+  it("calls approved apply only through the fixed wrapper and normalizes summary result", async () => {
+    const invoke: TauriInvoke = async (command, args) => {
+      expect(command).toBe("apply_approved_user_workspace_patch");
+      expect(args).toMatchObject({
+        request: {
+          workspaceRoot: "D:\\workspace",
+          workspaceRootRef: "workspace-ref-test",
+          maxFiles: 1,
+          maxBytes: 4096
+        }
+      });
+      return {
+        ok: true,
+        applyId: "approved-apply-1",
+        checkpointId: "checkpoint-1",
+        workspaceRootRef: "workspace-ref-test",
+        operationCount: 1,
+        filesCreated: 1,
+        filesUpdated: 0,
+        filesDeleted: 0,
+        bytesWritten: 12,
+        warningCodes: [],
+        inputSnapshotHash: "input-hash",
+        outputSnapshotHash: "output-hash",
+        resultHash: "result-hash",
+        eventPreview: {
+          type: "user_workspace.patch_apply.approved_result",
+          applyId: "approved-apply-1",
+          checkpointId: "checkpoint-1",
+          workspaceRootRef: "workspace-ref-test",
+          operationCount: 1,
+          filesCreated: 1,
+          filesUpdated: 0,
+          filesDeleted: 0,
+          bytesWritten: 12,
+          resultHash: "result-hash",
+          warningCodes: [],
+          notWritten: true
+        },
+        safeMessage:
+          "Approved user workspace apply completed with a summary-only result. Event preview was not written."
+      } as never;
+    };
+
+    const result = await applyApprovedUserWorkspacePatch(
+      {
+        workspaceRoot: "D:\\workspace",
+        workspaceRootRef: "workspace-ref-test",
+        receipt: { status: "ready" },
+        operations: [
+          {
+            path: "src/file.ts",
+            changeKind: "create",
+            content: "safe content"
+          }
+        ],
+        proposalSummary: { proposalId: "proposal-1" },
+        validationSummary: { validationId: "validation-1" },
+        auditSummary: { auditId: "audit-1" },
+        approvalSummary: { approvalDraftId: "approval-1" },
+        maxFiles: 1,
+        maxBytes: 4096
+      },
+      invoke
+    );
+
+    expect(result.ok).toBe(true);
+    expect(result.eventPreview.notWritten).toBe(true);
+    expect(JSON.stringify(result)).not.toContain("safe content");
   });
 
   it("reads runner preflight through the fixed command", async () => {
@@ -8369,7 +8444,12 @@ describe("app user workspace apply rollback event writer", () => {
     expect(adapterSource).not.toContain("writeFile");
     expect(adapterSource).not.toContain("localStorage");
     expect(adapterSource).not.toContain("sessionStorage");
-    expect(desktopFlowSource).not.toContain("user_workspace.patch_apply");
+    expect(desktopFlowSource).toContain(
+      "user_workspace.patch_apply.approved_result"
+    );
+    expect(desktopFlowSource).not.toContain(
+      "writeUserWorkspaceApplyRollbackEvents"
+    );
     expect(desktopFlowSource).not.toContain("user_workspace.patch_rollback");
   });
 });
@@ -11910,6 +11990,41 @@ describe("desktop source boundaries", () => {
       "app-approved-execution-implementation-gate-v0.10.md"
     );
     expect(docsIndex).toContain("p0o-003-app-approval-receipt-plan.md");
+  });
+
+  it("documents the P0O-004 approved apply command as narrow and summary-only", async () => {
+    const applyDoc = await readFile(
+      path.join(
+        repoRoot,
+        "docs",
+        "app-approved-user-workspace-apply-command-v0.11.md"
+      ),
+      "utf8"
+    );
+    const docsIndex = await readFile(
+      path.join(repoRoot, "docs", "README.md"),
+      "utf8"
+    );
+    const combined = `${applyDoc}\n${docsIndex}`;
+
+    expect(combined).toContain("apply_approved_user_workspace_patch");
+    expect(combined).toContain("Fixed Tauri command only");
+    expect(combined).toContain("APPLY TO USER WORKSPACE");
+    expect(combined).toContain("Blocks absolute paths");
+    expect(combined).toContain("symlink / reparse escape");
+    expect(combined).toContain("summary-only result");
+    expect(combined).toContain("eventPreview");
+    expect(combined).toContain("notWritten: true");
+    expect(combined).toContain("No EventStore write");
+    expect(combined).toContain("No rollback command yet");
+    expect(combined).toContain("No Git or shell execution");
+    expect(combined).toContain("No PermissionLease issuing");
+    expect(combined).toContain("No raw content");
+    expect(combined).toContain("No native bridge");
+    expect(combined).toContain("No desktop action");
+    expect(docsIndex).toContain(
+      "app-approved-user-workspace-apply-command-v0.11.md"
+    );
   });
 
   it("documents the P0L-001 DeepSeek patch proposal ADR and gates without implementation", async () => {

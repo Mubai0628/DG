@@ -5,6 +5,7 @@ fn main() {
         .invoke_handler(tauri::generate_handler![
             commands::check_runner_preflight,
             commands::get_app_version,
+            commands::apply_approved_user_workspace_patch,
             commands::load_workspace_event_summary,
             commands::record_control_run_draft_event,
             commands::run_web_table_to_csv_flow
