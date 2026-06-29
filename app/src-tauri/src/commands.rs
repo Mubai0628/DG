@@ -16,6 +16,7 @@ const MAX_EVENT_LOG_BYTES: u64 = 2_000_000;
 const RUNNER_TIMEOUT: Duration = Duration::from_secs(60);
 const PREFLIGHT_TIMEOUT: Duration = Duration::from_secs(5);
 const APPLY_CONFIRMATION: &str = "APPLY TO USER WORKSPACE";
+const ROLLBACK_CONFIRMATION: &str = "ROLLBACK USER WORKSPACE";
 
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -272,6 +273,7 @@ pub struct ApprovedApplyResult {
     ok: bool,
     apply_id: String,
     checkpoint_id: String,
+    checkpoint_hash: String,
     workspace_root_ref: String,
     operation_count: usize,
     files_created: usize,
@@ -308,12 +310,75 @@ pub struct ApprovedApplyEventPreview {
     event_type: String,
     apply_id: String,
     checkpoint_id: String,
+    checkpoint_hash: String,
     workspace_root_ref: String,
     operation_count: usize,
     files_created: usize,
     files_updated: usize,
     files_deleted: usize,
     bytes_written: usize,
+    result_hash: String,
+    warning_codes: Vec<String>,
+    not_written: bool,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ApprovedRollbackRequest {
+    workspace_root: String,
+    workspace_root_ref: String,
+    receipt: Value,
+    apply_id: String,
+    checkpoint_id: String,
+    checkpoint_ref: String,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ApprovedRollbackResult {
+    ok: bool,
+    rollback_id: String,
+    apply_id: String,
+    checkpoint_id: String,
+    checkpoint_hash: String,
+    workspace_root_ref: String,
+    operation_count: usize,
+    files_removed: usize,
+    files_restored: usize,
+    restored_snapshot_hash: String,
+    result_hash: String,
+    operation_results: Vec<ApprovedRollbackOperationResult>,
+    warning_codes: Vec<String>,
+    event_preview: ApprovedRollbackEventPreview,
+    safe_message: String,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ApprovedRollbackOperationResult {
+    path: String,
+    change_kind: ApprovedApplyChangeKind,
+    status: String,
+    existed_before_apply: bool,
+    exists_after_rollback: bool,
+    restored_hash_prefix: Option<String>,
+    warning_codes: Vec<String>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ApprovedRollbackEventPreview {
+    #[serde(rename = "type")]
+    event_type: String,
+    rollback_id: String,
+    apply_id: String,
+    checkpoint_id: String,
+    checkpoint_hash: String,
+    workspace_root_ref: String,
+    operation_count: usize,
+    files_removed: usize,
+    files_restored: usize,
+    restored_snapshot_hash: String,
     result_hash: String,
     warning_codes: Vec<String>,
     not_written: bool,
@@ -524,6 +589,13 @@ pub fn apply_approved_user_workspace_patch(
 }
 
 #[tauri::command(rename_all = "camelCase")]
+pub fn rollback_approved_user_workspace_patch(
+    request: ApprovedRollbackRequest,
+) -> Result<ApprovedRollbackResult, DesktopFlowError> {
+    run_approved_user_workspace_rollback(request)
+}
+
+#[tauri::command(rename_all = "camelCase")]
 pub fn run_web_table_to_csv_flow(
     workspace_root: String,
     payload_json: String,
@@ -679,23 +751,29 @@ fn run_approved_user_workspace_apply(
     request: ApprovedApplyRequest,
 ) -> Result<ApprovedApplyResult, DesktopFlowError> {
     validate_approved_apply_request_summary(&request).map_err(approved_apply_invalid)?;
-    let workspace_root =
-        validate_approved_apply_workspace_root(&request.workspace_root).map_err(approved_apply_invalid)?;
+    let workspace_root = validate_approved_apply_workspace_root(&request.workspace_root)
+        .map_err(approved_apply_invalid)?;
     let receipt = validate_approved_apply_receipt(&request).map_err(approved_apply_invalid)?;
     let max_files = request.max_files.min(receipt.max_files);
     let max_bytes = request.max_bytes.min(receipt.max_bytes);
     if max_files == 0 || request.operations.len() > max_files {
-        return Err(approved_apply_invalid("Approved apply operation count exceeds maxFiles"));
+        return Err(approved_apply_invalid(
+            "Approved apply operation count exceeds maxFiles",
+        ));
     }
     if max_bytes == 0 {
-        return Err(approved_apply_invalid("Approved apply maxBytes must be positive"));
+        return Err(approved_apply_invalid(
+            "Approved apply maxBytes must be positive",
+        ));
     }
 
     let mut total_content_bytes = 0usize;
     let mut planned_operations = Vec::new();
     for operation in &request.operations {
         if !receipt.allowed_relative_paths.contains(&operation.path) {
-            return Err(approved_apply_invalid("Approved apply operation path is outside receipt scope"));
+            return Err(approved_apply_invalid(
+                "Approved apply operation path is outside receipt scope",
+            ));
         }
         let target_path = resolve_approved_apply_operation_path(
             &workspace_root,
@@ -714,7 +792,9 @@ fn run_approved_user_workspace_apply(
             validate_approved_apply_content(content, max_bytes).map_err(approved_apply_invalid)?;
             total_content_bytes = total_content_bytes.saturating_add(content.as_bytes().len());
             if total_content_bytes > max_bytes {
-                return Err(approved_apply_invalid("Approved apply content exceeds maxBytes"));
+                return Err(approved_apply_invalid(
+                    "Approved apply content exceeds maxBytes",
+                ));
             }
         }
         planned_operations.push(plan_approved_apply_operation(operation, target_path)?);
@@ -724,9 +804,14 @@ fn run_approved_user_workspace_apply(
     let apply_id = format!("approved-apply-{millis}");
     let checkpoint_id = format!(
         "approved-apply-checkpoint-{}",
-        short_hash(&format!("{}:{}:{}", receipt.receipt_id, millis, request.operations.len()))
+        short_hash(&format!(
+            "{}:{}:{}",
+            receipt.receipt_id,
+            millis,
+            request.operations.len()
+        ))
     );
-    write_approved_apply_checkpoint(
+    let checkpoint_hash = write_approved_apply_checkpoint(
         &workspace_root,
         &request.workspace_root_ref,
         &apply_id,
@@ -748,18 +833,19 @@ fn run_approved_user_workspace_apply(
             .map(|hash| hash.chars().take(12).collect::<String>());
         match planned.operation.change_kind {
             ApprovedApplyChangeKind::Create | ApprovedApplyChangeKind::Update => {
-                let content = planned.operation.content.as_deref().ok_or_else(|| {
-                    approved_apply_invalid("Approved apply content is required")
-                })?;
+                let content =
+                    planned.operation.content.as_deref().ok_or_else(|| {
+                        approved_apply_invalid("Approved apply content is required")
+                    })?;
                 if let Some(parent) = planned.target_path.parent() {
                     fs::create_dir_all(parent).map_err(|_| {
                         approved_apply_io("Approved apply target directory could not be created")
                     })?;
-                    ensure_path_stays_in_workspace(parent, &workspace_root).map_err(approved_apply_invalid)?;
+                    ensure_path_stays_in_workspace(parent, &workspace_root)
+                        .map_err(approved_apply_invalid)?;
                 }
-                fs::write(&planned.target_path, content).map_err(|_| {
-                    approved_apply_io("Approved apply file could not be written")
-                })?;
+                fs::write(&planned.target_path, content)
+                    .map_err(|_| approved_apply_io("Approved apply file could not be written"))?;
                 bytes_written += content.as_bytes().len();
                 if planned.operation.change_kind == ApprovedApplyChangeKind::Create {
                     files_created += 1;
@@ -768,9 +854,8 @@ fn run_approved_user_workspace_apply(
                 }
             }
             ApprovedApplyChangeKind::Delete => {
-                fs::remove_file(&planned.target_path).map_err(|_| {
-                    approved_apply_io("Approved apply file could not be deleted")
-                })?;
+                fs::remove_file(&planned.target_path)
+                    .map_err(|_| approved_apply_io("Approved apply file could not be deleted"))?;
                 files_deleted += 1;
             }
         }
@@ -802,12 +887,13 @@ fn run_approved_user_workspace_apply(
 
     let output_snapshot_hash = approved_apply_operation_results_hash(&operation_results);
     let result_hash = short_hash(&format!(
-        "{apply_id}:{checkpoint_id}:{input_snapshot_hash}:{output_snapshot_hash}:{bytes_written}"
+        "{apply_id}:{checkpoint_id}:{checkpoint_hash}:{input_snapshot_hash}:{output_snapshot_hash}:{bytes_written}"
     ));
     let event_preview = ApprovedApplyEventPreview {
         event_type: "user_workspace.patch_apply.approved_result".to_string(),
         apply_id: apply_id.clone(),
         checkpoint_id: checkpoint_id.clone(),
+        checkpoint_hash: checkpoint_hash.clone(),
         workspace_root_ref: request.workspace_root_ref.clone(),
         operation_count: operation_results.len(),
         files_created,
@@ -823,6 +909,7 @@ fn run_approved_user_workspace_apply(
         ok: true,
         apply_id,
         checkpoint_id,
+        checkpoint_hash,
         workspace_root_ref: request.workspace_root_ref,
         operation_count: operation_results.len(),
         files_created,
@@ -836,6 +923,173 @@ fn run_approved_user_workspace_apply(
         result_hash,
         event_preview,
         safe_message: "Approved user workspace apply completed with a summary-only result. Event preview was not written.".to_string(),
+    })
+}
+
+fn run_approved_user_workspace_rollback(
+    request: ApprovedRollbackRequest,
+) -> Result<ApprovedRollbackResult, DesktopFlowError> {
+    validate_approved_rollback_request_summary(&request).map_err(approved_rollback_invalid)?;
+    let workspace_root = validate_approved_apply_workspace_root(&request.workspace_root)
+        .map_err(approved_rollback_invalid)?;
+    let receipt =
+        validate_approved_rollback_receipt(&request).map_err(approved_rollback_invalid)?;
+    let (checkpoint, checkpoint_hash) = read_approved_apply_checkpoint(&workspace_root, &request)
+        .map_err(|error| error.with_stage("approved_rollback"))?;
+
+    if checkpoint.entries.is_empty() || checkpoint.entries.len() > receipt.max_files {
+        return Err(approved_rollback_invalid(
+            "Approved rollback checkpoint operation count exceeds receipt scope",
+        ));
+    }
+    let total_preimage_bytes: usize = checkpoint
+        .entries
+        .iter()
+        .map(|entry| entry.preimage_bytes)
+        .sum();
+    if total_preimage_bytes > receipt.max_bytes {
+        return Err(approved_rollback_invalid(
+            "Approved rollback checkpoint preimage bytes exceed receipt scope",
+        ));
+    }
+
+    let millis = unix_epoch_millis();
+    let rollback_id = format!("approved-rollback-{millis}");
+    let mut operation_results = Vec::new();
+    let mut files_removed = 0usize;
+    let mut files_restored = 0usize;
+    let mut warning_codes = Vec::new();
+
+    for entry in &checkpoint.entries {
+        if !receipt.allowed_relative_paths.contains(&entry.path) {
+            return Err(approved_rollback_invalid(
+                "Approved rollback checkpoint path is outside receipt scope",
+            ));
+        }
+        let target_path = resolve_approved_rollback_operation_path(&workspace_root, &entry.path)
+            .map_err(approved_rollback_invalid)?;
+        let mut operation_warnings = Vec::new();
+        let mut restored_hash_prefix = None;
+
+        match entry.change_kind {
+            ApprovedApplyChangeKind::Create => {
+                if target_path.exists() {
+                    guard_approved_rollback_existing_target(&target_path, &workspace_root)
+                        .map_err(approved_rollback_invalid)?;
+                    fs::remove_file(&target_path).map_err(|_| {
+                        approved_rollback_io("Approved rollback created file could not be removed")
+                    })?;
+                    files_removed += 1;
+                } else {
+                    operation_warnings.push("ROLLBACK_CREATE_TARGET_ALREADY_MISSING".to_string());
+                }
+            }
+            ApprovedApplyChangeKind::Update | ApprovedApplyChangeKind::Delete => {
+                let preimage_content = entry.content.as_deref().ok_or_else(|| {
+                    approved_rollback_invalid(
+                        "Approved rollback checkpoint preimage content is missing",
+                    )
+                })?;
+                if let Some(expected_hash) = entry.preimage_hash.as_deref() {
+                    if short_hash(preimage_content) != expected_hash {
+                        return Err(approved_rollback_invalid(
+                            "Approved rollback checkpoint preimage hash mismatch",
+                        ));
+                    }
+                }
+                if entry.preimage_bytes != preimage_content.as_bytes().len() {
+                    return Err(approved_rollback_invalid(
+                        "Approved rollback checkpoint preimage byte count mismatch",
+                    ));
+                }
+                if target_path.exists() {
+                    guard_approved_rollback_existing_target(&target_path, &workspace_root)
+                        .map_err(approved_rollback_invalid)?;
+                    if entry.change_kind == ApprovedApplyChangeKind::Delete {
+                        return Err(approved_rollback_invalid(
+                            "Approved rollback delete target already exists",
+                        ));
+                    }
+                } else if entry.change_kind == ApprovedApplyChangeKind::Update {
+                    operation_warnings.push("ROLLBACK_UPDATE_TARGET_MISSING".to_string());
+                }
+                if let Some(parent) = target_path.parent() {
+                    let existing_parent = nearest_existing_parent(parent);
+                    ensure_path_stays_in_workspace(&existing_parent, &workspace_root)
+                        .map_err(approved_rollback_invalid)?;
+                    fs::create_dir_all(parent).map_err(|_| {
+                        approved_rollback_io(
+                            "Approved rollback target directory could not be created",
+                        )
+                    })?;
+                    ensure_path_stays_in_workspace(parent, &workspace_root)
+                        .map_err(approved_rollback_invalid)?;
+                }
+                fs::write(&target_path, preimage_content).map_err(|_| {
+                    approved_rollback_io("Approved rollback preimage could not be restored")
+                })?;
+                files_restored += 1;
+                restored_hash_prefix = Some(
+                    short_hash(preimage_content)
+                        .chars()
+                        .take(12)
+                        .collect::<String>(),
+                );
+            }
+        }
+
+        let exists_after_rollback = target_path.exists();
+        warning_codes.extend(operation_warnings.clone());
+        operation_results.push(ApprovedRollbackOperationResult {
+            path: entry.path.clone(),
+            change_kind: entry.change_kind,
+            status: "rolled_back".to_string(),
+            existed_before_apply: entry.existed_before,
+            exists_after_rollback,
+            restored_hash_prefix,
+            warning_codes: operation_warnings,
+        });
+    }
+
+    warning_codes.sort();
+    warning_codes.dedup();
+    let restored_snapshot_hash = approved_rollback_operation_results_hash(&operation_results);
+    let result_hash = short_hash(&format!(
+        "{rollback_id}:{}:{}:{checkpoint_hash}:{restored_snapshot_hash}:{}:{}",
+        request.apply_id, request.checkpoint_id, files_removed, files_restored
+    ));
+    let event_preview = ApprovedRollbackEventPreview {
+        event_type: "user_workspace.patch_rollback.approved_result".to_string(),
+        rollback_id: rollback_id.clone(),
+        apply_id: request.apply_id.clone(),
+        checkpoint_id: request.checkpoint_id.clone(),
+        checkpoint_hash: checkpoint_hash.clone(),
+        workspace_root_ref: request.workspace_root_ref.clone(),
+        operation_count: operation_results.len(),
+        files_removed,
+        files_restored,
+        restored_snapshot_hash: restored_snapshot_hash.clone(),
+        result_hash: result_hash.clone(),
+        warning_codes: warning_codes.clone(),
+        not_written: true,
+    };
+
+    Ok(ApprovedRollbackResult {
+        ok: true,
+        rollback_id,
+        apply_id: request.apply_id,
+        checkpoint_id: request.checkpoint_id,
+        checkpoint_hash,
+        workspace_root_ref: request.workspace_root_ref,
+        operation_count: operation_results.len(),
+        files_removed,
+        files_restored,
+        restored_snapshot_hash,
+        result_hash,
+        operation_results,
+        warning_codes,
+        event_preview,
+        safe_message: "Approved user workspace rollback completed with a summary-only result. Event preview was not written.".to_string(),
     })
 }
 
@@ -858,7 +1112,9 @@ fn validate_approved_apply_request_summary(request: &ApprovedApplyRequest) -> Re
     ];
     for value in summary_values {
         if let Some(key) = find_forbidden_approved_apply_key(value) {
-            return Err(format!("Approved apply summary contains forbidden field {key}"));
+            return Err(format!(
+                "Approved apply summary contains forbidden field {key}"
+            ));
         }
         let serialized = serde_json::to_string(value)
             .map_err(|_| "Approved apply summary could not be serialized".to_string())?;
@@ -914,7 +1170,11 @@ fn validate_approved_apply_receipt(
     require_summary_ref(&request.proposal_summary, "proposalId", &proposal_id)?;
     require_summary_ref(&request.validation_summary, "validationId", &validation_id)?;
     require_summary_ref(&request.audit_summary, "auditId", &audit_id)?;
-    require_summary_ref(&request.approval_summary, "approvalDraftId", &approval_draft_id)?;
+    require_summary_ref(
+        &request.approval_summary,
+        "approvalDraftId",
+        &approval_draft_id,
+    )?;
     let expires_at = required_string(scope, "expiresAt")?;
     if !receipt_expiry_is_future(&expires_at) {
         return Err("Approved apply receipt is expired".to_string());
@@ -944,6 +1204,117 @@ fn validate_approved_apply_receipt(
         .and_then(Value::as_u64)
         .and_then(|value| usize::try_from(value).ok())
         .ok_or_else(|| "Approved apply receipt maxBytes is invalid".to_string())?;
+    Ok(ApprovedReceiptScope {
+        receipt_id: required_string(scope, "receiptId")?,
+        allowed_relative_paths,
+        max_files,
+        max_bytes,
+    })
+}
+
+fn validate_approved_rollback_request_summary(
+    request: &ApprovedRollbackRequest,
+) -> Result<(), String> {
+    if request.workspace_root.trim().is_empty()
+        || request.workspace_root_ref.trim().is_empty()
+        || request.apply_id.trim().is_empty()
+        || request.checkpoint_id.trim().is_empty()
+        || request.checkpoint_ref.trim().is_empty()
+    {
+        return Err(
+            "Approved rollback workspace, apply, and checkpoint refs are required".to_string(),
+        );
+    }
+    validate_approved_rollback_safe_ref(&request.apply_id, "applyId")?;
+    validate_approved_rollback_safe_ref(&request.checkpoint_id, "checkpointId")?;
+    validate_approved_rollback_safe_ref(&request.checkpoint_ref, "checkpointRef")?;
+    if let Some(key) = find_forbidden_approved_apply_key(&request.receipt) {
+        return Err(format!(
+            "Approved rollback receipt contains forbidden field {key}"
+        ));
+    }
+    let serialized = serde_json::to_string(&request.receipt)
+        .map_err(|_| "Approved rollback receipt could not be serialized".to_string())?;
+    if contains_approved_apply_sensitive_marker(&serialized) {
+        return Err("Approved rollback receipt contains unsafe marker".to_string());
+    }
+    Ok(())
+}
+
+fn validate_approved_rollback_receipt(
+    request: &ApprovedRollbackRequest,
+) -> Result<ApprovedReceiptScope, String> {
+    let receipt = request
+        .receipt
+        .as_object()
+        .ok_or_else(|| "Approved rollback receipt must be an object".to_string())?;
+    if receipt.get("status").and_then(Value::as_str) != Some("ready")
+        && receipt.get("status").and_then(Value::as_str) != Some("warning")
+    {
+        return Err("Approved rollback receipt is not ready".to_string());
+    }
+    if receipt.get("source").and_then(Value::as_str)
+        != Some("runtime_app_approved_execution_receipt")
+    {
+        return Err("Approved rollback receipt source is invalid".to_string());
+    }
+    if receipt.get("summaryOnly").and_then(Value::as_bool) != Some(true) {
+        return Err("Approved rollback receipt must be summary-only".to_string());
+    }
+    if receipt.get("kind").and_then(Value::as_str) != Some("rollback") {
+        return Err("Approved rollback receipt kind is invalid".to_string());
+    }
+    validate_receipt_readiness_disabled(receipt.get("readiness"))?;
+    let scope = receipt
+        .get("scope")
+        .and_then(Value::as_object)
+        .ok_or_else(|| "Approved rollback receipt scope is missing".to_string())?;
+    if scope.get("kind").and_then(Value::as_str) != Some("rollback") {
+        return Err("Approved rollback receipt scope kind is invalid".to_string());
+    }
+    if scope.get("typedConfirmation").and_then(Value::as_str) != Some(ROLLBACK_CONFIRMATION) {
+        return Err("Approved rollback typed confirmation is invalid".to_string());
+    }
+    let workspace_root_ref = required_string(scope, "workspaceRootRef")?;
+    if workspace_root_ref != request.workspace_root_ref {
+        return Err("Approved rollback workspace root reference mismatch".to_string());
+    }
+    let checkpoint_id = required_string(scope, "checkpointId")?;
+    if checkpoint_id != request.checkpoint_id {
+        return Err("Approved rollback checkpoint reference mismatch".to_string());
+    }
+    let expires_at = required_string(scope, "expiresAt")?;
+    if !receipt_expiry_is_future(&expires_at) {
+        return Err("Approved rollback receipt is expired".to_string());
+    }
+    let allowed_relative_paths = scope
+        .get("allowedRelativePaths")
+        .and_then(Value::as_array)
+        .ok_or_else(|| "Approved rollback receipt allowed paths are missing".to_string())?
+        .iter()
+        .map(|value| {
+            value
+                .as_str()
+                .map(str::to_string)
+                .ok_or_else(|| "Approved rollback receipt path must be a string".to_string())
+        })
+        .collect::<Result<BTreeSet<_>, _>>()?;
+    if allowed_relative_paths.is_empty() {
+        return Err("Approved rollback receipt allowed paths are missing".to_string());
+    }
+    for path in &allowed_relative_paths {
+        validate_approved_apply_relative_path(path)?;
+    }
+    let max_files = scope
+        .get("maxFiles")
+        .and_then(Value::as_u64)
+        .and_then(|value| usize::try_from(value).ok())
+        .ok_or_else(|| "Approved rollback receipt maxFiles is invalid".to_string())?;
+    let max_bytes = scope
+        .get("maxBytes")
+        .and_then(Value::as_u64)
+        .and_then(|value| usize::try_from(value).ok())
+        .ok_or_else(|| "Approved rollback receipt maxBytes is invalid".to_string())?;
     Ok(ApprovedReceiptScope {
         receipt_id: required_string(scope, "receiptId")?,
         allowed_relative_paths,
@@ -1010,7 +1381,9 @@ fn validate_approved_apply_workspace_root(workspace_root: &str) -> Result<PathBu
     for env_key in ["USERPROFILE", "HOME", "WINDIR", "SystemRoot"] {
         if let Ok(value) = std::env::var(env_key) {
             if !value.trim().is_empty() && same_canonical_path(&canonical, Path::new(&value)) {
-                return Err("Approved apply workspace root cannot be a profile or system root".to_string());
+                return Err(
+                    "Approved apply workspace root cannot be a profile or system root".to_string(),
+                );
             }
         }
     }
@@ -1102,7 +1475,9 @@ fn validate_approved_apply_relative_path(path: &str) -> Result<(), String> {
                 | ".next"
                 | "out"
         ) {
-            return Err("Approved apply path targets a blocked generated or private directory".to_string());
+            return Err(
+                "Approved apply path targets a blocked generated or private directory".to_string(),
+            );
         }
         if lower.contains("secret")
             || lower.contains("token")
@@ -1125,18 +1500,24 @@ fn plan_approved_apply_operation(
     let existed_before = target_path.exists();
     if let Some(expected) = operation.expected_exists_before {
         if expected != existed_before {
-            return Err(approved_apply_invalid("Approved apply expected existence mismatch"));
+            return Err(approved_apply_invalid(
+                "Approved apply expected existence mismatch",
+            ));
         }
     }
     if operation.change_kind == ApprovedApplyChangeKind::Create && existed_before {
-        return Err(approved_apply_invalid("Approved apply create target already exists"));
+        return Err(approved_apply_invalid(
+            "Approved apply create target already exists",
+        ));
     }
     if matches!(
         operation.change_kind,
         ApprovedApplyChangeKind::Update | ApprovedApplyChangeKind::Delete
     ) && !existed_before
     {
-        return Err(approved_apply_invalid("Approved apply update/delete target is missing"));
+        return Err(approved_apply_invalid(
+            "Approved apply update/delete target is missing",
+        ));
     }
     let preimage_content = if existed_before {
         Some(fs::read_to_string(&target_path).map_err(|_| {
@@ -1151,7 +1532,9 @@ fn plan_approved_apply_operation(
     if let Some(expected_hash) = operation.expected_before_hash.as_deref() {
         let actual = preimage_hash.as_deref().unwrap_or("");
         if !actual.starts_with(expected_hash) {
-            return Err(approved_apply_invalid("Approved apply expectedBeforeHash mismatch"));
+            return Err(approved_apply_invalid(
+                "Approved apply expectedBeforeHash mismatch",
+            ));
         }
     }
     let preimage_bytes = preimage_content
@@ -1194,12 +1577,13 @@ fn write_approved_apply_checkpoint(
     apply_id: &str,
     checkpoint_id: &str,
     planned_operations: &[PlannedApprovedApplyOperation],
-) -> Result<(), DesktopFlowError> {
+) -> Result<String, DesktopFlowError> {
     let workbench_dir = workspace_root.join(".deepseek-workbench");
     fs::create_dir_all(&workbench_dir).map_err(|_| {
         approved_apply_io("Approved apply checkpoint directory could not be created")
     })?;
-    ensure_path_stays_in_workspace(&workbench_dir, workspace_root).map_err(approved_apply_invalid)?;
+    ensure_path_stays_in_workspace(&workbench_dir, workspace_root)
+        .map_err(approved_apply_invalid)?;
     let gitignore_path = workbench_dir.join(".gitignore");
     if !gitignore_path.exists() {
         fs::write(&gitignore_path, "checkpoints/\n").map_err(|_| {
@@ -1228,12 +1612,138 @@ fn write_approved_apply_checkpoint(
             })
             .collect(),
     };
-    let checkpoint_json = serde_json::to_string_pretty(&checkpoint).map_err(|_| {
-        approved_apply_io("Approved apply checkpoint could not be serialized")
-    })?;
+    let checkpoint_json = serde_json::to_string_pretty(&checkpoint)
+        .map_err(|_| approved_apply_io("Approved apply checkpoint could not be serialized"))?;
+    let checkpoint_hash = short_hash(&checkpoint_json);
     let checkpoint_path = checkpoint_dir.join(format!("{checkpoint_id}.json"));
     fs::write(checkpoint_path, checkpoint_json)
         .map_err(|_| approved_apply_io("Approved apply checkpoint could not be written"))?;
+    Ok(checkpoint_hash)
+}
+
+fn read_approved_apply_checkpoint(
+    workspace_root: &Path,
+    request: &ApprovedRollbackRequest,
+) -> Result<(ApprovedApplyCheckpoint, String), DesktopFlowError> {
+    validate_approved_rollback_checkpoint_id(&request.checkpoint_id)
+        .map_err(approved_rollback_invalid)?;
+    let checkpoint_dir = workspace_root
+        .join(".deepseek-workbench")
+        .join("checkpoints");
+    let canonical_checkpoint_dir = checkpoint_dir.canonicalize().map_err(|_| {
+        approved_rollback_io("Approved rollback checkpoint directory could not be read")
+    })?;
+    if !canonical_checkpoint_dir.starts_with(workspace_root) || !canonical_checkpoint_dir.is_dir() {
+        return Err(approved_rollback_invalid(
+            "Approved rollback checkpoint directory is outside workspace",
+        ));
+    }
+    let checkpoint_path = canonical_checkpoint_dir.join(format!("{}.json", request.checkpoint_id));
+    let metadata = fs::symlink_metadata(&checkpoint_path)
+        .map_err(|_| approved_rollback_io("Approved rollback checkpoint could not be read"))?;
+    if metadata.file_type().is_symlink() || !metadata.is_file() {
+        return Err(approved_rollback_invalid(
+            "Approved rollback checkpoint must be a regular file",
+        ));
+    }
+    let canonical_checkpoint_path = checkpoint_path
+        .canonicalize()
+        .map_err(|_| approved_rollback_io("Approved rollback checkpoint could not be resolved"))?;
+    if !canonical_checkpoint_path.starts_with(&canonical_checkpoint_dir) {
+        return Err(approved_rollback_invalid(
+            "Approved rollback checkpoint path escapes checkpoint directory",
+        ));
+    }
+    let checkpoint_json = fs::read_to_string(&canonical_checkpoint_path)
+        .map_err(|_| approved_rollback_io("Approved rollback checkpoint could not be read"))?;
+    let checkpoint_hash = short_hash(&checkpoint_json);
+    if checkpoint_hash != request.checkpoint_ref {
+        return Err(approved_rollback_invalid(
+            "Approved rollback checkpoint hash mismatch",
+        ));
+    }
+    let checkpoint: ApprovedApplyCheckpoint =
+        serde_json::from_str(&checkpoint_json).map_err(|_| {
+            approved_rollback_invalid("Approved rollback checkpoint could not be parsed")
+        })?;
+    if checkpoint.checkpoint_id != request.checkpoint_id {
+        return Err(approved_rollback_invalid(
+            "Approved rollback checkpoint id mismatch",
+        ));
+    }
+    if checkpoint.apply_id != request.apply_id {
+        return Err(approved_rollback_invalid(
+            "Approved rollback apply id mismatch",
+        ));
+    }
+    if checkpoint.workspace_root_ref != request.workspace_root_ref {
+        return Err(approved_rollback_invalid(
+            "Approved rollback workspace root reference mismatch",
+        ));
+    }
+    Ok((checkpoint, checkpoint_hash))
+}
+
+fn resolve_approved_rollback_operation_path(
+    workspace_root: &Path,
+    relative_path: &str,
+) -> Result<PathBuf, String> {
+    validate_approved_apply_relative_path(relative_path)?;
+    let target_path = workspace_root.join(relative_path.replace('\\', "/"));
+    if target_path.exists() {
+        guard_approved_rollback_existing_target(&target_path, workspace_root)?;
+    } else if let Some(parent) = target_path.parent() {
+        let existing_parent = nearest_existing_parent(parent);
+        ensure_path_stays_in_workspace(&existing_parent, workspace_root)?;
+    }
+    Ok(target_path)
+}
+
+fn guard_approved_rollback_existing_target(
+    target_path: &Path,
+    workspace_root: &Path,
+) -> Result<(), String> {
+    let metadata = fs::symlink_metadata(target_path)
+        .map_err(|_| "Approved rollback target metadata could not be read".to_string())?;
+    if metadata.file_type().is_symlink() {
+        return Err("Approved rollback target cannot be a symlink or reparse point".to_string());
+    }
+    if metadata.is_dir() {
+        return Err("Approved rollback cannot remove or overwrite directories".to_string());
+    }
+    let canonical = target_path
+        .canonicalize()
+        .map_err(|_| "Approved rollback target could not be resolved".to_string())?;
+    if !canonical.starts_with(workspace_root) {
+        return Err("Approved rollback target escapes workspace root".to_string());
+    }
+    Ok(())
+}
+
+fn validate_approved_rollback_safe_ref(value: &str, field: &str) -> Result<(), String> {
+    let trimmed = value.trim();
+    if trimmed.is_empty() {
+        return Err(format!("Approved rollback {field} is required"));
+    }
+    if contains_approved_apply_sensitive_marker(trimmed) {
+        return Err(format!("Approved rollback {field} contains unsafe marker"));
+    }
+    if trimmed.contains('/') || trimmed.contains('\\') || trimmed.contains("..") {
+        return Err(format!(
+            "Approved rollback {field} must be a reference only"
+        ));
+    }
+    Ok(())
+}
+
+fn validate_approved_rollback_checkpoint_id(checkpoint_id: &str) -> Result<(), String> {
+    validate_approved_rollback_safe_ref(checkpoint_id, "checkpointId")?;
+    if !checkpoint_id
+        .chars()
+        .all(|ch| ch.is_ascii_alphanumeric() || ch == '-' || ch == '_')
+    {
+        return Err("Approved rollback checkpointId contains unsupported characters".to_string());
+    }
     Ok(())
 }
 
@@ -1869,6 +2379,25 @@ fn approved_apply_operation_results_hash(results: &[ApprovedApplyOperationResult
     short_hash(&text)
 }
 
+fn approved_rollback_operation_results_hash(results: &[ApprovedRollbackOperationResult]) -> String {
+    let mut text = String::new();
+    for result in results {
+        text.push_str(&result.path);
+        text.push(':');
+        text.push_str(&result.status);
+        text.push(':');
+        text.push_str(result.restored_hash_prefix.as_deref().unwrap_or("missing"));
+        text.push(':');
+        text.push_str(if result.exists_after_rollback {
+            "exists"
+        } else {
+            "missing"
+        });
+        text.push('|');
+    }
+    short_hash(&text)
+}
+
 fn short_hash(text: &str) -> String {
     short_hash_bytes(text.as_bytes())
 }
@@ -1880,18 +2409,26 @@ fn short_hash_bytes(bytes: &[u8]) -> String {
 }
 
 fn approved_apply_invalid(message: impl Into<String>) -> DesktopFlowError {
-    DesktopFlowError::new(
-        "APPROVED_APPLY_BLOCKED",
-        message.into(),
-        "approved_apply",
-    )
+    DesktopFlowError::new("APPROVED_APPLY_BLOCKED", message.into(), "approved_apply")
 }
 
 fn approved_apply_io(message: impl Into<String>) -> DesktopFlowError {
+    DesktopFlowError::new("APPROVED_APPLY_IO_FAILED", message.into(), "approved_apply")
+}
+
+fn approved_rollback_invalid(message: impl Into<String>) -> DesktopFlowError {
     DesktopFlowError::new(
-        "APPROVED_APPLY_IO_FAILED",
+        "APPROVED_ROLLBACK_BLOCKED",
         message.into(),
-        "approved_apply",
+        "approved_rollback",
+    )
+}
+
+fn approved_rollback_io(message: impl Into<String>) -> DesktopFlowError {
+    DesktopFlowError::new(
+        "APPROVED_ROLLBACK_IO_FAILED",
+        message.into(),
+        "approved_rollback",
     )
 }
 
@@ -2922,6 +3459,57 @@ mod tests {
         }
     }
 
+    fn safe_approved_rollback_receipt(paths: &[&str], checkpoint_id: &str) -> Value {
+        serde_json::json!({
+            "status": "ready",
+            "receiptId": "receipt-rollback-test",
+            "kind": "rollback",
+            "source": "runtime_app_approved_execution_receipt",
+            "summaryOnly": true,
+            "scope": {
+                "receiptId": "receipt-rollback-test",
+                "kind": "rollback",
+                "workspaceRootRef": "workspace-ref-test",
+                "proposalId": "proposal-apply-test",
+                "validationId": "validation-apply-test",
+                "auditId": "audit-apply-test",
+                "approvalDraftId": "approval-apply-test",
+                "checkpointId": checkpoint_id,
+                "allowedRelativePaths": paths,
+                "maxFiles": paths.len().max(1),
+                "maxBytes": 4096,
+                "expiresAt": "2099-01-01T00:00:00.000Z",
+                "typedConfirmation": ROLLBACK_CONFIRMATION,
+                "receiptHash": "receipt-rollback-hash-test"
+            },
+            "readiness": {
+                "canApplyPatch": false,
+                "canRollback": false,
+                "canWriteFilesystem": false,
+                "canWriteEventStore": false,
+                "canExecuteGit": false,
+                "canExecuteShell": false,
+                "canIssuePermissionLease": false,
+                "appCanExecute": false
+            }
+        })
+    }
+
+    fn safe_approved_rollback_request(
+        workspace: &Path,
+        apply_result: &ApprovedApplyResult,
+        paths: &[&str],
+    ) -> ApprovedRollbackRequest {
+        ApprovedRollbackRequest {
+            workspace_root: workspace.to_string_lossy().to_string(),
+            workspace_root_ref: "workspace-ref-test".to_string(),
+            receipt: safe_approved_rollback_receipt(paths, &apply_result.checkpoint_id),
+            apply_id: apply_result.apply_id.clone(),
+            checkpoint_id: apply_result.checkpoint_id.clone(),
+            checkpoint_ref: apply_result.checkpoint_hash.clone(),
+        }
+    }
+
     #[test]
     fn approved_apply_creates_file_in_temp_workspace() {
         let workspace = temp_workspace("approved-apply-create");
@@ -2944,7 +3532,10 @@ mod tests {
         assert!(result.ok);
         assert_eq!(result.files_created, 1);
         assert_eq!(result.event_preview.not_written, true);
-        assert_eq!(result.event_preview.event_type, "user_workspace.patch_apply.approved_result");
+        assert_eq!(
+            result.event_preview.event_type,
+            "user_workspace.patch_apply.approved_result"
+        );
         assert!(workspace.join("src").join("new-file.txt").is_file());
         assert!(workspace
             .join(".deepseek-workbench")
@@ -2986,7 +3577,10 @@ mod tests {
         )
         .expect("checkpoint");
 
-        assert_eq!(fs::read_to_string(&target).expect("updated"), "new safe content");
+        assert_eq!(
+            fs::read_to_string(&target).expect("updated"),
+            "new safe content"
+        );
         assert_eq!(result.files_updated, 1);
         assert!(checkpoint_text.contains("old safe content"));
         assert!(!serialized.contains("old safe content"));
@@ -3044,8 +3638,8 @@ mod tests {
                 }],
                 &[path],
             );
-            let error = apply_approved_user_workspace_patch(request)
-                .expect_err("unsafe path should block");
+            let error =
+                apply_approved_user_workspace_patch(request).expect_err("unsafe path should block");
 
             assert_eq!(error.error_code, "APPROVED_APPLY_BLOCKED");
             assert_eq!(error.stage, "approved_apply");
@@ -3087,7 +3681,10 @@ mod tests {
         request.receipt["scope"]["typedConfirmation"] = Value::String("apply".to_string());
         let wrong_confirmation_error = apply_approved_user_workspace_patch(request)
             .expect_err("wrong confirmation should block");
-        assert_eq!(wrong_confirmation_error.error_code, "APPROVED_APPLY_BLOCKED");
+        assert_eq!(
+            wrong_confirmation_error.error_code,
+            "APPROVED_APPLY_BLOCKED"
+        );
 
         let _ = fs::remove_dir_all(workspace);
     }
@@ -3109,8 +3706,8 @@ mod tests {
             &["src/file.txt"],
         );
 
-        let error = apply_approved_user_workspace_patch(request)
-            .expect_err("hash mismatch should block");
+        let error =
+            apply_approved_user_workspace_patch(request).expect_err("hash mismatch should block");
 
         assert_eq!(error.error_code, "APPROVED_APPLY_BLOCKED");
         assert_eq!(
@@ -3138,8 +3735,8 @@ mod tests {
             &["src/file.txt"],
         );
 
-        let error = apply_approved_user_workspace_patch(request)
-            .expect_err("secret marker should block");
+        let error =
+            apply_approved_user_workspace_patch(request).expect_err("secret marker should block");
 
         assert_eq!(error.error_code, "APPROVED_APPLY_BLOCKED");
         assert!(!workspace.join("src").join("file.txt").exists());
@@ -3173,13 +3770,246 @@ mod tests {
             }],
             &["src/link.txt"],
         );
-        let error = apply_approved_user_workspace_patch(request)
-            .expect_err("symlink target should block");
+        let error =
+            apply_approved_user_workspace_patch(request).expect_err("symlink target should block");
 
         assert_eq!(error.error_code, "APPROVED_APPLY_BLOCKED");
         assert_eq!(
             fs::read_to_string(&outside_target).expect("outside unchanged"),
             "outside content"
+        );
+
+        let _ = fs::remove_dir_all(workspace);
+        let _ = fs::remove_dir_all(outside);
+    }
+
+    #[test]
+    fn approved_rollback_removes_created_file_from_checkpoint() {
+        let workspace = temp_workspace("approved-rollback-create");
+        fs::create_dir_all(workspace.join("src")).expect("src dir");
+        let apply_request = safe_approved_apply_request(
+            &workspace,
+            vec![ApprovedApplyOperation {
+                path: "src/new-file.txt".to_string(),
+                change_kind: ApprovedApplyChangeKind::Create,
+                content: Some("created rollback content".to_string()),
+                expected_before_hash: None,
+                expected_exists_before: Some(false),
+            }],
+            &["src/new-file.txt"],
+        );
+        let apply_result = apply_approved_user_workspace_patch(apply_request).expect("apply");
+
+        let rollback = rollback_approved_user_workspace_patch(safe_approved_rollback_request(
+            &workspace,
+            &apply_result,
+            &["src/new-file.txt"],
+        ))
+        .expect("rollback");
+        let serialized = serde_json::to_string(&rollback).expect("rollback result");
+
+        assert!(rollback.ok);
+        assert_eq!(rollback.files_removed, 1);
+        assert_eq!(rollback.files_restored, 0);
+        assert_eq!(
+            rollback.event_preview.event_type,
+            "user_workspace.patch_rollback.approved_result"
+        );
+        assert!(rollback.event_preview.not_written);
+        assert!(!workspace.join("src").join("new-file.txt").exists());
+        assert!(!serialized.contains("created rollback content"));
+
+        let _ = fs::remove_dir_all(workspace);
+    }
+
+    #[test]
+    fn approved_rollback_restores_updated_file_preimage() {
+        let workspace = temp_workspace("approved-rollback-update");
+        fs::create_dir_all(workspace.join("src")).expect("src dir");
+        let target = workspace.join("src").join("file.txt");
+        fs::write(&target, "old rollback content").expect("old file");
+        let apply_request = safe_approved_apply_request(
+            &workspace,
+            vec![ApprovedApplyOperation {
+                path: "src/file.txt".to_string(),
+                change_kind: ApprovedApplyChangeKind::Update,
+                content: Some("new rollback content".to_string()),
+                expected_before_hash: Some(short_hash("old rollback content")[..8].to_string()),
+                expected_exists_before: Some(true),
+            }],
+            &["src/file.txt"],
+        );
+        let apply_result = apply_approved_user_workspace_patch(apply_request).expect("apply");
+        assert_eq!(
+            fs::read_to_string(&target).expect("updated"),
+            "new rollback content"
+        );
+
+        let rollback = rollback_approved_user_workspace_patch(safe_approved_rollback_request(
+            &workspace,
+            &apply_result,
+            &["src/file.txt"],
+        ))
+        .expect("rollback");
+        let serialized = serde_json::to_string(&rollback).expect("rollback result");
+
+        assert_eq!(
+            fs::read_to_string(&target).expect("restored"),
+            "old rollback content"
+        );
+        assert_eq!(rollback.files_restored, 1);
+        assert!(!serialized.contains("old rollback content"));
+        assert!(!serialized.contains("new rollback content"));
+
+        let _ = fs::remove_dir_all(workspace);
+    }
+
+    #[test]
+    fn approved_rollback_recreates_deleted_file_preimage() {
+        let workspace = temp_workspace("approved-rollback-delete");
+        fs::create_dir_all(workspace.join("src")).expect("src dir");
+        let target = workspace.join("src").join("delete-me.txt");
+        fs::write(&target, "delete rollback content").expect("delete file");
+        let apply_request = safe_approved_apply_request(
+            &workspace,
+            vec![ApprovedApplyOperation {
+                path: "src/delete-me.txt".to_string(),
+                change_kind: ApprovedApplyChangeKind::Delete,
+                content: None,
+                expected_before_hash: None,
+                expected_exists_before: Some(true),
+            }],
+            &["src/delete-me.txt"],
+        );
+        let apply_result = apply_approved_user_workspace_patch(apply_request).expect("apply");
+        assert!(!target.exists());
+
+        let rollback = rollback_approved_user_workspace_patch(safe_approved_rollback_request(
+            &workspace,
+            &apply_result,
+            &["src/delete-me.txt"],
+        ))
+        .expect("rollback");
+        let serialized = serde_json::to_string(&rollback).expect("rollback result");
+
+        assert_eq!(
+            fs::read_to_string(&target).expect("restored"),
+            "delete rollback content"
+        );
+        assert_eq!(rollback.files_restored, 1);
+        assert!(!serialized.contains("delete rollback content"));
+
+        let _ = fs::remove_dir_all(workspace);
+    }
+
+    #[test]
+    fn approved_rollback_blocks_wrong_checkpoint_and_receipt() {
+        let workspace = temp_workspace("approved-rollback-wrong");
+        fs::create_dir_all(workspace.join("src")).expect("src dir");
+        let apply_request = safe_approved_apply_request(
+            &workspace,
+            vec![ApprovedApplyOperation {
+                path: "src/file.txt".to_string(),
+                change_kind: ApprovedApplyChangeKind::Create,
+                content: Some("safe rollback content".to_string()),
+                expected_before_hash: None,
+                expected_exists_before: Some(false),
+            }],
+            &["src/file.txt"],
+        );
+        let apply_result = apply_approved_user_workspace_patch(apply_request).expect("apply");
+
+        let mut wrong_checkpoint =
+            safe_approved_rollback_request(&workspace, &apply_result, &["src/file.txt"]);
+        wrong_checkpoint.checkpoint_ref = "wrong-checkpoint-hash".to_string();
+        let checkpoint_error = rollback_approved_user_workspace_patch(wrong_checkpoint)
+            .expect_err("wrong checkpoint should block");
+        assert_eq!(checkpoint_error.error_code, "APPROVED_ROLLBACK_BLOCKED");
+
+        let mut wrong_receipt =
+            safe_approved_rollback_request(&workspace, &apply_result, &["src/file.txt"]);
+        wrong_receipt.receipt["kind"] = Value::String("apply".to_string());
+        let receipt_error = rollback_approved_user_workspace_patch(wrong_receipt)
+            .expect_err("wrong receipt should block");
+        assert_eq!(receipt_error.error_code, "APPROVED_ROLLBACK_BLOCKED");
+
+        let _ = fs::remove_dir_all(workspace);
+    }
+
+    #[test]
+    fn approved_rollback_blocks_expired_receipt_and_unsafe_path_scope() {
+        let workspace = temp_workspace("approved-rollback-expired");
+        fs::create_dir_all(workspace.join("src")).expect("src dir");
+        let apply_request = safe_approved_apply_request(
+            &workspace,
+            vec![ApprovedApplyOperation {
+                path: "src/file.txt".to_string(),
+                change_kind: ApprovedApplyChangeKind::Create,
+                content: Some("safe rollback content".to_string()),
+                expected_before_hash: None,
+                expected_exists_before: Some(false),
+            }],
+            &["src/file.txt"],
+        );
+        let apply_result = apply_approved_user_workspace_patch(apply_request).expect("apply");
+
+        let mut expired =
+            safe_approved_rollback_request(&workspace, &apply_result, &["src/file.txt"]);
+        expired.receipt["scope"]["expiresAt"] =
+            Value::String("2020-01-01T00:00:00.000Z".to_string());
+        let expired_error =
+            rollback_approved_user_workspace_patch(expired).expect_err("expired should block");
+        assert_eq!(expired_error.error_code, "APPROVED_ROLLBACK_BLOCKED");
+
+        let mut unsafe_scope =
+            safe_approved_rollback_request(&workspace, &apply_result, &["src/file.txt"]);
+        unsafe_scope.receipt["scope"]["allowedRelativePaths"] =
+            serde_json::json!(["../escape.txt"]);
+        let unsafe_error = rollback_approved_user_workspace_patch(unsafe_scope)
+            .expect_err("unsafe path should block");
+        assert_eq!(unsafe_error.error_code, "APPROVED_ROLLBACK_BLOCKED");
+
+        let _ = fs::remove_dir_all(workspace);
+    }
+
+    #[test]
+    fn approved_rollback_blocks_symlink_target_if_testable() {
+        let workspace = temp_workspace("approved-rollback-symlink");
+        let outside = temp_workspace("approved-rollback-symlink-outside");
+        fs::create_dir_all(workspace.join("src")).expect("src dir");
+        let apply_request = safe_approved_apply_request(
+            &workspace,
+            vec![ApprovedApplyOperation {
+                path: "src/file.txt".to_string(),
+                change_kind: ApprovedApplyChangeKind::Create,
+                content: Some("created rollback content".to_string()),
+                expected_before_hash: None,
+                expected_exists_before: Some(false),
+            }],
+            &["src/file.txt"],
+        );
+        let apply_result = apply_approved_user_workspace_patch(apply_request).expect("apply");
+        let target = workspace.join("src").join("file.txt");
+        fs::remove_file(&target).expect("replace with link");
+        let outside_target = outside.join("outside.txt");
+        fs::write(&outside_target, "outside unchanged").expect("outside file");
+        if try_create_file_symlink(&outside_target, &target).is_err() {
+            let _ = fs::remove_dir_all(workspace);
+            let _ = fs::remove_dir_all(outside);
+            return;
+        }
+
+        let error = rollback_approved_user_workspace_patch(safe_approved_rollback_request(
+            &workspace,
+            &apply_result,
+            &["src/file.txt"],
+        ))
+        .expect_err("symlink rollback should block");
+
+        assert_eq!(error.error_code, "APPROVED_ROLLBACK_BLOCKED");
+        assert_eq!(
+            fs::read_to_string(&outside_target).expect("outside unchanged"),
+            "outside unchanged"
         );
 
         let _ = fs::remove_dir_all(workspace);

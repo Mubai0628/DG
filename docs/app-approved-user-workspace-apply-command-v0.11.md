@@ -27,7 +27,7 @@ paths under the selected user workspace.
 ## Non-goals
 
 - No EventStore write in P0O-004.
-- No rollback command yet; P0O-005 adds the narrow rollback path.
+- Rollback is handled by the separate P0O-005 `rollback_approved_user_workspace_patch` command from checkpoint.
 - No Git or shell execution.
 - No PermissionLease issuing.
 - No App-side model execution.

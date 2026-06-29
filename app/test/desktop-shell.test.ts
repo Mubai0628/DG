@@ -12,6 +12,7 @@ import {
   isAllowedDesktopCommand,
   loadWorkspaceEventSummary,
   recordControlRunDraftEvent,
+  rollbackApprovedUserWorkspacePatch,
   runDesktopWebTableToCsvFlow,
   safeInvoke,
   type TauriInvoke
@@ -706,6 +707,9 @@ describe("desktop command wrapper", () => {
     expect(isAllowedDesktopCommand("apply_approved_user_workspace_patch")).toBe(
       true
     );
+    expect(
+      isAllowedDesktopCommand("rollback_approved_user_workspace_patch")
+    ).toBe(true);
     expect(isAllowedDesktopCommand("run_web_table_to_csv_flow")).toBe(true);
   });
 
@@ -724,6 +728,7 @@ describe("desktop command wrapper", () => {
         ok: true,
         applyId: "approved-apply-1",
         checkpointId: "checkpoint-1",
+        checkpointHash: "checkpoint-hash",
         workspaceRootRef: "workspace-ref-test",
         operationCount: 1,
         filesCreated: 1,
@@ -738,6 +743,7 @@ describe("desktop command wrapper", () => {
           type: "user_workspace.patch_apply.approved_result",
           applyId: "approved-apply-1",
           checkpointId: "checkpoint-1",
+          checkpointHash: "checkpoint-hash",
           workspaceRootRef: "workspace-ref-test",
           operationCount: 1,
           filesCreated: 1,
@@ -778,6 +784,68 @@ describe("desktop command wrapper", () => {
     expect(result.ok).toBe(true);
     expect(result.eventPreview.notWritten).toBe(true);
     expect(JSON.stringify(result)).not.toContain("safe content");
+  });
+
+  it("calls approved rollback only through the fixed wrapper and normalizes summary result", async () => {
+    const invoke: TauriInvoke = async (command, args) => {
+      expect(command).toBe("rollback_approved_user_workspace_patch");
+      expect(args).toMatchObject({
+        request: {
+          workspaceRoot: "D:\\workspace",
+          workspaceRootRef: "workspace-ref-test",
+          applyId: "approved-apply-1",
+          checkpointId: "checkpoint-1",
+          checkpointRef: "checkpoint-hash"
+        }
+      });
+      return {
+        ok: true,
+        rollbackId: "approved-rollback-1",
+        applyId: "approved-apply-1",
+        checkpointId: "checkpoint-1",
+        checkpointHash: "checkpoint-hash",
+        workspaceRootRef: "workspace-ref-test",
+        operationCount: 1,
+        filesRemoved: 1,
+        filesRestored: 0,
+        restoredSnapshotHash: "restored-hash",
+        resultHash: "rollback-result-hash",
+        warningCodes: [],
+        eventPreview: {
+          type: "user_workspace.patch_rollback.approved_result",
+          rollbackId: "approved-rollback-1",
+          applyId: "approved-apply-1",
+          checkpointId: "checkpoint-1",
+          checkpointHash: "checkpoint-hash",
+          workspaceRootRef: "workspace-ref-test",
+          operationCount: 1,
+          filesRemoved: 1,
+          filesRestored: 0,
+          restoredSnapshotHash: "restored-hash",
+          resultHash: "rollback-result-hash",
+          warningCodes: [],
+          notWritten: true
+        },
+        safeMessage:
+          "Approved user workspace rollback completed with a summary-only result. Event preview was not written."
+      } as never;
+    };
+
+    const result = await rollbackApprovedUserWorkspacePatch(
+      {
+        workspaceRoot: "D:\\workspace",
+        workspaceRootRef: "workspace-ref-test",
+        receipt: { status: "ready" },
+        applyId: "approved-apply-1",
+        checkpointId: "checkpoint-1",
+        checkpointRef: "checkpoint-hash"
+      },
+      invoke
+    );
+
+    expect(result.ok).toBe(true);
+    expect(result.eventPreview.notWritten).toBe(true);
+    expect(JSON.stringify(result)).not.toContain("preimage content");
   });
 
   it("reads runner preflight through the fixed command", async () => {
@@ -8447,10 +8515,12 @@ describe("app user workspace apply rollback event writer", () => {
     expect(desktopFlowSource).toContain(
       "user_workspace.patch_apply.approved_result"
     );
+    expect(desktopFlowSource).toContain(
+      "user_workspace.patch_rollback.approved_result"
+    );
     expect(desktopFlowSource).not.toContain(
       "writeUserWorkspaceApplyRollbackEvents"
     );
-    expect(desktopFlowSource).not.toContain("user_workspace.patch_rollback");
   });
 });
 
@@ -12016,7 +12086,9 @@ describe("desktop source boundaries", () => {
     expect(combined).toContain("eventPreview");
     expect(combined).toContain("notWritten: true");
     expect(combined).toContain("No EventStore write");
-    expect(combined).toContain("No rollback command yet");
+    expect(combined).toContain(
+      "Rollback is handled by the separate P0O-005"
+    );
     expect(combined).toContain("No Git or shell execution");
     expect(combined).toContain("No PermissionLease issuing");
     expect(combined).toContain("No raw content");
@@ -12024,6 +12096,39 @@ describe("desktop source boundaries", () => {
     expect(combined).toContain("No desktop action");
     expect(docsIndex).toContain(
       "app-approved-user-workspace-apply-command-v0.11.md"
+    );
+  });
+
+  it("documents the P0O-005 approved rollback command as checkpoint-only and summary-only", async () => {
+    const rollbackDoc = await readFile(
+      path.join(
+        repoRoot,
+        "docs",
+        "app-approved-user-workspace-rollback-command-v0.11.md"
+      ),
+      "utf8"
+    );
+    const docsIndex = await readFile(
+      path.join(repoRoot, "docs", "README.md"),
+      "utf8"
+    );
+    const combined = `${rollbackDoc}\n${docsIndex}`;
+
+    expect(combined).toContain("rollback_approved_user_workspace_patch");
+    expect(combined).toContain("ROLLBACK USER WORKSPACE");
+    expect(combined).toContain("checkpointRef");
+    expect(combined).toContain("checkpoint content hash");
+    expect(combined).toContain("Read checkpoint only");
+    expect(combined).toContain("summary-only result");
+    expect(combined).toContain("eventPreview.notWritten: true");
+    expect(combined).toContain("No EventStore write");
+    expect(combined).toContain("No generic rollback command");
+    expect(combined).toContain("No raw content event payload");
+    expect(combined).toContain("No Git/shell execution");
+    expect(combined).toContain("No native bridge");
+    expect(combined).toContain("No desktop action");
+    expect(docsIndex).toContain(
+      "app-approved-user-workspace-rollback-command-v0.11.md"
     );
   });
 

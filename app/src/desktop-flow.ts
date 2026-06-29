@@ -52,6 +52,7 @@ export type ApprovedUserWorkspaceApplyResult = {
   ok: true;
   applyId: string;
   checkpointId: string;
+  checkpointHash: string;
   workspaceRootRef: string;
   operationCount: number;
   filesCreated: number;
@@ -66,6 +67,7 @@ export type ApprovedUserWorkspaceApplyResult = {
     type: "user_workspace.patch_apply.approved_result";
     applyId: string;
     checkpointId: string;
+    checkpointHash: string;
     workspaceRootRef: string;
     operationCount: number;
     filesCreated: number;
@@ -79,9 +81,50 @@ export type ApprovedUserWorkspaceApplyResult = {
   safeMessage: string;
 };
 
+export type ApprovedUserWorkspaceRollbackRequest = {
+  workspaceRoot: string;
+  workspaceRootRef: string;
+  receipt: Record<string, unknown>;
+  applyId: string;
+  checkpointId: string;
+  checkpointRef: string;
+};
+
+export type ApprovedUserWorkspaceRollbackResult = {
+  ok: true;
+  rollbackId: string;
+  applyId: string;
+  checkpointId: string;
+  checkpointHash: string;
+  workspaceRootRef: string;
+  operationCount: number;
+  filesRemoved: number;
+  filesRestored: number;
+  restoredSnapshotHash: string;
+  resultHash: string;
+  warningCodes: string[];
+  eventPreview: {
+    type: "user_workspace.patch_rollback.approved_result";
+    rollbackId: string;
+    applyId: string;
+    checkpointId: string;
+    checkpointHash: string;
+    workspaceRootRef: string;
+    operationCount: number;
+    filesRemoved: number;
+    filesRestored: number;
+    restoredSnapshotHash: string;
+    resultHash: string;
+    warningCodes: string[];
+    notWritten: true;
+  };
+  safeMessage: string;
+};
+
 export const allowedDesktopCommands = [
   "get_app_version",
   "apply_approved_user_workspace_patch",
+  "rollback_approved_user_workspace_patch",
   "check_runner_preflight",
   "load_workspace_event_summary",
   "record_control_run_draft_event",
@@ -194,6 +237,18 @@ export async function applyApprovedUserWorkspacePatch(
   );
 }
 
+export async function rollbackApprovedUserWorkspacePatch(
+  request: ApprovedUserWorkspaceRollbackRequest,
+  invokeImpl?: TauriInvoke
+): Promise<ApprovedUserWorkspaceRollbackResult> {
+  validateApprovedRollbackRequest(request);
+  return invokeAllowedCommand<ApprovedUserWorkspaceRollbackResult>(
+    "rollback_approved_user_workspace_patch",
+    { request },
+    invokeImpl
+  );
+}
+
 export async function invokeAllowedCommand<T>(
   command: string,
   args: Record<string, unknown>,
@@ -242,6 +297,8 @@ function normalizeAllowedCommandResponse(
       return normalizeRunDraftEventRecordResult(raw);
     case "apply_approved_user_workspace_patch":
       return normalizeApprovedApplyResult(raw);
+    case "rollback_approved_user_workspace_patch":
+      return normalizeApprovedRollbackResult(raw);
     case "run_web_table_to_csv_flow":
       return normalizeDesktopFlowResult(raw);
     default:
@@ -269,6 +326,26 @@ function validateApprovedApplyRequest(
   }
 }
 
+function validateApprovedRollbackRequest(
+  request: ApprovedUserWorkspaceRollbackRequest
+): void {
+  if (request.workspaceRoot.trim().length === 0) {
+    throw new Error("Workspace root is required");
+  }
+  if (request.workspaceRootRef.trim().length === 0) {
+    throw new Error("Workspace root ref is required");
+  }
+  if (request.applyId.trim().length === 0) {
+    throw new Error("Approved rollback applyId is required");
+  }
+  if (request.checkpointId.trim().length === 0) {
+    throw new Error("Approved rollback checkpointId is required");
+  }
+  if (request.checkpointRef.trim().length === 0) {
+    throw new Error("Approved rollback checkpointRef is required");
+  }
+}
+
 function normalizeApprovedApplyResult(
   raw: unknown
 ): ApprovedUserWorkspaceApplyResult {
@@ -280,6 +357,7 @@ function normalizeApprovedApplyResult(
     record.ok !== true ||
     typeof record.applyId !== "string" ||
     typeof record.checkpointId !== "string" ||
+    typeof record.checkpointHash !== "string" ||
     typeof record.workspaceRootRef !== "string" ||
     typeof record.operationCount !== "number" ||
     typeof record.filesCreated !== "number" ||
@@ -313,6 +391,7 @@ function normalizeApprovedApplyResult(
     ok: true,
     applyId: safeErrorMessage(record.applyId),
     checkpointId: safeErrorMessage(record.checkpointId),
+    checkpointHash: safeErrorMessage(record.checkpointHash),
     workspaceRootRef: safeErrorMessage(record.workspaceRootRef),
     operationCount: record.operationCount,
     filesCreated: record.filesCreated,
@@ -327,6 +406,9 @@ function normalizeApprovedApplyResult(
       type: "user_workspace.patch_apply.approved_result",
       applyId: safeErrorMessage(String(eventPreview.applyId ?? "")),
       checkpointId: safeErrorMessage(String(eventPreview.checkpointId ?? "")),
+      checkpointHash: safeErrorMessage(
+        String(eventPreview.checkpointHash ?? "")
+      ),
       workspaceRootRef: safeErrorMessage(
         String(eventPreview.workspaceRootRef ?? "")
       ),
@@ -335,6 +417,83 @@ function normalizeApprovedApplyResult(
       filesUpdated: Number(eventPreview.filesUpdated ?? 0),
       filesDeleted: Number(eventPreview.filesDeleted ?? 0),
       bytesWritten: Number(eventPreview.bytesWritten ?? 0),
+      resultHash: safeErrorMessage(String(eventPreview.resultHash ?? "")),
+      warningCodes: eventWarningCodes,
+      notWritten: true
+    },
+    safeMessage: safeErrorMessage(record.safeMessage)
+  };
+}
+
+function normalizeApprovedRollbackResult(
+  raw: unknown
+): ApprovedUserWorkspaceRollbackResult {
+  const record = isRecord(raw) ? raw : {};
+  const eventPreview = isRecord(record.eventPreview)
+    ? record.eventPreview
+    : {};
+  if (
+    record.ok !== true ||
+    typeof record.rollbackId !== "string" ||
+    typeof record.applyId !== "string" ||
+    typeof record.checkpointId !== "string" ||
+    typeof record.checkpointHash !== "string" ||
+    typeof record.workspaceRootRef !== "string" ||
+    typeof record.operationCount !== "number" ||
+    typeof record.filesRemoved !== "number" ||
+    typeof record.filesRestored !== "number" ||
+    typeof record.restoredSnapshotHash !== "string" ||
+    typeof record.resultHash !== "string" ||
+    typeof record.safeMessage !== "string" ||
+    eventPreview.type !== "user_workspace.patch_rollback.approved_result" ||
+    eventPreview.notWritten !== true
+  ) {
+    throw normalizeDesktopCommandError({
+      errorCode: "INVALID_RESPONSE",
+      safeMessage: "Approved rollback response was invalid",
+      stage: "normalize_response"
+    });
+  }
+  const warningCodes = Array.isArray(record.warningCodes)
+    ? record.warningCodes.filter((value): value is string =>
+        typeof value === "string"
+      )
+    : [];
+  const eventWarningCodes = Array.isArray(eventPreview.warningCodes)
+    ? eventPreview.warningCodes.filter((value): value is string =>
+        typeof value === "string"
+      )
+    : [];
+  return {
+    ok: true,
+    rollbackId: safeErrorMessage(record.rollbackId),
+    applyId: safeErrorMessage(record.applyId),
+    checkpointId: safeErrorMessage(record.checkpointId),
+    checkpointHash: safeErrorMessage(record.checkpointHash),
+    workspaceRootRef: safeErrorMessage(record.workspaceRootRef),
+    operationCount: record.operationCount,
+    filesRemoved: record.filesRemoved,
+    filesRestored: record.filesRestored,
+    restoredSnapshotHash: safeErrorMessage(record.restoredSnapshotHash),
+    resultHash: safeErrorMessage(record.resultHash),
+    warningCodes,
+    eventPreview: {
+      type: "user_workspace.patch_rollback.approved_result",
+      rollbackId: safeErrorMessage(String(eventPreview.rollbackId ?? "")),
+      applyId: safeErrorMessage(String(eventPreview.applyId ?? "")),
+      checkpointId: safeErrorMessage(String(eventPreview.checkpointId ?? "")),
+      checkpointHash: safeErrorMessage(
+        String(eventPreview.checkpointHash ?? "")
+      ),
+      workspaceRootRef: safeErrorMessage(
+        String(eventPreview.workspaceRootRef ?? "")
+      ),
+      operationCount: Number(eventPreview.operationCount ?? 0),
+      filesRemoved: Number(eventPreview.filesRemoved ?? 0),
+      filesRestored: Number(eventPreview.filesRestored ?? 0),
+      restoredSnapshotHash: safeErrorMessage(
+        String(eventPreview.restoredSnapshotHash ?? "")
+      ),
       resultHash: safeErrorMessage(String(eventPreview.resultHash ?? "")),
       warningCodes: eventWarningCodes,
       notWritten: true
