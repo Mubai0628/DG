@@ -107,6 +107,11 @@ import {
   type LiveProposalOptInGateView
 } from "./live-proposal-opt-in-gate-view.js";
 import {
+  buildAppLiveProposalSessionReceiptView,
+  summarizeAppLiveProposalSessionReceiptView,
+  type AppLiveProposalSessionReceiptView
+} from "./app-live-proposal-session-receipt-view.js";
+import {
   buildLiveProposalRequestBuilderView,
   type LiveProposalRequestBuilderView
 } from "./live-proposal-request-builder-view.js";
@@ -415,6 +420,14 @@ export function DesktopShell(): JSX.Element {
     useState<LiveProposalOptInGateView["optInMode"]>("disabled");
   const [liveProposalOptInGatePreview, setLiveProposalOptInGatePreview] =
     useState<LiveProposalOptInGateView | undefined>();
+  const [
+    appLiveProposalSessionTypedConfirmation,
+    setAppLiveProposalSessionTypedConfirmation
+  ] = useState("");
+  const [
+    appLiveProposalSessionReceiptPreview,
+    setAppLiveProposalSessionReceiptPreview
+  ] = useState<AppLiveProposalSessionReceiptView | undefined>();
   const [liveProposalRequestObjective, setLiveProposalRequestObjective] =
     useState("");
   const [liveProposalRequestIntent, setLiveProposalRequestIntent] = useState(
@@ -1339,6 +1352,32 @@ export function DesktopShell(): JSX.Element {
     );
   const displayedLiveProposalRequestBuilder =
     liveProposalRequestBuilderPreview ?? liveProposalRequestBuilderCandidate;
+  const appLiveProposalSessionReceiptCandidate =
+    useMemo<AppLiveProposalSessionReceiptView>(
+      () =>
+        buildAppLiveProposalSessionReceiptView({
+          typedConfirmation: appLiveProposalSessionTypedConfirmation,
+          modelProfileId: liveProposalModelProfileId,
+          objectiveSummary: liveProposalRequestObjective,
+          allowedPathRefsText: liveProposalRequestAllowedPaths,
+          apiKeyPolicyId: displayedLiveProposalOptInGate.policyId,
+          requestBuilderId: displayedLiveProposalRequestBuilder.requestId,
+          requestBoundaryHash:
+            displayedLiveProposalRequestBuilder.requestHashPrefix
+        }),
+      [
+        appLiveProposalSessionTypedConfirmation,
+        displayedLiveProposalOptInGate.policyId,
+        displayedLiveProposalRequestBuilder.requestHashPrefix,
+        displayedLiveProposalRequestBuilder.requestId,
+        liveProposalModelProfileId,
+        liveProposalRequestAllowedPaths,
+        liveProposalRequestObjective
+      ]
+    );
+  const displayedAppLiveProposalSessionReceipt =
+    appLiveProposalSessionReceiptPreview ??
+    appLiveProposalSessionReceiptCandidate;
   const liveProposalValidationIntegrationView =
     useMemo<LiveProposalValidationIntegrationView>(
       () => buildLiveProposalValidationIntegrationView(),
@@ -1844,12 +1883,28 @@ export function DesktopShell(): JSX.Element {
 
   function handlePreviewLiveProposalOptInGate(): void {
     setLiveProposalOptInGatePreview(liveProposalOptInGateCandidate);
+    setAppLiveProposalSessionReceiptPreview(undefined);
     setLiveProposalPreviewGatePreview(undefined);
     setLiveProposalTelemetryAuditPreview(undefined);
   }
 
   function handlePreviewLiveProposalRequest(): void {
     setLiveProposalRequestBuilderPreview(liveProposalRequestBuilderCandidate);
+    setAppLiveProposalSessionReceiptPreview(undefined);
+    setLiveProposalPreviewGatePreview(undefined);
+    setLiveProposalTelemetryAuditPreview(undefined);
+  }
+
+  function handlePreviewAppLiveProposalSessionReceipt(): void {
+    setAppLiveProposalSessionReceiptPreview(
+      appLiveProposalSessionReceiptCandidate
+    );
+    setLiveProposalPreviewGatePreview(undefined);
+    setLiveProposalTelemetryAuditPreview(undefined);
+  }
+
+  function handleClearAppLiveProposalSessionReceipt(): void {
+    setAppLiveProposalSessionReceiptPreview(undefined);
     setLiveProposalPreviewGatePreview(undefined);
     setLiveProposalTelemetryAuditPreview(undefined);
   }
@@ -3810,6 +3865,7 @@ export function DesktopShell(): JSX.Element {
                     setLiveProposalModelProfileId(event.target.value);
                     setLiveProposalOptInGatePreview(undefined);
                     setLiveProposalRequestBuilderPreview(undefined);
+                    setAppLiveProposalSessionReceiptPreview(undefined);
                     setLiveProposalPreviewGatePreview(undefined);
                     setLiveProposalTelemetryAuditPreview(undefined);
                   }}
@@ -3826,6 +3882,7 @@ export function DesktopShell(): JSX.Element {
                   setLiveProposalKeySourceRef(event.target.value);
                   setLiveProposalOptInGatePreview(undefined);
                   setLiveProposalRequestBuilderPreview(undefined);
+                  setAppLiveProposalSessionReceiptPreview(undefined);
                   setLiveProposalPreviewGatePreview(undefined);
                   setLiveProposalTelemetryAuditPreview(undefined);
                 }}
@@ -3848,6 +3905,7 @@ export function DesktopShell(): JSX.Element {
                   );
                   setLiveProposalOptInGatePreview(undefined);
                   setLiveProposalRequestBuilderPreview(undefined);
+                  setAppLiveProposalSessionReceiptPreview(undefined);
                   setLiveProposalPreviewGatePreview(undefined);
                   setLiveProposalTelemetryAuditPreview(undefined);
                 }}
@@ -3966,6 +4024,200 @@ export function DesktopShell(): JSX.Element {
 
           <section
             className="eventPanel"
+            aria-label="Live Proposal Session Receipt"
+          >
+            <div className="panelHeader">
+              <h2>Live Proposal Session Receipt</h2>
+              <span className="muted">
+                Explicit confirmation / no model call
+              </span>
+            </div>
+            <p className="fieldHelp">
+              Builds a summary-only session receipt for one future live DeepSeek
+              proposal request. The App Shell does not call DeepSeek, read API
+              keys, fetch network, apply patches, rollback, invoke Tauri, or
+              write events.
+            </p>
+
+            <label>
+              <span>Typed confirmation</span>
+              <input
+                value={appLiveProposalSessionTypedConfirmation}
+                onChange={(event) => {
+                  setAppLiveProposalSessionTypedConfirmation(
+                    event.target.value
+                  );
+                  setAppLiveProposalSessionReceiptPreview(undefined);
+                  setLiveProposalPreviewGatePreview(undefined);
+                  setLiveProposalTelemetryAuditPreview(undefined);
+                }}
+                placeholder="CALL DEEPSEEK FOR PROPOSAL"
+              />
+              <p className="fieldHelp">
+                This confirms proposal generation only. It is not an apply
+                approval, rollback approval, PermissionLease, key value field,
+                or live model call.
+              </p>
+            </label>
+
+            <div className="buttonRow">
+              <button
+                type="button"
+                className="secondary"
+                onClick={(event) => {
+                  event.preventDefault();
+                  event.stopPropagation();
+                  handlePreviewAppLiveProposalSessionReceipt();
+                }}
+              >
+                Preview Session Receipt
+              </button>
+              <button
+                type="button"
+                className="secondary"
+                onClick={(event) => {
+                  event.preventDefault();
+                  event.stopPropagation();
+                  handleClearAppLiveProposalSessionReceipt();
+                }}
+              >
+                Clear Session Receipt
+              </button>
+              <button type="button" className="secondary" disabled>
+                Call DeepSeek (disabled)
+              </button>
+            </div>
+
+            {displayedAppLiveProposalSessionReceipt.status === "empty" ? (
+              <p className="empty">
+                No session receipt preview yet. Type the exact confirmation to
+                inspect receipt readiness.
+              </p>
+            ) : null}
+
+            {displayedAppLiveProposalSessionReceipt.status === "blocked" ? (
+              <div className="errorBox">
+                <strong>Session receipt blocked</strong>
+                <p>{displayedAppLiveProposalSessionReceipt.nextAction}</p>
+              </div>
+            ) : null}
+
+            <dl className="summaryGrid compact">
+              <div>
+                <dt>Status</dt>
+                <dd>{displayedAppLiveProposalSessionReceipt.status}</dd>
+              </div>
+              <div>
+                <dt>Receipt</dt>
+                <dd>{displayedAppLiveProposalSessionReceipt.receiptId}</dd>
+              </div>
+              <div>
+                <dt>Provider / model</dt>
+                <dd>
+                  {displayedAppLiveProposalSessionReceipt.providerId} /{" "}
+                  {displayedAppLiveProposalSessionReceipt.modelProfileId}
+                </dd>
+              </div>
+              <div>
+                <dt>Objective hash</dt>
+                <dd>
+                  {
+                    displayedAppLiveProposalSessionReceipt.objectiveSummaryHashPrefix
+                  }
+                </dd>
+              </div>
+              <div>
+                <dt>Path / context refs</dt>
+                <dd>
+                  {displayedAppLiveProposalSessionReceipt.allowedPathCount} /{" "}
+                  {displayedAppLiveProposalSessionReceipt.contextRefCount}
+                </dd>
+              </div>
+              <div>
+                <dt>Confirmation</dt>
+                <dd>
+                  {displayedAppLiveProposalSessionReceipt.typedConfirmationAccepted
+                    ? "accepted"
+                    : "not accepted"}
+                </dd>
+              </div>
+              <div>
+                <dt>Blockers / warnings</dt>
+                <dd>
+                  {displayedAppLiveProposalSessionReceipt.blockerCount} /{" "}
+                  {displayedAppLiveProposalSessionReceipt.warningCount}
+                </dd>
+              </div>
+              <div>
+                <dt>Receipt hash</dt>
+                <dd>
+                  {displayedAppLiveProposalSessionReceipt.receiptHashPrefix}
+                </dd>
+              </div>
+              <div>
+                <dt>Can enter command later</dt>
+                <dd>
+                  {displayedAppLiveProposalSessionReceipt.readiness
+                    .canProceedToLiveProposalCommand
+                    ? "yes"
+                    : "no"}
+                </dd>
+              </div>
+              <div>
+                <dt>Key / model / network</dt>
+                <dd>
+                  {displayedAppLiveProposalSessionReceipt.readiness
+                    .canReadApiKey
+                    ? "yes"
+                    : "no"}{" "}
+                  /{" "}
+                  {displayedAppLiveProposalSessionReceipt.readiness
+                    .canCallLiveModel
+                    ? "yes"
+                    : "no"}{" "}
+                  /{" "}
+                  {displayedAppLiveProposalSessionReceipt.readiness
+                    .canFetchNetwork
+                    ? "yes"
+                    : "no"}
+                </dd>
+              </div>
+              <div>
+                <dt>Apply / events</dt>
+                <dd>
+                  {displayedAppLiveProposalSessionReceipt.readiness
+                    .canApplyPatch
+                    ? "yes"
+                    : "no"}{" "}
+                  /{" "}
+                  {displayedAppLiveProposalSessionReceipt.readiness
+                    .canWriteEventStore
+                    ? "yes"
+                    : "no"}
+                </dd>
+              </div>
+            </dl>
+
+            {displayedAppLiveProposalSessionReceipt.findings.length > 0 ? (
+              <p className="muted">
+                findings{" "}
+                {displayedAppLiveProposalSessionReceipt.findings
+                  .map((finding) => finding.code)
+                  .join(", ")}
+              </p>
+            ) : null}
+
+            <p className="fieldHelp">
+              {
+                summarizeAppLiveProposalSessionReceiptView(
+                  displayedAppLiveProposalSessionReceipt
+                ).nextAction
+              }
+            </p>
+          </section>
+
+          <section
+            className="eventPanel"
             aria-label="Live Proposal Request Builder"
           >
             <div className="panelHeader">
@@ -3987,6 +4239,7 @@ export function DesktopShell(): JSX.Element {
                 onChange={(event) => {
                   setLiveProposalRequestObjective(event.target.value);
                   setLiveProposalRequestBuilderPreview(undefined);
+                  setAppLiveProposalSessionReceiptPreview(undefined);
                   setLiveProposalPreviewGatePreview(undefined);
                   setLiveProposalTelemetryAuditPreview(undefined);
                 }}
@@ -4001,6 +4254,7 @@ export function DesktopShell(): JSX.Element {
                 onChange={(event) => {
                   setLiveProposalRequestIntent(event.target.value);
                   setLiveProposalRequestBuilderPreview(undefined);
+                  setAppLiveProposalSessionReceiptPreview(undefined);
                   setLiveProposalPreviewGatePreview(undefined);
                   setLiveProposalTelemetryAuditPreview(undefined);
                 }}
@@ -4017,6 +4271,7 @@ export function DesktopShell(): JSX.Element {
                     setLiveProposalModelProfileId(event.target.value);
                     setLiveProposalOptInGatePreview(undefined);
                     setLiveProposalRequestBuilderPreview(undefined);
+                    setAppLiveProposalSessionReceiptPreview(undefined);
                     setLiveProposalPreviewGatePreview(undefined);
                     setLiveProposalTelemetryAuditPreview(undefined);
                   }}
@@ -4031,6 +4286,7 @@ export function DesktopShell(): JSX.Element {
                   onChange={(event) => {
                     setLiveProposalRequestAllowedPaths(event.target.value);
                     setLiveProposalRequestBuilderPreview(undefined);
+                    setAppLiveProposalSessionReceiptPreview(undefined);
                     setLiveProposalPreviewGatePreview(undefined);
                     setLiveProposalTelemetryAuditPreview(undefined);
                   }}

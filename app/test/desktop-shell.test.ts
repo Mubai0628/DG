@@ -68,6 +68,7 @@ import {
   summarizeModelProposalChainIntegrationView
 } from "../src/model-proposal-chain-integration-view.js";
 import { buildLiveProposalOptInGateView } from "../src/live-proposal-opt-in-gate-view.js";
+import { buildAppLiveProposalSessionReceiptView } from "../src/app-live-proposal-session-receipt-view.js";
 import { buildLiveProposalRequestBuilderView } from "../src/live-proposal-request-builder-view.js";
 import { buildLiveProposalValidationIntegrationView } from "../src/live-proposal-validation-integration-view.js";
 import { buildLiveProposalPreviewGateView } from "../src/live-proposal-preview-gate-view.js";
@@ -4709,6 +4710,84 @@ describe("app live proposal opt-in gate", () => {
     expect(normalized).toContain("DEEPSEEK_API_KEY ref only, no value");
     expect(docsIndex).toContain("runtime-live-proposal-api-key-policy-v0.8.md");
     expect(docsIndex).toContain("app-shell-live-proposal-opt-in-gate-v0.8.md");
+  });
+});
+
+describe("app live proposal session receipt", () => {
+  it("builds ready and blocked receipt previews without live calls", () => {
+    const empty = buildAppLiveProposalSessionReceiptView();
+    const ready = buildAppLiveProposalSessionReceiptView({
+      typedConfirmation: "CALL DEEPSEEK FOR PROPOSAL",
+      objectiveSummary: "Generate a summary-only docs proposal.",
+      modelProfileId: "deepseek-chat",
+      allowedPathRefsText: "docs/live-proposal-session.md",
+      apiKeyPolicyId: "policy-ref-1",
+      requestBuilderId: "request-ref-1",
+      requestBoundaryHash: "request-boundary-hash-1"
+    });
+    const blocked = buildAppLiveProposalSessionReceiptView({
+      typedConfirmation: "CALL MODEL",
+      objectiveSummary: "Generate a summary-only docs proposal.",
+      modelProfileId: "deepseek-chat",
+      allowedPathRefsText: "../escape.ts",
+      apiKeyPolicyId: "policy-ref-1"
+    });
+    const serialized = JSON.stringify({ empty, ready, blocked });
+
+    expect(empty.status).toBe("empty");
+    expect(empty.readiness.canReadApiKey).toBe(false);
+    expect(empty.readiness.canCallLiveModel).toBe(false);
+    expect(ready.status).toBe("ready");
+    expect(ready.typedConfirmationAccepted).toBe(true);
+    expect(ready.allowedPathCount).toBe(1);
+    expect(ready.readiness.canProceedToLiveProposalCommand).toBe(true);
+    expect(ready.readiness.canReadApiKey).toBe(false);
+    expect(ready.readiness.canCallLiveModel).toBe(false);
+    expect(ready.readiness.canFetchNetwork).toBe(false);
+    expect(ready.readiness.canApplyPatch).toBe(false);
+    expect(ready.readiness.canRollback).toBe(false);
+    expect(ready.readiness.canWriteEventStore).toBe(false);
+    expect(blocked.status).toBe("blocked");
+    expect(blocked.findings.map((finding) => finding.code)).toContain(
+      "APP_LIVE_SESSION_CONFIRMATION_MISMATCH"
+    );
+    expect(blocked.findings.map((finding) => finding.code)).toContain(
+      "APP_LIVE_SESSION_UNSAFE_PATH"
+    );
+    expect(serialized).not.toContain("sk-");
+    expect(serialized).not.toContain("Authorization");
+    expect(serialized).not.toContain("raw prompt");
+  });
+
+  it("keeps App source session receipt confirmation-only without live call wiring", async () => {
+    const appSource = await readFile(
+      path.join(appRoot, "src", "App.tsx"),
+      "utf8"
+    );
+    const viewSource = await readFile(
+      path.join(appRoot, "src", "app-live-proposal-session-receipt-view.ts"),
+      "utf8"
+    );
+    const combined = `${appSource}\n${viewSource}`;
+
+    expect(appSource).toContain("Live Proposal Session Receipt");
+    expect(appSource).toContain("Explicit confirmation / no model call");
+    expect(appSource).toContain("Preview Session Receipt");
+    expect(appSource).toContain("CALL DEEPSEEK FOR PROPOSAL");
+    expect(appSource).toContain("Call DeepSeek (disabled)");
+    expect(appSource).toContain("not an apply");
+    expect(appSource).toContain("key value field");
+    expect(appSource).not.toContain('type="password"');
+    expect(appSource).not.toContain("handleCallDeepSeek");
+    expect(appSource).not.toContain("handleSendLiveProposalRequest");
+    expect(appSource).not.toContain("handleApplyLiveProposal");
+    expect(appSource).not.toContain("handleRollbackLiveProposal");
+    expect(viewSource).not.toContain("process.env");
+    expect(viewSource).not.toContain("fetch(");
+    expect(viewSource).not.toContain("safeInvoke");
+    expect(viewSource).not.toContain("recordControlRunDraftEvent");
+    expect(combined).not.toContain("readLiveProposalApiKey");
+    expect(combined).not.toContain("writeLiveProposalEvent");
   });
 });
 
