@@ -13581,6 +13581,120 @@ describe("desktop source boundaries", () => {
     );
   });
 
+  it("documents the P0Q-001 app live proposal generation design gate", async () => {
+    const adr = await readFile(
+      path.join(
+        repoRoot,
+        "docs",
+        "adr",
+        "0011-app-live-proposal-generation-gate.md"
+      ),
+      "utf8"
+    );
+    const threatModel = await readFile(
+      path.join(
+        repoRoot,
+        "docs",
+        "app-live-proposal-generation-threat-model-v0.12.md"
+      ),
+      "utf8"
+    );
+    const implementationGate = await readFile(
+      path.join(
+        repoRoot,
+        "docs",
+        "app-live-proposal-generation-implementation-gate-v0.12.md"
+      ),
+      "utf8"
+    );
+    const nextPlan = await readFile(
+      path.join(
+        repoRoot,
+        "docs",
+        "p0q-002-app-live-proposal-session-receipt-plan.md"
+      ),
+      "utf8"
+    );
+    const docsIndex = await readFile(
+      path.join(repoRoot, "docs", "README.md"),
+      "utf8"
+    );
+    const combined = `${adr}\n${threatModel}\n${implementationGate}\n${nextPlan}\n${docsIndex}`;
+
+    expect(combined).toContain("ADR 0011: App Live Proposal Generation Gate");
+    expect(combined).toContain("Proposed / Accepted for P0Q design gate");
+    expect(combined).toContain("explicit opt-in");
+    expect(combined).toContain("session receipt");
+    expect(combined).toContain("Session receipt is not a PermissionLease");
+    expect(combined).toContain("model_patch_proposal");
+    expect(combined).toContain("must not apply patches");
+    expect(combined).toContain("must not rollback patches");
+    expect(combined).toContain("must not write EventStore");
+    expect(combined).toContain("must not execute Git");
+    expect(combined).toContain("must not execute shell");
+    expect(combined).toContain("raw prompt");
+    expect(combined).toContain("raw response");
+    expect(combined).toContain("reasoning_content");
+    expect(combined).toContain("schema validation");
+    expect(combined).toContain("repair loop");
+    expect(combined).toContain("patch proposal import");
+    expect(combined).toContain("chain integration");
+    expect(combined).toContain("validation preview");
+    expect(combined).toContain("diff audit");
+    expect(combined).toContain("approval draft");
+    expect(combined).toContain("approved apply / rollback chain");
+    expect(combined).toContain("API Key Leakage");
+    expect(combined).toContain("Prompt Injection");
+    expect(combined).toContain("Raw Prompt Leakage");
+    expect(combined).toContain("Raw Response Leakage");
+    expect(combined).toContain("Reasoning Content Leakage");
+    expect(combined).toContain("Model Hallucination");
+    expect(combined).toContain("Unsafe Path Generation");
+    expect(combined).toContain("Malicious ContentDraft");
+    expect(combined).toContain("App Live Call Bypass");
+    expect(combined).toContain("Session Receipt Replay");
+    expect(combined).toContain("Request Tampering");
+    expect(combined).toContain("Response Tampering");
+    expect(combined).toContain("Telemetry Leakage");
+    expect(combined).toContain("Approval Bypass");
+    expect(combined).toContain("Event Confusion");
+    expect(combined).toContain("Windows Path Issues");
+    expect(combined).toContain("API Key Boundary");
+    expect(combined).toContain("Session Receipt Boundary");
+    expect(combined).toContain("Request Boundary");
+    expect(combined).toContain("Response Schema Boundary");
+    expect(combined).toContain("Repair Fail-Closed Boundary");
+    expect(combined).toContain("Redaction Boundary");
+    expect(combined).toContain("App UI Boundary");
+    expect(combined).toContain("No Auto-Apply Boundary");
+    expect(combined).toContain("No Git / Shell Boundary");
+    expect(combined).toContain("CI / Boundary Checker Gate");
+    expect(combined).toContain("GENERATE LIVE PROPOSAL");
+    expect(combined).toContain("proposal_generation_only");
+    expect(combined).toContain("No live DeepSeek call");
+    expect(combined).toContain("No API key read");
+    expect(combined).toContain("No fetch/network");
+    expect(combined).toContain("No Tauri command");
+    expect(combined).toContain("No EventStore writer");
+    expect(combined).toContain("No file write");
+    expect(combined).toContain("No apply");
+    expect(combined).toContain("No rollback");
+    expect(combined).toContain("No native bridge");
+    expect(combined).toContain("No desktop action");
+    expect(docsIndex).toContain(
+      "adr/0011-app-live-proposal-generation-gate.md"
+    );
+    expect(docsIndex).toContain(
+      "app-live-proposal-generation-threat-model-v0.12.md"
+    );
+    expect(docsIndex).toContain(
+      "app-live-proposal-generation-implementation-gate-v0.12.md"
+    );
+    expect(docsIndex).toContain(
+      "p0q-002-app-live-proposal-session-receipt-plan.md"
+    );
+  });
+
   it("documents the P0L-001 DeepSeek patch proposal ADR and gates without implementation", async () => {
     const adr = await readFile(
       path.join(
