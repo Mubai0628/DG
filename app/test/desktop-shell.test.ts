@@ -88,6 +88,7 @@ import {
 import { buildLiveProposalEvaluationTelemetryAuditView } from "../src/live-proposal-evaluation-telemetry-audit-view.js";
 import { buildE2ECodingTaskWizardView } from "../src/e2e-coding-task-wizard-view.js";
 import { buildE2ECodingTaskSequencerView } from "../src/e2e-coding-task-sequencer-view.js";
+import { buildE2ETaskRecoveryView } from "../src/e2e-task-recovery-view.js";
 import {
   buildPatchProposalValidationPreviewView,
   patchProposalValidationApprovalRefs,
@@ -15792,6 +15793,156 @@ describe("desktop source boundaries", () => {
     expect(combined).toContain("No native bridge");
     expect(combined).toContain("No desktop action");
     expect(docsIndex).toContain("app-shell-e2e-coding-task-sequencer-v0.13.md");
+  });
+
+  it("classifies P0R-006 E2E task recovery states without auto-retry execution", () => {
+    const readyReceipt = {
+      status: "ready",
+      findings: [],
+      blockerCount: 0,
+      nextAction: "Receipt ready."
+    } as never;
+    const applyFlow = {
+      receiptKind: "apply",
+      readiness: { canRollbackApprovedPatch: false }
+    } as never;
+    const rollbackFlow = {
+      receiptKind: "rollback",
+      readiness: { canRollbackApprovedPatch: true }
+    } as never;
+    const applyResult = {
+      applyId: "apply-1"
+    } as ApprovedUserWorkspaceApplyResult;
+    const failedVerification = {
+      status: "failed",
+      safeMessage: "Verification failed with summary-only output."
+    } as ShellVerificationLaneResult;
+
+    const staleSnapshot = buildE2ETaskRecoveryView({
+      approvalReceiptView: readyReceipt,
+      approvedExecutionFlowView: applyFlow,
+      approvedExecutionError:
+        "Expected before hash mismatch. Snapshot changed before apply."
+    });
+    const applyConflict = buildE2ETaskRecoveryView({
+      approvalReceiptView: readyReceipt,
+      approvedExecutionFlowView: applyFlow,
+      approvedExecutionError: "Apply conflict: file already exists."
+    });
+    const verificationFailure = buildE2ETaskRecoveryView({
+      approvalReceiptView: readyReceipt,
+      approvedExecutionFlowView: rollbackFlow,
+      applyResult,
+      shellVerificationResult: failedVerification
+    });
+    const rollbackFailure = buildE2ETaskRecoveryView({
+      approvalReceiptView: readyReceipt,
+      approvedExecutionFlowView: rollbackFlow,
+      applyResult,
+      approvedExecutionError: "Approved rollback failed safely."
+    });
+    const fileExists = buildE2ETaskRecoveryView({
+      conversionError: {
+        errorCode: "FILE_EXISTS",
+        safeMessage: "FILE_EXISTS: choose a new filename."
+      }
+    });
+    const rawBlocked = buildE2ETaskRecoveryView({
+      approvedExecutionFlowView: {
+        preimageContent: "unsafe",
+        rawSource: "unsafe",
+        apiKey: "sk-fake-not-a-real-key"
+      } as never
+    });
+
+    expect(staleSnapshot.failureCategory).toBe("stale_snapshot");
+    expect(staleSnapshot.safeSummary).toContain("Expected before hash");
+    expect(staleSnapshot.retryAllowed).toBe(true);
+    expect(applyConflict.failureCategory).toBe("apply_conflict");
+    expect(verificationFailure.failureCategory).toBe("verification_failure");
+    expect(verificationFailure.recommendedAction).toContain("rollback");
+    expect(verificationFailure.rollbackAvailable).toBe(true);
+    expect(verificationFailure.retryAllowed).toBe(false);
+    expect(rollbackFailure.failureCategory).toBe("rollback_failure");
+    expect(rollbackFailure.safeSummary).toContain("rollback failed safely");
+    expect(fileExists.failureCategory).toBe("convert_file_exists");
+    expect(fileExists.recommendedAction).toContain("new CSV filename");
+    expect(rawBlocked.status).toBe("blocked");
+    expect(rawBlocked.failureCategory).toBe("raw_content_blocked");
+    expect(rawBlocked.findings.map((finding) => finding.code)).toContain(
+      "RAW_SOURCE_FIELD_REJECTED"
+    );
+    expect(staleSnapshot.readiness.canAutoRetryExecution).toBe(false);
+    expect(staleSnapshot.readiness.canAutoApply).toBe(false);
+    expect(staleSnapshot.readiness.canRunArbitraryGit).toBe(false);
+    expect(staleSnapshot.readiness.canRunArbitraryShell).toBe(false);
+    expect(JSON.stringify(rawBlocked)).not.toContain("preimageContent");
+    expect(JSON.stringify(rawBlocked)).not.toContain("rawSource");
+    expect(JSON.stringify(rawBlocked)).not.toContain("sk-fake");
+  });
+
+  it("renders the P0R-006 recovery surface without enabled retry or arbitrary execution", async () => {
+    const appSource = await readFile(
+      path.join(appRoot, "src", "App.tsx"),
+      "utf8"
+    );
+    const recoverySource = await readFile(
+      path.join(appRoot, "src", "e2e-task-recovery-view.ts"),
+      "utf8"
+    );
+    const combinedSource = `${appSource}\n${recoverySource}`;
+
+    expect(appSource).toContain("E2E Task Recovery");
+    expect(appSource).toContain("Safe recovery / no auto-retry execution");
+    expect(appSource).toContain("Preview E2E Task Recovery");
+    expect(appSource).toContain("Failure category");
+    expect(appSource).toContain("Safe summary");
+    expect(appSource).toContain("Recommended action");
+    expect(combinedSource).toContain("stale_snapshot");
+    expect(combinedSource).toContain("apply_conflict");
+    expect(combinedSource).toContain("verification_failure");
+    expect(combinedSource).toContain("rollback_failure");
+    expect(combinedSource).toContain("eventstore_write_failure");
+    expect(combinedSource).toContain("convert_file_exists");
+    expect(combinedSource).toContain("raw_content_blocked");
+    expect(appSource).not.toContain("Auto Retry Execution");
+    expect(appSource).not.toContain("Retry Execution Now");
+    expect(appSource).not.toContain("Run Arbitrary Shell");
+    expect(appSource).not.toContain("Run Git Write");
+  });
+
+  it("documents the P0R-006 E2E task failure recovery boundary", async () => {
+    const docs = await readFile(
+      path.join(
+        repoRoot,
+        "docs",
+        "app-shell-e2e-task-failure-recovery-v0.13.md"
+      ),
+      "utf8"
+    );
+    const docsIndex = await readFile(
+      path.join(repoRoot, "docs", "README.md"),
+      "utf8"
+    );
+    const appReadme = await readFile(path.join(appRoot, "README.md"), "utf8");
+    const combined = `${docs}\n${docsIndex}\n${appReadme}`;
+
+    expect(combined).toContain("App Shell E2E Task Failure Recovery v0.13");
+    expect(combined).toContain("live proposal blocked");
+    expect(combined).toContain("schema or repair failed");
+    expect(combined).toContain("validation blocked");
+    expect(combined).toContain("typed confirmation mismatch");
+    expect(combined).toContain("stale snapshot");
+    expect(combined).toContain("apply conflict");
+    expect(combined).toContain("verification failure");
+    expect(combined).toContain("rollback failure");
+    expect(combined).toContain("EventStore write failure");
+    expect(combined).toContain("Convert FILE_EXISTS");
+    expect(combined).toContain("No auto-retry execution");
+    expect(combined).toContain("No raw event payload");
+    expect(combined).toContain("No arbitrary Git");
+    expect(combined).toContain("No arbitrary shell");
+    expect(combined).toContain("app-shell-e2e-task-failure-recovery-v0.13.md");
   });
 
   it("documents the P0L-001 DeepSeek patch proposal ADR and gates without implementation", async () => {

@@ -85,6 +85,10 @@ Current scope:
   approved apply, fixed Git/shell verification, and approved rollback handlers
   while arbitrary Git/shell, auto-apply, new execution commands, raw event
   payloads, native bridge, and desktop action remain absent
+- preview the P0R E2E Task Recovery surface for live proposal, schema/repair,
+  validation, approval, stale snapshot, apply conflict, verification, rollback,
+  EventStore, and Convert FILE_EXISTS failures while auto-retry execution and
+  raw content display remain absent
 - preview the P0M Live Proposal Opt-in Gate as policy metadata only, with no
   API key read, no environment value read, no vault read, no fetch/network, no
   live DeepSeek call, and no App execution

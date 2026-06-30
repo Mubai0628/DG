@@ -161,6 +161,11 @@ import {
   type E2ECodingTaskSequencerView
 } from "./e2e-coding-task-sequencer-view.js";
 import {
+  buildE2ETaskRecoveryView,
+  summarizeE2ETaskRecoveryView,
+  type E2ETaskRecoveryView
+} from "./e2e-task-recovery-view.js";
+import {
   buildPatchProposalValidationPreviewView,
   patchProposalValidationApprovalRefs,
   patchProposalValidationAuditWarningCodes,
@@ -516,6 +521,9 @@ export function DesktopShell(): JSX.Element {
   >();
   const [e2eCodingTaskSequencerPreview, setE2ECodingTaskSequencerPreview] =
     useState<E2ECodingTaskSequencerView | undefined>();
+  const [e2eTaskRecoveryPreview, setE2ETaskRecoveryPreview] = useState<
+    E2ETaskRecoveryView | undefined
+  >();
   const [e2eSequencerRollbackRequested, setE2ESequencerRollbackRequested] =
     useState(false);
   const [liveProposalModelProfileId, setLiveProposalModelProfileId] =
@@ -1601,6 +1609,51 @@ export function DesktopShell(): JSX.Element {
   );
   const displayedE2ECodingTaskSequencer =
     e2eCodingTaskSequencerPreview ?? buildE2ECodingTaskSequencerView();
+  const e2eTaskRecoveryCandidate = useMemo<E2ETaskRecoveryView>(
+    () =>
+      buildE2ETaskRecoveryView({
+        liveProposalGenerationView: liveDeepSeekProposalGenerationView,
+        modelPatchProposalImportView: modelPatchProposalImportPreview,
+        patchValidationPreview: patchProposalValidationPreview,
+        approvalReceiptView: displayedAppApprovedExecutionReceipt,
+        approvedExecutionFlowView: appApprovedExecutionFlowView,
+        approvedExecutionError: appApprovedExecutionError,
+        applyResult: appApprovedApplyResult,
+        rollbackResult: appApprovedRollbackResult,
+        approvedExecutionEventError:
+          (appApprovedApplyResult !== undefined ||
+            appApprovedRollbackResult !== undefined) &&
+          appApprovedExecutionEventResult === undefined
+            ? appApprovedExecutionError
+            : undefined,
+        liveProposalSummaryEventError,
+        gitVerificationEventError: gitReadLaneError,
+        shellVerificationResult,
+        shellVerificationError,
+        sequencerView: e2eCodingTaskSequencerCandidate,
+        conversionError:
+          error === undefined ? undefined : { safeMessage: error }
+      }),
+    [
+      appApprovedApplyResult,
+      appApprovedExecutionError,
+      appApprovedExecutionEventResult,
+      appApprovedExecutionFlowView,
+      appApprovedRollbackResult,
+      displayedAppApprovedExecutionReceipt,
+      e2eCodingTaskSequencerCandidate,
+      error,
+      gitReadLaneError,
+      liveDeepSeekProposalGenerationView,
+      liveProposalSummaryEventError,
+      modelPatchProposalImportPreview,
+      patchProposalValidationPreview,
+      shellVerificationError,
+      shellVerificationResult
+    ]
+  );
+  const displayedE2ETaskRecovery =
+    e2eTaskRecoveryPreview ?? buildE2ETaskRecoveryView();
   const liveProposalSummaryEventPreview = useMemo<
     LiveProposalSummaryEventPreview | undefined
   >(() => {
@@ -1769,6 +1822,25 @@ export function DesktopShell(): JSX.Element {
     shellVerificationEventResult,
     shellVerificationResult,
     verificationLaneProjection
+  ]);
+  useEffect(() => {
+    setE2ETaskRecoveryPreview(undefined);
+  }, [
+    appApprovedApplyResult,
+    appApprovedExecutionError,
+    appApprovedExecutionEventResult,
+    appApprovedExecutionFlowView,
+    appApprovedRollbackResult,
+    displayedAppApprovedExecutionReceipt,
+    e2eCodingTaskSequencerCandidate,
+    error,
+    gitReadLaneError,
+    liveDeepSeekProposalGenerationView,
+    liveProposalSummaryEventError,
+    modelPatchProposalImportPreview,
+    patchProposalValidationPreview,
+    shellVerificationError,
+    shellVerificationResult
   ]);
   const contextAssemblyCandidate = useMemo<AppContextAssemblyPreviewView>(
     () =>
@@ -2156,6 +2228,10 @@ export function DesktopShell(): JSX.Element {
 
   function handlePreviewE2ECodingTaskSequencer(): void {
     setE2ECodingTaskSequencerPreview(e2eCodingTaskSequencerCandidate);
+  }
+
+  function handlePreviewE2ETaskRecovery(): void {
+    setE2ETaskRecoveryPreview(e2eTaskRecoveryCandidate);
   }
 
   function handleImportE2EProposalToChain(): void {
@@ -4463,6 +4539,132 @@ export function DesktopShell(): JSX.Element {
                   displayedE2ECodingTaskSequencer
                 ).nextAction
               }
+            </p>
+          </section>
+
+          <section className="eventPanel" aria-label="E2E Task Recovery">
+            <div className="panelHeader">
+              <h2>E2E Task Recovery</h2>
+              <span className="muted">
+                Safe recovery / no auto-retry execution
+              </span>
+            </div>
+            <p className="fieldHelp">
+              Summarizes common E2E coding task failures and the next safe
+              action. The App Shell does not auto-retry execution, expose raw
+              prompt, raw response, raw source, raw diff, preimage content, API
+              keys, arbitrary Git/shell, native bridge, or desktop actions.
+            </p>
+
+            <div className="buttonRow">
+              <button
+                type="button"
+                className="secondary"
+                onClick={(event) => {
+                  event.preventDefault();
+                  event.stopPropagation();
+                  handlePreviewE2ETaskRecovery();
+                }}
+              >
+                Preview E2E Task Recovery
+              </button>
+            </div>
+
+            {displayedE2ETaskRecovery.status === "empty" ? (
+              <p className="empty">
+                No recovery preview yet. Trigger or preview a blocked proposal,
+                validation, approval, apply, verification, rollback, event, or
+                Convert FILE_EXISTS state first.
+              </p>
+            ) : null}
+
+            {displayedE2ETaskRecovery.status === "blocked" ? (
+              <div className="errorBox">
+                <strong>E2E recovery blocked</strong>
+                <p>{displayedE2ETaskRecovery.nextAction}</p>
+              </div>
+            ) : null}
+
+            <dl className="summaryGrid compact">
+              <div>
+                <dt>Status</dt>
+                <dd>{displayedE2ETaskRecovery.status}</dd>
+              </div>
+              <div>
+                <dt>Recovery</dt>
+                <dd>{displayedE2ETaskRecovery.recoveryId}</dd>
+              </div>
+              <div>
+                <dt>Failure category</dt>
+                <dd>{displayedE2ETaskRecovery.failureCategory}</dd>
+              </div>
+              <div>
+                <dt>Retry / rollback</dt>
+                <dd>
+                  {displayedE2ETaskRecovery.retryAllowed ? "yes" : "no"} /{" "}
+                  {displayedE2ETaskRecovery.rollbackAvailable ? "yes" : "no"}
+                </dd>
+              </div>
+              <div>
+                <dt>Blockers / warnings</dt>
+                <dd>
+                  {displayedE2ETaskRecovery.blockerCount} /{" "}
+                  {displayedE2ETaskRecovery.warningCount}
+                </dd>
+              </div>
+              <div>
+                <dt>Hash</dt>
+                <dd>
+                  {displayedE2ETaskRecovery.recoveryHash.substring(0, 12)}
+                </dd>
+              </div>
+              <div>
+                <dt>Auto retry / auto apply</dt>
+                <dd>
+                  {displayedE2ETaskRecovery.readiness.canAutoRetryExecution
+                    ? "yes"
+                    : "no"}{" "}
+                  /{" "}
+                  {displayedE2ETaskRecovery.readiness.canAutoApply
+                    ? "yes"
+                    : "no"}
+                </dd>
+              </div>
+              <div>
+                <dt>Arbitrary Git / shell</dt>
+                <dd>
+                  {displayedE2ETaskRecovery.readiness.canRunArbitraryGit
+                    ? "yes"
+                    : "no"}{" "}
+                  /{" "}
+                  {displayedE2ETaskRecovery.readiness.canRunArbitraryShell
+                    ? "yes"
+                    : "no"}
+                </dd>
+              </div>
+            </dl>
+
+            <div className="statusBox">
+              <strong>Safe summary</strong>
+              <p>{displayedE2ETaskRecovery.safeSummary}</p>
+            </div>
+            <div className="statusBox">
+              <strong>Recommended action</strong>
+              <p>{displayedE2ETaskRecovery.recommendedAction}</p>
+            </div>
+
+            {displayedE2ETaskRecovery.findings.length > 0 ? (
+              <p className="muted">
+                findings{" "}
+                {displayedE2ETaskRecovery.findings
+                  .map((finding) => finding.code)
+                  .join(", ")}
+              </p>
+            ) : null}
+
+            <p className="fieldHelp">
+              {summarizeE2ETaskRecoveryView(displayedE2ETaskRecovery).source} ·{" "}
+              {displayedE2ETaskRecovery.nextAction}
             </p>
           </section>
 
