@@ -84,7 +84,9 @@ export type WorkspaceEventSummary = {
   draftCount: number;
   approvedApplyCount: number;
   approvedRollbackCount: number;
+  verificationEventCount: number;
   latestApprovedExecutionSummary?: string;
+  latestVerificationSummary?: string;
   lastEventAt?: string;
   typeCounts: Record<string, number>;
   timeline: unknown[];
@@ -135,7 +137,9 @@ export type EventLogPanelModel = {
   draftCount: number;
   approvedApplyCount: number;
   approvedRollbackCount: number;
+  verificationEventCount: number;
   latestApprovedExecutionSummary?: string;
+  latestVerificationSummary?: string;
   lastEventAt?: string;
   safetyOk: boolean;
   safetyFindingCount: number;
@@ -455,6 +459,11 @@ export function normalizeWorkspaceEventSummary(
     "latestApprovedExecutionSummary",
     "latest_approved_execution_summary"
   );
+  const latestVerificationSummary = readString(
+    value,
+    "latestVerificationSummary",
+    "latest_verification_summary"
+  );
   const safeMessage = readString(value, "safeMessage", "safe_message");
   const warnings = Array.isArray(value.warnings)
     ? readStringArray(value, "warnings")
@@ -479,8 +488,14 @@ export function normalizeWorkspaceEventSummary(
     approvedRollbackCount: finiteNumber(
       readValue(value, "approvedRollbackCount", "approved_rollback_count")
     ),
+    verificationEventCount: finiteNumber(
+      readValue(value, "verificationEventCount", "verification_event_count")
+    ),
     ...(latestApprovedExecutionSummary !== undefined
       ? { latestApprovedExecutionSummary }
+      : {}),
+    ...(latestVerificationSummary !== undefined
+      ? { latestVerificationSummary }
       : {}),
     ...(lastEventAt !== undefined ? { lastEventAt } : {}),
     typeCounts: isRecord(readValue(value, "typeCounts", "type_counts"))
@@ -598,10 +613,18 @@ export function buildEventLogPanelModel(
     draftCount: finiteNumber(summary.draftCount),
     approvedApplyCount: finiteNumber(summary.approvedApplyCount),
     approvedRollbackCount: finiteNumber(summary.approvedRollbackCount),
+    verificationEventCount: finiteNumber(summary.verificationEventCount),
     ...(typeof summary.latestApprovedExecutionSummary === "string"
       ? {
           latestApprovedExecutionSummary: safeErrorMessage(
             summary.latestApprovedExecutionSummary
+          )
+        }
+      : {}),
+    ...(typeof summary.latestVerificationSummary === "string"
+      ? {
+          latestVerificationSummary: safeErrorMessage(
+            summary.latestVerificationSummary
           )
         }
       : {}),
@@ -1085,6 +1108,7 @@ function invalidWorkspaceEventSummary(message: string): WorkspaceEventSummary {
     draftCount: 0,
     approvedApplyCount: 0,
     approvedRollbackCount: 0,
+    verificationEventCount: 0,
     typeCounts: {},
     timeline: [],
     safetyScan: {

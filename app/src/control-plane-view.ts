@@ -75,7 +75,9 @@ export type AppControlPlaneProjectionView = {
   completedTaskCount: number;
   draftCount: number;
   draftEventCount: number;
+  verificationEventCount: number;
   latestDraftEventSummary?: string;
+  latestVerificationSummary?: string;
   artifactRefs: AppControlPlaneArtifactView[];
   timelineCount: number;
   lastEventAt: string;
@@ -183,6 +185,12 @@ export function buildControlPlaneProjectionView(
     eventSummary,
     "control.run.draft_recorded"
   );
+  const verificationEventCount =
+    finiteNumber(eventSummary.typeCounts?.["git.read_lane.executed"]) +
+    finiteNumber(eventSummary.typeCounts?.["shell.verification_lane.executed"]);
+  const latestVerificationSummary =
+    latestSummaryForType(eventSummary, "shell.verification_lane.executed") ??
+    latestSummaryForType(eventSummary, "git.read_lane.executed");
   const phase: AppControlPlanePhaseView =
     status === "error" ? "audit" : completedTaskCount > 0 ? "result" : "audit";
   const runStatus =
@@ -201,8 +209,12 @@ export function buildControlPlaneProjectionView(
     completedTaskCount,
     draftCount,
     draftEventCount,
+    verificationEventCount,
     ...(latestDraftEventSummary !== undefined
       ? { latestDraftEventSummary }
+      : {}),
+    ...(latestVerificationSummary !== undefined
+      ? { latestVerificationSummary }
       : {}),
     artifactRefs,
     timelineCount: timeline.length,
@@ -236,6 +248,7 @@ function emptyProjection(
     completedTaskCount: 0,
     draftCount: 0,
     draftEventCount: 0,
+    verificationEventCount: 0,
     artifactRefs: [],
     timelineCount: 0,
     lastEventAt: "n/a",

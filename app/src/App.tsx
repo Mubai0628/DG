@@ -15,6 +15,7 @@ import {
   loadWorkspaceEventSummary,
   recordApprovedUserWorkspaceExecutionEvent,
   recordControlRunDraftEvent,
+  recordVerificationLaneEvent,
   rollbackApprovedUserWorkspacePatch,
   runDesktopWebTableToCsvFlow,
   runGitReadLane,
@@ -24,6 +25,7 @@ import {
   type ApprovedUserWorkspaceExecutionEventRecordResult,
   type GitReadLane,
   type GitReadLaneResult,
+  type VerificationLaneEventRecordResult,
   type ShellVerificationLaneResult,
   type ShellVerificationTemplateId
 } from "./desktop-flow.js";
@@ -520,6 +522,9 @@ export function DesktopShell(): JSX.Element {
   const [gitReadLaneError, setGitReadLaneError] = useState<
     string | undefined
   >();
+  const [gitVerificationEventResult, setGitVerificationEventResult] = useState<
+    VerificationLaneEventRecordResult | undefined
+  >();
   const [shellVerificationTemplate, setShellVerificationTemplate] =
     useState<ShellVerificationTemplateId>("app.typecheck");
   const [shellVerificationTestFile, setShellVerificationTestFile] =
@@ -532,6 +537,8 @@ export function DesktopShell(): JSX.Element {
   const [shellVerificationError, setShellVerificationError] = useState<
     string | undefined
   >();
+  const [shellVerificationEventResult, setShellVerificationEventResult] =
+    useState<VerificationLaneEventRecordResult | undefined>();
   const loadedWorkspaceIndexRef =
     workspaceIndexBridge.status === "loaded" ||
     workspaceIndexBridge.status === "warning"
@@ -2051,6 +2058,7 @@ export function DesktopShell(): JSX.Element {
     setGitReadLaneStatus("running");
     setGitReadLaneResult(undefined);
     setGitReadLaneError(undefined);
+    setGitVerificationEventResult(undefined);
     try {
       const laneResult = await runGitReadLane({
         workspaceRoot,
@@ -2061,6 +2069,12 @@ export function DesktopShell(): JSX.Element {
         maxOutputBytes: 65536
       });
       setGitReadLaneResult(laneResult);
+      const eventResult = await recordVerificationLaneEvent({
+        workspaceRoot,
+        eventPreview: laneResult.eventPreview
+      });
+      setGitVerificationEventResult(eventResult);
+      await refreshEvents(workspaceRoot);
       setGitReadLaneStatus("done");
     } catch (caught) {
       setGitReadLaneError(safeErrorMessage(caught));
@@ -2072,6 +2086,7 @@ export function DesktopShell(): JSX.Element {
     setShellVerificationStatus("running");
     setShellVerificationResult(undefined);
     setShellVerificationError(undefined);
+    setShellVerificationEventResult(undefined);
     try {
       const safeArgs = parseShellVerificationSafeArgs(
         shellVerificationTemplate,
@@ -2086,6 +2101,12 @@ export function DesktopShell(): JSX.Element {
         maxOutputBytes: 65_536
       });
       setShellVerificationResult(laneResult);
+      const eventResult = await recordVerificationLaneEvent({
+        workspaceRoot,
+        eventPreview: laneResult.eventPreview
+      });
+      setShellVerificationEventResult(eventResult);
+      await refreshEvents(workspaceRoot);
       setShellVerificationStatus("done");
     } catch (caught) {
       setShellVerificationError(safeErrorMessage(caught));
@@ -2680,6 +2701,44 @@ export function DesktopShell(): JSX.Element {
             {shellVerificationError !== undefined ? (
               <p className="errorText">{shellVerificationError}</p>
             ) : null}
+          </section>
+
+          <section className="bridgePreview" aria-label="Verification Summary">
+            <div className="panelHeader">
+              <h2>Verification Summary</h2>
+              <span className="muted">Summary events / no raw output</span>
+            </div>
+            <p className="fieldHelp">
+              Shows latest Git and shell verification summary events. Event Log
+              / Replay stores counts, hashes, warning codes, and status only.
+              Raw diff, stdout, stderr, source, and API keys are not displayed.
+            </p>
+            <dl className="summaryGrid compact">
+              <div>
+                <dt>Git event id</dt>
+                <dd>{gitVerificationEventResult?.eventId ?? "n/a"}</dd>
+              </div>
+              <div>
+                <dt>Shell event id</dt>
+                <dd>{shellVerificationEventResult?.eventId ?? "n/a"}</dd>
+              </div>
+              <div>
+                <dt>Replay verification events</dt>
+                <dd>{eventPanel?.verificationEventCount ?? 0}</dd>
+              </div>
+              <div>
+                <dt>Latest verification</dt>
+                <dd>{eventPanel?.latestVerificationSummary ?? "n/a"}</dd>
+              </div>
+              <div>
+                <dt>Safety scan</dt>
+                <dd>{eventPanel?.safetyOk === true ? "OK" : "pending"}</dd>
+              </div>
+              <div>
+                <dt>Raw output</dt>
+                <dd>absent</dd>
+              </div>
+            </dl>
           </section>
         </form>
 
@@ -9026,10 +9085,18 @@ export function DesktopShell(): JSX.Element {
                     <dd>{eventPanel.approvedRollbackCount}</dd>
                   </div>
                   <div>
+                    <dt>Verification events</dt>
+                    <dd>{eventPanel.verificationEventCount}</dd>
+                  </div>
+                  <div>
                     <dt>Latest approved execution</dt>
                     <dd>
                       {eventPanel.latestApprovedExecutionSummary ?? "n/a"}
                     </dd>
+                  </div>
+                  <div>
+                    <dt>Latest verification</dt>
+                    <dd>{eventPanel.latestVerificationSummary ?? "n/a"}</dd>
                   </div>
                   <div>
                     <dt>Tasks completed</dt>
@@ -9146,6 +9213,10 @@ export function DesktopShell(): JSX.Element {
                 <dd>{controlPlanePanel.draftEventCount}</dd>
               </div>
               <div>
+                <dt>Verification events</dt>
+                <dd>{controlPlanePanel.verificationEventCount}</dd>
+              </div>
+              <div>
                 <dt>Last event</dt>
                 <dd>{controlPlanePanel.lastEventAt}</dd>
               </div>
@@ -9171,6 +9242,13 @@ export function DesktopShell(): JSX.Element {
             {controlPlanePanel.latestDraftEventSummary !== undefined ? (
               <p className="fieldHelp">
                 Latest draft event: {controlPlanePanel.latestDraftEventSummary}
+              </p>
+            ) : null}
+
+            {controlPlanePanel.latestVerificationSummary !== undefined ? (
+              <p className="fieldHelp">
+                Latest verification event:{" "}
+                {controlPlanePanel.latestVerificationSummary}
               </p>
             ) : null}
 

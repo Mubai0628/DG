@@ -132,6 +132,13 @@ export type ApprovedUserWorkspaceExecutionEventRequest = {
     | ApprovedUserWorkspaceRollbackResult["eventPreview"];
 };
 
+export type VerificationLaneEventRequest = {
+  workspaceRoot: string;
+  eventPreview:
+    | GitReadLaneResult["eventPreview"]
+    | ShellVerificationLaneResult["eventPreview"];
+};
+
 export type ApprovedUserWorkspaceExecutionEventRecordResult = {
   ok: true;
   eventId: string;
@@ -140,6 +147,17 @@ export type ApprovedUserWorkspaceExecutionEventRecordResult = {
     | "user_workspace.patch_rollback.app_executed";
   operationId: string;
   checkpointId: string;
+  eventLogPath: string;
+  safeMessage: string;
+  warnings: string[];
+};
+
+export type VerificationLaneEventRecordResult = {
+  ok: true;
+  eventId: string;
+  eventType: "git.read_lane.executed" | "shell.verification_lane.executed";
+  laneOrTemplateId: string;
+  resultHash: string;
   eventLogPath: string;
   safeMessage: string;
   warnings: string[];
@@ -189,6 +207,7 @@ export type GitReadLaneResult = {
     addedLineCount: number;
     deletedLineCount: number;
     warningCodes: string[];
+    durationMs: number;
     truncated: boolean;
     summaryOnly: true;
     notWritten: true;
@@ -241,6 +260,7 @@ export type ShellVerificationLaneResult = {
     stdoutBytes: number;
     stderrBytes: number;
     warningCodes: string[];
+    durationMs: number;
     truncated: boolean;
     summaryOnly: true;
     notWritten: true;
@@ -256,6 +276,7 @@ export const allowedDesktopCommands = [
   "load_workspace_event_summary",
   "record_approved_user_workspace_execution_event",
   "record_control_run_draft_event",
+  "record_verification_lane_event",
   "run_git_read_lane",
   "run_shell_verification_lane",
   "run_web_table_to_csv_flow"
@@ -394,6 +415,21 @@ export async function recordApprovedUserWorkspaceExecutionEvent(
   );
 }
 
+export async function recordVerificationLaneEvent(
+  request: VerificationLaneEventRequest,
+  invokeImpl?: TauriInvoke
+): Promise<VerificationLaneEventRecordResult> {
+  validateVerificationLaneEventRequest(request);
+  return invokeAllowedCommand<VerificationLaneEventRecordResult>(
+    "record_verification_lane_event",
+    {
+      workspaceRoot: request.workspaceRoot,
+      eventPreview: request.eventPreview
+    },
+    invokeImpl
+  );
+}
+
 export async function runGitReadLane(
   request: GitReadLaneRequest,
   invokeImpl?: TauriInvoke
@@ -466,6 +502,8 @@ function normalizeAllowedCommandResponse(
       return normalizeRunDraftEventRecordResult(raw);
     case "record_approved_user_workspace_execution_event":
       return normalizeApprovedExecutionEventRecordResult(raw);
+    case "record_verification_lane_event":
+      return normalizeVerificationLaneEventRecordResult(raw);
     case "run_git_read_lane":
       return normalizeGitReadLaneResult(raw);
     case "run_shell_verification_lane":
@@ -536,6 +574,25 @@ function validateApprovedExecutionEventRequest(
       preview.type !== "user_workspace.patch_rollback.approved_result")
   ) {
     throw new Error("Approved execution event preview is required");
+  }
+}
+
+function validateVerificationLaneEventRequest(
+  request: VerificationLaneEventRequest
+): void {
+  if (request.workspaceRoot.trim().length === 0) {
+    throw new Error("Workspace root is required");
+  }
+  const preview: Record<string, unknown> = isRecord(request.eventPreview)
+    ? request.eventPreview
+    : {};
+  if (
+    preview.notWritten !== true ||
+    preview.summaryOnly !== true ||
+    (preview.type !== "git.read_lane.executed" &&
+      preview.type !== "shell.verification_lane.executed")
+  ) {
+    throw new Error("Verification lane event preview is required");
   }
 }
 
@@ -719,7 +776,8 @@ function normalizeGitReadLaneResult(raw: unknown): GitReadLaneResult {
     typeof record.safeMessage !== "string" ||
     eventPreview.type !== "git.read_lane.executed" ||
     eventPreview.notWritten !== true ||
-    eventPreview.summaryOnly !== true
+    eventPreview.summaryOnly !== true ||
+    typeof eventPreview.durationMs !== "number"
   ) {
     throw normalizeDesktopCommandError({
       errorCode: "INVALID_RESPONSE",
@@ -769,6 +827,7 @@ function normalizeGitReadLaneResult(raw: unknown): GitReadLaneResult {
       addedLineCount: Number(eventPreview.addedLineCount ?? 0),
       deletedLineCount: Number(eventPreview.deletedLineCount ?? 0),
       warningCodes: eventWarningCodes,
+      durationMs: Number(eventPreview.durationMs ?? 0),
       truncated: Boolean(eventPreview.truncated),
       summaryOnly: true,
       notWritten: true
@@ -810,7 +869,8 @@ function normalizeShellVerificationLaneResult(
     typeof record.safeMessage !== "string" ||
     eventPreview.type !== "shell.verification_lane.executed" ||
     eventPreview.notWritten !== true ||
-    eventPreview.summaryOnly !== true
+    eventPreview.summaryOnly !== true ||
+    typeof eventPreview.durationMs !== "number"
   ) {
     throw normalizeDesktopCommandError({
       errorCode: "INVALID_RESPONSE",
@@ -858,11 +918,47 @@ function normalizeShellVerificationLaneResult(
       stdoutBytes: Number(eventPreview.stdoutBytes ?? 0),
       stderrBytes: Number(eventPreview.stderrBytes ?? 0),
       warningCodes: eventWarningCodes,
+      durationMs: Number(eventPreview.durationMs ?? 0),
       truncated: Boolean(eventPreview.truncated),
       summaryOnly: true,
       notWritten: true
     },
     safeMessage: safeErrorMessage(record.safeMessage)
+  };
+}
+
+function normalizeVerificationLaneEventRecordResult(
+  raw: unknown
+): VerificationLaneEventRecordResult {
+  const record = isRecord(raw) ? raw : {};
+  if (
+    record.ok !== true ||
+    (record.eventType !== "git.read_lane.executed" &&
+      record.eventType !== "shell.verification_lane.executed") ||
+    typeof record.eventId !== "string" ||
+    typeof record.laneOrTemplateId !== "string" ||
+    typeof record.resultHash !== "string" ||
+    typeof record.eventLogPath !== "string" ||
+    typeof record.safeMessage !== "string" ||
+    !Array.isArray(record.warnings)
+  ) {
+    throw normalizeDesktopCommandError({
+      errorCode: "INVALID_RESPONSE",
+      safeMessage: "Verification lane event response was invalid",
+      stage: "normalize_response"
+    });
+  }
+  return {
+    ok: true,
+    eventId: safeErrorMessage(record.eventId),
+    eventType: record.eventType,
+    laneOrTemplateId: safeErrorMessage(record.laneOrTemplateId),
+    resultHash: safeErrorMessage(record.resultHash),
+    eventLogPath: safeErrorMessage(record.eventLogPath),
+    safeMessage: safeErrorMessage(record.safeMessage),
+    warnings: record.warnings.filter(
+      (value): value is string => typeof value === "string"
+    )
   };
 }
 

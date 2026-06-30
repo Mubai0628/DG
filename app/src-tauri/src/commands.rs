@@ -228,7 +228,9 @@ pub struct WorkspaceEventSummary {
     draft_count: usize,
     approved_apply_count: usize,
     approved_rollback_count: usize,
+    verification_event_count: usize,
     latest_approved_execution_summary: Option<String>,
+    latest_verification_summary: Option<String>,
     last_event_at: Option<String>,
     type_counts: BTreeMap<String, usize>,
     timeline: Vec<EventTimelineItem>,
@@ -257,6 +259,19 @@ pub struct ApprovedExecutionEventRecordResult {
     event_type: String,
     operation_id: String,
     checkpoint_id: String,
+    event_log_path: String,
+    safe_message: String,
+    warnings: Vec<String>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct VerificationLaneEventRecordResult {
+    ok: bool,
+    event_id: String,
+    event_type: String,
+    lane_or_template_id: String,
+    result_hash: String,
     event_log_path: String,
     safe_message: String,
     warnings: Vec<String>,
@@ -474,6 +489,7 @@ pub struct GitReadLaneEventPreview {
     added_line_count: usize,
     deleted_line_count: usize,
     warning_codes: Vec<String>,
+    duration_ms: u128,
     truncated: bool,
     summary_only: bool,
     not_written: bool,
@@ -546,6 +562,7 @@ pub struct ShellVerificationLaneEventPreview {
     stdout_bytes: usize,
     stderr_bytes: usize,
     warning_codes: Vec<String>,
+    duration_ms: u128,
     truncated: bool,
     summary_only: bool,
     not_written: bool,
@@ -827,6 +844,84 @@ pub fn record_approved_user_workspace_execution_event(
 }
 
 #[tauri::command(rename_all = "camelCase")]
+pub fn record_verification_lane_event(
+    workspace_root: String,
+    event_preview: Value,
+) -> Result<VerificationLaneEventRecordResult, DesktopFlowError> {
+    let workspace_root = validate_workspace_root(&workspace_root).map_err(|message| {
+        DesktopFlowError::new(
+            "WORKSPACE_INVALID",
+            message,
+            "record_verification_lane_event",
+        )
+    })?;
+    let verification_event =
+        build_verification_lane_event_payload(&event_preview).map_err(|message| {
+            DesktopFlowError::invalid_payload(message).with_stage("record_verification_lane_event")
+        })?;
+    let event_log_path = resolve_safe_event_log_path(&workspace_root, "Verification lane event")?;
+
+    let millis = unix_epoch_millis();
+    let event_id = format!("verification-lane-{millis}");
+    let timestamp = format!("unix-ms-{millis}");
+    let event = serde_json::json!({
+        "id": event_id,
+        "ts": timestamp,
+        "type": verification_event.event_type,
+        "schemaVersion": 1,
+        "taskId": Value::Null,
+        "payload": verification_event.payload
+    });
+    let event_line = serde_json::to_string(&event).map_err(|_| {
+        DesktopFlowError::new(
+            "EVENT_SERIALIZE_FAILED",
+            "Verification lane event could not be serialized",
+            "record_verification_lane_event",
+        )
+    })?;
+    if event_line.as_bytes().len() > MAX_RUN_DRAFT_EVENT_PAYLOAD_BYTES + 4096
+        || contains_approved_apply_sensitive_marker(&event_line)
+    {
+        return Err(DesktopFlowError::new(
+            "VERIFICATION_EVENT_REJECTED",
+            "Verification lane event payload failed final safety validation",
+            "record_verification_lane_event",
+        ));
+    }
+
+    use std::io::Write;
+    let mut file = fs::OpenOptions::new()
+        .create(true)
+        .append(true)
+        .open(&event_log_path)
+        .map_err(|_| {
+            DesktopFlowError::new(
+                "EVENT_LOG_WRITE_FAILED",
+                "Verification lane event could not be written",
+                "record_verification_lane_event",
+            )
+        })?;
+    writeln!(file, "{event_line}").map_err(|_| {
+        DesktopFlowError::new(
+            "EVENT_LOG_WRITE_FAILED",
+            "Verification lane event could not be written",
+            "record_verification_lane_event",
+        )
+    })?;
+
+    Ok(VerificationLaneEventRecordResult {
+        ok: true,
+        event_id,
+        event_type: verification_event.event_type,
+        lane_or_template_id: verification_event.lane_or_template_id,
+        result_hash: verification_event.result_hash,
+        event_log_path: event_log_path.to_string_lossy().to_string(),
+        safe_message: "Summary-only verification lane event recorded locally.".to_string(),
+        warnings: Vec::new(),
+    })
+}
+
+#[tauri::command(rename_all = "camelCase")]
 pub fn apply_approved_user_workspace_patch(
     request: ApprovedApplyRequest,
 ) -> Result<ApprovedApplyResult, DesktopFlowError> {
@@ -972,6 +1067,7 @@ fn run_git_read_lane_summary(
         added_line_count: summary.added_line_count,
         deleted_line_count: summary.deleted_line_count,
         warning_codes: summary.warning_codes.clone(),
+        duration_ms: command_output.duration_ms,
         truncated: command_output.truncated,
         summary_only: true,
         not_written: true,
@@ -1471,6 +1567,7 @@ where
         stdout_bytes,
         stderr_bytes,
         warning_codes: warning_codes.clone(),
+        duration_ms: command_output.duration_ms,
         truncated: command_output.truncated,
         summary_only: true,
         not_written: true,
@@ -2955,7 +3052,9 @@ fn load_event_summary(workspace_root: &str, max_events: Option<usize>) -> Worksp
     let mut draft_count = 0usize;
     let mut approved_apply_count = 0usize;
     let mut approved_rollback_count = 0usize;
+    let mut verification_event_count = 0usize;
     let mut latest_approved_execution_summary: Option<String> = None;
+    let mut latest_verification_summary: Option<String> = None;
     let mut last_event_at: Option<String> = None;
 
     for event in &events {
@@ -2983,6 +3082,13 @@ fn load_event_summary(workspace_root: &str, max_events: Option<usize>) -> Worksp
             approved_rollback_count += 1;
             latest_approved_execution_summary = Some(summarize_safe_event(event));
         }
+        if matches!(
+            event_type.as_str(),
+            "git.read_lane.executed" | "shell.verification_lane.executed"
+        ) {
+            verification_event_count += 1;
+            latest_verification_summary = Some(summarize_safe_event(event));
+        }
     }
 
     let mut timeline = events
@@ -3006,7 +3112,9 @@ fn load_event_summary(workspace_root: &str, max_events: Option<usize>) -> Worksp
         draft_count,
         approved_apply_count,
         approved_rollback_count,
+        verification_event_count,
         latest_approved_execution_summary,
+        latest_verification_summary,
         last_event_at,
         type_counts,
         timeline,
@@ -3031,7 +3139,9 @@ fn empty_event_summary(
         draft_count: 0,
         approved_apply_count: 0,
         approved_rollback_count: 0,
+        verification_event_count: 0,
         latest_approved_execution_summary: None,
+        latest_verification_summary: None,
         last_event_at: None,
         type_counts: BTreeMap::new(),
         timeline: Vec::new(),
@@ -3056,7 +3166,9 @@ fn event_summary_error(code: &str, message: String) -> WorkspaceEventSummary {
         draft_count: 0,
         approved_apply_count: 0,
         approved_rollback_count: 0,
+        verification_event_count: 0,
         latest_approved_execution_summary: None,
+        latest_verification_summary: None,
         last_event_at: None,
         type_counts: BTreeMap::new(),
         timeline: Vec::new(),
@@ -3098,6 +3210,7 @@ fn safe_payload_keys(payload: &serde_json::Map<String, Value>) -> BTreeSet<Strin
         "checkpointHash",
         "checkpointId",
         "columnCount",
+        "commandHash",
         "contentType",
         "contextCartSummary",
         "createdAt",
@@ -3106,6 +3219,11 @@ fn safe_payload_keys(payload: &serde_json::Map<String, Value>) -> BTreeSet<Strin
         "errorKind",
         "eventKind",
         "formulaEscapedCount",
+        "addedLineCount",
+        "changedFileCount",
+        "deletedLineCount",
+        "durationMs",
+        "exitCode",
         "filesCreated",
         "filesDeleted",
         "filesRemoved",
@@ -3113,11 +3231,13 @@ fn safe_payload_keys(payload: &serde_json::Map<String, Value>) -> BTreeSet<Strin
         "filesUpdated",
         "injectionRiskCount",
         "intent",
+        "lane",
         "localOnly",
         "localTaskId",
         "memoryRecallSummary",
         "metadataSummary",
         "noExecution",
+        "noRawOutput",
         "objectiveSummary",
         "operationCount",
         "overwritten",
@@ -3137,14 +3257,18 @@ fn safe_payload_keys(payload: &serde_json::Map<String, Value>) -> BTreeSet<Strin
         "schemaVersion",
         "selectedTableId",
         "sha256",
+        "stderrBytes",
+        "stdoutBytes",
         "sourceHost",
         "sourceOrigin",
         "sourcePathWithoutQuery",
         "sourceSummary",
         "status",
         "tableCount",
+        "templateId",
         "title",
         "toolName",
+        "truncated",
         "warningCount",
         "warningCodes",
         "workspaceIndexRef",
@@ -3260,6 +3384,36 @@ fn summarize_safe_event(event: &Value) -> String {
                 }),
             ],
         ),
+        "git.read_lane.executed" => format_parts(
+            "git read lane recorded",
+            [
+                nested_string(payload, "lane"),
+                nested_display(payload, "changedFileCount", "changed files"),
+                nested_display(payload, "addedLineCount", "lines added"),
+                nested_display(payload, "deletedLineCount", "lines deleted"),
+                nested_display(payload, "durationMs", "ms"),
+                nested_string(payload, "resultHash").map(|value| {
+                    let prefix = value.chars().take(12).collect::<String>();
+                    format!("result {prefix}")
+                }),
+                nested_array_display(payload, "warningCodes", "warning codes"),
+            ],
+        ),
+        "shell.verification_lane.executed" => format_parts(
+            "shell verification lane recorded",
+            [
+                nested_string(payload, "templateId"),
+                nested_display(payload, "exitCode", "exit"),
+                nested_display(payload, "stdoutBytes", "stdout bytes"),
+                nested_display(payload, "stderrBytes", "stderr bytes"),
+                nested_display(payload, "durationMs", "ms"),
+                nested_string(payload, "resultHash").map(|value| {
+                    let prefix = value.chars().take(12).collect::<String>();
+                    format!("result {prefix}")
+                }),
+                nested_array_display(payload, "warningCodes", "warning codes"),
+            ],
+        ),
         _ => format_parts(
             &event_type,
             [
@@ -3328,6 +3482,11 @@ fn scan_event_log_for_leaks(text: &str) -> EventSafetyScan {
         ("OUTER_HTML_MARKER", "outerHTML"),
         ("CSV_CONTENT_MARKER", "csvContent"),
         ("RAW_PROMPT_MARKER", "rawPrompt"),
+        ("RAW_RESPONSE_MARKER", "rawResponse"),
+        ("RAW_SOURCE_MARKER", "rawSource"),
+        ("RAW_DIFF_MARKER", "rawDiff"),
+        ("RAW_STDOUT_MARKER", "rawStdout"),
+        ("RAW_STDERR_MARKER", "rawStderr"),
         ("RAW_SCREENSHOT_MARKER", "rawScreenshot"),
         ("CLIPBOARD_MARKER", "clipboard"),
         ("AUTHORIZATION_MARKER", "Authorization"),
@@ -3466,6 +3625,8 @@ fn forbidden_approved_apply_key(key: &str) -> bool {
             | "rawdom"
             | "rawcsv"
             | "rawscreenshot"
+            | "rawstdout"
+            | "rawstderr"
             | "beforecontent"
             | "aftercontent"
             | "filecontent"
@@ -3509,6 +3670,10 @@ fn contains_approved_apply_sensitive_marker(text: &str) -> bool {
         || lower.contains("rawdiff")
         || lower.contains("raw diff")
         || lower.contains("rawscreenshot")
+        || lower.contains("rawstdout")
+        || lower.contains("raw stdout")
+        || lower.contains("rawstderr")
+        || lower.contains("raw stderr")
         || lower.contains(&clip_board)
         || lower.contains("-----begin ")
         || lower.contains("token=")
@@ -3635,6 +3800,13 @@ struct ApprovedExecutionEventPayload {
     event_type: String,
     operation_id: String,
     checkpoint_id: String,
+    payload: Value,
+}
+
+struct VerificationLaneEventPayload {
+    event_type: String,
+    lane_or_template_id: String,
+    result_hash: String,
     payload: Value,
 }
 
@@ -3818,6 +3990,128 @@ fn build_approved_rollback_event_payload(
     })
 }
 
+fn build_verification_lane_event_payload(
+    event_preview: &Value,
+) -> Result<VerificationLaneEventPayload, String> {
+    let object = event_preview
+        .as_object()
+        .ok_or_else(|| "Verification event preview must be an object".to_string())?;
+    if let Some(key) = find_forbidden_approved_apply_key(event_preview) {
+        return Err(format!(
+            "Verification event preview contains forbidden field {key}"
+        ));
+    }
+    let serialized = serde_json::to_string(event_preview)
+        .map_err(|_| "Verification event preview could not be serialized".to_string())?;
+    if contains_approved_apply_sensitive_marker(&serialized) {
+        return Err("Verification event preview contains unsafe marker".to_string());
+    }
+    if object.get("notWritten").and_then(Value::as_bool) != Some(true) {
+        return Err("Verification event preview must be notWritten".to_string());
+    }
+    if object.get("summaryOnly").and_then(Value::as_bool) != Some(true) {
+        return Err("Verification event preview must be summaryOnly".to_string());
+    }
+    match required_event_string(object, "type")?.as_str() {
+        "git.read_lane.executed" => build_git_read_lane_event_payload(object),
+        "shell.verification_lane.executed" => build_shell_verification_event_payload(object),
+        _ => Err("Verification event preview type is unsupported".to_string()),
+    }
+}
+
+fn build_git_read_lane_event_payload(
+    object: &serde_json::Map<String, Value>,
+) -> Result<VerificationLaneEventPayload, String> {
+    let lane = required_event_string(object, "lane")?;
+    if !matches!(
+        lane.as_str(),
+        "status_summary" | "diff_summary" | "log_summary" | "branch_summary"
+    ) {
+        return Err("Git verification event lane is unsupported".to_string());
+    }
+    let workspace_root_ref = required_event_string(object, "workspaceRootRef")?;
+    let command_hash = required_event_string(object, "commandHash")?;
+    let result_hash = required_event_string(object, "resultHash")?;
+    for (field, value) in [
+        ("workspaceRootRef", &workspace_root_ref),
+        ("commandHash", &command_hash),
+        ("resultHash", &result_hash),
+    ] {
+        validate_approved_rollback_safe_ref(value, field)?;
+    }
+    let warning_codes = safe_event_warning_codes(object)?;
+    let payload = serde_json::json!({
+        "eventKind": "git.read_lane.executed",
+        "schemaVersion": 1,
+        "summaryOnly": true,
+        "safetyScanOk": true,
+        "noRawOutput": true,
+        "diffContentIncluded": false,
+        "lane": lane,
+        "workspaceRootRef": workspace_root_ref,
+        "commandHash": command_hash,
+        "resultHash": result_hash,
+        "changedFileCount": required_event_usize(object, "changedFileCount")?,
+        "addedLineCount": required_event_usize(object, "addedLineCount")?,
+        "deletedLineCount": required_event_usize(object, "deletedLineCount")?,
+        "durationMs": required_event_u128(object, "durationMs")?,
+        "warningCodes": warning_codes,
+        "truncated": required_event_bool(object, "truncated")?
+    });
+    Ok(VerificationLaneEventPayload {
+        event_type: "git.read_lane.executed".to_string(),
+        lane_or_template_id: lane,
+        result_hash,
+        payload,
+    })
+}
+
+fn build_shell_verification_event_payload(
+    object: &serde_json::Map<String, Value>,
+) -> Result<VerificationLaneEventPayload, String> {
+    let template_id = required_event_string(object, "templateId")?;
+    if !matches!(
+        template_id.as_str(),
+        "pnpm.typecheck" | "pnpm.lint" | "pnpm.test.scoped" | "app.typecheck" | "cargo.check_tauri"
+    ) {
+        return Err("Shell verification event template is unsupported".to_string());
+    }
+    let workspace_root_ref = required_event_string(object, "workspaceRootRef")?;
+    let command_hash = required_event_string(object, "commandHash")?;
+    let result_hash = required_event_string(object, "resultHash")?;
+    for (field, value) in [
+        ("workspaceRootRef", &workspace_root_ref),
+        ("commandHash", &command_hash),
+        ("resultHash", &result_hash),
+    ] {
+        validate_approved_rollback_safe_ref(value, field)?;
+    }
+    let warning_codes = safe_event_warning_codes(object)?;
+    let payload = serde_json::json!({
+        "eventKind": "shell.verification_lane.executed",
+        "schemaVersion": 1,
+        "summaryOnly": true,
+        "safetyScanOk": true,
+        "noRawOutput": true,
+        "templateId": template_id,
+        "workspaceRootRef": workspace_root_ref,
+        "commandHash": command_hash,
+        "resultHash": result_hash,
+        "exitCode": optional_event_i64(object, "exitCode")?,
+        "stdoutBytes": required_event_usize(object, "stdoutBytes")?,
+        "stderrBytes": required_event_usize(object, "stderrBytes")?,
+        "durationMs": required_event_u128(object, "durationMs")?,
+        "warningCodes": warning_codes,
+        "truncated": required_event_bool(object, "truncated")?
+    });
+    Ok(VerificationLaneEventPayload {
+        event_type: "shell.verification_lane.executed".to_string(),
+        lane_or_template_id: template_id,
+        result_hash,
+        payload,
+    })
+}
+
 fn required_event_string(
     object: &serde_json::Map<String, Value>,
     key: &str,
@@ -3839,6 +4133,34 @@ fn required_event_usize(
         .and_then(Value::as_u64)
         .and_then(|value| usize::try_from(value).ok())
         .ok_or_else(|| format!("Approved execution event preview is missing {key}"))
+}
+
+fn required_event_u128(object: &serde_json::Map<String, Value>, key: &str) -> Result<u128, String> {
+    object
+        .get(key)
+        .and_then(Value::as_u64)
+        .map(u128::from)
+        .ok_or_else(|| format!("Event preview is missing {key}"))
+}
+
+fn required_event_bool(object: &serde_json::Map<String, Value>, key: &str) -> Result<bool, String> {
+    object
+        .get(key)
+        .and_then(Value::as_bool)
+        .ok_or_else(|| format!("Event preview is missing {key}"))
+}
+
+fn optional_event_i64(
+    object: &serde_json::Map<String, Value>,
+    key: &str,
+) -> Result<Option<i64>, String> {
+    match object.get(key) {
+        Some(Value::Null) | None => Ok(None),
+        Some(value) => value
+            .as_i64()
+            .map(Some)
+            .ok_or_else(|| format!("Event preview {key} must be a number or null")),
+    }
 }
 
 fn safe_event_path_summaries(
@@ -6004,6 +6326,104 @@ mod tests {
         )
         .expect_err("unsafe path summary should block");
         assert_eq!(path_error.error_code, "INVALID_PAYLOAD");
+
+        let _ = fs::remove_dir_all(workspace);
+    }
+
+    #[test]
+    fn verification_lane_events_record_git_and_shell_summary_only() {
+        let workspace = temp_workspace("verification-lane-events");
+        let git_preview = serde_json::json!({
+            "type": "git.read_lane.executed",
+            "lane": "status_summary",
+            "workspaceRootRef": "workspace-ref-test",
+            "commandHash": "git-command-hash",
+            "resultHash": "git-result-hash",
+            "changedFileCount": 2,
+            "addedLineCount": 3,
+            "deletedLineCount": 1,
+            "warningCodes": [],
+            "durationMs": 14,
+            "truncated": false,
+            "summaryOnly": true,
+            "notWritten": true
+        });
+        let shell_preview = serde_json::json!({
+            "type": "shell.verification_lane.executed",
+            "templateId": "app.typecheck",
+            "workspaceRootRef": "workspace-ref-test",
+            "commandHash": "shell-command-hash",
+            "resultHash": "shell-result-hash",
+            "exitCode": 0,
+            "stdoutBytes": 128,
+            "stderrBytes": 0,
+            "warningCodes": [],
+            "durationMs": 21,
+            "truncated": false,
+            "summaryOnly": true,
+            "notWritten": true
+        });
+
+        let git_record =
+            record_verification_lane_event(workspace.to_string_lossy().to_string(), git_preview)
+                .expect("record git verification");
+        let shell_record =
+            record_verification_lane_event(workspace.to_string_lossy().to_string(), shell_preview)
+                .expect("record shell verification");
+        let event_log =
+            fs::read_to_string(workspace.join(".deepseek-workbench").join("events.jsonl"))
+                .expect("event log");
+        let summary = load_event_summary(workspace.to_string_lossy().as_ref(), Some(10));
+
+        assert_eq!(git_record.event_type, "git.read_lane.executed");
+        assert_eq!(git_record.lane_or_template_id, "status_summary");
+        assert_eq!(shell_record.event_type, "shell.verification_lane.executed");
+        assert_eq!(shell_record.lane_or_template_id, "app.typecheck");
+        assert_eq!(summary.verification_event_count, 2);
+        assert!(summary
+            .latest_verification_summary
+            .as_deref()
+            .unwrap_or_default()
+            .contains("shell verification lane recorded"));
+        assert!(summary
+            .timeline
+            .iter()
+            .any(|item| item.event_type == "git.read_lane.executed"));
+        assert!(summary.safety_scan.ok);
+        assert!(!event_log.contains("rawStdout"));
+        assert!(!event_log.contains("rawStderr"));
+        assert!(!event_log.contains("diff --git"));
+        assert!(!event_log.contains("api key"));
+
+        let _ = fs::remove_dir_all(workspace);
+    }
+
+    #[test]
+    fn verification_lane_event_blocks_raw_output_preview() {
+        let workspace = temp_workspace("verification-lane-event-blocked");
+        let mut preview = serde_json::json!({
+            "type": "shell.verification_lane.executed",
+            "templateId": "app.typecheck",
+            "workspaceRootRef": "workspace-ref-test",
+            "commandHash": "shell-command-hash",
+            "resultHash": "shell-result-hash",
+            "exitCode": 0,
+            "stdoutBytes": 128,
+            "stderrBytes": 0,
+            "warningCodes": [],
+            "durationMs": 21,
+            "truncated": false,
+            "summaryOnly": true,
+            "notWritten": true
+        });
+        preview["rawStdout"] = Value::String("do not keep".to_string());
+
+        let error =
+            record_verification_lane_event(workspace.to_string_lossy().to_string(), preview)
+                .expect_err("raw output preview should block");
+
+        assert_eq!(error.error_code, "INVALID_PAYLOAD");
+        assert_eq!(error.stage, "record_verification_lane_event");
 
         let _ = fs::remove_dir_all(workspace);
     }

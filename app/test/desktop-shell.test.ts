@@ -11,6 +11,7 @@ import {
   invokeAllowedCommand,
   isAllowedDesktopCommand,
   loadWorkspaceEventSummary,
+  recordVerificationLaneEvent,
   recordApprovedUserWorkspaceExecutionEvent,
   recordControlRunDraftEvent,
   rollbackApprovedUserWorkspacePatch,
@@ -21,6 +22,7 @@ import {
   type ApprovedUserWorkspaceApplyResult,
   type ApprovedUserWorkspaceRollbackResult,
   type GitReadLaneResult,
+  type VerificationLaneEventRecordResult,
   type ShellVerificationLaneResult,
   type TauriInvoke
 } from "../src/desktop-flow.js";
@@ -305,6 +307,7 @@ function fixedGitReadLaneResult(
       addedLineCount: 0,
       deletedLineCount: 0,
       warningCodes: [],
+      durationMs: 12,
       truncated: false,
       summaryOnly: true,
       notWritten: true
@@ -345,12 +348,29 @@ function fixedShellVerificationLaneResult(
       stdoutBytes: 120,
       stderrBytes: 0,
       warningCodes: [],
+      durationMs: 21,
       truncated: false,
       summaryOnly: true,
       notWritten: true
     },
     safeMessage:
       "Shell verification lane summary generated. No raw stdout/stderr returned.",
+    ...overrides
+  };
+}
+
+function fixedVerificationLaneEventRecord(
+  overrides: Partial<VerificationLaneEventRecordResult> = {}
+): VerificationLaneEventRecordResult {
+  return {
+    ok: true,
+    eventId: "verification-lane-event-1",
+    eventType: "git.read_lane.executed",
+    laneOrTemplateId: "status_summary",
+    resultHash: "result-hash",
+    eventLogPath: "D:\\workspace\\.deepseek-workbench\\events.jsonl",
+    safeMessage: "Summary-only verification lane event recorded locally.",
+    warnings: [],
     ...overrides
   };
 }
@@ -368,6 +388,7 @@ function fixedEventSummary(
     draftCount: 1,
     approvedApplyCount: 0,
     approvedRollbackCount: 0,
+    verificationEventCount: 0,
     lastEventAt: "2026-06-16T00:00:01.000Z",
     typeCounts: {
       "task.completed": 1,
@@ -1375,6 +1396,33 @@ describe("desktop command wrapper", () => {
     expect(JSON.stringify(result)).not.toContain("stderr text");
   });
 
+  it("records verification lane summary events through the fixed event command", async () => {
+    const eventPreview = fixedGitReadLaneResult().eventPreview;
+    const invoke: TauriInvoke = async (command, args) => {
+      expect(command).toBe("record_verification_lane_event");
+      expect(args).toEqual({
+        workspaceRoot: "D:\\workspace",
+        eventPreview
+      });
+      return fixedVerificationLaneEventRecord() as never;
+    };
+
+    const result = await recordVerificationLaneEvent(
+      {
+        workspaceRoot: "D:\\workspace",
+        eventPreview
+      },
+      invoke
+    );
+
+    expect(result.ok).toBe(true);
+    expect(result.eventType).toBe("git.read_lane.executed");
+    expect(result.safeMessage).toContain("Summary-only verification");
+    expect(JSON.stringify(result)).not.toContain("rawStdout");
+    expect(JSON.stringify(result)).not.toContain("rawStderr");
+    expect(JSON.stringify(result)).not.toContain("diff --git");
+  });
+
   it("keeps Shell Verification Lanes UI allowlisted and summary-only", async () => {
     const appSource = await readFile(
       path.join(appRoot, "src", "App.tsx"),
@@ -1386,6 +1434,8 @@ describe("desktop command wrapper", () => {
     );
 
     expect(appSource).toContain("Shell Verification Lanes");
+    expect(appSource).toContain("Verification Summary");
+    expect(appSource).toContain("Summary events / no raw output");
     expect(appSource).toContain("Allowlist only / no arbitrary shell");
     expect(appSource).toContain("Run Verification Lane");
     expect(appSource).toContain("pnpm.typecheck");
@@ -1395,12 +1445,15 @@ describe("desktop command wrapper", () => {
     expect(appSource).toContain("cargo.check_tauri");
     expect(appSource).toContain("No generic shell command");
     expect(appSource).toContain("raw stdout/stderr");
+    expect(appSource).toContain("recordVerificationLaneEvent");
+    expect(appSource).toContain("latestVerificationSummary");
     expect(appSource).not.toContain("shellCommand");
     expect(appSource).not.toContain("custom executable");
     expect(appSource).not.toMatch(/>\s*Install\s*</);
     expect(appSource).not.toMatch(/>\s*Run Shell\s*</);
     expect(appSource).not.toMatch(/>\s*Write Events\s*</);
     expect(desktopFlowSource).toContain('"run_shell_verification_lane"');
+    expect(desktopFlowSource).toContain('"record_verification_lane_event"');
     expect(desktopFlowSource).not.toContain("run_shell_command");
     expect(desktopFlowSource).not.toContain("rawStdout:");
     expect(desktopFlowSource).not.toContain("rawStderr:");
@@ -6981,6 +7034,7 @@ describe("app controlled creation replay projection", () => {
       draftCount: 0,
       approvedApplyCount: 0,
       approvedRollbackCount: 0,
+      verificationEventCount: 0,
       lastEventAt: "2026-06-25T00:00:00.000Z",
       typeCounts: {
         "control.run.draft_recorded": 1
