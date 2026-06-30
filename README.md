@@ -258,6 +258,10 @@ v0.10 Live Proposal Evaluation RC references:
 - [v0.13.0 App Live Proposal Generation MVP RC release notes](docs/release-notes-v0.13.0-app-live-proposal-generation-mvp-rc.1.md)
 - [App Live Proposal Generation manual QA](docs/app-live-proposal-generation-manual-qa.md)
 - [App Live Proposal Generation RC checklist](docs/app-live-proposal-generation-rc-checklist.md)
+- [v0.14 End-to-End Coding Task MVP prompts](docs/v0.14-end-to-end-coding-task-mvp-prompts.md)
+- [v0.13 App Live Proposal Generation post-release review](docs/v0.13-app-live-proposal-generation-postrelease-review.md)
+- [P0R End-to-End Coding Task roadmap](docs/p0r-end-to-end-coding-task-roadmap.md)
+- [P0R-001 End-to-End Coding Task MVP plan](docs/p0r-001-end-to-end-coding-task-mvp-plan.md)
 
 ## v0.11 App-side Approved Execution MVP RC status
 
@@ -298,6 +302,20 @@ apply/rollback still require the existing approved execution receipt, exact
 typed confirmation, checkpoints, summary-only events, and replay visibility.
 Git and shell remain fixed summary-only verification lanes.
 
+## v0.14 End-to-End Coding Task MVP status
+
+Recommended tag:
+`v0.14.0-end-to-end-coding-task-mvp-rc.1`.
+
+P0R is the next roadmap line after the v0.13 App live proposal generation RC. It
+is planned as one reliable end-to-end coding task MVP: user objective, live
+proposal generation, repair/schema/import/chain preview, validation/diff/audit,
+human typed confirmation, approved apply, Git/shell verification safe lanes,
+summary events, replay, and rollback if needed. It must preserve no auto-apply,
+no autonomous coding loop, no broad PermissionLease, no arbitrary Git/shell, no
+native bridge, no desktop action, and no raw prompt/response/reasoning/API key
+or raw source/diff/preimage event payloads.
+
 ## Current roadmap
 
 P0F is complete after `v0.2.0-app-shell-rc.1`, P0G is complete after
@@ -324,7 +342,10 @@ projection, and approved execution plus verification smoke coverage. P0Q is
 complete for the v0.13 RC with explicit App live proposal generation, fixed
 Tauri command wiring, repair/schema/import/chain preview integration,
 summary-only live proposal events, approved execution integration smoke, and
-failure/redaction hardening. App evaluation runs, model-driven auto-apply,
+failure/redaction hardening. P0R is planned for the v0.14 RC as an end-to-end
+coding task MVP that connects the existing live proposal, approved apply,
+verification safe lane, rollback, event, and replay surfaces without expanding
+execution authority. App evaluation runs, model-driven auto-apply,
 approval/rejection execution outside the approved apply/rollback gates, run
 execution, arbitrary Git execution, arbitrary shell execution, Git write
 commands, install/network/destructive shell commands, broad capability
@@ -375,6 +396,10 @@ MCP/plugin/skills runtime, native bridge, and desktop action remain deferred.
 - [v0.13.0 App Live Proposal Generation MVP RC release notes](docs/release-notes-v0.13.0-app-live-proposal-generation-mvp-rc.1.md)
 - [App Live Proposal Generation manual QA](docs/app-live-proposal-generation-manual-qa.md)
 - [App Live Proposal Generation RC checklist](docs/app-live-proposal-generation-rc-checklist.md)
+- [v0.14 End-to-End Coding Task MVP prompts](docs/v0.14-end-to-end-coding-task-mvp-prompts.md)
+- [v0.13 App Live Proposal Generation post-release review](docs/v0.13-app-live-proposal-generation-postrelease-review.md)
+- [P0R End-to-End Coding Task roadmap](docs/p0r-end-to-end-coding-task-roadmap.md)
+- [P0R-001 End-to-End Coding Task MVP plan](docs/p0r-001-end-to-end-coding-task-mvp-plan.md)
 
 ## What v0.1.0 does not support
 

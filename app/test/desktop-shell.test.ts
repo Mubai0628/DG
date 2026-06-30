@@ -15048,6 +15048,88 @@ describe("desktop source boundaries", () => {
     expect(appSource).not.toMatch(/>\s*Push\s*</);
   });
 
+  it("documents the v0.13 post-release review and P0R end-to-end coding task roadmap", async () => {
+    const review = await readFile(
+      path.join(
+        repoRoot,
+        "docs",
+        "v0.13-app-live-proposal-generation-postrelease-review.md"
+      ),
+      "utf8"
+    );
+    const roadmap = await readFile(
+      path.join(repoRoot, "docs", "p0r-end-to-end-coding-task-roadmap.md"),
+      "utf8"
+    );
+    const plan = await readFile(
+      path.join(repoRoot, "docs", "p0r-001-end-to-end-coding-task-mvp-plan.md"),
+      "utf8"
+    );
+    const prompts = await readFile(
+      path.join(
+        repoRoot,
+        "docs",
+        "v0.14-end-to-end-coding-task-mvp-prompts.md"
+      ),
+      "utf8"
+    );
+    const docsIndex = await readFile(
+      path.join(repoRoot, "docs", "README.md"),
+      "utf8"
+    );
+    const rootReadme = await readFile(path.join(repoRoot, "README.md"), "utf8");
+    const combined = `${review}\n${roadmap}\n${plan}\n${prompts}\n${docsIndex}\n${rootReadme}`;
+
+    expect(combined).toContain("v0.13.0-app-live-proposal-generation-mvp-rc.1");
+    expect(combined).toContain(
+      "App live DeepSeek proposal generation MVP, no auto-apply"
+    );
+    expect(combined).toContain("P0R: End-to-End Coding Task MVP");
+    expect(combined).toContain("one reliable end-to-end coding task MVP");
+    expect(combined).toContain("live DeepSeek proposal generation");
+    expect(combined).toContain("repair / schema validation");
+    expect(combined).toContain("model proposal import");
+    expect(combined).toContain("chain integration");
+    expect(combined).toContain("human typed confirmation");
+    expect(combined).toContain("approved apply");
+    expect(combined).toContain("Git / shell verification safe lanes");
+    expect(combined).toContain("summary events / replay");
+    expect(combined).toContain("rollback if needed");
+    expect(combined).toContain("human approval receipt");
+    expect(combined).toContain("failure recovery UX");
+    expect(combined).toContain("no auto-apply");
+    expect(combined).toContain("autonomous coding loop");
+    expect(combined).toContain("broad PermissionLease");
+    expect(combined).toContain("arbitrary Git/shell");
+    expect(combined).toContain("native bridge");
+    expect(combined).toContain("desktop action");
+    expect(combined).toContain("raw prompt");
+    expect(combined).toContain("raw response");
+    expect(combined).toContain("reasoning_content");
+    expect(combined).toContain("API key");
+    expect(combined).toContain("raw source");
+    expect(combined).toContain("raw diff");
+    expect(combined).toContain("checkpoint preimage");
+    expect(combined).toContain("No live DeepSeek call in P0R-001");
+    expect(combined).toContain("No API key read in P0R-001");
+    expect(combined).toContain("No fetch/network in P0R-001");
+    expect(combined).toContain("No apply");
+    expect(combined).toContain("No rollback");
+    expect(combined).toContain("No EventStore writer");
+    expect(combined).toContain("No App execution");
+    expect(combined).toContain("No arbitrary Git execution");
+    expect(combined).toContain("No arbitrary shell execution");
+    expect(combined).toContain("No native bridge");
+    expect(combined).toContain("No desktop action");
+    expect(docsIndex).toContain("v0.14-end-to-end-coding-task-mvp-prompts.md");
+    expect(docsIndex).toContain(
+      "v0.13-app-live-proposal-generation-postrelease-review.md"
+    );
+    expect(docsIndex).toContain("p0r-end-to-end-coding-task-roadmap.md");
+    expect(docsIndex).toContain("p0r-001-end-to-end-coding-task-mvp-plan.md");
+    expect(rootReadme).toContain("v0.14 End-to-End Coding Task MVP status");
+  });
+
   it("documents the P0L-001 DeepSeek patch proposal ADR and gates without implementation", async () => {
     const adr = await readFile(
       path.join(
