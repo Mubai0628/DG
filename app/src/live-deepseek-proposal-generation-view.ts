@@ -1,7 +1,5 @@
 import { stablePreviewHash } from "../../runtime/src/models/stable-preview-hash.js";
-import type {
-  LiveDeepSeekPatchProposalCommandResult
-} from "./desktop-flow.js";
+import type { LiveDeepSeekPatchProposalCommandResult } from "./desktop-flow.js";
 import type { AppLiveProposalSessionReceiptView } from "./app-live-proposal-session-receipt-view.js";
 import type { LiveProposalRequestBuilderView } from "./live-proposal-request-builder-view.js";
 import type { LiveProposalOptInGateView } from "./live-proposal-opt-in-gate-view.js";
@@ -49,11 +47,13 @@ export type LiveDeepSeekProposalGenerationView = {
   schemaValidationStatus: string;
   importStatus: ModelPatchProposalImportView["status"] | "empty";
   chainStatus: ModelProposalChainIntegrationView["status"] | "empty";
-  usageSummary: {
-    promptTokens?: number | undefined;
-    completionTokens?: number | undefined;
-    totalTokens?: number | undefined;
-  } | undefined;
+  usageSummary:
+    | {
+        promptTokens?: number | undefined;
+        completionTokens?: number | undefined;
+        totalTokens?: number | undefined;
+      }
+    | undefined;
   droppedReasoningContent: boolean;
   reasoningContentCharCount: number;
   warningCodes: string[];
@@ -216,13 +216,25 @@ function buildFindings(
   const keySourceRef = safeText(input.keySourceRef, "").trim();
   const expectedKeySourceRef = safeText(input.expectedKeySourceRef, "").trim();
   if (input.sessionReceiptView === undefined) {
-    add("LIVE_PROPOSAL_SESSION_RECEIPT_MISSING", "blocker", "Preview a live proposal session receipt before generation.");
+    add(
+      "LIVE_PROPOSAL_SESSION_RECEIPT_MISSING",
+      "blocker",
+      "Preview a live proposal session receipt before generation."
+    );
   } else {
     if (input.sessionReceiptView.status === "empty") {
-      add("LIVE_PROPOSAL_SESSION_RECEIPT_EMPTY", "blocker", "Live proposal session receipt is empty.");
+      add(
+        "LIVE_PROPOSAL_SESSION_RECEIPT_EMPTY",
+        "blocker",
+        "Live proposal session receipt is empty."
+      );
     }
     if (!input.sessionReceiptView.typedConfirmationAccepted) {
-      add("LIVE_PROPOSAL_CONFIRMATION_MISSING", "blocker", "Typed confirmation must match the live proposal phrase.");
+      add(
+        "LIVE_PROPOSAL_CONFIRMATION_MISSING",
+        "blocker",
+        "Typed confirmation must match the live proposal phrase."
+      );
     }
     if (
       !input.sessionReceiptView.readiness.canProceedToLiveProposalCommand ||
@@ -236,18 +248,29 @@ function buildFindings(
       input.sessionReceiptView.readiness.canExecuteShell ||
       input.sessionReceiptView.readiness.appCanExecute
     ) {
-      add("LIVE_PROPOSAL_SESSION_RECEIPT_NOT_READY", "blocker", "Live proposal session receipt is not ready for the fixed command.");
+      add(
+        "LIVE_PROPOSAL_SESSION_RECEIPT_NOT_READY",
+        "blocker",
+        "Live proposal session receipt is not ready for the fixed command."
+      );
     }
     if (input.sessionReceiptView.allowedPathCount <= 0) {
-      add("LIVE_PROPOSAL_ALLOWED_PATHS_MISSING", "blocker", "Allowed path refs are required.");
+      add(
+        "LIVE_PROPOSAL_ALLOWED_PATHS_MISSING",
+        "blocker",
+        "Allowed path refs are required."
+      );
     }
   }
 
   if (input.liveProposalOptInGateView === undefined) {
-    add("LIVE_PROPOSAL_POLICY_MISSING", "blocker", "Preview the live proposal opt-in policy before generation.");
+    add(
+      "LIVE_PROPOSAL_POLICY_MISSING",
+      "blocker",
+      "Preview the live proposal opt-in policy before generation."
+    );
   } else if (
-    !input.liveProposalOptInGateView.readiness
-      .canProceedToLiveRequestBuilder ||
+    !input.liveProposalOptInGateView.readiness.canProceedToLiveRequestBuilder ||
     input.liveProposalOptInGateView.readiness.canReadApiKey ||
     input.liveProposalOptInGateView.readiness.canCallLiveModel ||
     input.liveProposalOptInGateView.readiness.canFetchNetwork ||
@@ -258,14 +281,26 @@ function buildFindings(
     input.liveProposalOptInGateView.readiness.canExecuteShell ||
     input.liveProposalOptInGateView.readiness.appCanExecute
   ) {
-    add("LIVE_PROPOSAL_POLICY_NOT_READY", "blocker", "Live proposal opt-in policy is not ready.");
+    add(
+      "LIVE_PROPOSAL_POLICY_NOT_READY",
+      "blocker",
+      "Live proposal opt-in policy is not ready."
+    );
   }
 
   if (input.requestBuilderView === undefined) {
-    add("LIVE_PROPOSAL_REQUEST_MISSING", "blocker", "Preview a summary-only live proposal request before generation.");
+    add(
+      "LIVE_PROPOSAL_REQUEST_MISSING",
+      "blocker",
+      "Preview a summary-only live proposal request before generation."
+    );
   } else {
     if (input.requestBuilderView.status === "empty") {
-      add("LIVE_PROPOSAL_REQUEST_EMPTY", "blocker", "Live proposal request preview is empty.");
+      add(
+        "LIVE_PROPOSAL_REQUEST_EMPTY",
+        "blocker",
+        "Live proposal request preview is empty."
+      );
     }
     if (
       !input.requestBuilderView.readiness.canProceedToLiveAdapter ||
@@ -279,15 +314,30 @@ function buildFindings(
       input.requestBuilderView.readiness.canExecuteShell ||
       input.requestBuilderView.readiness.appCanExecute
     ) {
-      add("LIVE_PROPOSAL_REQUEST_NOT_READY", "blocker", "Live proposal request preview is not ready.");
+      add(
+        "LIVE_PROPOSAL_REQUEST_NOT_READY",
+        "blocker",
+        "Live proposal request preview is not ready."
+      );
     }
     if (input.requestBuilderView.requestEnvelope === undefined) {
-      add("LIVE_PROPOSAL_REQUEST_ENVELOPE_MISSING", "blocker", "Live proposal request envelope is missing.");
+      add(
+        "LIVE_PROPOSAL_REQUEST_ENVELOPE_MISSING",
+        "blocker",
+        "Live proposal request envelope is missing."
+      );
     }
   }
 
-  if (expectedKeySourceRef.length > 0 && keySourceRef !== expectedKeySourceRef) {
-    add("LIVE_PROPOSAL_KEY_SOURCE_REF_BLOCKED", "blocker", "Live proposal key source must be the allowlisted reference name.");
+  if (
+    expectedKeySourceRef.length > 0 &&
+    keySourceRef !== expectedKeySourceRef
+  ) {
+    add(
+      "LIVE_PROPOSAL_KEY_SOURCE_REF_BLOCKED",
+      "blocker",
+      "Live proposal key source must be the allowlisted reference name."
+    );
   }
 
   if (input.errorMessage !== undefined && input.errorMessage.length > 0) {
@@ -307,27 +357,51 @@ function buildFindings(
       result.canExecuteGit !== false ||
       result.canExecuteShell !== false
     ) {
-      add("LIVE_PROPOSAL_COMMAND_RESULT_UNSAFE", "blocker", "Live proposal command result was not summary-only and execution-disabled.");
+      add(
+        "LIVE_PROPOSAL_COMMAND_RESULT_UNSAFE",
+        "blocker",
+        "Live proposal command result was not summary-only and execution-disabled."
+      );
     }
     if (result.droppedReasoningContent) {
-      add("LIVE_PROPOSAL_REASONING_DROPPED", "warning", "Reasoning content was dropped and only a length summary is retained.");
+      add(
+        "LIVE_PROPOSAL_REASONING_DROPPED",
+        "warning",
+        "Reasoning content was dropped and only a length summary is retained."
+      );
     }
     if (input.modelImportView === undefined) {
-      add("LIVE_PROPOSAL_IMPORT_MISSING", "blocker", "Generated proposal candidate has not entered model proposal import preview.");
+      add(
+        "LIVE_PROPOSAL_IMPORT_MISSING",
+        "blocker",
+        "Generated proposal candidate has not entered model proposal import preview."
+      );
     } else if (
       input.modelImportView.status === "blocked" ||
       !input.modelImportView.readiness.canImportToPatchPreview
     ) {
-      add("LIVE_PROPOSAL_IMPORT_BLOCKED", "blocker", "Generated proposal candidate was blocked by repair or schema validation.");
+      add(
+        "LIVE_PROPOSAL_IMPORT_BLOCKED",
+        "blocker",
+        "Generated proposal candidate was blocked by repair or schema validation."
+      );
     }
     if (input.modelProposalChainIntegrationView === undefined) {
-      add("LIVE_PROPOSAL_CHAIN_PREVIEW_MISSING", "warning", "Generated proposal has not entered chain integration preview yet.");
+      add(
+        "LIVE_PROPOSAL_CHAIN_PREVIEW_MISSING",
+        "warning",
+        "Generated proposal has not entered chain integration preview yet."
+      );
     } else if (
       input.modelProposalChainIntegrationView.status === "blocked" ||
       !input.modelProposalChainIntegrationView.readiness
         .canEnterExistingPreviewChain
     ) {
-      add("LIVE_PROPOSAL_CHAIN_PREVIEW_BLOCKED", "blocker", "Generated proposal could not enter the existing preview chain.");
+      add(
+        "LIVE_PROPOSAL_CHAIN_PREVIEW_BLOCKED",
+        "blocker",
+        "Generated proposal could not enter the existing preview chain."
+      );
     }
   }
 

@@ -539,18 +539,12 @@ export function DesktopShell(): JSX.Element {
     liveDeepSeekProposalGenerationError,
     setLiveDeepSeekProposalGenerationError
   ] = useState<string | undefined>();
-  const [
-    liveProposalSummaryEventStatus,
-    setLiveProposalSummaryEventStatus
-  ] = useState<DraftEventStatus>("idle");
-  const [
-    liveProposalSummaryEventResult,
-    setLiveProposalSummaryEventResult
-  ] = useState<LiveProposalSummaryEventRecordResult | undefined>();
-  const [
-    liveProposalSummaryEventError,
-    setLiveProposalSummaryEventError
-  ] = useState<string | undefined>();
+  const [liveProposalSummaryEventStatus, setLiveProposalSummaryEventStatus] =
+    useState<DraftEventStatus>("idle");
+  const [liveProposalSummaryEventResult, setLiveProposalSummaryEventResult] =
+    useState<LiveProposalSummaryEventRecordResult | undefined>();
+  const [liveProposalSummaryEventError, setLiveProposalSummaryEventError] =
+    useState<string | undefined>();
   const [liveProposalPreviewGatePreview, setLiveProposalPreviewGatePreview] =
     useState<LiveProposalPreviewGateView | undefined>();
   const [
@@ -1518,27 +1512,28 @@ export function DesktopShell(): JSX.Element {
         modelProposalChainIntegrationPreview
       ]
     );
-  const liveProposalSummaryEventPreview =
-    useMemo<LiveProposalSummaryEventPreview | undefined>(() => {
-      if (
-        liveDeepSeekProposalCommandResult === undefined ||
-        modelPatchProposalImportPreview === undefined ||
-        modelPatchProposalImportPreview.readiness.canImportToPatchPreview !==
-          true ||
-        liveDeepSeekProposalGenerationView.blockerCount > 0
-      ) {
-        return undefined;
-      }
-      return buildLiveProposalSummaryEventPreview({
-        generationView: liveDeepSeekProposalGenerationView,
-        commandResult: liveDeepSeekProposalCommandResult,
-        importView: modelPatchProposalImportPreview
-      });
-    }, [
-      liveDeepSeekProposalCommandResult,
-      liveDeepSeekProposalGenerationView,
-      modelPatchProposalImportPreview
-    ]);
+  const liveProposalSummaryEventPreview = useMemo<
+    LiveProposalSummaryEventPreview | undefined
+  >(() => {
+    if (
+      liveDeepSeekProposalCommandResult === undefined ||
+      modelPatchProposalImportPreview === undefined ||
+      modelPatchProposalImportPreview.readiness.canImportToPatchPreview !==
+        true ||
+      liveDeepSeekProposalGenerationView.blockerCount > 0
+    ) {
+      return undefined;
+    }
+    return buildLiveProposalSummaryEventPreview({
+      generationView: liveDeepSeekProposalGenerationView,
+      commandResult: liveDeepSeekProposalCommandResult,
+      importView: modelPatchProposalImportPreview
+    });
+  }, [
+    liveDeepSeekProposalCommandResult,
+    liveDeepSeekProposalGenerationView,
+    modelPatchProposalImportPreview
+  ]);
   const canRecordLiveProposalSummaryEvent =
     liveProposalSummaryEventPreview !== undefined &&
     workspaceRoot.trim().length > 0 &&
@@ -2109,8 +2104,7 @@ export function DesktopShell(): JSX.Element {
 
   async function handleGenerateLiveProposal(): Promise<void> {
     if (
-      !liveDeepSeekProposalGenerationView.readiness
-        .canGenerateLiveProposal ||
+      !liveDeepSeekProposalGenerationView.readiness.canGenerateLiveProposal ||
       appLiveProposalSessionReceiptPreview === undefined ||
       liveProposalRequestBuilderPreview === undefined
     ) {
@@ -2148,10 +2142,8 @@ export function DesktopShell(): JSX.Element {
         patchVirtualApplyPreview: patchVirtualApplyPreview,
         patchRollbackCheckpointPreview: patchRollbackCheckpointPreview,
         controlledCreationReplayProjection,
-        userWorkspaceSnapshotBackupContract:
-          userWorkspaceSnapshotBackupPreview,
-        userWorkspacePromotionReadiness:
-          userWorkspacePromotionReadinessPreview,
+        userWorkspaceSnapshotBackupContract: userWorkspaceSnapshotBackupPreview,
+        userWorkspacePromotionReadiness: userWorkspacePromotionReadinessPreview,
         userWorkspaceApplyPrototype: userWorkspaceApplyPrototypeView,
         userWorkspaceRollbackPrototype: userWorkspaceRollbackPrototypeView,
         userWorkspaceApplyRollbackEventWriter: userWorkspaceEventWriterView,
@@ -4709,17 +4701,16 @@ export function DesktopShell(): JSX.Element {
           >
             <div className="panelHeader">
               <h2>Live DeepSeek Proposal Generation</h2>
-              <span className="muted">
-                Explicit opt-in / proposal only
-              </span>
+              <span className="muted">Explicit opt-in / no auto-apply</span>
             </div>
             <p className="fieldHelp">
               Calls the fixed runtime-only Tauri command only after the policy,
               request, receipt, typed confirmation, and allowed path gates are
               satisfied. Returned proposal candidates enter repair, schema
               validation, model import, and chain previews only; the App Shell
-              does not apply patches, rollback, approve, or write
-              apply/rollback events.
+              does not apply patches, rollback, approve, or write apply/rollback
+              events. Raw prompt, raw response, reasoning_content, and API key
+              values are not displayed or written to events.
             </p>
 
             <div className="buttonRow">
@@ -4832,7 +4823,8 @@ export function DesktopShell(): JSX.Element {
                   {liveDeepSeekProposalGenerationView.droppedReasoningContent
                     ? "yes"
                     : "no"}{" "}
-                  ({liveDeepSeekProposalGenerationView.reasoningContentCharCount}
+                  (
+                  {liveDeepSeekProposalGenerationView.reasoningContentCharCount}
                   )
                 </dd>
               </div>

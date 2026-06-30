@@ -310,11 +310,9 @@ export type ShellVerificationLaneResult = {
   safeMessage: string;
 };
 
-export const liveProposalAllowedKeySourceRef = [
-  "DEEPSEEK",
-  "API",
-  "KEY"
-].join("_");
+export const liveProposalAllowedKeySourceRef = ["DEEPSEEK", "API", "KEY"].join(
+  "_"
+);
 
 export type LiveDeepSeekPatchProposalCommandRequest = {
   sessionReceipt: Record<string, unknown>;
@@ -747,7 +745,9 @@ function validateLiveProposalSummaryEventRequest(
     throw new Error("Live proposal summary event preview is required");
   }
   if (containsForbiddenLiveProposalValue(preview)) {
-    throw new Error("Live proposal summary event preview contains unsafe fields");
+    throw new Error(
+      "Live proposal summary event preview contains unsafe fields"
+    );
   }
 }
 
@@ -821,7 +821,10 @@ function validateLiveDeepSeekPatchProposalRequest(
   if (!isRecord(request.sessionReceipt)) {
     throw new Error("Live proposal session receipt is required");
   }
-  if (request.sessionReceipt.source !== "runtime_app_live_proposal_session_receipt") {
+  if (
+    request.sessionReceipt.source !==
+    "runtime_app_live_proposal_session_receipt"
+  ) {
     throw new Error("Live proposal session receipt source is invalid");
   }
   if (request.sessionReceipt.typedConfirmationAccepted !== true) {
@@ -839,7 +842,10 @@ function validateLiveDeepSeekPatchProposalRequest(
   if (request.objectiveSummary.trim().length === 0) {
     throw new Error("Live proposal objective summary is required");
   }
-  if (!Array.isArray(request.allowedPathRefs) || request.allowedPathRefs.length === 0) {
+  if (
+    !Array.isArray(request.allowedPathRefs) ||
+    request.allowedPathRefs.length === 0
+  ) {
     throw new Error("Live proposal allowed path refs are required");
   }
   for (const pathRef of request.allowedPathRefs) {
@@ -864,7 +870,9 @@ function validateLiveDeepSeekPatchProposalRequest(
     request.requestEnvelope.noEventStoreWrite !== true ||
     request.requestEnvelope.noGitShell !== true
   ) {
-    throw new Error("Live proposal request envelope must keep write paths disabled");
+    throw new Error(
+      "Live proposal request envelope must keep write paths disabled"
+    );
   }
   if (
     request.requestEnvelope.noTools !== true ||
@@ -1292,7 +1300,8 @@ function normalizeLiveProposalSummaryEventRecordResult(
   if (containsForbiddenLiveProposalValue(record)) {
     throw normalizeDesktopCommandError({
       errorCode: "INVALID_RESPONSE",
-      safeMessage: "Live proposal summary event response contained unsafe fields",
+      safeMessage:
+        "Live proposal summary event response contained unsafe fields",
       stage: "normalize_response"
     });
   }

@@ -255,6 +255,9 @@ v0.10 Live Proposal Evaluation RC references:
 - [Git / Shell Safe Lanes RC checklist](docs/git-shell-safe-lanes-rc-checklist.md)
 - [v0.13 App Live Proposal Generation MVP prompts](docs/v0.13-app-live-proposal-generation-mvp-prompts.md)
 - [P0Q App Live Proposal Generation roadmap](docs/p0q-app-live-proposal-generation-roadmap.md)
+- [v0.13.0 App Live Proposal Generation MVP RC release notes](docs/release-notes-v0.13.0-app-live-proposal-generation-mvp-rc.1.md)
+- [App Live Proposal Generation manual QA](docs/app-live-proposal-generation-manual-qa.md)
+- [App Live Proposal Generation RC checklist](docs/app-live-proposal-generation-rc-checklist.md)
 
 ## v0.11 App-side Approved Execution MVP RC status
 
@@ -281,17 +284,19 @@ remain summary-only, redacted, replayable, and unable to perform Git writes,
 arbitrary shell, install, network, destructive command, native bridge, desktop
 action, or broad PermissionLease operations.
 
-## v0.13 App Live Proposal Generation MVP planning status
+## v0.13 App Live Proposal Generation MVP RC status
 
 Recommended tag:
 `v0.13.0-app-live-proposal-generation-mvp-rc.1`.
 
-P0Q is planned as an explicit user-confirmed App live proposal generation MVP.
-It may request one live DeepSeek patch proposal only after API key opt-in,
-request-boundary, redaction, schema, repair, validation, audit, and approval
-gates are satisfied. It must not auto-apply, write files from model output,
-rollback from model output, execute Git/shell, issue broad PermissionLeases,
-enable native bridge, or perform desktop actions.
+P0Q is complete for the v0.13 RC as an explicit user-confirmed App live
+proposal generation MVP. The App may request one live DeepSeek patch proposal
+only after API key source-ref policy, request-boundary, session receipt, exact
+typed confirmation, allowed path, redaction, repair, schema, import, and chain
+gates are satisfied. Generated proposals do not auto-apply. Human-approved
+apply/rollback still require the existing approved execution receipt, exact
+typed confirmation, checkpoints, summary-only events, and replay visibility.
+Git and shell remain fixed summary-only verification lanes.
 
 ## Current roadmap
 
@@ -315,16 +320,16 @@ human-approved App-side apply/rollback MVP, private checkpoints, summary-only
 approved execution events, replay counts, and an E2E approved execution smoke.
 P0P is complete for the v0.12 RC with fixed Git read-only summary lanes, fixed
 shell verification templates, summary-only verification events, replay
-projection, and approved execution plus verification smoke coverage. P0Q is now
-planned for explicit App live proposal generation with no auto-apply and no
-execution expansion. App-side
-live model calls, App evaluation runs, App API
-key reads, App fetch/network, model-driven auto-apply, approval/rejection
-execution, run execution, arbitrary Git execution, arbitrary shell execution,
-Git write commands, install/network/destructive shell commands, broad
-capability invocation, production PermissionLease issuing, memory persistence
-UI, MCP/plugin/skills runtime, native bridge, and desktop action remain
-deferred.
+projection, and approved execution plus verification smoke coverage. P0Q is
+complete for the v0.13 RC with explicit App live proposal generation, fixed
+Tauri command wiring, repair/schema/import/chain preview integration,
+summary-only live proposal events, approved execution integration smoke, and
+failure/redaction hardening. App evaluation runs, model-driven auto-apply,
+approval/rejection execution outside the approved apply/rollback gates, run
+execution, arbitrary Git execution, arbitrary shell execution, Git write
+commands, install/network/destructive shell commands, broad capability
+invocation, production PermissionLease issuing, memory persistence UI,
+MCP/plugin/skills runtime, native bridge, and desktop action remain deferred.
 
 - [v0.2 App Shell RC post-release review](docs/v0.2-app-shell-rc-postrelease-review.md)
 - [P0G Coding Workflow roadmap](docs/p0g-coding-workflow-roadmap.md)
@@ -367,6 +372,9 @@ deferred.
 - [v0.12 Git / Shell Safe Lanes post-release review](docs/v0.12-git-shell-safe-lanes-postrelease-review.md)
 - [P0Q App Live Proposal Generation roadmap](docs/p0q-app-live-proposal-generation-roadmap.md)
 - [P0Q-001 App Live Proposal Generation Gate plan](docs/p0q-001-app-live-proposal-generation-gate-plan.md)
+- [v0.13.0 App Live Proposal Generation MVP RC release notes](docs/release-notes-v0.13.0-app-live-proposal-generation-mvp-rc.1.md)
+- [App Live Proposal Generation manual QA](docs/app-live-proposal-generation-manual-qa.md)
+- [App Live Proposal Generation RC checklist](docs/app-live-proposal-generation-rc-checklist.md)
 
 ## What v0.1.0 does not support
 

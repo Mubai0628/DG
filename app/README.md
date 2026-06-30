@@ -70,6 +70,12 @@ Current scope:
   plus verification smoke coverage while arbitrary Git, arbitrary shell, Git
   writes, install/network/destructive commands, raw output events, native
   bridge, desktop action, and broad PermissionLease remain absent
+- prepare the v0.13 App Live Proposal Generation MVP RC with explicit
+  user-confirmed live DeepSeek patch proposal generation through a fixed Tauri
+  command, repair/schema/import/chain preview integration, summary-only live
+  proposal events, approved execution integration smoke, and redaction/failure
+  hardening while auto-apply, model-driven writes, arbitrary Git/shell,
+  native bridge, desktop action, and broad PermissionLease remain absent
 - preview the P0M Live Proposal Opt-in Gate as policy metadata only, with no
   API key read, no environment value read, no vault read, no fetch/network, no
   live DeepSeek call, and no App execution
@@ -100,7 +106,10 @@ Current limitations:
 - no `nativeMessaging`
 - no browser data access
 - no desktop control
-- no network request path
+- no generic network request path; the only App live model path is the v0.13
+  fixed live proposal generation command behind policy, request, receipt,
+  typed confirmation, allowed path, redaction, repair, schema, import, and
+  chain gates
 - no App Shell workspace filesystem crawling; Workspace Index accepts
   summary-only JSON previews
 - no App Shell prompt assembly; Context Assembly Preview is local summary-only
@@ -160,13 +169,17 @@ Current limitations:
   read-only summary lanes with no Git writes and no raw diff/stdout/stderr in
   events; Shell Verification Lanes are fixed allowlist templates with fixed
   argv, no shell interpreter, no arbitrary shell, no install/network/destructive
-  command, and no raw stdout/stderr in events
+  command, and no raw stdout/stderr in events; Live DeepSeek Proposal
+  Generation is explicit opt-in, proposal-only, and no-auto-apply: generated
+  candidates enter repair/schema/import/chain previews, optional summary-only
+  live proposal events, and then the existing human-approved apply/rollback
+  path only
 - no validation, audit, approval, virtual apply, rollback, or replay preview is
   an apply/approval/rollback/execution lane
-- no real DeepSeek API call from the desktop shell
-- no real chat, run creation, approval execution, patch apply, Git execution,
-  shell execution, capability invocation, PermissionLease issuance, memory
-  commit/revoke/expire UI, or memory persistence UI
+- no real DeepSeek chat, autonomous coding loop, run creation, approval
+  execution outside the approved apply/rollback gates, generic patch apply, Git
+  execution, shell execution, capability invocation, broad PermissionLease
+  issuance, memory commit/revoke/expire UI, or memory persistence UI
 - no fully standalone packaged runner yet; packaged conversion must pass
   runner preflight and may require the source tree in v0.1
 

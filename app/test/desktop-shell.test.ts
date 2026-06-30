@@ -899,9 +899,9 @@ describe("desktop command wrapper", () => {
     expect(
       isAllowedDesktopCommand("record_approved_user_workspace_execution_event")
     ).toBe(true);
-    expect(isAllowedDesktopCommand("generate_live_deepseek_patch_proposal")).toBe(
-      true
-    );
+    expect(
+      isAllowedDesktopCommand("generate_live_deepseek_patch_proposal")
+    ).toBe(true);
     expect(isAllowedDesktopCommand("record_live_proposal_summary_event")).toBe(
       true
     );
@@ -1006,7 +1006,8 @@ describe("desktop command wrapper", () => {
       canWriteEventStore: false,
       canExecuteGit: false,
       canExecuteShell: false,
-      safeMessage: "Live DeepSeek proposal command returned a summary-only proposal candidate."
+      safeMessage:
+        "Live DeepSeek proposal command returned a summary-only proposal candidate."
     };
   }
 
@@ -2076,7 +2077,7 @@ describe("desktop command wrapper", () => {
     expect(serialized).not.toContain("rawResponse");
     expect(serialized).not.toContain("reasoning_content");
     expect(serialized).not.toContain("sk-");
-    expect(serialized).not.toContain("canApplyPatch\":true");
+    expect(serialized).not.toContain('canApplyPatch":true');
   });
 
   it("models refresh and convert event summaries with null taskId without ErrorBoundary fallback", async () => {
@@ -5814,7 +5815,9 @@ describe("app live DeepSeek proposal generation flow", () => {
       reasoningDropped
     ];
     const codes = new Set(
-      failureViews.flatMap((view) => view.findings.map((finding) => finding.code))
+      failureViews.flatMap((view) =>
+        view.findings.map((finding) => finding.code)
+      )
     );
 
     expect(Array.from(codes)).toEqual(
@@ -5966,14 +5969,28 @@ describe("app live DeepSeek proposal generation flow", () => {
     );
     const clearHandler = appSource.slice(clearStart, clearEnd);
 
-    expect(clearHandler).toContain("setLiveDeepSeekProposalCommandResult(undefined)");
-    expect(clearHandler).toContain("setLiveDeepSeekProposalGenerationError(undefined)");
-    expect(clearHandler).toContain("setModelPatchProposalImportPreview(undefined)");
-    expect(clearHandler).toContain("setModelProposalChainIntegrationPreview(undefined)");
-    expect(clearHandler).toContain("setPatchProposalCreationPreview(undefined)");
+    expect(clearHandler).toContain(
+      "setLiveDeepSeekProposalCommandResult(undefined)"
+    );
+    expect(clearHandler).toContain(
+      "setLiveDeepSeekProposalGenerationError(undefined)"
+    );
+    expect(clearHandler).toContain(
+      "setModelPatchProposalImportPreview(undefined)"
+    );
+    expect(clearHandler).toContain(
+      "setModelProposalChainIntegrationPreview(undefined)"
+    );
+    expect(clearHandler).toContain(
+      "setPatchProposalCreationPreview(undefined)"
+    );
     expect(clearHandler).toContain('setLiveProposalSummaryEventStatus("idle")');
-    expect(clearHandler).toContain("setLiveProposalSummaryEventResult(undefined)");
-    expect(clearHandler).toContain("setLiveProposalSummaryEventError(undefined)");
+    expect(clearHandler).toContain(
+      "setLiveProposalSummaryEventResult(undefined)"
+    );
+    expect(clearHandler).toContain(
+      "setLiveProposalSummaryEventError(undefined)"
+    );
     expect(clearHandler).toContain("setContextAssemblyPreview(undefined)");
   });
 
@@ -5987,12 +6004,16 @@ describe("app live DeepSeek proposal generation flow", () => {
       "utf8"
     );
     const combined = `${appSource}\n${viewSource}`;
+    const normalizedAppSource = appSource.replace(/\s+/g, " ");
 
     expect(appSource).toContain("Live DeepSeek Proposal Generation");
-    expect(appSource).toContain("Explicit opt-in / proposal only");
+    expect(appSource).toContain("Explicit opt-in / no auto-apply");
     expect(appSource).toContain("Generate Live Proposal");
     expect(appSource).toContain("repair, schema");
     expect(appSource).toContain("Dropped reasoning");
+    expect(normalizedAppSource).toContain(
+      "Raw prompt, raw response, reasoning_content, and API key values are not displayed or"
+    );
     expect(appSource).not.toContain("raw response display");
     expect(appSource).not.toContain("raw prompt display");
     expect(appSource).not.toContain("API key display");
@@ -12421,7 +12442,9 @@ describe("desktop source boundaries", () => {
     expect(docsIndex).toContain("app-shell-v0.2-rc-checklist.md");
     expect(appReadme).toContain("draft-only, read-only, preview-only, or");
     expect(appReadme).toContain("planning-only summaries");
-    expect(appReadme).toContain("no real chat, run creation");
+    expect(appReadme).toContain(
+      "no real DeepSeek chat, autonomous coding loop, run creation"
+    );
   });
 
   it("documents the v0.3 coding workflow preview RC without enabling execution", async () => {
@@ -14724,7 +14747,7 @@ describe("desktop source boundaries", () => {
       "p0q-001-app-live-proposal-generation-gate-plan.md"
     );
     expect(rootReadme).toContain(
-      "v0.13 App Live Proposal Generation MVP planning status"
+      "v0.13 App Live Proposal Generation MVP RC status"
     );
   });
 
@@ -14886,6 +14909,143 @@ describe("desktop source boundaries", () => {
     expect(docsIndex).toContain(
       "app-live-proposal-generation-failure-hardening-v0.13.md"
     );
+  });
+
+  it("documents the v0.13 App live proposal generation RC release boundary", async () => {
+    const releaseNotes = await readFile(
+      path.join(
+        repoRoot,
+        "docs",
+        "release-notes-v0.13.0-app-live-proposal-generation-mvp-rc.1.md"
+      ),
+      "utf8"
+    );
+    const manualQa = await readFile(
+      path.join(repoRoot, "docs", "app-live-proposal-generation-manual-qa.md"),
+      "utf8"
+    );
+    const rcChecklist = await readFile(
+      path.join(
+        repoRoot,
+        "docs",
+        "app-live-proposal-generation-rc-checklist.md"
+      ),
+      "utf8"
+    );
+    const docsIndex = await readFile(
+      path.join(repoRoot, "docs", "README.md"),
+      "utf8"
+    );
+    const rootReadme = await readFile(path.join(repoRoot, "README.md"), "utf8");
+    const appReadme = await readFile(
+      path.join(repoRoot, "app", "README.md"),
+      "utf8"
+    );
+    const appSource = await readFile(
+      path.join(repoRoot, "app", "src", "App.tsx"),
+      "utf8"
+    );
+    const normalizedAppSource = appSource.replace(/\s+/g, " ");
+    const combined = `${releaseNotes}\n${manualQa}\n${rcChecklist}\n${docsIndex}\n${rootReadme}\n${appReadme}`;
+    const normalizedCombined = combined.replace(/\s+/g, " ");
+
+    expect(combined).toContain("v0.13.0-app-live-proposal-generation-mvp-rc.1");
+    expect(normalizedCombined).toContain(
+      "App live DeepSeek proposal generation MVP, no auto-apply"
+    );
+    expect(normalizedCombined).toContain(
+      "web_table_to_csv` Convert remains the real conversion flow"
+    );
+    expect(combined).toContain("Record Draft Event remains available");
+    expect(normalizedCombined).toContain(
+      "App can explicitly request live DeepSeek patch proposal generation"
+    );
+    expect(normalizedCombined).toContain(
+      "Live proposal output enters repair/schema/import/chain integration"
+    );
+    expect(combined).toContain("App does not auto-apply");
+    expect(normalizedCombined).toContain(
+      "Approved apply/rollback still require human approval receipt and typed"
+    );
+    expect(normalizedCombined).toContain(
+      "Git/shell verification safe lanes remain fixed and summary-only"
+    );
+    expect(combined).toContain("No autonomous coding loop");
+    expect(combined).toContain("No model-driven file write");
+    expect(combined).toContain("No broad PermissionLease");
+    expect(combined).toContain("No arbitrary Git/shell");
+    expect(combined).toContain("No MCP/plugin/skills runtime");
+    expect(combined).toContain("No native bridge");
+    expect(combined).toContain("No desktop action");
+    expect(combined).toContain(
+      "No raw prompt/response/reasoning/API key in events"
+    );
+    expect(combined).toContain("Explicit session receipt");
+    expect(combined).toContain("Typed confirmation");
+    expect(combined).toContain("API key source ref / resolver boundary");
+    expect(combined).toContain("Fixed Tauri command");
+    expect(combined).toContain("Summary-only request/response handling");
+    expect(combined).toContain("Repair/schema validation");
+    expect(combined).toContain("Proposal chain integration");
+    expect(combined).toContain("Approval receipt before apply");
+    expect(combined).toContain("Checkpoint/rollback");
+    expect(combined).toContain("Summary-only events");
+    expect(combined).toContain("Replay");
+    expect(combined).toContain("Convert Smoke");
+    expect(combined).toContain("Live Proposal Session Receipt");
+    expect(combined).toContain("Live Proposal Request");
+    expect(combined).toContain("Live Proposal Generation");
+    expect(combined).toContain("Proposal Event Summary");
+    expect(combined).toContain("Proposal Import / Chain Integration");
+    expect(combined).toContain("Approved Apply");
+    expect(combined).toContain("Verification Lanes");
+    expect(combined).toContain("Rollback");
+    expect(combined).toContain("Refresh / Replay");
+    expect(combined).toContain("Duplicate Conflict");
+    expect(combined).toContain("Raw Prompt / Response / API Key Absent");
+    expect(combined).toContain("No Auto-Apply");
+    expect(combined).toContain("No Arbitrary Git / Shell");
+    expect(combined).toContain("Local Scoped Command Gate");
+    expect(combined).toContain("Full Stage-End Command Gate");
+    expect(combined).toContain("pnpm verify:ci");
+    expect(combined).toContain("pnpm release:smoke");
+    expect(combined).toContain("pnpm app:qa:check");
+    expect(combined).toContain("GitHub Actions Gate");
+    expect(combined).toContain("Generated Artifacts");
+    expect(combined).toContain("Release / Tag Suggestion");
+    expect(combined).toContain("Release Commands");
+    expect(combined).toContain("Rollback Guidance");
+    expect(combined).toContain("Known Limitations");
+    expect(combined).toContain("full docs path links");
+    expect(combined).toContain(
+      "docs/app-live-proposal-generation-manual-qa.md"
+    );
+    expect(docsIndex).toContain(
+      "release-notes-v0.13.0-app-live-proposal-generation-mvp-rc.1.md"
+    );
+    expect(docsIndex).toContain("app-live-proposal-generation-manual-qa.md");
+    expect(docsIndex).toContain("app-live-proposal-generation-rc-checklist.md");
+    expect(rootReadme).toContain(
+      "v0.13 App Live Proposal Generation MVP RC status"
+    );
+    expect(appReadme).toContain(
+      "prepare the v0.13 App Live Proposal Generation MVP RC"
+    );
+    expect(appSource).toContain("Explicit opt-in / no auto-apply");
+    expect(normalizedAppSource).toContain(
+      "Raw prompt, raw response, reasoning_content, and API key values are not displayed or written to events."
+    );
+    expect(appSource).toContain("Record Live Proposal Summary Event");
+    expect(appSource).not.toContain("DeepSeek auto-apply enabled");
+    expect(appSource).not.toContain("Apply Live Proposal");
+    expect(appSource).not.toContain("Rollback Live Proposal");
+    expect(appSource).not.toContain("Approve Live Proposal");
+    expect(appSource).not.toContain("Reject Live Proposal");
+    expect(appSource).not.toContain("Native bridge is enabled");
+    expect(appSource).not.toContain("Desktop action is enabled");
+    expect(appSource).not.toMatch(/>\s*Execute Run\s*</);
+    expect(appSource).not.toMatch(/>\s*Commit\s*</);
+    expect(appSource).not.toMatch(/>\s*Push\s*</);
   });
 
   it("documents the P0L-001 DeepSeek patch proposal ADR and gates without implementation", async () => {
