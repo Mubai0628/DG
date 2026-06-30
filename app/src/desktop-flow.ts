@@ -196,6 +196,58 @@ export type GitReadLaneResult = {
   safeMessage: string;
 };
 
+export type ShellVerificationTemplateId =
+  | "pnpm.typecheck"
+  | "pnpm.lint"
+  | "pnpm.test.scoped"
+  | "app.typecheck"
+  | "cargo.check_tauri";
+
+export type ShellVerificationLaneRequest = {
+  workspaceRoot: string;
+  workspaceRootRef: string;
+  templateId: ShellVerificationTemplateId;
+  safeArgs?: {
+    testFilePath?: string | undefined;
+  };
+  timeoutMs?: number | undefined;
+  maxOutputBytes?: number | undefined;
+};
+
+export type ShellVerificationLaneResult = {
+  ok: true;
+  templateId: ShellVerificationTemplateId;
+  status: "passed" | "failed";
+  exitCode: number | null;
+  workspaceRootRef: string;
+  stdoutBytes: number;
+  stderrBytes: number;
+  stdoutLineCount: number;
+  stderrLineCount: number;
+  warningCodes: string[];
+  commandHash: string;
+  outputHash: string;
+  durationMs: number;
+  truncated: boolean;
+  rawStdoutIncluded: false;
+  rawStderrIncluded: false;
+  eventPreview: {
+    type: "shell.verification_lane.executed";
+    templateId: ShellVerificationTemplateId;
+    workspaceRootRef: string;
+    commandHash: string;
+    resultHash: string;
+    exitCode: number | null;
+    stdoutBytes: number;
+    stderrBytes: number;
+    warningCodes: string[];
+    truncated: boolean;
+    summaryOnly: true;
+    notWritten: true;
+  };
+  safeMessage: string;
+};
+
 export const allowedDesktopCommands = [
   "get_app_version",
   "apply_approved_user_workspace_patch",
@@ -205,6 +257,7 @@ export const allowedDesktopCommands = [
   "record_approved_user_workspace_execution_event",
   "record_control_run_draft_event",
   "run_git_read_lane",
+  "run_shell_verification_lane",
   "run_web_table_to_csv_flow"
 ] as const;
 
@@ -353,6 +406,18 @@ export async function runGitReadLane(
   );
 }
 
+export async function runShellVerificationLane(
+  request: ShellVerificationLaneRequest,
+  invokeImpl?: TauriInvoke
+): Promise<ShellVerificationLaneResult> {
+  validateShellVerificationLaneRequest(request);
+  return invokeAllowedCommand<ShellVerificationLaneResult>(
+    "run_shell_verification_lane",
+    { request },
+    invokeImpl
+  );
+}
+
 export async function invokeAllowedCommand<T>(
   command: string,
   args: Record<string, unknown>,
@@ -403,6 +468,8 @@ function normalizeAllowedCommandResponse(
       return normalizeApprovedExecutionEventRecordResult(raw);
     case "run_git_read_lane":
       return normalizeGitReadLaneResult(raw);
+    case "run_shell_verification_lane":
+      return normalizeShellVerificationLaneResult(raw);
     case "apply_approved_user_workspace_patch":
       return normalizeApprovedApplyResult(raw);
     case "rollback_approved_user_workspace_patch":
@@ -495,6 +562,43 @@ function validateGitReadLaneRequest(request: GitReadLaneRequest): void {
       if (typeof pathspec !== "string" || pathspec.trim().length === 0) {
         throw new Error("Git pathspecs must be non-empty strings");
       }
+    }
+  }
+}
+
+function validateShellVerificationLaneRequest(
+  request: ShellVerificationLaneRequest
+): void {
+  if (request.workspaceRoot.trim().length === 0) {
+    throw new Error("Workspace root is required");
+  }
+  if (request.workspaceRootRef.trim().length === 0) {
+    throw new Error("Workspace root ref is required");
+  }
+  if (
+    request.templateId !== "pnpm.typecheck" &&
+    request.templateId !== "pnpm.lint" &&
+    request.templateId !== "pnpm.test.scoped" &&
+    request.templateId !== "app.typecheck" &&
+    request.templateId !== "cargo.check_tauri"
+  ) {
+    throw new Error("Shell verification template is not allowed");
+  }
+  if (request.safeArgs?.testFilePath !== undefined) {
+    const testFilePath = request.safeArgs.testFilePath.trim();
+    if (
+      testFilePath.length === 0 ||
+      /[;&|$`()<>]/.test(testFilePath) ||
+      testFilePath.includes("..") ||
+      testFilePath.includes("\\") ||
+      (!testFilePath.startsWith("runtime/test/") &&
+        !testFilePath.startsWith("app/test/")) ||
+      (!testFilePath.endsWith(".test.ts") &&
+        !testFilePath.endsWith(".test.tsx") &&
+        !testFilePath.endsWith(".spec.ts") &&
+        !testFilePath.endsWith(".spec.tsx"))
+    ) {
+      throw new Error("Shell verification test file path is not allowed");
     }
   }
 }
@@ -664,6 +768,95 @@ function normalizeGitReadLaneResult(raw: unknown): GitReadLaneResult {
       changedFileCount: Number(eventPreview.changedFileCount ?? 0),
       addedLineCount: Number(eventPreview.addedLineCount ?? 0),
       deletedLineCount: Number(eventPreview.deletedLineCount ?? 0),
+      warningCodes: eventWarningCodes,
+      truncated: Boolean(eventPreview.truncated),
+      summaryOnly: true,
+      notWritten: true
+    },
+    safeMessage: safeErrorMessage(record.safeMessage)
+  };
+}
+
+function normalizeShellVerificationLaneResult(
+  raw: unknown
+): ShellVerificationLaneResult {
+  const record = isRecord(raw) ? raw : {};
+  const eventPreview = isRecord(record.eventPreview) ? record.eventPreview : {};
+  if (
+    record.ok !== true ||
+    (record.templateId !== "pnpm.typecheck" &&
+      record.templateId !== "pnpm.lint" &&
+      record.templateId !== "pnpm.test.scoped" &&
+      record.templateId !== "app.typecheck" &&
+      record.templateId !== "cargo.check_tauri") ||
+    (record.status !== "passed" && record.status !== "failed") ||
+    !(
+      typeof record.exitCode === "number" ||
+      record.exitCode === null ||
+      record.exitCode === undefined
+    ) ||
+    typeof record.workspaceRootRef !== "string" ||
+    typeof record.stdoutBytes !== "number" ||
+    typeof record.stderrBytes !== "number" ||
+    typeof record.stdoutLineCount !== "number" ||
+    typeof record.stderrLineCount !== "number" ||
+    !Array.isArray(record.warningCodes) ||
+    typeof record.commandHash !== "string" ||
+    typeof record.outputHash !== "string" ||
+    typeof record.durationMs !== "number" ||
+    typeof record.truncated !== "boolean" ||
+    record.rawStdoutIncluded !== false ||
+    record.rawStderrIncluded !== false ||
+    typeof record.safeMessage !== "string" ||
+    eventPreview.type !== "shell.verification_lane.executed" ||
+    eventPreview.notWritten !== true ||
+    eventPreview.summaryOnly !== true
+  ) {
+    throw normalizeDesktopCommandError({
+      errorCode: "INVALID_RESPONSE",
+      safeMessage: "Shell verification lane response was invalid",
+      stage: "normalize_response"
+    });
+  }
+  const warningCodes = record.warningCodes.filter(
+    (value): value is string => typeof value === "string"
+  );
+  const eventWarningCodes = Array.isArray(eventPreview.warningCodes)
+    ? eventPreview.warningCodes.filter(
+        (value): value is string => typeof value === "string"
+      )
+    : [];
+  return {
+    ok: true,
+    templateId: record.templateId,
+    status: record.status,
+    exitCode: typeof record.exitCode === "number" ? record.exitCode : null,
+    workspaceRootRef: safeErrorMessage(record.workspaceRootRef),
+    stdoutBytes: record.stdoutBytes,
+    stderrBytes: record.stderrBytes,
+    stdoutLineCount: record.stdoutLineCount,
+    stderrLineCount: record.stderrLineCount,
+    warningCodes,
+    commandHash: safeErrorMessage(record.commandHash),
+    outputHash: safeErrorMessage(record.outputHash),
+    durationMs: record.durationMs,
+    truncated: record.truncated,
+    rawStdoutIncluded: false,
+    rawStderrIncluded: false,
+    eventPreview: {
+      type: "shell.verification_lane.executed",
+      templateId: record.templateId,
+      workspaceRootRef: safeErrorMessage(
+        String(eventPreview.workspaceRootRef ?? "")
+      ),
+      commandHash: safeErrorMessage(String(eventPreview.commandHash ?? "")),
+      resultHash: safeErrorMessage(String(eventPreview.resultHash ?? "")),
+      exitCode:
+        typeof eventPreview.exitCode === "number"
+          ? eventPreview.exitCode
+          : null,
+      stdoutBytes: Number(eventPreview.stdoutBytes ?? 0),
+      stderrBytes: Number(eventPreview.stderrBytes ?? 0),
       warningCodes: eventWarningCodes,
       truncated: Boolean(eventPreview.truncated),
       summaryOnly: true,

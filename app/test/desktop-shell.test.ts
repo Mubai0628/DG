@@ -16,10 +16,12 @@ import {
   rollbackApprovedUserWorkspacePatch,
   runDesktopWebTableToCsvFlow,
   runGitReadLane,
+  runShellVerificationLane,
   safeInvoke,
   type ApprovedUserWorkspaceApplyResult,
   type ApprovedUserWorkspaceRollbackResult,
   type GitReadLaneResult,
+  type ShellVerificationLaneResult,
   type TauriInvoke
 } from "../src/desktop-flow.js";
 import { buildControlPlaneProjectionView } from "../src/control-plane-view.js";
@@ -309,6 +311,46 @@ function fixedGitReadLaneResult(
     },
     safeMessage:
       "Git read lane summary generated. No raw diff/stdout/stderr returned.",
+    ...overrides
+  };
+}
+
+function fixedShellVerificationLaneResult(
+  overrides: Partial<ShellVerificationLaneResult> = {}
+): ShellVerificationLaneResult {
+  return {
+    ok: true,
+    templateId: "app.typecheck",
+    status: "passed",
+    exitCode: 0,
+    workspaceRootRef: "workspace-ref-test",
+    stdoutBytes: 120,
+    stderrBytes: 0,
+    stdoutLineCount: 4,
+    stderrLineCount: 0,
+    warningCodes: [],
+    commandHash: "shell-command-hash",
+    outputHash: "shell-output-hash",
+    durationMs: 21,
+    truncated: false,
+    rawStdoutIncluded: false,
+    rawStderrIncluded: false,
+    eventPreview: {
+      type: "shell.verification_lane.executed",
+      templateId: "app.typecheck",
+      workspaceRootRef: "workspace-ref-test",
+      commandHash: "shell-command-hash",
+      resultHash: "shell-result-hash",
+      exitCode: 0,
+      stdoutBytes: 120,
+      stderrBytes: 0,
+      warningCodes: [],
+      truncated: false,
+      summaryOnly: true,
+      notWritten: true
+    },
+    safeMessage:
+      "Shell verification lane summary generated. No raw stdout/stderr returned.",
     ...overrides
   };
 }
@@ -1282,6 +1324,84 @@ describe("desktop command wrapper", () => {
     expect(desktopFlowSource).toContain('"run_git_read_lane"');
     expect(desktopFlowSource).not.toContain("run_git_command");
     expect(desktopFlowSource).not.toContain("rawDiff:");
+    expect(desktopFlowSource).not.toContain("rawStdout:");
+    expect(desktopFlowSource).not.toContain("rawStderr:");
+  });
+
+  it("runs shell verification lanes only through the allowlisted command", async () => {
+    const invoke: TauriInvoke = async (command, args) => {
+      expect(command).toBe("run_shell_verification_lane");
+      expect(args).toEqual({
+        request: {
+          workspaceRoot: "D:\\workspace",
+          workspaceRootRef: "workspace-ref-test",
+          templateId: "pnpm.test.scoped",
+          safeArgs: {
+            testFilePath: "runtime/test/model-patch-proposal-schema.test.ts"
+          },
+          timeoutMs: 60000,
+          maxOutputBytes: 65536
+        }
+      });
+      return fixedShellVerificationLaneResult({
+        templateId: "pnpm.test.scoped",
+        eventPreview: {
+          ...fixedShellVerificationLaneResult().eventPreview,
+          templateId: "pnpm.test.scoped"
+        }
+      }) as never;
+    };
+
+    const result = await runShellVerificationLane(
+      {
+        workspaceRoot: "D:\\workspace",
+        workspaceRootRef: "workspace-ref-test",
+        templateId: "pnpm.test.scoped",
+        safeArgs: {
+          testFilePath: "runtime/test/model-patch-proposal-schema.test.ts"
+        },
+        timeoutMs: 60000,
+        maxOutputBytes: 65536
+      },
+      invoke
+    );
+
+    expect(result.ok).toBe(true);
+    expect(result.templateId).toBe("pnpm.test.scoped");
+    expect(result.eventPreview.notWritten).toBe(true);
+    expect(result.rawStdoutIncluded).toBe(false);
+    expect(result.rawStderrIncluded).toBe(false);
+    expect(JSON.stringify(result)).not.toContain("stdout text");
+    expect(JSON.stringify(result)).not.toContain("stderr text");
+  });
+
+  it("keeps Shell Verification Lanes UI allowlisted and summary-only", async () => {
+    const appSource = await readFile(
+      path.join(appRoot, "src", "App.tsx"),
+      "utf8"
+    );
+    const desktopFlowSource = await readFile(
+      path.join(appRoot, "src", "desktop-flow.ts"),
+      "utf8"
+    );
+
+    expect(appSource).toContain("Shell Verification Lanes");
+    expect(appSource).toContain("Allowlist only / no arbitrary shell");
+    expect(appSource).toContain("Run Verification Lane");
+    expect(appSource).toContain("pnpm.typecheck");
+    expect(appSource).toContain("pnpm.lint");
+    expect(appSource).toContain("pnpm.test.scoped");
+    expect(appSource).toContain("app.typecheck");
+    expect(appSource).toContain("cargo.check_tauri");
+    expect(appSource).toContain("No generic shell command");
+    expect(appSource).toContain("raw stdout/stderr");
+    expect(appSource).not.toContain("shellCommand");
+    expect(appSource).not.toContain("custom executable");
+    expect(appSource).not.toMatch(/>\s*Install\s*</);
+    expect(appSource).not.toMatch(/>\s*Run Shell\s*</);
+    expect(appSource).not.toMatch(/>\s*Write Events\s*</);
+    expect(desktopFlowSource).toContain('"run_shell_verification_lane"');
+    expect(desktopFlowSource).not.toContain("run_shell_command");
     expect(desktopFlowSource).not.toContain("rawStdout:");
     expect(desktopFlowSource).not.toContain("rawStderr:");
   });

@@ -18,11 +18,14 @@ import {
   rollbackApprovedUserWorkspacePatch,
   runDesktopWebTableToCsvFlow,
   runGitReadLane,
+  runShellVerificationLane,
   type ApprovedUserWorkspaceApplyResult,
   type ApprovedUserWorkspaceRollbackResult,
   type ApprovedUserWorkspaceExecutionEventRecordResult,
   type GitReadLane,
-  type GitReadLaneResult
+  type GitReadLaneResult,
+  type ShellVerificationLaneResult,
+  type ShellVerificationTemplateId
 } from "./desktop-flow.js";
 import {
   buildControlPlaneProjectionView,
@@ -262,6 +265,7 @@ type RunStatus = "idle" | "running" | "done" | "error";
 type EventStatus = "idle" | "loading" | "loaded" | "error";
 type DraftEventStatus = "idle" | "recording" | "recorded" | "error";
 type GitReadLaneStatus = "idle" | "running" | "done" | "error";
+type ShellVerificationLaneStatus = "idle" | "running" | "done" | "error";
 
 type ErrorBoundaryState = {
   error?: unknown;
@@ -318,6 +322,17 @@ export function parseGitReadLanePathspecs(text: string): string[] | undefined {
     .map((value) => value.trim())
     .filter((value) => value.length > 0);
   return values.length === 0 ? undefined : values;
+}
+
+export function parseShellVerificationSafeArgs(
+  templateId: ShellVerificationTemplateId,
+  testFilePath: string
+): { testFilePath?: string } | undefined {
+  if (templateId !== "pnpm.test.scoped") {
+    return undefined;
+  }
+  const trimmed = testFilePath.trim();
+  return trimmed.length === 0 ? undefined : { testFilePath: trimmed };
 }
 
 export function DesktopShell(): JSX.Element {
@@ -503,6 +518,18 @@ export function DesktopShell(): JSX.Element {
     GitReadLaneResult | undefined
   >();
   const [gitReadLaneError, setGitReadLaneError] = useState<
+    string | undefined
+  >();
+  const [shellVerificationTemplate, setShellVerificationTemplate] =
+    useState<ShellVerificationTemplateId>("app.typecheck");
+  const [shellVerificationTestFile, setShellVerificationTestFile] =
+    useState("");
+  const [shellVerificationStatus, setShellVerificationStatus] =
+    useState<ShellVerificationLaneStatus>("idle");
+  const [shellVerificationResult, setShellVerificationResult] = useState<
+    ShellVerificationLaneResult | undefined
+  >();
+  const [shellVerificationError, setShellVerificationError] = useState<
     string | undefined
   >();
   const loadedWorkspaceIndexRef =
@@ -2041,6 +2068,31 @@ export function DesktopShell(): JSX.Element {
     }
   }
 
+  async function handleRunVerificationLane(): Promise<void> {
+    setShellVerificationStatus("running");
+    setShellVerificationResult(undefined);
+    setShellVerificationError(undefined);
+    try {
+      const safeArgs = parseShellVerificationSafeArgs(
+        shellVerificationTemplate,
+        shellVerificationTestFile
+      );
+      const laneResult = await runShellVerificationLane({
+        workspaceRoot,
+        workspaceRootRef: "app-workspace-root",
+        templateId: shellVerificationTemplate,
+        ...(safeArgs === undefined ? {} : { safeArgs }),
+        timeoutMs: 60_000,
+        maxOutputBytes: 65_536
+      });
+      setShellVerificationResult(laneResult);
+      setShellVerificationStatus("done");
+    } catch (caught) {
+      setShellVerificationError(safeErrorMessage(caught));
+      setShellVerificationStatus("error");
+    }
+  }
+
   async function handleConvert(): Promise<void> {
     setStatus("running");
     setResult(undefined);
@@ -2491,6 +2543,142 @@ export function DesktopShell(): JSX.Element {
             ) : null}
             {gitReadLaneError !== undefined ? (
               <p className="errorText">{gitReadLaneError}</p>
+            ) : null}
+          </section>
+
+          <section
+            className="bridgePreview"
+            aria-label="Shell Verification Lanes"
+          >
+            <div className="panelHeader">
+              <h2>Shell Verification Lanes</h2>
+              <span className="muted">Allowlist only / no arbitrary shell</span>
+            </div>
+            <p className="fieldHelp">
+              Runs only fixed verification templates. No generic shell command,
+              raw stdout/stderr, install command, network command, or EventStore
+              write is exposed.
+            </p>
+            <label>
+              <span>Template</span>
+              <select
+                value={shellVerificationTemplate}
+                onChange={(event) =>
+                  setShellVerificationTemplate(
+                    event.target.value as ShellVerificationTemplateId
+                  )
+                }
+              >
+                <option value="app.typecheck">app.typecheck</option>
+                <option value="pnpm.typecheck">pnpm.typecheck</option>
+                <option value="pnpm.lint">pnpm.lint</option>
+                <option value="pnpm.test.scoped">pnpm.test.scoped</option>
+                <option value="cargo.check_tauri">cargo.check_tauri</option>
+              </select>
+            </label>
+            <label>
+              <span>Safe scoped test file</span>
+              <input
+                value={shellVerificationTestFile}
+                onChange={(event) =>
+                  setShellVerificationTestFile(event.target.value)
+                }
+                placeholder="runtime/test/example.test.ts"
+                disabled={shellVerificationTemplate !== "pnpm.test.scoped"}
+              />
+              <p className="fieldHelp">
+                Used only by pnpm.test.scoped. Relative app/test or runtime/test
+                files ending in .test.ts/.tsx are allowed.
+              </p>
+            </label>
+            <div className="buttonRow">
+              <button
+                type="button"
+                className="secondary"
+                disabled={
+                  workspaceRoot.trim().length === 0 ||
+                  shellVerificationStatus === "running"
+                }
+                onClick={(event) => {
+                  event.preventDefault();
+                  event.stopPropagation();
+                  void handleRunVerificationLane();
+                }}
+              >
+                {shellVerificationStatus === "running"
+                  ? "Running Verification Lane..."
+                  : "Run Verification Lane"}
+              </button>
+            </div>
+            {shellVerificationResult !== undefined ? (
+              <dl className="summaryGrid compact">
+                <div>
+                  <dt>Status</dt>
+                  <dd>{shellVerificationResult.status}</dd>
+                </div>
+                <div>
+                  <dt>Template</dt>
+                  <dd>{shellVerificationResult.templateId}</dd>
+                </div>
+                <div>
+                  <dt>Exit code</dt>
+                  <dd>{shellVerificationResult.exitCode ?? "n/a"}</dd>
+                </div>
+                <div>
+                  <dt>Stdout bytes</dt>
+                  <dd>{shellVerificationResult.stdoutBytes}</dd>
+                </div>
+                <div>
+                  <dt>Stderr bytes</dt>
+                  <dd>{shellVerificationResult.stderrBytes}</dd>
+                </div>
+                <div>
+                  <dt>Lines out / err</dt>
+                  <dd>
+                    {shellVerificationResult.stdoutLineCount} /{" "}
+                    {shellVerificationResult.stderrLineCount}
+                  </dd>
+                </div>
+                <div>
+                  <dt>Truncated</dt>
+                  <dd>{shellVerificationResult.truncated ? "yes" : "no"}</dd>
+                </div>
+                <div>
+                  <dt>Command hash</dt>
+                  <dd>
+                    {shellVerificationResult.commandHash.substring(0, 12)}
+                  </dd>
+                </div>
+                <div>
+                  <dt>Output hash</dt>
+                  <dd>{shellVerificationResult.outputHash.substring(0, 12)}</dd>
+                </div>
+                <div>
+                  <dt>Event preview</dt>
+                  <dd>
+                    {shellVerificationResult.eventPreview.notWritten
+                      ? "not written"
+                      : "unexpected"}
+                  </dd>
+                </div>
+                <div>
+                  <dt>Raw output</dt>
+                  <dd>
+                    {shellVerificationResult.rawStdoutIncluded ||
+                    shellVerificationResult.rawStderrIncluded
+                      ? "blocked"
+                      : "absent"}
+                  </dd>
+                </div>
+              </dl>
+            ) : null}
+            {shellVerificationResult?.warningCodes.length ? (
+              <p className="muted">
+                warnings {shellVerificationResult.warningCodes.join(", ")}
+              </p>
+            ) : null}
+            {shellVerificationError !== undefined ? (
+              <p className="errorText">{shellVerificationError}</p>
             ) : null}
           </section>
         </form>

@@ -19,6 +19,10 @@ const GIT_READ_LANE_DEFAULT_TIMEOUT: Duration = Duration::from_secs(5);
 const GIT_READ_LANE_MAX_TIMEOUT_MS: u64 = 30_000;
 const GIT_READ_LANE_DEFAULT_MAX_OUTPUT_BYTES: usize = 64 * 1024;
 const GIT_READ_LANE_MAX_OUTPUT_BYTES: usize = 256 * 1024;
+const SHELL_VERIFICATION_DEFAULT_TIMEOUT: Duration = Duration::from_secs(60);
+const SHELL_VERIFICATION_MAX_TIMEOUT_MS: u64 = 120_000;
+const SHELL_VERIFICATION_DEFAULT_MAX_OUTPUT_BYTES: usize = 64 * 1024;
+const SHELL_VERIFICATION_MAX_OUTPUT_BYTES: usize = 256 * 1024;
 const APPLY_CONFIRMATION: &str = "APPLY TO USER WORKSPACE";
 const ROLLBACK_CONFIRMATION: &str = "ROLLBACK USER WORKSPACE";
 const APPROVED_APPLY_PREVIEW_TYPE: &str = "user_workspace.patch_apply.approved_result";
@@ -475,6 +479,78 @@ pub struct GitReadLaneEventPreview {
     not_written: bool,
 }
 
+#[derive(Debug, Serialize, Deserialize, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum ShellVerificationTemplateId {
+    #[serde(rename = "pnpm.typecheck")]
+    PnpmTypecheck,
+    #[serde(rename = "pnpm.lint")]
+    PnpmLint,
+    #[serde(rename = "pnpm.test.scoped")]
+    PnpmTestScoped,
+    #[serde(rename = "app.typecheck")]
+    AppTypecheck,
+    #[serde(rename = "cargo.check_tauri")]
+    CargoCheckTauri,
+}
+
+#[derive(Debug, Serialize, Deserialize, Default, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct ShellVerificationSafeArgs {
+    test_file_path: Option<String>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ShellVerificationLaneRequest {
+    workspace_root: String,
+    workspace_root_ref: String,
+    template_id: ShellVerificationTemplateId,
+    safe_args: Option<ShellVerificationSafeArgs>,
+    timeout_ms: Option<u64>,
+    max_output_bytes: Option<usize>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ShellVerificationLaneResult {
+    ok: bool,
+    template_id: ShellVerificationTemplateId,
+    status: String,
+    exit_code: Option<i32>,
+    workspace_root_ref: String,
+    stdout_bytes: usize,
+    stderr_bytes: usize,
+    stdout_line_count: usize,
+    stderr_line_count: usize,
+    warning_codes: Vec<String>,
+    command_hash: String,
+    output_hash: String,
+    duration_ms: u128,
+    truncated: bool,
+    raw_stdout_included: bool,
+    raw_stderr_included: bool,
+    event_preview: ShellVerificationLaneEventPreview,
+    safe_message: String,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ShellVerificationLaneEventPreview {
+    #[serde(rename = "type")]
+    event_type: String,
+    template_id: ShellVerificationTemplateId,
+    workspace_root_ref: String,
+    command_hash: String,
+    result_hash: String,
+    exit_code: Option<i32>,
+    stdout_bytes: usize,
+    stderr_bytes: usize,
+    warning_codes: Vec<String>,
+    truncated: bool,
+    summary_only: bool,
+    not_written: bool,
+}
+
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 struct ApprovedApplyCheckpoint {
@@ -769,6 +845,13 @@ pub fn run_git_read_lane(
     request: GitReadLaneRequest,
 ) -> Result<GitReadLaneResult, DesktopFlowError> {
     run_git_read_lane_summary(request)
+}
+
+#[tauri::command(rename_all = "camelCase")]
+pub fn run_shell_verification_lane(
+    request: ShellVerificationLaneRequest,
+) -> Result<ShellVerificationLaneResult, DesktopFlowError> {
+    run_shell_verification_lane_summary(request)
 }
 
 #[tauri::command(rename_all = "camelCase")]
@@ -1285,6 +1368,375 @@ fn git_read_lane_max_output_bytes(
 
 fn git_read_lane_error(code: &str, message: impl Into<String>) -> DesktopFlowError {
     DesktopFlowError::new(code, message.into(), "git_read_lane")
+}
+
+struct ShellVerificationTemplate {
+    program: &'static str,
+    args: Vec<String>,
+}
+
+struct ShellCommandOutput {
+    exit_code: Option<i32>,
+    stdout: Vec<u8>,
+    stderr: Vec<u8>,
+    duration_ms: u128,
+    truncated: bool,
+}
+
+fn run_shell_verification_lane_summary(
+    request: ShellVerificationLaneRequest,
+) -> Result<ShellVerificationLaneResult, DesktopFlowError> {
+    run_shell_verification_lane_with_executor(request, run_shell_fixed_template)
+}
+
+fn run_shell_verification_lane_with_executor<F>(
+    request: ShellVerificationLaneRequest,
+    executor: F,
+) -> Result<ShellVerificationLaneResult, DesktopFlowError>
+where
+    F: Fn(&str, &[String], &Path, Duration, usize) -> Result<ShellCommandOutput, DesktopFlowError>,
+{
+    let workspace_root = validate_workspace_root(&request.workspace_root)
+        .map_err(|message| shell_verification_error("SHELL_WORKSPACE_INVALID", message))?;
+    if request.workspace_root_ref.trim().is_empty() {
+        return Err(shell_verification_error(
+            "SHELL_WORKSPACE_REF_REQUIRED",
+            "Workspace root ref is required",
+        ));
+    }
+    if contains_sensitive_marker(&request.workspace_root_ref) {
+        return Err(shell_verification_error(
+            "SHELL_WORKSPACE_REF_REJECTED",
+            "Workspace root ref failed safety validation",
+        ));
+    }
+    let template = shell_verification_template(request.template_id, request.safe_args.as_ref())?;
+    let timeout = shell_verification_timeout(request.timeout_ms)?;
+    let max_output_bytes = shell_verification_max_output_bytes(request.max_output_bytes)?;
+    let command_hash = short_hash(&format!(
+        "{:?}:{}:{:?}",
+        request.template_id, template.program, template.args
+    ));
+    let command_output = executor(
+        template.program,
+        &template.args,
+        &workspace_root,
+        timeout,
+        max_output_bytes,
+    )?;
+    let stdout_text = String::from_utf8_lossy(&command_output.stdout).to_string();
+    let stderr_text = String::from_utf8_lossy(&command_output.stderr).to_string();
+    if contains_sensitive_marker(&stdout_text) || contains_sensitive_marker(&stderr_text) {
+        return Err(shell_verification_error(
+            "SHELL_OUTPUT_REDACTED",
+            "Shell verification output failed redaction safety validation",
+        ));
+    }
+
+    let stdout_bytes = command_output.stdout.len();
+    let stderr_bytes = command_output.stderr.len();
+    let stdout_line_count = count_output_lines(&command_output.stdout);
+    let stderr_line_count = count_output_lines(&command_output.stderr);
+    let mut warning_codes = Vec::new();
+    if command_output.truncated {
+        warning_codes.push("SHELL_OUTPUT_TRUNCATED".to_string());
+    }
+    if command_output.exit_code != Some(0) {
+        warning_codes.push("SHELL_EXIT_NONZERO".to_string());
+    }
+    if stderr_bytes > 0 {
+        warning_codes.push("SHELL_STDERR_PRESENT".to_string());
+    }
+    warning_codes.sort();
+    warning_codes.dedup();
+
+    let output_hash = short_hash(&format!(
+        "{}:{}:{}:{}",
+        short_hash_bytes(&command_output.stdout),
+        short_hash_bytes(&command_output.stderr),
+        stdout_bytes,
+        stderr_bytes
+    ));
+    let result_hash = short_hash(&format!(
+        "{:?}:{command_hash}:{output_hash}:{:?}:{}:{}",
+        request.template_id, command_output.exit_code, stdout_bytes, stderr_bytes
+    ));
+    let event_preview = ShellVerificationLaneEventPreview {
+        event_type: "shell.verification_lane.executed".to_string(),
+        template_id: request.template_id,
+        workspace_root_ref: sanitize_safe_message(&request.workspace_root_ref),
+        command_hash: command_hash.clone(),
+        result_hash,
+        exit_code: command_output.exit_code,
+        stdout_bytes,
+        stderr_bytes,
+        warning_codes: warning_codes.clone(),
+        truncated: command_output.truncated,
+        summary_only: true,
+        not_written: true,
+    };
+    Ok(ShellVerificationLaneResult {
+        ok: true,
+        template_id: request.template_id,
+        status: if command_output.exit_code == Some(0) {
+            "passed".to_string()
+        } else {
+            "failed".to_string()
+        },
+        exit_code: command_output.exit_code,
+        workspace_root_ref: sanitize_safe_message(&request.workspace_root_ref),
+        stdout_bytes,
+        stderr_bytes,
+        stdout_line_count,
+        stderr_line_count,
+        warning_codes,
+        command_hash,
+        output_hash,
+        duration_ms: command_output.duration_ms,
+        truncated: command_output.truncated,
+        raw_stdout_included: false,
+        raw_stderr_included: false,
+        event_preview,
+        safe_message: "Shell verification lane summary generated. No raw stdout/stderr returned."
+            .to_string(),
+    })
+}
+
+fn shell_verification_template(
+    template_id: ShellVerificationTemplateId,
+    safe_args: Option<&ShellVerificationSafeArgs>,
+) -> Result<ShellVerificationTemplate, DesktopFlowError> {
+    let safe_args = safe_args.cloned().unwrap_or_default();
+    let template = match template_id {
+        ShellVerificationTemplateId::PnpmTypecheck => {
+            reject_unexpected_shell_safe_args(&safe_args)?;
+            ShellVerificationTemplate {
+                program: "pnpm",
+                args: vec!["typecheck".to_string()],
+            }
+        }
+        ShellVerificationTemplateId::PnpmLint => {
+            reject_unexpected_shell_safe_args(&safe_args)?;
+            ShellVerificationTemplate {
+                program: "pnpm",
+                args: vec!["lint".to_string()],
+            }
+        }
+        ShellVerificationTemplateId::PnpmTestScoped => {
+            let test_file_path = safe_args.test_file_path.as_deref().ok_or_else(|| {
+                shell_verification_error(
+                    "SHELL_TEST_FILE_REQUIRED",
+                    "Scoped test template requires a safe test file path",
+                )
+            })?;
+            let test_file_path = validate_shell_test_file_path(test_file_path)?;
+            ShellVerificationTemplate {
+                program: "pnpm",
+                args: vec![
+                    "exec".to_string(),
+                    "vitest".to_string(),
+                    "run".to_string(),
+                    test_file_path,
+                ],
+            }
+        }
+        ShellVerificationTemplateId::AppTypecheck => {
+            reject_unexpected_shell_safe_args(&safe_args)?;
+            ShellVerificationTemplate {
+                program: "pnpm",
+                args: vec!["app:typecheck".to_string()],
+            }
+        }
+        ShellVerificationTemplateId::CargoCheckTauri => {
+            reject_unexpected_shell_safe_args(&safe_args)?;
+            ShellVerificationTemplate {
+                program: "cargo",
+                args: vec![
+                    "check".to_string(),
+                    "--manifest-path".to_string(),
+                    "app/src-tauri/Cargo.toml".to_string(),
+                ],
+            }
+        }
+    };
+    validate_shell_fixed_template(&template)?;
+    Ok(template)
+}
+
+fn reject_unexpected_shell_safe_args(
+    safe_args: &ShellVerificationSafeArgs,
+) -> Result<(), DesktopFlowError> {
+    if safe_args.test_file_path.is_some() {
+        return Err(shell_verification_error(
+            "SHELL_SAFE_ARGS_REJECTED",
+            "Safe args are not supported for this verification template",
+        ));
+    }
+    Ok(())
+}
+
+fn validate_shell_fixed_template(
+    template: &ShellVerificationTemplate,
+) -> Result<(), DesktopFlowError> {
+    let program = template.program.to_ascii_lowercase();
+    if program != "pnpm" && program != "cargo" {
+        return Err(shell_verification_error(
+            "SHELL_TEMPLATE_REJECTED",
+            "Verification executable is not allowlisted",
+        ));
+    }
+    for value in std::iter::once(template.program).chain(template.args.iter().map(String::as_str)) {
+        let lower = value.to_ascii_lowercase();
+        if lower.contains("install")
+            || lower.contains("curl")
+            || lower.contains("wget")
+            || lower.contains("powershell")
+            || lower.contains("cmd.exe")
+            || lower.contains("bash")
+            || lower.contains("sh -")
+            || lower.contains("rm ")
+            || lower.contains("del ")
+            || lower.contains("remove-item")
+            || contains_sensitive_marker(&lower)
+            || value.chars().any(|ch| {
+                matches!(
+                    ch,
+                    ';' | '&' | '|' | '$' | '`' | '(' | ')' | '<' | '>' | '"' | '\''
+                )
+            })
+        {
+            return Err(shell_verification_error(
+                "SHELL_TEMPLATE_REJECTED",
+                "Verification template failed safety validation",
+            ));
+        }
+    }
+    Ok(())
+}
+
+fn validate_shell_test_file_path(path: &str) -> Result<String, DesktopFlowError> {
+    let trimmed = path.trim();
+    if trimmed.is_empty()
+        || !is_safe_git_pathspec(trimmed)
+        || !(trimmed.starts_with("runtime/test/") || trimmed.starts_with("app/test/"))
+        || !(trimmed.ends_with(".test.ts")
+            || trimmed.ends_with(".test.tsx")
+            || trimmed.ends_with(".spec.ts")
+            || trimmed.ends_with(".spec.tsx"))
+    {
+        return Err(shell_verification_error(
+            "SHELL_TEST_FILE_REJECTED",
+            "Scoped test file path failed safety validation",
+        ));
+    }
+    Ok(trimmed.to_string())
+}
+
+fn run_shell_fixed_template(
+    program: &str,
+    args: &[String],
+    cwd: &Path,
+    timeout: Duration,
+    max_output_bytes: usize,
+) -> Result<ShellCommandOutput, DesktopFlowError> {
+    let mut child = Command::new(program)
+        .args(args)
+        .current_dir(cwd)
+        .env_clear()
+        .envs(sanitized_command_env())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .spawn()
+        .map_err(|_| {
+            shell_verification_error(
+                "SHELL_VERIFICATION_START_FAILED",
+                "Shell verification lane could not start",
+            )
+        })?;
+
+    let started_at = Instant::now();
+    loop {
+        if started_at.elapsed() >= timeout {
+            let _ = child.kill();
+            let _ = child.wait();
+            return Err(shell_verification_error(
+                "SHELL_VERIFICATION_TIMEOUT",
+                "Shell verification lane timed out",
+            ));
+        }
+        if child
+            .try_wait()
+            .map_err(|_| {
+                shell_verification_error(
+                    "SHELL_VERIFICATION_STATUS_FAILED",
+                    "Shell verification lane status failed",
+                )
+            })?
+            .is_some()
+        {
+            break;
+        }
+        thread::sleep(Duration::from_millis(50));
+    }
+
+    let duration_ms = started_at.elapsed().as_millis();
+    let output = child.wait_with_output().map_err(|_| {
+        shell_verification_error(
+            "SHELL_VERIFICATION_OUTPUT_FAILED",
+            "Shell verification lane output could not be read",
+        )
+    })?;
+    let mut stdout = output.stdout;
+    let mut stderr = output.stderr;
+    let mut truncated = false;
+    if stdout.len() > max_output_bytes {
+        stdout.truncate(max_output_bytes);
+        truncated = true;
+    }
+    if stderr.len() > max_output_bytes {
+        stderr.truncate(max_output_bytes);
+        truncated = true;
+    }
+
+    Ok(ShellCommandOutput {
+        exit_code: output.status.code(),
+        stdout,
+        stderr,
+        duration_ms,
+        truncated,
+    })
+}
+
+fn count_output_lines(bytes: &[u8]) -> usize {
+    String::from_utf8_lossy(bytes).lines().count()
+}
+
+fn shell_verification_timeout(timeout_ms: Option<u64>) -> Result<Duration, DesktopFlowError> {
+    let ms = timeout_ms.unwrap_or(SHELL_VERIFICATION_DEFAULT_TIMEOUT.as_millis() as u64);
+    if ms == 0 || ms > SHELL_VERIFICATION_MAX_TIMEOUT_MS {
+        return Err(shell_verification_error(
+            "SHELL_TIMEOUT_REJECTED",
+            "Shell verification timeout is outside the allowed range",
+        ));
+    }
+    Ok(Duration::from_millis(ms))
+}
+
+fn shell_verification_max_output_bytes(
+    max_output_bytes: Option<usize>,
+) -> Result<usize, DesktopFlowError> {
+    let bytes = max_output_bytes.unwrap_or(SHELL_VERIFICATION_DEFAULT_MAX_OUTPUT_BYTES);
+    if bytes == 0 || bytes > SHELL_VERIFICATION_MAX_OUTPUT_BYTES {
+        return Err(shell_verification_error(
+            "SHELL_OUTPUT_LIMIT_REJECTED",
+            "Shell verification output limit is outside the allowed range",
+        ));
+    }
+    Ok(bytes)
+}
+
+fn shell_verification_error(code: &str, message: impl Into<String>) -> DesktopFlowError {
+    DesktopFlowError::new(code, message.into(), "shell_verification_lane")
 }
 
 fn run_runner_preflight(workspace_root: Option<&str>, mode: RunnerMode) -> RunnerPreflightSummary {
@@ -4061,6 +4513,20 @@ mod tests {
         }
     }
 
+    fn safe_shell_verification_request(
+        workspace: &Path,
+        template_id: ShellVerificationTemplateId,
+    ) -> ShellVerificationLaneRequest {
+        ShellVerificationLaneRequest {
+            workspace_root: workspace.to_string_lossy().to_string(),
+            workspace_root_ref: "workspace-ref-test".to_string(),
+            template_id,
+            safe_args: None,
+            timeout_ms: Some(5_000),
+            max_output_bytes: Some(65_536),
+        }
+    }
+
     #[test]
     fn strips_sensitive_env_keys() {
         let sanitized = sanitize_env_vars([
@@ -4195,6 +4661,190 @@ mod tests {
             .contains(&"GIT_OUTPUT_TRUNCATED".to_string()));
         let serialized = serde_json::to_string(&result).expect("serialize");
         assert!(!serialized.contains("safe summary file"));
+    }
+
+    #[test]
+    fn shell_verification_allowed_template_uses_fixed_argv() {
+        let workspace = temp_workspace("shell-fixed-argv");
+        let seen = std::cell::RefCell::new(Vec::<String>::new());
+        let request =
+            safe_shell_verification_request(&workspace, ShellVerificationTemplateId::PnpmTypecheck);
+
+        let result = run_shell_verification_lane_with_executor(
+            request,
+            |program, args, _cwd, _timeout, _max_output_bytes| {
+                seen.borrow_mut()
+                    .extend(std::iter::once(program.to_string()).chain(args.iter().cloned()));
+                Ok(ShellCommandOutput {
+                    exit_code: Some(0),
+                    stdout: b"typecheck passed\n".to_vec(),
+                    stderr: Vec::new(),
+                    duration_ms: 12,
+                    truncated: false,
+                })
+            },
+        )
+        .expect("shell verification summary");
+
+        assert_eq!(
+            seen.into_inner(),
+            vec!["pnpm".to_string(), "typecheck".to_string()]
+        );
+        assert_eq!(
+            result.template_id,
+            ShellVerificationTemplateId::PnpmTypecheck
+        );
+        assert_eq!(result.status, "passed");
+        assert_eq!(result.exit_code, Some(0));
+        assert_eq!(result.stdout_line_count, 1);
+        assert!(!result.raw_stdout_included);
+        assert!(!result.raw_stderr_included);
+        assert!(result.event_preview.not_written);
+    }
+
+    #[test]
+    fn shell_verification_scoped_test_template_accepts_only_safe_path() {
+        let workspace = temp_workspace("shell-scoped-test");
+        let mut request = safe_shell_verification_request(
+            &workspace,
+            ShellVerificationTemplateId::PnpmTestScoped,
+        );
+        request.safe_args = Some(ShellVerificationSafeArgs {
+            test_file_path: Some("runtime/test/model-patch-proposal-schema.test.ts".to_string()),
+        });
+        let result = run_shell_verification_lane_with_executor(
+            request,
+            |program, args, _cwd, _timeout, _max_output_bytes| {
+                assert_eq!(program, "pnpm");
+                assert_eq!(
+                    args,
+                    &[
+                        "exec".to_string(),
+                        "vitest".to_string(),
+                        "run".to_string(),
+                        "runtime/test/model-patch-proposal-schema.test.ts".to_string()
+                    ]
+                );
+                Ok(ShellCommandOutput {
+                    exit_code: Some(0),
+                    stdout: b"test passed\n".to_vec(),
+                    stderr: Vec::new(),
+                    duration_ms: 9,
+                    truncated: false,
+                })
+            },
+        )
+        .expect("scoped test verification");
+
+        assert_eq!(result.status, "passed");
+    }
+
+    #[test]
+    fn shell_verification_unknown_or_install_template_is_not_deserializable() {
+        for template_id in ["custom.command", "pnpm.install"] {
+            let value = serde_json::json!({
+                "workspaceRoot": "D:\\workspace",
+                "workspaceRootRef": "workspace-ref-test",
+                "templateId": template_id
+            });
+
+            let parsed = serde_json::from_value::<ShellVerificationLaneRequest>(value);
+
+            assert!(parsed.is_err());
+        }
+    }
+
+    #[test]
+    fn shell_verification_blocks_shell_metacharacters_and_unsafe_cwd() {
+        let workspace = temp_workspace("shell-unsafe-path");
+        let mut request = safe_shell_verification_request(
+            &workspace,
+            ShellVerificationTemplateId::PnpmTestScoped,
+        );
+        request.safe_args = Some(ShellVerificationSafeArgs {
+            test_file_path: Some("runtime/test/example.test.ts;rm -rf workspace".to_string()),
+        });
+
+        let error = run_shell_verification_lane_with_executor(
+            request,
+            |_program, _args, _cwd, _timeout, _max_output_bytes| unreachable!(),
+        )
+        .expect_err("unsafe safe arg should block");
+
+        assert_eq!(error.error_code, "SHELL_TEST_FILE_REJECTED");
+        assert_eq!(error.stage, "shell_verification_lane");
+
+        let missing = std::env::temp_dir().join("dw-shell-verification-missing-workspace");
+        let missing_request =
+            safe_shell_verification_request(&missing, ShellVerificationTemplateId::AppTypecheck);
+        let error = run_shell_verification_lane_with_executor(
+            missing_request,
+            |_program, _args, _cwd, _timeout, _max_output_bytes| unreachable!(),
+        )
+        .expect_err("unsafe cwd should block");
+
+        assert_eq!(error.error_code, "SHELL_WORKSPACE_INVALID");
+    }
+
+    #[test]
+    fn shell_verification_redacts_sensitive_output_without_raw_summary() {
+        let workspace = temp_workspace("shell-redaction");
+        let request =
+            safe_shell_verification_request(&workspace, ShellVerificationTemplateId::PnpmLint);
+
+        let error = run_shell_verification_lane_with_executor(
+            request,
+            |_program, _args, _cwd, _timeout, _max_output_bytes| {
+                Ok(ShellCommandOutput {
+                    exit_code: Some(1),
+                    stdout: b"api key sk-test1234567890abcdef\n".to_vec(),
+                    stderr: Vec::new(),
+                    duration_ms: 2,
+                    truncated: false,
+                })
+            },
+        )
+        .expect_err("secret-like output should block");
+
+        assert_eq!(error.error_code, "SHELL_OUTPUT_REDACTED");
+        assert!(!error.safe_message.contains("sk-"));
+    }
+
+    #[test]
+    fn shell_verification_truncates_and_counts_without_raw_output() {
+        let workspace = temp_workspace("shell-truncation");
+        let request =
+            safe_shell_verification_request(&workspace, ShellVerificationTemplateId::PnpmLint);
+
+        let result = run_shell_verification_lane_with_executor(
+            request,
+            |_program, _args, _cwd, _timeout, _max_output_bytes| {
+                Ok(ShellCommandOutput {
+                    exit_code: Some(1),
+                    stdout: b"line one\nline two\n".to_vec(),
+                    stderr: b"warning only\n".to_vec(),
+                    duration_ms: 3,
+                    truncated: true,
+                })
+            },
+        )
+        .expect("truncated shell verification");
+
+        assert_eq!(result.status, "failed");
+        assert_eq!(result.stdout_line_count, 2);
+        assert_eq!(result.stderr_line_count, 1);
+        assert!(result
+            .warning_codes
+            .contains(&"SHELL_OUTPUT_TRUNCATED".to_string()));
+        assert!(result
+            .warning_codes
+            .contains(&"SHELL_EXIT_NONZERO".to_string()));
+        assert!(result
+            .warning_codes
+            .contains(&"SHELL_STDERR_PRESENT".to_string()));
+        let serialized = serde_json::to_string(&result).expect("serialize");
+        assert!(!serialized.contains("line one"));
+        assert!(!serialized.contains("warning only"));
     }
 
     #[test]
