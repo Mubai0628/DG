@@ -178,6 +178,12 @@ import {
   type AppControlledCreationReplayProjectionView
 } from "./controlled-creation-replay-projection-view.js";
 import {
+  buildVerificationLaneProjectionView,
+  summarizeVerificationLaneProjectionView,
+  verificationLaneProjectionWarningCodes,
+  type AppVerificationLaneProjectionView
+} from "./verification-lane-projection-view.js";
+import {
   buildSandboxApplyRollbackEventProjectionView,
   sandboxApplyRollbackEventProjectionApprovalRefs,
   sandboxApplyRollbackEventProjectionSurfaceSummaries,
@@ -563,6 +569,10 @@ export function DesktopShell(): JSX.Element {
       ),
     [error, eventSummary, preflight, result]
   );
+  const verificationLaneProjection = useMemo<AppVerificationLaneProjectionView>(
+    () => buildVerificationLaneProjectionView(eventSummary),
+    [eventSummary]
+  );
   const bridgePanel = useMemo<BridgeProposalPreviewModel>(
     () => buildBridgeProposalPreviewModel(bridgePreview),
     [bridgePreview]
@@ -764,7 +774,11 @@ export function DesktopShell(): JSX.Element {
         preflight,
         patchProposalSummaries: patchProposalSurfaceSummaries,
         futureApprovalRefs: patchProposalApprovalRefs,
-        futureAuditWarningCodes: patchProposalAuditWarningCodes
+        futureAuditWarningCodes: [
+          ...patchProposalAuditWarningCodes,
+          ...verificationLaneProjectionWarningCodes(verificationLaneProjection)
+        ],
+        verificationLaneProjection
       }),
     [
       controlPlanePanel,
@@ -774,7 +788,8 @@ export function DesktopShell(): JSX.Element {
       patchProposalAuditWarningCodes,
       patchProposalSurfaceSummaries,
       preflight,
-      result
+      result,
+      verificationLaneProjection
     ]
   );
   const memoryRecallPreview = useMemo<AppMemoryRecallPreviewView>(
@@ -1430,6 +1445,7 @@ export function DesktopShell(): JSX.Element {
         agentRoutePreview,
         capabilityPlanPreview,
         controlProjection: controlPlanePanel,
+        verificationLaneProjection,
         eventSummary,
         replayProjection: controlledCreationReplayProjection,
         sandboxApplyRollbackEventProjection:
@@ -1460,7 +1476,8 @@ export function DesktopShell(): JSX.Element {
       eventSummary,
       loadedWorkspaceIndexRef,
       memoryRecallPreview,
-      patchWorkbenchSurfaces.diff
+      patchWorkbenchSurfaces.diff,
+      verificationLaneProjection
     ]
   );
   const displayedContextAssembly =
@@ -1535,8 +1552,10 @@ export function DesktopShell(): JSX.Element {
           ...patchProposalAuditWarningCodes,
           ...disposableWorkspaceSnapshotAuditWarningCodes,
           ...userWorkspaceSnapshotAuditWarningCodes,
-          ...userWorkspacePromotionAuditWarningCodes
-        ]
+          ...userWorkspacePromotionAuditWarningCodes,
+          ...verificationLaneProjectionWarningCodes(verificationLaneProjection)
+        ],
+        verificationLaneProjection
       }),
     [
       capabilityPlanPreview,
@@ -1550,7 +1569,8 @@ export function DesktopShell(): JSX.Element {
       preflight,
       result,
       userWorkspacePromotionAuditWarningCodes,
-      userWorkspaceSnapshotAuditWarningCodes
+      userWorkspaceSnapshotAuditWarningCodes,
+      verificationLaneProjection
     ]
   );
   const runDraftEventPreview = useMemo<AppRunDraftEventPreview>(
@@ -2739,6 +2759,93 @@ export function DesktopShell(): JSX.Element {
                 <dd>absent</dd>
               </div>
             </dl>
+          </section>
+
+          <section
+            className="bridgePreview"
+            aria-label="Verification Replay Projection"
+          >
+            <div className="panelHeader">
+              <h2>Verification Replay Projection</h2>
+              <span className="muted">Evidence refs / no raw output</span>
+            </div>
+            <p className="fieldHelp">
+              Projects Git and shell verification events into replay, audit, and
+              context evidence summaries. No raw stdout, stderr, diff, source,
+              or API key content is displayed.
+            </p>
+            <dl className="summaryGrid compact">
+              <div>
+                <dt>Status</dt>
+                <dd>{verificationLaneProjection.status}</dd>
+              </div>
+              <div>
+                <dt>Events</dt>
+                <dd>{verificationLaneProjection.eventCount}</dd>
+              </div>
+              <div>
+                <dt>Git / shell</dt>
+                <dd>
+                  {verificationLaneProjection.gitEventCount} /{" "}
+                  {verificationLaneProjection.shellEventCount}
+                </dd>
+              </div>
+              <div>
+                <dt>Git changed files</dt>
+                <dd>{verificationLaneProjection.latestGitChangedFileCount}</dd>
+              </div>
+              <div>
+                <dt>Shell status</dt>
+                <dd>{verificationLaneProjection.latestShellStatus}</dd>
+              </div>
+              <div>
+                <dt>Last verification</dt>
+                <dd>{verificationLaneProjection.lastVerificationAt}</dd>
+              </div>
+              <div>
+                <dt>Warnings</dt>
+                <dd>{verificationLaneProjection.warningCount}</dd>
+              </div>
+              <div>
+                <dt>Evidence refs</dt>
+                <dd>{verificationLaneProjection.evidenceRefCount}</dd>
+              </div>
+              <div>
+                <dt>Hash</dt>
+                <dd>{verificationLaneProjection.hashPrefix}</dd>
+              </div>
+              <div>
+                <dt>Execution</dt>
+                <dd>
+                  {verificationLaneProjection.readiness.appCanExecute
+                    ? "unexpected"
+                    : "disabled"}
+                </dd>
+              </div>
+            </dl>
+            <p className="fieldHelp">
+              {summarizeVerificationLaneProjectionView(
+                verificationLaneProjection
+              )}
+            </p>
+            {verificationLaneProjection.evidenceRefs.length > 0 ? (
+              <ol className="timeline">
+                {verificationLaneProjection.evidenceRefs.map((ref) => (
+                  <li key={ref.id}>
+                    <span className="timelineMeta">
+                      {ref.kind} · {ref.hashPrefix}
+                    </span>
+                    <span>{ref.summary}</span>
+                  </li>
+                ))}
+              </ol>
+            ) : null}
+            {verificationLaneProjection.warningCodes.length > 0 ? (
+              <p className="muted">
+                warnings {verificationLaneProjection.warningCodes.join(", ")}
+              </p>
+            ) : null}
+            <p className="fieldHelp">{verificationLaneProjection.nextAction}</p>
           </section>
         </form>
 
@@ -9252,6 +9359,16 @@ export function DesktopShell(): JSX.Element {
               </p>
             ) : null}
 
+            {verificationLaneProjection.status !== "empty" ? (
+              <p className="fieldHelp">
+                Verification replay projection:{" "}
+                {summarizeVerificationLaneProjectionView(
+                  verificationLaneProjection
+                )}
+                . Evidence refs remain summary-only.
+              </p>
+            ) : null}
+
             {displayedControlledCreationReplay.status !== "empty" ? (
               <p className="fieldHelp">
                 Controlled creation replay projection:{" "}
@@ -9405,6 +9522,20 @@ export function DesktopShell(): JSX.Element {
                   <div>
                     <dt>Timeline</dt>
                     <dd>{workbenchSurfaces.audit.timelineCount}</dd>
+                  </div>
+                  <div>
+                    <dt>Verification events</dt>
+                    <dd>{workbenchSurfaces.audit.verificationEventCount}</dd>
+                  </div>
+                  <div>
+                    <dt>Verification refs</dt>
+                    <dd>
+                      {workbenchSurfaces.audit.verificationEvidenceRefCount}
+                    </dd>
+                  </div>
+                  <div>
+                    <dt>Verification status</dt>
+                    <dd>{workbenchSurfaces.audit.latestVerificationStatus}</dd>
                   </div>
                   <div>
                     <dt>Safety</dt>

@@ -15,6 +15,7 @@ import {
   type AppPatchProposalSurfaceInput,
   type AppPatchProposalSurfaceView
 } from "./patch-proposal-surface-view.js";
+import type { AppVerificationLaneProjectionView } from "./verification-lane-projection-view.js";
 
 export type AppApprovalSurfaceStatus =
   | "empty"
@@ -87,6 +88,9 @@ export type AppAuditSurfaceView = {
   status: AppAuditSurfaceStatus;
   eventCount: number;
   displayedEventCount: number;
+  verificationEventCount: number;
+  verificationEvidenceRefCount: number;
+  latestVerificationStatus: "pass" | "fail" | "summary" | "unknown";
   safetyStatus: "ok" | "warning" | "unknown";
   warningCodes: string[];
   timelineCount: number;
@@ -137,6 +141,7 @@ export type AppWorkbenchSurfacesInput = {
   workspaceIndexRef?: AppPatchProposalSurfaceInput["workspaceIndexRef"];
   futureApprovalRefs?: AppWorkbenchApprovalRef[] | undefined;
   futureAuditWarningCodes?: string[] | undefined;
+  verificationLaneProjection?: AppVerificationLaneProjectionView | undefined;
 };
 
 const emptyApprovalMessage =
@@ -226,6 +231,9 @@ function buildAuditSurface(
       status: warnings.length > 0 ? "warning" : "empty",
       eventCount: 0,
       displayedEventCount: 0,
+      verificationEventCount: 0,
+      verificationEvidenceRefCount: 0,
+      latestVerificationStatus: "unknown",
       safetyStatus: "unknown",
       warningCodes: warnings,
       timelineCount: 0,
@@ -256,6 +264,15 @@ function buildAuditSurface(
         : "summary",
     eventCount: finiteNumber(summary.eventCount),
     displayedEventCount: finiteNumber(summary.displayedEventCount),
+    verificationEventCount: finiteNumber(
+      input.verificationLaneProjection?.eventCount ??
+        summary.verificationEventCount
+    ),
+    verificationEvidenceRefCount: finiteNumber(
+      input.verificationLaneProjection?.evidenceRefCount
+    ),
+    latestVerificationStatus:
+      input.verificationLaneProjection?.latestStatus ?? "unknown",
     safetyStatus,
     warningCodes,
     timelineCount: safeArray(summary.timeline).length,
@@ -322,13 +339,17 @@ function warningCodesFrom(input: AppWorkbenchSurfacesInput): string[] {
     .map((warning) => warning.code);
   const summaryWarnings = safeWarningCodes(input.eventSummary?.warnings);
   const futureAuditWarnings = safeWarningCodes(input.futureAuditWarningCodes);
+  const verificationWarnings = safeWarningCodes(
+    input.verificationLaneProjection?.warningCodes
+  );
   return Array.from(
     new Set([
       ...conversionWarning,
       ...preflightWarning,
       ...controlWarnings,
       ...summaryWarnings,
-      ...futureAuditWarnings
+      ...futureAuditWarnings,
+      ...verificationWarnings
     ])
   );
 }

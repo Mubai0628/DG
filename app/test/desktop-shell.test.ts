@@ -115,6 +115,11 @@ import {
   summarizeControlledCreationReplayProjectionView
 } from "../src/controlled-creation-replay-projection-view.js";
 import {
+  buildVerificationLaneProjectionView,
+  summarizeVerificationLaneProjectionView,
+  verificationLaneProjectionWarningCodes
+} from "../src/verification-lane-projection-view.js";
+import {
   buildSandboxApplyRollbackEventProjectionView,
   sandboxApplyRollbackEventProjectionApprovalRefs,
   sandboxApplyRollbackEventProjectionSurfaceSummaries,
@@ -412,6 +417,60 @@ function fixedEventSummary(
     warnings: [],
     ...overrides
   };
+}
+
+function fixedVerificationEventSummary(
+  overrides: Partial<WorkspaceEventSummary> = {}
+): WorkspaceEventSummary {
+  return fixedEventSummary({
+    eventCount: 4,
+    displayedEventCount: 4,
+    verificationEventCount: 2,
+    lastEventAt: "2026-06-25T00:00:02.000Z",
+    latestVerificationSummary:
+      "shell verification lane recorded: app.typecheck · 0 exit · 120 stdout bytes · 0 stderr bytes · 21 ms · result shellhash1234",
+    typeCounts: {
+      "task.completed": 1,
+      "fs.draft_written": 1,
+      "git.read_lane.executed": 1,
+      "shell.verification_lane.executed": 1
+    },
+    timeline: [
+      {
+        id: "git-verification-event-1",
+        ts: "2026-06-25T00:00:01.000Z",
+        type: "git.read_lane.executed",
+        taskId: "no task",
+        summary:
+          "git read lane recorded: status_summary · 2 changed files · 3 lines added · 1 lines deleted · 14 ms · result githash123456",
+        safePayloadKeys: [
+          "lane",
+          "changedFileCount",
+          "addedLineCount",
+          "deletedLineCount",
+          "durationMs",
+          "resultHash"
+        ]
+      },
+      {
+        id: "shell-verification-event-1",
+        ts: "2026-06-25T00:00:02.000Z",
+        type: "shell.verification_lane.executed",
+        taskId: "no task",
+        summary:
+          "shell verification lane recorded: app.typecheck · 0 exit · 120 stdout bytes · 0 stderr bytes · 21 ms · result shellhash1234",
+        safePayloadKeys: [
+          "templateId",
+          "exitCode",
+          "stdoutBytes",
+          "stderrBytes",
+          "durationMs",
+          "resultHash"
+        ]
+      }
+    ],
+    ...overrides
+  });
 }
 
 function fixedWorkspaceIndexSummary(): Record<string, unknown> {
@@ -1436,6 +1495,9 @@ describe("desktop command wrapper", () => {
     expect(appSource).toContain("Shell Verification Lanes");
     expect(appSource).toContain("Verification Summary");
     expect(appSource).toContain("Summary events / no raw output");
+    expect(appSource).toContain("Verification Replay Projection");
+    expect(appSource).toContain("Evidence refs / no raw output");
+    expect(appSource).toContain("verificationLaneProjection");
     expect(appSource).toContain("Allowlist only / no arbitrary shell");
     expect(appSource).toContain("Run Verification Lane");
     expect(appSource).toContain("pnpm.typecheck");
@@ -2053,6 +2115,75 @@ describe("app approval diff audit surfaces", () => {
     expect(surfaces.audit.timelineCount).toBe(1);
     expect(surfaces.audit.safetyStatus).toBe("ok");
     expect(surfaces.audit.lastEventAt).toBe("2026-06-16T00:00:01.000Z");
+  });
+
+  it("projects verification replay summaries into audit evidence refs", () => {
+    const eventSummary = fixedVerificationEventSummary();
+    const verificationProjection =
+      buildVerificationLaneProjectionView(eventSummary);
+    const controlProjection = buildControlPlaneProjectionView(eventSummary);
+    const surfaces = buildWorkbenchSurfacesView({
+      eventSummary,
+      controlProjection,
+      verificationLaneProjection: verificationProjection,
+      futureAuditWarningCodes: verificationLaneProjectionWarningCodes(
+        verificationProjection
+      )
+    });
+
+    expect(verificationProjection.status).toBe("projected");
+    expect(verificationProjection.latestGitChangedFileCount).toBe(2);
+    expect(verificationProjection.latestShellStatus).toBe("pass");
+    expect(verificationProjection.evidenceRefCount).toBe(2);
+    expect(verificationProjection.readiness.canExecuteGit).toBe(false);
+    expect(verificationProjection.readiness.canExecuteShell).toBe(false);
+    expect(
+      summarizeVerificationLaneProjectionView(verificationProjection)
+    ).toContain("events:2");
+    expect(surfaces.audit.verificationEventCount).toBe(2);
+    expect(surfaces.audit.verificationEvidenceRefCount).toBe(2);
+    expect(surfaces.audit.latestVerificationStatus).toBe("pass");
+    expect(JSON.stringify(verificationProjection)).not.toContain("diff --git");
+    expect(JSON.stringify(verificationProjection)).not.toContain("sk-test");
+  });
+
+  it("keeps missing or malformed verification projections safe", () => {
+    const empty = buildVerificationLaneProjectionView();
+    const malformed = buildVerificationLaneProjectionView(
+      fixedVerificationEventSummary({
+        timeline: [],
+        displayedEventCount: 0
+      })
+    );
+
+    expect(empty.status).toBe("empty");
+    expect(empty.readiness.canWriteEventStore).toBe(false);
+    expect(malformed.status).toBe("warning");
+    expect(malformed.warningCodes).toContain("VERIFICATION_TIMELINE_MISSING");
+    expect(malformed.readiness.appCanExecute).toBe(false);
+  });
+
+  it("blocks raw verification summaries without echoing raw output", () => {
+    const blocked = buildVerificationLaneProjectionView(
+      fixedVerificationEventSummary({
+        timeline: [
+          {
+            id: "bad-verification-event",
+            ts: "2026-06-25T00:00:03.000Z",
+            type: "shell.verification_lane.executed",
+            summary: "rawStdout should never become evidence",
+            safePayloadKeys: []
+          }
+        ]
+      })
+    );
+    const serialized = JSON.stringify(blocked);
+
+    expect(blocked.status).toBe("blocked");
+    expect(blocked.warningCodes).toContain("VERIFICATION_RAW_OUTPUT_MARKER");
+    expect(blocked.evidenceRefCount).toBe(0);
+    expect(serialized).not.toContain("rawStdout should never become evidence");
+    expect(blocked.readiness.canUseAsEvidenceRef).toBe(false);
   });
 
   it("updates audit surface from conversion result and event summary", () => {
@@ -3121,6 +3252,35 @@ describe("app context assembly preview", () => {
     ).toMatchObject({ segmentCount: 2 });
     expect(serialized).not.toContain("Workspace index memory recall supports");
     expect(serialized).not.toContain("source code line");
+  });
+
+  it("places verification evidence refs in volatile_tail only", () => {
+    const runDraft = buildRunDraftView({
+      objectiveDraft: "Use verification summaries as evidence refs.",
+      selectedIntent: "verification",
+      acceptanceCriteriaDraft: "Verification refs stay summary-only.",
+      workspaceRoot: "D:\\workspace"
+    });
+    const verificationProjection = buildVerificationLaneProjectionView(
+      fixedVerificationEventSummary()
+    );
+    const view = buildContextAssemblyPreviewView({
+      runDraft,
+      verificationLaneProjection: verificationProjection
+    });
+    const verificationSegment = view.segments.find(
+      (segment) => segment.sourceKind === "verification_evidence"
+    );
+    const serialized = JSON.stringify(view);
+
+    expect(verificationSegment).toMatchObject({
+      layer: "volatile_tail",
+      placement: "volatile_tail",
+      sourceRefId: verificationProjection.projectionId
+    });
+    expect(view.volatileTailSegmentCount).toBeGreaterThan(0);
+    expect(serialized).not.toContain("diff --git");
+    expect(serialized).not.toContain("rawStdout");
   });
 
   it("places patch proposal and approval refs in no_compress_zone", () => {
@@ -13149,6 +13309,53 @@ describe("desktop source boundaries", () => {
     expect(docsIndex).toContain("p0p-003-git-read-lanes-command-plan.md");
     expect(docsIndex).toContain(
       "p0p-004-shell-verification-allowlist-command-plan.md"
+    );
+  });
+
+  it("documents verification summary events and replay projection surfaces", async () => {
+    const summaryEvents = await readFile(
+      path.join(
+        repoRoot,
+        "docs",
+        "app-shell-verification-summary-events-v0.12.md"
+      ),
+      "utf8"
+    );
+    const replayProjection = await readFile(
+      path.join(
+        repoRoot,
+        "docs",
+        "app-shell-verification-replay-projection-v0.12.md"
+      ),
+      "utf8"
+    );
+    const docsIndex = await readFile(
+      path.join(repoRoot, "docs", "README.md"),
+      "utf8"
+    );
+    const combined = `${summaryEvents}\n${replayProjection}\n${docsIndex}`;
+
+    expect(combined).toContain("git.read_lane.executed");
+    expect(combined).toContain("shell.verification_lane.executed");
+    expect(combined).toContain("summary-only");
+    expect(combined).toContain("Verification Replay Projection");
+    expect(combined).toContain("latest verification status");
+    expect(combined).toContain("Git changed file count");
+    expect(combined).toContain("shell pass/fail status");
+    expect(combined).toContain("Context Assembly Preview");
+    expect(combined).toContain("volatile_tail");
+    expect(combined).toContain("No arbitrary shell");
+    expect(combined).toContain("No Git write commands");
+    expect(combined).toContain("No new Tauri command");
+    expect(combined).toContain("No new EventStore writer");
+    expect(combined).toContain("No App-side apply or rollback");
+    expect(combined).toContain("No PermissionLease issuing");
+    expect(combined).toContain("No native bridge or desktop action");
+    expect(docsIndex).toContain(
+      "app-shell-verification-summary-events-v0.12.md"
+    );
+    expect(docsIndex).toContain(
+      "app-shell-verification-replay-projection-v0.12.md"
     );
   });
 

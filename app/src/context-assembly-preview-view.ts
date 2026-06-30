@@ -11,6 +11,7 @@ import type { AppRunDraftView } from "./run-draft-view.js";
 import type { AppSandboxApplyRollbackEventProjectionView } from "./sandbox-apply-rollback-event-projection-view.js";
 import type { AppUserWorkspacePromotionReadinessView } from "./user-workspace-promotion-readiness-view.js";
 import type { AppUserWorkspaceSnapshotBackupView } from "./user-workspace-snapshot-backup-view.js";
+import type { AppVerificationLaneProjectionView } from "./verification-lane-projection-view.js";
 import {
   safeArray,
   safeErrorMessage,
@@ -59,6 +60,7 @@ export type AppContextAssemblySourceRef = {
     | "user_workspace_promotion_readiness"
     | "agent_route"
     | "capability_plan"
+    | "verification_evidence"
     | "event_evidence"
     | "control_projection";
   sourceRefId: string;
@@ -143,6 +145,7 @@ export type AppContextAssemblyPreviewInput = {
   agentRoutePreview?: AppAgentRoutePreviewView | undefined;
   capabilityPlanPreview?: AppCapabilityPlanPreviewView | undefined;
   controlProjection?: AppControlPlaneProjectionView | undefined;
+  verificationLaneProjection?: AppVerificationLaneProjectionView | undefined;
   eventSummary?: WorkspaceEventSummary | undefined;
   previousPreview?: AppContextAssemblyPreviewView | undefined;
   createdAt?: string | undefined;
@@ -281,6 +284,7 @@ export function validateContextAssemblyPreviewInput(
     ...rawKeyWarnings(input.patchSurface),
     ...rawKeyWarnings(input.sandboxApplyRollbackEventProjection),
     ...rawKeyWarnings(input.liveProposalPreviewGate),
+    ...rawKeyWarnings(input.verificationLaneProjection),
     ...rawKeyWarnings(input.userWorkspaceSnapshotContract),
     ...rawKeyWarnings(input.userWorkspacePromotionReadiness)
   ]);
@@ -474,6 +478,30 @@ function buildSegments(
           `timeline:${input.eventSummary.timeline.length}`
         ].join(" | "),
         warningCodes: input.eventSummary.warnings
+      })
+    );
+  }
+
+  if (
+    input.verificationLaneProjection !== undefined &&
+    input.verificationLaneProjection.status !== "empty"
+  ) {
+    segments.push(
+      segment({
+        layer: "volatile_tail",
+        title: "Verification lane evidence refs",
+        sourceKind: "verification_evidence",
+        sourceRefId: input.verificationLaneProjection.projectionId,
+        summary: [
+          input.verificationLaneProjection.status,
+          `events:${input.verificationLaneProjection.eventCount}`,
+          `git:${input.verificationLaneProjection.gitEventCount}`,
+          `shell_events=${input.verificationLaneProjection.shellEventCount}`,
+          `latest:${input.verificationLaneProjection.latestStatus}`,
+          `evidence:${input.verificationLaneProjection.evidenceRefCount}`,
+          `hash:${input.verificationLaneProjection.hashPrefix}`
+        ].join(" | "),
+        warningCodes: input.verificationLaneProjection.warningCodes
       })
     );
   }
