@@ -7791,6 +7791,237 @@ mod tests {
     }
 
     #[test]
+    fn live_proposal_to_approved_execution_e2e_smoke_fake_only() {
+        let Some(workspace) = temp_git_workspace("live-proposal-approved-e2e-smoke") else {
+            return;
+        };
+        fs::create_dir_all(workspace.join("docs")).expect("docs dir");
+
+        let live_result =
+            run_safe_live_command(safe_live_proposal_command_request()).expect("fake live result");
+        let proposal_id = live_result
+            .proposal_candidate
+            .get("proposalId")
+            .and_then(Value::as_str)
+            .expect("proposal id");
+        let proposal_path = live_result
+            .proposal_candidate
+            .get("operations")
+            .and_then(Value::as_array)
+            .and_then(|operations| operations.first())
+            .and_then(|operation| operation.get("path"))
+            .and_then(Value::as_str)
+            .expect("proposal path");
+        let target = workspace.join(proposal_path);
+
+        assert_eq!(live_result.status, "generated");
+        assert!(live_result.summary_only);
+        assert!(!live_result.can_apply_patch);
+        assert!(!live_result.can_write_event_store);
+
+        record_live_proposal_summary_event(
+            workspace.to_string_lossy().to_string(),
+            safe_live_proposal_summary_event_preview(),
+        )
+        .expect("record live proposal summary event");
+        let live_summary = load_event_summary(workspace.to_string_lossy().as_ref(), Some(20));
+
+        assert_eq!(live_summary.live_proposal_event_count, 1);
+        assert_eq!(live_summary.approved_apply_count, 0);
+        assert_eq!(live_summary.approved_rollback_count, 0);
+        assert!(!target.exists());
+        assert!(live_summary
+            .latest_live_proposal_summary
+            .as_deref()
+            .unwrap_or_default()
+            .contains("live proposal generated"));
+
+        let workspace_root_ref = "workspace-ref-live-proposal-approved-smoke";
+        let validation_id = "validation-live-proposal-smoke";
+        let audit_id = "audit-live-proposal-smoke";
+        let approval_draft_id = "approval-live-proposal-smoke";
+        let approved_content = "approved live proposal smoke content";
+        let apply_receipt = serde_json::json!({
+            "status": "ready",
+            "receiptId": "receipt-live-proposal-apply-smoke",
+            "kind": "apply",
+            "source": "runtime_app_approved_execution_receipt",
+            "summaryOnly": true,
+            "scope": {
+                "receiptId": "receipt-live-proposal-apply-smoke",
+                "kind": "apply",
+                "workspaceRootRef": workspace_root_ref,
+                "proposalId": proposal_id,
+                "validationId": validation_id,
+                "auditId": audit_id,
+                "approvalDraftId": approval_draft_id,
+                "allowedRelativePaths": [proposal_path],
+                "maxFiles": 1,
+                "maxBytes": 4096,
+                "expiresAt": "2099-01-01T00:00:00.000Z",
+                "typedConfirmation": APPLY_CONFIRMATION,
+                "receiptHash": "receipt-live-proposal-apply-hash"
+            },
+            "readiness": {
+                "canApplyPatch": false,
+                "canRollback": false,
+                "canWriteFilesystem": false,
+                "canWriteEventStore": false,
+                "canExecuteGit": false,
+                "canExecuteShell": false,
+                "canIssuePermissionLease": false,
+                "appCanExecute": false
+            }
+        });
+        let apply_result = apply_approved_user_workspace_patch(ApprovedApplyRequest {
+            workspace_root: workspace.to_string_lossy().to_string(),
+            workspace_root_ref: workspace_root_ref.to_string(),
+            receipt: apply_receipt.clone(),
+            operations: vec![ApprovedApplyOperation {
+                path: proposal_path.to_string(),
+                change_kind: ApprovedApplyChangeKind::Create,
+                content: Some(approved_content.to_string()),
+                expected_before_hash: None,
+                expected_exists_before: Some(false),
+            }],
+            proposal_summary: serde_json::json!({"proposalId": proposal_id}),
+            validation_summary: serde_json::json!({"validationId": validation_id}),
+            audit_summary: serde_json::json!({"auditId": audit_id}),
+            approval_summary: serde_json::json!({"approvalDraftId": approval_draft_id}),
+            max_files: 1,
+            max_bytes: 4096,
+        })
+        .expect("approved apply from live proposal smoke");
+
+        assert!(target.is_file());
+        assert_eq!(
+            fs::read_to_string(&target).expect("approved content"),
+            approved_content
+        );
+        record_approved_user_workspace_execution_event(
+            workspace.to_string_lossy().to_string(),
+            serde_json::to_value(&apply_result.event_preview).expect("apply event preview"),
+        )
+        .expect("record approved apply event");
+
+        let git_result = run_git_read_lane(safe_git_read_request(
+            &workspace,
+            GitReadLane::StatusSummary,
+        ))
+        .expect("git verification after live proposal apply");
+        assert!(git_result.changed_file_count >= 1);
+        assert!(!git_result.raw_diff_included);
+        record_verification_lane_event(
+            workspace.to_string_lossy().to_string(),
+            serde_json::to_value(&git_result.event_preview).expect("git verification preview"),
+        )
+        .expect("record git verification event");
+
+        let shell_result = run_shell_verification_lane_with_executor(
+            safe_shell_verification_request(&workspace, ShellVerificationTemplateId::AppTypecheck),
+            |_program, _args, _cwd, _timeout, _max_output_bytes| {
+                Ok(ShellCommandOutput {
+                    exit_code: Some(0),
+                    stdout: b"app typecheck passed\n".to_vec(),
+                    stderr: Vec::new(),
+                    duration_ms: 19,
+                    truncated: false,
+                })
+            },
+        )
+        .expect("shell verification after live proposal apply");
+        assert_eq!(shell_result.status, "passed");
+        assert!(!shell_result.raw_stdout_included);
+        assert!(!shell_result.raw_stderr_included);
+        record_verification_lane_event(
+            workspace.to_string_lossy().to_string(),
+            serde_json::to_value(&shell_result.event_preview).expect("shell verification preview"),
+        )
+        .expect("record shell verification event");
+
+        let rollback_receipt = serde_json::json!({
+            "status": "ready",
+            "receiptId": "receipt-live-proposal-rollback-smoke",
+            "kind": "rollback",
+            "source": "runtime_app_approved_execution_receipt",
+            "summaryOnly": true,
+            "scope": {
+                "receiptId": "receipt-live-proposal-rollback-smoke",
+                "kind": "rollback",
+                "workspaceRootRef": workspace_root_ref,
+                "proposalId": proposal_id,
+                "validationId": validation_id,
+                "auditId": audit_id,
+                "approvalDraftId": approval_draft_id,
+                "checkpointId": apply_result.checkpoint_id,
+                "allowedRelativePaths": [proposal_path],
+                "maxFiles": 1,
+                "maxBytes": 4096,
+                "expiresAt": "2099-01-01T00:00:00.000Z",
+                "typedConfirmation": ROLLBACK_CONFIRMATION,
+                "receiptHash": "receipt-live-proposal-rollback-hash"
+            },
+            "readiness": {
+                "canApplyPatch": false,
+                "canRollback": false,
+                "canWriteFilesystem": false,
+                "canWriteEventStore": false,
+                "canExecuteGit": false,
+                "canExecuteShell": false,
+                "canIssuePermissionLease": false,
+                "appCanExecute": false
+            }
+        });
+        let rollback_result = rollback_approved_user_workspace_patch(ApprovedRollbackRequest {
+            workspace_root: workspace.to_string_lossy().to_string(),
+            workspace_root_ref: workspace_root_ref.to_string(),
+            receipt: rollback_receipt,
+            apply_id: apply_result.apply_id.clone(),
+            checkpoint_id: apply_result.checkpoint_id.clone(),
+            checkpoint_ref: apply_result.checkpoint_hash.clone(),
+        })
+        .expect("approved rollback after live proposal smoke");
+        assert!(!target.exists());
+        record_approved_user_workspace_execution_event(
+            workspace.to_string_lossy().to_string(),
+            serde_json::to_value(&rollback_result.event_preview).expect("rollback event preview"),
+        )
+        .expect("record approved rollback event");
+
+        let replay_summary = load_event_summary(workspace.to_string_lossy().as_ref(), Some(30));
+        let event_log =
+            fs::read_to_string(workspace.join(".deepseek-workbench").join("events.jsonl"))
+                .expect("event log");
+
+        assert_eq!(replay_summary.live_proposal_event_count, 1);
+        assert_eq!(replay_summary.approved_apply_count, 1);
+        assert_eq!(replay_summary.approved_rollback_count, 1);
+        assert_eq!(replay_summary.verification_event_count, 2);
+        assert!(replay_summary.safety_scan.ok);
+        assert!(replay_summary
+            .latest_approved_execution_summary
+            .as_deref()
+            .unwrap_or_default()
+            .contains("approved rollback executed"));
+        assert!(event_log.contains(LIVE_PROPOSAL_GENERATED_TYPE));
+        assert!(event_log.contains(APPROVED_APPLY_EXECUTED_TYPE));
+        assert!(event_log.contains(APPROVED_ROLLBACK_EXECUTED_TYPE));
+        assert!(event_log.contains("git.read_lane.executed"));
+        assert!(event_log.contains("shell.verification_lane.executed"));
+        assert!(!event_log.contains(approved_content));
+        assert!(!event_log.contains("internal chain should be dropped"));
+        assert!(!event_log.contains("reasoning_content"));
+        assert!(!event_log.contains(&["raw", "Response"].join("")));
+        assert!(!event_log.contains(&["raw", "Prompt"].join("")));
+        assert!(!event_log.contains("Authorization"));
+        assert!(!event_log.contains("sk-"));
+        assert!(!event_log.contains("diff --git"));
+        assert!(!event_log.contains("shellCommand"));
+
+        let _ = fs::remove_dir_all(workspace);
+    }
+
+    #[test]
     fn approved_execution_e2e_smoke_apply_event_rollback_replay() {
         let fixture_path = repo_root()
             .expect("repo root")
