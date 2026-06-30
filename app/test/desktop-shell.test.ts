@@ -15130,6 +15130,113 @@ describe("desktop source boundaries", () => {
     expect(rootReadme).toContain("v0.14 End-to-End Coding Task MVP status");
   });
 
+  it("documents the P0R-001 end-to-end coding task MVP design gate", async () => {
+    const adr = await readFile(
+      path.join(repoRoot, "docs", "adr", "0011-end-to-end-coding-task-mvp.md"),
+      "utf8"
+    );
+    const threatModel = await readFile(
+      path.join(
+        repoRoot,
+        "docs",
+        "end-to-end-coding-task-threat-model-v0.13.md"
+      ),
+      "utf8"
+    );
+    const implementationGate = await readFile(
+      path.join(
+        repoRoot,
+        "docs",
+        "end-to-end-coding-task-implementation-gate-v0.13.md"
+      ),
+      "utf8"
+    );
+    const nextPlan = await readFile(
+      path.join(
+        repoRoot,
+        "docs",
+        "p0r-002-golden-end-to-end-task-fixture-schema-plan.md"
+      ),
+      "utf8"
+    );
+    const docsIndex = await readFile(
+      path.join(repoRoot, "docs", "README.md"),
+      "utf8"
+    );
+    const combined = `${adr}\n${threatModel}\n${implementationGate}\n${nextPlan}\n${docsIndex}`;
+
+    expect(combined).toContain("ADR 0011: End-to-End Coding Task MVP");
+    expect(combined).toContain("Proposed / Accepted for P0R design gate");
+    expect(combined).toContain("objective");
+    expect(combined).toContain("live proposal generation");
+    expect(combined).toContain("repair/schema validation");
+    expect(combined).toContain("chain integration");
+    expect(combined).toContain("validation/diff/audit/approval");
+    expect(combined).toContain("typed confirmation");
+    expect(combined).toContain("approved apply");
+    expect(combined).toContain("Git/shell verification");
+    expect(combined).toContain("summary events/replay");
+    expect(combined).toContain("rollback if verification fails");
+    expect(combined).toContain("Live proposal session receipt");
+    expect(combined).toContain("Model proposal schema validation");
+    expect(combined).toContain("Repair fail-closed");
+    expect(combined).toContain("Diff/audit pass");
+    expect(combined).toContain("Approval receipt");
+    expect(combined).toContain("Snapshot/checkpoint");
+    expect(combined).toContain("Apply summary event");
+    expect(combined).toContain("Verification summary event");
+    expect(combined).toContain("Rollback summary event");
+    expect(combined).toContain("Replay projection");
+    expect(combined).toContain("Model Hallucination");
+    expect(combined).toContain("Unsafe Patch");
+    expect(combined).toContain("Stale Workspace Snapshot");
+    expect(combined).toContain("Apply Conflict");
+    expect(combined).toContain("Verification Failure");
+    expect(combined).toContain("Rollback Failure");
+    expect(combined).toContain("Event Mismatch");
+    expect(combined).toContain("Replay Tampering");
+    expect(combined).toContain("Path Traversal");
+    expect(combined).toContain("Symlink / Junction / Reparse Traversal");
+    expect(combined).toContain("Secret Leakage");
+    expect(combined).toContain("Raw Prompt / Response Leakage");
+    expect(combined).toContain("Approval Bypass");
+    expect(combined).toContain("Arbitrary Command Injection");
+    expect(combined).toContain("Proposal Safety");
+    expect(combined).toContain("Path / Content Safety");
+    expect(combined).toContain("Approval Safety");
+    expect(combined).toContain("Apply Safety");
+    expect(combined).toContain("Verification Safety");
+    expect(combined).toContain("Rollback Safety");
+    expect(combined).toContain("Event / Replay Safety");
+    expect(combined).toContain("App UX Safety");
+    expect(combined).toContain("CI / Boundary Safety");
+    expect(combined).toContain("No orchestrator implementation in P0R-002");
+    expect(combined).toContain("No live DeepSeek call");
+    expect(combined).toContain("No API key read");
+    expect(combined).toContain("No fetch/network");
+    expect(combined).toContain("No apply");
+    expect(combined).toContain("No rollback");
+    expect(combined).toContain("No EventStore write");
+    expect(combined).toContain("No arbitrary Git/shell");
+    expect(combined).toContain("No native bridge");
+    expect(combined).toContain("No desktop action");
+    expect(combined).toContain("Raw prompt");
+    expect(combined).toContain("Raw response");
+    expect(combined).toContain("reasoning_content");
+    expect(combined).toContain("API key");
+    expect(combined).toContain("Raw source");
+    expect(combined).toContain("Raw diff");
+    expect(combined).toContain("Checkpoint preimage");
+    expect(docsIndex).toContain("adr/0011-end-to-end-coding-task-mvp.md");
+    expect(docsIndex).toContain("end-to-end-coding-task-threat-model-v0.13.md");
+    expect(docsIndex).toContain(
+      "end-to-end-coding-task-implementation-gate-v0.13.md"
+    );
+    expect(docsIndex).toContain(
+      "p0r-002-golden-end-to-end-task-fixture-schema-plan.md"
+    );
+  });
+
   it("documents the P0L-001 DeepSeek patch proposal ADR and gates without implementation", async () => {
     const adr = await readFile(
       path.join(
