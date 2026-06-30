@@ -268,6 +268,57 @@ export type ShellVerificationLaneResult = {
   safeMessage: string;
 };
 
+export const liveProposalAllowedKeySourceRef = [
+  "DEEPSEEK",
+  "API",
+  "KEY"
+].join("_");
+
+export type LiveDeepSeekPatchProposalCommandRequest = {
+  sessionReceipt: Record<string, unknown>;
+  apiKeySourceRef: string;
+  providerId: "deepseek";
+  modelProfileId: string;
+  requestEnvelope: Record<string, unknown>;
+  objectiveSummary: string;
+  allowedPathRefs: string[];
+  contextRefs: string[];
+  maxResponseBytes: number;
+  timeoutMs: number;
+};
+
+export type LiveDeepSeekPatchProposalUsageSummary = {
+  promptTokens?: number | undefined;
+  completionTokens?: number | undefined;
+  totalTokens?: number | undefined;
+};
+
+export type LiveDeepSeekPatchProposalCommandResult = {
+  ok: true;
+  status: "generated";
+  providerId: "deepseek";
+  modelProfileId: string;
+  requestId: string;
+  responseId?: string | undefined;
+  proposalCandidate: Record<string, unknown>;
+  proposalCandidateHash: string;
+  responseHash: string;
+  usageSummary?: LiveDeepSeekPatchProposalUsageSummary | undefined;
+  droppedReasoningContent: boolean;
+  reasoningContentCharCount: number;
+  warningCodes: string[];
+  summaryOnly: true;
+  rawPromptIncluded: false;
+  rawResponseIncluded: false;
+  rawReasoningContentIncluded: false;
+  canApplyPatch: false;
+  canRollback: false;
+  canWriteEventStore: false;
+  canExecuteGit: false;
+  canExecuteShell: false;
+  safeMessage: string;
+};
+
 export const allowedDesktopCommands = [
   "get_app_version",
   "apply_approved_user_workspace_patch",
@@ -277,6 +328,7 @@ export const allowedDesktopCommands = [
   "record_approved_user_workspace_execution_event",
   "record_control_run_draft_event",
   "record_verification_lane_event",
+  "generate_live_deepseek_patch_proposal",
   "run_git_read_lane",
   "run_shell_verification_lane",
   "run_web_table_to_csv_flow"
@@ -454,6 +506,18 @@ export async function runShellVerificationLane(
   );
 }
 
+export async function generateLiveDeepSeekPatchProposal(
+  request: LiveDeepSeekPatchProposalCommandRequest,
+  invokeImpl?: TauriInvoke
+): Promise<LiveDeepSeekPatchProposalCommandResult> {
+  validateLiveDeepSeekPatchProposalRequest(request);
+  return invokeAllowedCommand<LiveDeepSeekPatchProposalCommandResult>(
+    "generate_live_deepseek_patch_proposal",
+    { request },
+    invokeImpl
+  );
+}
+
 export async function invokeAllowedCommand<T>(
   command: string,
   args: Record<string, unknown>,
@@ -512,6 +576,8 @@ function normalizeAllowedCommandResponse(
       return normalizeApprovedApplyResult(raw);
     case "rollback_approved_user_workspace_patch":
       return normalizeApprovedRollbackResult(raw);
+    case "generate_live_deepseek_patch_proposal":
+      return normalizeLiveDeepSeekPatchProposalResult(raw);
     case "run_web_table_to_csv_flow":
       return normalizeDesktopFlowResult(raw);
     default:
@@ -658,6 +724,158 @@ function validateShellVerificationLaneRequest(
       throw new Error("Shell verification test file path is not allowed");
     }
   }
+}
+
+function validateLiveDeepSeekPatchProposalRequest(
+  request: LiveDeepSeekPatchProposalCommandRequest
+): void {
+  if (!isRecord(request.sessionReceipt)) {
+    throw new Error("Live proposal session receipt is required");
+  }
+  if (request.sessionReceipt.source !== "runtime_app_live_proposal_session_receipt") {
+    throw new Error("Live proposal session receipt source is invalid");
+  }
+  if (request.sessionReceipt.typedConfirmationAccepted !== true) {
+    throw new Error("Live proposal session receipt confirmation is required");
+  }
+  if (request.apiKeySourceRef !== liveProposalAllowedKeySourceRef) {
+    throw new Error("Live proposal credential ref is not allowed");
+  }
+  if (request.providerId !== "deepseek") {
+    throw new Error("Live proposal provider is not allowed");
+  }
+  if (request.modelProfileId.trim().length === 0) {
+    throw new Error("Live proposal model profile is required");
+  }
+  if (request.objectiveSummary.trim().length === 0) {
+    throw new Error("Live proposal objective summary is required");
+  }
+  if (!Array.isArray(request.allowedPathRefs) || request.allowedPathRefs.length === 0) {
+    throw new Error("Live proposal allowed path refs are required");
+  }
+  for (const pathRef of request.allowedPathRefs) {
+    validateLiveProposalRelativePath(pathRef);
+  }
+  if (!Array.isArray(request.contextRefs)) {
+    throw new Error("Live proposal context refs are required");
+  }
+  if (!isRecord(request.requestEnvelope)) {
+    throw new Error("Live proposal request envelope is required");
+  }
+  if (request.requestEnvelope.summaryOnly !== true) {
+    throw new Error("Live proposal request envelope must be summary-only");
+  }
+  if (request.requestEnvelope.noExecution !== true) {
+    throw new Error("Live proposal request envelope must disable execution");
+  }
+  if (
+    request.requestEnvelope.noFileWrite !== true ||
+    request.requestEnvelope.noApply !== true ||
+    request.requestEnvelope.noRollback !== true ||
+    request.requestEnvelope.noEventStoreWrite !== true ||
+    request.requestEnvelope.noGitShell !== true
+  ) {
+    throw new Error("Live proposal request envelope must keep write paths disabled");
+  }
+  if (
+    request.requestEnvelope.noTools !== true ||
+    request.requestEnvelope.toolChoiceOmitted !== true
+  ) {
+    throw new Error("Live proposal request envelope must omit tools");
+  }
+  if (request.requestEnvelope.responseFormat !== "model_patch_proposal") {
+    throw new Error("Live proposal response format is not allowed");
+  }
+  if (
+    !Number.isInteger(request.maxResponseBytes) ||
+    request.maxResponseBytes < 256 ||
+    request.maxResponseBytes > 1_000_000 ||
+    !Number.isInteger(request.timeoutMs) ||
+    request.timeoutMs < 1_000 ||
+    request.timeoutMs > 120_000
+  ) {
+    throw new Error("Live proposal limits are outside the allowed range");
+  }
+  if (containsForbiddenLiveProposalValue(request)) {
+    throw new Error("Live proposal request contains unsafe fields");
+  }
+}
+
+function normalizeLiveDeepSeekPatchProposalResult(
+  raw: unknown
+): LiveDeepSeekPatchProposalCommandResult {
+  const record = isRecord(raw) ? raw : {};
+  const proposalCandidate = isRecord(record.proposalCandidate)
+    ? record.proposalCandidate
+    : {};
+  if (
+    record.ok !== true ||
+    record.status !== "generated" ||
+    record.providerId !== "deepseek" ||
+    typeof record.modelProfileId !== "string" ||
+    typeof record.requestId !== "string" ||
+    typeof record.proposalCandidateHash !== "string" ||
+    typeof record.responseHash !== "string" ||
+    typeof record.droppedReasoningContent !== "boolean" ||
+    typeof record.reasoningContentCharCount !== "number" ||
+    !Array.isArray(record.warningCodes) ||
+    record.summaryOnly !== true ||
+    record.rawPromptIncluded !== false ||
+    record.rawResponseIncluded !== false ||
+    record.rawReasoningContentIncluded !== false ||
+    record.canApplyPatch !== false ||
+    record.canRollback !== false ||
+    record.canWriteEventStore !== false ||
+    record.canExecuteGit !== false ||
+    record.canExecuteShell !== false ||
+    typeof record.safeMessage !== "string" ||
+    (record.usageSummary !== undefined &&
+      !isLiveProposalUsageSummary(record.usageSummary))
+  ) {
+    throw normalizeDesktopCommandError({
+      errorCode: "INVALID_RESPONSE",
+      safeMessage: "Live proposal command response was invalid",
+      stage: "normalize_response"
+    });
+  }
+  if (containsForbiddenLiveProposalValue(record)) {
+    throw normalizeDesktopCommandError({
+      errorCode: "INVALID_RESPONSE",
+      safeMessage: "Live proposal command response contained unsafe fields",
+      stage: "normalize_response"
+    });
+  }
+  return {
+    ok: true,
+    status: "generated",
+    providerId: "deepseek",
+    modelProfileId: safeErrorMessage(record.modelProfileId),
+    requestId: safeErrorMessage(record.requestId),
+    ...(typeof record.responseId === "string"
+      ? { responseId: safeErrorMessage(record.responseId) }
+      : {}),
+    proposalCandidate,
+    proposalCandidateHash: safeErrorMessage(record.proposalCandidateHash),
+    responseHash: safeErrorMessage(record.responseHash),
+    ...(isLiveProposalUsageSummary(record.usageSummary)
+      ? { usageSummary: record.usageSummary }
+      : {}),
+    droppedReasoningContent: record.droppedReasoningContent,
+    reasoningContentCharCount: record.reasoningContentCharCount,
+    warningCodes: record.warningCodes.filter(
+      (value): value is string => typeof value === "string"
+    ),
+    summaryOnly: true,
+    rawPromptIncluded: false,
+    rawResponseIncluded: false,
+    rawReasoningContentIncluded: false,
+    canApplyPatch: false,
+    canRollback: false,
+    canWriteEventStore: false,
+    canExecuteGit: false,
+    canExecuteShell: false,
+    safeMessage: safeErrorMessage(record.safeMessage)
+  };
 }
 
 function normalizeApprovedApplyResult(
@@ -1081,6 +1299,178 @@ function normalizeApprovedExecutionEventRecordResult(
     warnings
   };
 }
+
+function validateLiveProposalRelativePath(pathRef: string): void {
+  const value = pathRef.trim();
+  if (
+    value.length === 0 ||
+    value.startsWith("/") ||
+    value.startsWith("\\") ||
+    /^[A-Za-z]:/.test(value) ||
+    value.includes("\0") ||
+    value.includes("\n") ||
+    value.includes("\r") ||
+    /[?&#|;<>*`$]/.test(value)
+  ) {
+    throw new Error("Live proposal path ref is not allowed");
+  }
+  const normalized = value.replace(/\\/g, "/");
+  if (normalized.includes("://")) {
+    throw new Error("Live proposal path ref is not allowed");
+  }
+  for (const segment of normalized.split("/")) {
+    const lower = segment.toLowerCase();
+    if (
+      segment === "." ||
+      segment === ".." ||
+      lower === ".git" ||
+      lower === ".env" ||
+      lower === "node_modules" ||
+      lower === "dist" ||
+      lower === "target" ||
+      lower === ".tmp" ||
+      lower === "coverage" ||
+      lower === "build" ||
+      lower === ".next" ||
+      lower === "out" ||
+      lower.includes("secret") ||
+      lower.includes("token") ||
+      lower.includes("password") ||
+      lower.includes("credential") ||
+      lower.includes("apikey") ||
+      lower.includes("api-key") ||
+      lower.includes("api_key")
+    ) {
+      throw new Error("Live proposal path ref is not allowed");
+    }
+  }
+}
+
+function containsForbiddenLiveProposalValue(value: unknown): boolean {
+  if (Array.isArray(value)) {
+    return value.some(containsForbiddenLiveProposalValue);
+  }
+  if (isRecord(value)) {
+    for (const [key, nested] of Object.entries(value)) {
+      if (liveForbiddenFieldNames.has(key.toLowerCase())) {
+        return true;
+      }
+      if (liveExecutionFieldNames.has(key.toLowerCase()) && nested === true) {
+        return true;
+      }
+      if (containsForbiddenLiveProposalValue(nested)) {
+        return true;
+      }
+    }
+    return false;
+  }
+  if (typeof value === "string") {
+    return containsUnsafeLiveProposalText(value);
+  }
+  return false;
+}
+
+function containsUnsafeLiveProposalText(value: string): boolean {
+  return (
+    /\bsk-[A-Za-z0-9_-]{8,}\b/.test(value) ||
+    /\bBearer\s+[A-Za-z0-9._-]{12,}\b/.test(value) ||
+    /\bAuthorization\s*[:=]/i.test(value) ||
+    /-----BEGIN [A-Z ]*PRIVATE KEY-----/.test(value) ||
+    /\braw\s*prompt\b/i.test(value) ||
+    /\braw\s*response\b/i.test(value) ||
+    /\braw\s*source\b/i.test(value) ||
+    /\braw\s*diff\b/i.test(value)
+  );
+}
+
+function isLiveProposalUsageSummary(
+  value: unknown
+): value is LiveDeepSeekPatchProposalUsageSummary {
+  if (!isRecord(value)) {
+    return false;
+  }
+  const allowedKeys = new Set([
+    "promptTokens",
+    "completionTokens",
+    "totalTokens"
+  ]);
+  return Object.entries(value).every(
+    ([key, nested]) =>
+      allowedKeys.has(key) &&
+      (nested === undefined || typeof nested === "number")
+  );
+}
+
+const liveForbiddenFieldNames = new Set(
+  [
+    "apiKey",
+    "apiKeyValue",
+    "secret",
+    "token",
+    "Authorization",
+    "bearer",
+    "rawKey",
+    "envValue",
+    "processEnvValue",
+    "vaultSecretValue",
+    "password",
+    ["raw", "Prompt"].join(""),
+    "promptText",
+    ["raw", "Request"].join(""),
+    ["raw", "Response"].join(""),
+    "responseText",
+    "reasoningContent",
+    "reasoning_content",
+    ["raw", "Source"].join(""),
+    ["raw", "Diff"].join(""),
+    ["raw", "Patch"].join(""),
+    ["raw", "Dom"].join(""),
+    ["raw", "Csv"].join(""),
+    ["raw", "Screenshot"].join(""),
+    "beforeContent",
+    "afterContent",
+    "fileContent",
+    "preimageContent",
+    "backupContent",
+    "stdout",
+    "stderr",
+    "command",
+    ["shell", "Command"].join(""),
+    ["git", "Command"].join(""),
+    "tauriCommand",
+    "eventStoreWrite",
+    "applyNow",
+    "rollbackNow",
+    "permissionLease",
+    "desktopAction",
+    "nativeBridge",
+    "tools",
+    "tool_choice"
+  ].map((key) => key.toLowerCase())
+);
+
+const liveExecutionFieldNames = new Set(
+  [
+    "canApplyPatch",
+    "canRollback",
+    "canReadApiKey",
+    "canCallLiveModel",
+    "canFetchNetwork",
+    "canSendLiveRequest",
+    "canWriteFilesystem",
+    "canWriteEventStore",
+    "canExecuteGit",
+    "canExecuteShell",
+    "canIssuePermissionLease",
+    "appCanExecute",
+    "allowApply",
+    "allowRollback",
+    "allowEventStoreWrite",
+    "allowGit",
+    "allowShell",
+    "allowAppExecution"
+  ].map((key) => key.toLowerCase())
+);
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);

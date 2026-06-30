@@ -4,6 +4,7 @@ use std::collections::{hash_map::DefaultHasher, BTreeMap, BTreeSet};
 use std::ffi::OsStr;
 use std::fs;
 use std::hash::{Hash, Hasher};
+use std::io::Read;
 use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
 use std::thread;
@@ -29,6 +30,13 @@ const APPROVED_APPLY_PREVIEW_TYPE: &str = "user_workspace.patch_apply.approved_r
 const APPROVED_ROLLBACK_PREVIEW_TYPE: &str = "user_workspace.patch_rollback.approved_result";
 const APPROVED_APPLY_EXECUTED_TYPE: &str = "user_workspace.patch_apply.app_executed";
 const APPROVED_ROLLBACK_EXECUTED_TYPE: &str = "user_workspace.patch_rollback.app_executed";
+const LIVE_PROPOSAL_CONFIRMATION: &str = "CALL DEEPSEEK FOR PROPOSAL";
+const LIVE_PROPOSAL_ALLOWED_KEY_REF: &str = "DEEPSEEK_API_KEY";
+const LIVE_PROPOSAL_ENDPOINT: &str = "https://api.deepseek.com/chat/completions";
+const LIVE_PROPOSAL_MIN_RESPONSE_BYTES: usize = 256;
+const LIVE_PROPOSAL_MAX_RESPONSE_BYTES: usize = 1_000_000;
+const LIVE_PROPOSAL_MIN_TIMEOUT_MS: u64 = 1_000;
+const LIVE_PROPOSAL_MAX_TIMEOUT_MS: u64 = 120_000;
 
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -275,6 +283,63 @@ pub struct VerificationLaneEventRecordResult {
     event_log_path: String,
     safe_message: String,
     warnings: Vec<String>,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct LiveDeepSeekPatchProposalCommandRequest {
+    session_receipt: Value,
+    api_key_source_ref: String,
+    provider_id: String,
+    model_profile_id: String,
+    request_envelope: Value,
+    objective_summary: String,
+    allowed_path_refs: Vec<String>,
+    context_refs: Vec<String>,
+    max_response_bytes: usize,
+    timeout_ms: u64,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct LiveDeepSeekPatchProposalUsageSummary {
+    prompt_tokens: Option<u64>,
+    completion_tokens: Option<u64>,
+    total_tokens: Option<u64>,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct LiveDeepSeekPatchProposalCommandResult {
+    ok: bool,
+    status: String,
+    provider_id: String,
+    model_profile_id: String,
+    request_id: String,
+    response_id: Option<String>,
+    proposal_candidate: Value,
+    proposal_candidate_hash: String,
+    response_hash: String,
+    usage_summary: Option<LiveDeepSeekPatchProposalUsageSummary>,
+    dropped_reasoning_content: bool,
+    reasoning_content_char_count: usize,
+    warning_codes: Vec<String>,
+    summary_only: bool,
+    raw_prompt_included: bool,
+    raw_response_included: bool,
+    raw_reasoning_content_included: bool,
+    can_apply_patch: bool,
+    can_rollback: bool,
+    can_write_event_store: bool,
+    can_execute_git: bool,
+    can_execute_shell: bool,
+    safe_message: String,
+}
+
+#[derive(Debug, Clone)]
+struct LiveDeepSeekTransportResponse {
+    status_code: u16,
+    body: String,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -947,6 +1012,590 @@ pub fn run_shell_verification_lane(
     request: ShellVerificationLaneRequest,
 ) -> Result<ShellVerificationLaneResult, DesktopFlowError> {
     run_shell_verification_lane_summary(request)
+}
+
+#[tauri::command(rename_all = "camelCase")]
+pub fn generate_live_deepseek_patch_proposal(
+    request: LiveDeepSeekPatchProposalCommandRequest,
+) -> Result<LiveDeepSeekPatchProposalCommandResult, DesktopFlowError> {
+    run_generate_live_deepseek_patch_proposal_with_executor(
+        request,
+        resolve_live_deepseek_api_key,
+        send_live_deepseek_request,
+    )
+}
+
+fn run_generate_live_deepseek_patch_proposal_with_executor<K, T>(
+    request: LiveDeepSeekPatchProposalCommandRequest,
+    key_resolver: K,
+    transport: T,
+) -> Result<LiveDeepSeekPatchProposalCommandResult, DesktopFlowError>
+where
+    K: FnOnce(&str) -> Result<String, DesktopFlowError>,
+    T: FnOnce(&str, &Value, Duration) -> Result<LiveDeepSeekTransportResponse, DesktopFlowError>,
+{
+    validate_live_deepseek_command_request(&request).map_err(live_deepseek_invalid)?;
+    let api_key = key_resolver(&request.api_key_source_ref)?;
+    validate_resolved_live_deepseek_key(&api_key)?;
+    let request_body = build_live_deepseek_request_body(&request)?;
+    let response = transport(
+        &api_key,
+        &request_body,
+        Duration::from_millis(request.timeout_ms),
+    )?;
+    parse_live_deepseek_transport_response(request, response)
+}
+
+fn validate_live_deepseek_command_request(
+    request: &LiveDeepSeekPatchProposalCommandRequest,
+) -> Result<(), String> {
+    validate_live_deepseek_session_receipt(request)?;
+    validate_live_deepseek_key_source_ref(&request.api_key_source_ref)?;
+    if request.provider_id != "deepseek" {
+        return Err("Live proposal provider is not allowed".to_string());
+    }
+    validate_live_safe_ref(&request.model_profile_id, "model profile")?;
+    if request.objective_summary.trim().is_empty() {
+        return Err("Live proposal objective summary is required".to_string());
+    }
+    validate_live_safe_text(&request.objective_summary, "objective summary")?;
+    if request.allowed_path_refs.is_empty() {
+        return Err("Live proposal allowed path refs are required".to_string());
+    }
+    for path in &request.allowed_path_refs {
+        validate_approved_apply_relative_path(path)?;
+    }
+    for context_ref in &request.context_refs {
+        validate_live_safe_text(context_ref, "context ref")?;
+    }
+    validate_live_request_envelope(&request.request_envelope)?;
+    if request.max_response_bytes < LIVE_PROPOSAL_MIN_RESPONSE_BYTES
+        || request.max_response_bytes > LIVE_PROPOSAL_MAX_RESPONSE_BYTES
+    {
+        return Err("Live proposal response byte limit is outside the allowed range".to_string());
+    }
+    if request.timeout_ms < LIVE_PROPOSAL_MIN_TIMEOUT_MS
+        || request.timeout_ms > LIVE_PROPOSAL_MAX_TIMEOUT_MS
+    {
+        return Err("Live proposal timeout is outside the allowed range".to_string());
+    }
+    Ok(())
+}
+
+fn validate_live_deepseek_session_receipt(
+    request: &LiveDeepSeekPatchProposalCommandRequest,
+) -> Result<(), String> {
+    let receipt = request
+        .session_receipt
+        .as_object()
+        .ok_or_else(|| "Live proposal session receipt must be an object".to_string())?;
+    if receipt.get("source").and_then(Value::as_str)
+        != Some("runtime_app_live_proposal_session_receipt")
+    {
+        return Err("Live proposal session receipt source is invalid".to_string());
+    }
+    if receipt.get("kind").and_then(Value::as_str) != Some("live_proposal_generation") {
+        return Err("Live proposal session receipt kind is invalid".to_string());
+    }
+    if receipt.get("providerId").and_then(Value::as_str) != Some("deepseek") {
+        return Err("Live proposal session receipt provider is invalid".to_string());
+    }
+    if receipt.get("modelProfileId").and_then(Value::as_str)
+        != Some(request.model_profile_id.as_str())
+    {
+        return Err("Live proposal session receipt model profile mismatch".to_string());
+    }
+    if receipt.get("status").and_then(Value::as_str) != Some("ready")
+        && receipt.get("status").and_then(Value::as_str) != Some("warning")
+    {
+        return Err("Live proposal session receipt is not ready".to_string());
+    }
+    if receipt.get("summaryOnly").and_then(Value::as_bool) != Some(true) {
+        return Err("Live proposal session receipt must be summary-only".to_string());
+    }
+    if receipt
+        .get("typedConfirmationAccepted")
+        .and_then(Value::as_bool)
+        != Some(true)
+    {
+        return Err("Live proposal session receipt confirmation was not accepted".to_string());
+    }
+    if receipt.get("typedConfirmation").and_then(Value::as_str) != Some(LIVE_PROPOSAL_CONFIRMATION)
+    {
+        return Err("Live proposal session receipt confirmation is invalid".to_string());
+    }
+    validate_live_readiness_disabled(receipt.get("readiness"))?;
+    validate_live_value_forbidden_keys(&request.session_receipt)?;
+    validate_live_value_string_safety(&request.session_receipt)?;
+    Ok(())
+}
+
+fn validate_live_request_envelope(envelope: &Value) -> Result<(), String> {
+    let object = envelope
+        .as_object()
+        .ok_or_else(|| "Live proposal request envelope must be an object".to_string())?;
+    validate_live_value_forbidden_keys(envelope)?;
+    validate_live_value_string_safety(envelope)?;
+    validate_live_readiness_disabled(envelope.get("readiness"))?;
+    if object.get("summaryOnly").and_then(Value::as_bool) != Some(true) {
+        return Err("Live proposal request envelope must be summary-only".to_string());
+    }
+    if object.get("noExecution").and_then(Value::as_bool) != Some(true) {
+        return Err("Live proposal request envelope must disable execution".to_string());
+    }
+    if object.get("noFileWrite").and_then(Value::as_bool) != Some(true) {
+        return Err("Live proposal request envelope must disable file writes".to_string());
+    }
+    if object.get("noApply").and_then(Value::as_bool) != Some(true)
+        || object.get("noRollback").and_then(Value::as_bool) != Some(true)
+    {
+        return Err("Live proposal request envelope must disable apply and rollback".to_string());
+    }
+    if object.get("noEventStoreWrite").and_then(Value::as_bool) != Some(true) {
+        return Err("Live proposal request envelope must disable event writes".to_string());
+    }
+    if object.get("noGitShell").and_then(Value::as_bool) != Some(true) {
+        return Err("Live proposal request envelope must disable Git and shell".to_string());
+    }
+    if object.get("noTools").and_then(Value::as_bool) != Some(true)
+        || object.get("toolChoiceOmitted").and_then(Value::as_bool) != Some(true)
+    {
+        return Err("Live proposal request envelope must omit tools".to_string());
+    }
+    if object.get("responseFormat").and_then(Value::as_str) != Some("model_patch_proposal") {
+        return Err("Live proposal request envelope response format is invalid".to_string());
+    }
+    Ok(())
+}
+
+fn validate_live_value_forbidden_keys(value: &Value) -> Result<(), String> {
+    if let Some(key) = find_forbidden_approved_apply_key(value) {
+        return Err(format!(
+            "Live proposal input contains forbidden field {key}"
+        ));
+    }
+    if live_value_has_execution_true(value) {
+        return Err("Live proposal input attempted to enable execution".to_string());
+    }
+    Ok(())
+}
+
+fn validate_live_value_string_safety(value: &Value) -> Result<(), String> {
+    if live_value_has_sensitive_string(value) {
+        return Err("Live proposal input contains unsafe marker".to_string());
+    }
+    Ok(())
+}
+
+fn live_value_has_execution_true(value: &Value) -> bool {
+    match value {
+        Value::Array(items) => items.iter().any(live_value_has_execution_true),
+        Value::Object(object) => object.iter().any(|(key, nested)| {
+            let lower = key.to_ascii_lowercase();
+            let execution_key = matches!(
+                lower.as_str(),
+                "canapplypatch"
+                    | "canrollback"
+                    | "canreadapikey"
+                    | "cancalllivemodel"
+                    | "canfetchnetwork"
+                    | "cansendliverequest"
+                    | "canwritefilesystem"
+                    | "canwriteeventstore"
+                    | "canexecutegit"
+                    | "canexecuteshell"
+                    | "canissuepermissionlease"
+                    | "appcanexecute"
+                    | "allowapply"
+                    | "allowrollback"
+                    | "alloweventstorewrite"
+                    | "allowgit"
+                    | "allowshell"
+                    | "allowappexecution"
+            );
+            (execution_key && nested.as_bool() == Some(true))
+                || live_value_has_execution_true(nested)
+        }),
+        _ => false,
+    }
+}
+
+fn live_value_has_sensitive_string(value: &Value) -> bool {
+    match value {
+        Value::String(text) => contains_approved_apply_sensitive_marker(text),
+        Value::Array(items) => items.iter().any(live_value_has_sensitive_string),
+        Value::Object(object) => object.values().any(live_value_has_sensitive_string),
+        _ => false,
+    }
+}
+
+fn validate_live_readiness_disabled(value: Option<&Value>) -> Result<(), String> {
+    let Some(Value::Object(readiness)) = value else {
+        return Ok(());
+    };
+    for key in [
+        "canReadApiKey",
+        "canCallLiveModel",
+        "canFetchNetwork",
+        "canSendLiveRequest",
+        "canWriteFilesystem",
+        "canWriteEventStore",
+        "canApplyPatch",
+        "canRollback",
+        "canExecuteGit",
+        "canExecuteShell",
+        "canIssuePermissionLease",
+        "appCanExecute",
+    ] {
+        if readiness.get(key).and_then(Value::as_bool) == Some(true) {
+            return Err("Live proposal readiness must remain disabled".to_string());
+        }
+    }
+    Ok(())
+}
+
+fn validate_live_deepseek_key_source_ref(ref_name: &str) -> Result<(), String> {
+    let trimmed = ref_name.trim();
+    if trimmed != LIVE_PROPOSAL_ALLOWED_KEY_REF {
+        return Err("Live proposal credential ref is not allowlisted".to_string());
+    }
+    if contains_approved_apply_sensitive_marker(trimmed) || trimmed.contains(" ") {
+        return Err("Live proposal credential ref is unsafe".to_string());
+    }
+    Ok(())
+}
+
+fn validate_live_safe_ref(value: &str, label: &str) -> Result<(), String> {
+    let trimmed = value.trim();
+    if trimmed.is_empty() {
+        return Err(format!("Live proposal {label} is required"));
+    }
+    if trimmed.len() > 160
+        || trimmed.contains('\0')
+        || trimmed.contains('\n')
+        || trimmed.contains('\r')
+        || trimmed.contains('"')
+        || trimmed.contains('\'')
+        || trimmed.contains('<')
+        || trimmed.contains('>')
+        || trimmed.contains('|')
+        || trimmed.contains(';')
+        || trimmed.contains('`')
+        || trimmed.contains('$')
+        || contains_approved_apply_sensitive_marker(trimmed)
+    {
+        return Err(format!("Live proposal {label} is unsafe"));
+    }
+    Ok(())
+}
+
+fn validate_live_safe_text(value: &str, label: &str) -> Result<(), String> {
+    let trimmed = value.trim();
+    if trimmed.contains('\0') || contains_approved_apply_sensitive_marker(trimmed) {
+        return Err(format!("Live proposal {label} contains unsafe marker"));
+    }
+    Ok(())
+}
+
+fn validate_resolved_live_deepseek_key(api_key: &str) -> Result<(), DesktopFlowError> {
+    let trimmed = api_key.trim();
+    if trimmed.is_empty()
+        || trimmed != api_key
+        || trimmed.len() < 12
+        || trimmed.contains('\n')
+        || trimmed.contains('\r')
+        || trimmed.to_ascii_lowercase().starts_with("bearer ")
+    {
+        return Err(live_deepseek_invalid(
+            "Live proposal credential resolution failed safely",
+        ));
+    }
+    Ok(())
+}
+
+fn resolve_live_deepseek_api_key(ref_name: &str) -> Result<String, DesktopFlowError> {
+    validate_live_deepseek_key_source_ref(ref_name).map_err(live_deepseek_invalid)?;
+    std::env::var(LIVE_PROPOSAL_ALLOWED_KEY_REF).map_err(|_| {
+        live_deepseek_invalid("Live proposal credential is not available from the allowlisted ref")
+    })
+}
+
+fn build_live_deepseek_request_body(
+    request: &LiveDeepSeekPatchProposalCommandRequest,
+) -> Result<Value, DesktopFlowError> {
+    let request_id = request
+        .request_envelope
+        .get("requestId")
+        .and_then(Value::as_str)
+        .map(str::to_string)
+        .unwrap_or_else(|| {
+            short_hash(&format!(
+                "{}:{}:{}",
+                request.model_profile_id,
+                request.objective_summary,
+                request.allowed_path_refs.join("|")
+            ))
+        });
+    let boundary_hash = request
+        .request_envelope
+        .get("requestHash")
+        .and_then(Value::as_str)
+        .map(str::to_string)
+        .unwrap_or_else(|| short_hash(&request.request_envelope.to_string()));
+    let user_content = serde_json::json!({
+        "objectiveSummary": request.objective_summary,
+        "allowedPathRefs": request.allowed_path_refs,
+        "contextRefs": request.context_refs,
+        "requestId": request_id,
+        "requestHash": boundary_hash,
+        "responseFormat": "model_patch_proposal",
+        "summaryOnly": true,
+        "noExecution": true
+    })
+    .to_string();
+    let body = serde_json::json!({
+        "model": request.model_profile_id,
+        "messages": [
+            {
+                "role": "system",
+                "content": "Return only structured JSON for a model_patch_proposal. Do not include commands, credential values, file writes, event writes, Git, shell, or rollback actions."
+            },
+            {
+                "role": "user",
+                "content": user_content
+            }
+        ],
+        "response_format": {
+            "type": "json_object"
+        },
+        "temperature": 0.2,
+        "stream": false
+    });
+    if find_forbidden_approved_apply_key(&body).is_some() {
+        return Err(live_deepseek_invalid(
+            "Live proposal request body contains forbidden fields",
+        ));
+    }
+    Ok(body)
+}
+
+fn send_live_deepseek_request(
+    api_key: &str,
+    request_body: &Value,
+    timeout: Duration,
+) -> Result<LiveDeepSeekTransportResponse, DesktopFlowError> {
+    let agent = ureq::AgentBuilder::new().timeout(timeout).build();
+    let response = agent
+        .post(LIVE_PROPOSAL_ENDPOINT)
+        .set("Authorization", &format!("Bearer {api_key}"))
+        .set("Content-Type", "application/json")
+        .send_json(request_body.clone())
+        .map_err(|error| match error {
+            ureq::Error::Status(status_code, _) => DesktopFlowError::new(
+                "LIVE_DEEPSEEK_HTTP_STATUS",
+                format!("Live proposal request failed with status {status_code}"),
+                "live_deepseek_proposal",
+            ),
+            ureq::Error::Transport(_) => DesktopFlowError::new(
+                "LIVE_DEEPSEEK_TRANSPORT_FAILED",
+                "Live proposal request transport failed safely",
+                "live_deepseek_proposal",
+            ),
+        })?;
+    let status_code = response.status();
+    let mut body = String::new();
+    response
+        .into_reader()
+        .take((LIVE_PROPOSAL_MAX_RESPONSE_BYTES + 1) as u64)
+        .read_to_string(&mut body)
+        .map_err(|_| {
+            DesktopFlowError::new(
+                "LIVE_DEEPSEEK_RESPONSE_READ_FAILED",
+                "Live proposal response could not be read safely",
+                "live_deepseek_proposal",
+            )
+        })?;
+    Ok(LiveDeepSeekTransportResponse { status_code, body })
+}
+
+fn parse_live_deepseek_transport_response(
+    request: LiveDeepSeekPatchProposalCommandRequest,
+    response: LiveDeepSeekTransportResponse,
+) -> Result<LiveDeepSeekPatchProposalCommandResult, DesktopFlowError> {
+    if !(200..300).contains(&response.status_code) {
+        return Err(DesktopFlowError::new(
+            "LIVE_DEEPSEEK_HTTP_STATUS",
+            format!(
+                "Live proposal request failed with status {}",
+                response.status_code
+            ),
+            "live_deepseek_proposal",
+        ));
+    }
+    if response.body.as_bytes().len() > request.max_response_bytes {
+        return Err(live_deepseek_invalid(
+            "Live proposal response exceeded the byte limit",
+        ));
+    }
+    let response_json: Value = serde_json::from_str(&response.body).map_err(|_| {
+        live_deepseek_invalid("Live proposal response was not valid structured JSON")
+    })?;
+    validate_live_response_container(&response_json)?;
+    let content = response_json
+        .pointer("/choices/0/message/content")
+        .and_then(Value::as_str)
+        .ok_or_else(|| live_deepseek_invalid("Live proposal response content was missing"))?;
+    if content.as_bytes().len() > request.max_response_bytes {
+        return Err(live_deepseek_invalid(
+            "Live proposal candidate exceeded the byte limit",
+        ));
+    }
+    if contains_approved_apply_sensitive_marker(content) {
+        return Err(live_deepseek_invalid(
+            "Live proposal candidate contains unsafe marker",
+        ));
+    }
+    let proposal_candidate: Value = serde_json::from_str(content).map_err(|_| {
+        live_deepseek_invalid("Live proposal candidate was not valid structured JSON")
+    })?;
+    validate_live_proposal_candidate(&proposal_candidate)?;
+    let reasoning_content = response_json
+        .pointer("/choices/0/message/reasoning_content")
+        .and_then(Value::as_str);
+    let usage_summary = live_usage_summary(&response_json)?;
+    let mut warning_codes = Vec::new();
+    warning_codes.push("LIVE_NETWORK_USED".to_string());
+    if reasoning_content.is_some() {
+        warning_codes.push("REASONING_CONTENT_DROPPED".to_string());
+    }
+    if usage_summary.is_none() {
+        warning_codes.push("USAGE_SUMMARY_MISSING".to_string());
+    }
+    let request_id = request
+        .request_envelope
+        .get("requestId")
+        .and_then(Value::as_str)
+        .map(str::to_string)
+        .unwrap_or_else(|| short_hash(&request.request_envelope.to_string()));
+    let response_id = response_json
+        .get("id")
+        .and_then(Value::as_str)
+        .map(sanitize_safe_message);
+    let proposal_candidate_json = serde_json::to_string(&proposal_candidate)
+        .map_err(|_| live_deepseek_invalid("Live proposal candidate could not be summarized"))?;
+    Ok(LiveDeepSeekPatchProposalCommandResult {
+        ok: true,
+        status: "generated".to_string(),
+        provider_id: "deepseek".to_string(),
+        model_profile_id: request.model_profile_id,
+        request_id,
+        response_id,
+        proposal_candidate_hash: short_hash(&proposal_candidate_json),
+        response_hash: short_hash(&response.body),
+        proposal_candidate,
+        usage_summary,
+        dropped_reasoning_content: reasoning_content.is_some(),
+        reasoning_content_char_count: reasoning_content
+            .map(|text| text.chars().count())
+            .unwrap_or(0),
+        warning_codes,
+        summary_only: true,
+        raw_prompt_included: false,
+        raw_response_included: false,
+        raw_reasoning_content_included: false,
+        can_apply_patch: false,
+        can_rollback: false,
+        can_write_event_store: false,
+        can_execute_git: false,
+        can_execute_shell: false,
+        safe_message: "Live DeepSeek proposal command returned a summary-only proposal candidate."
+            .to_string(),
+    })
+}
+
+fn validate_live_response_container(value: &Value) -> Result<(), DesktopFlowError> {
+    if let Some(key) = find_forbidden_live_response_key(value) {
+        return Err(live_deepseek_invalid(format!(
+            "Live proposal response contains forbidden field {key}"
+        )));
+    }
+    let serialized = serde_json::to_string(value)
+        .map_err(|_| live_deepseek_invalid("Live proposal response could not be summarized"))?;
+    if serialized.contains(LIVE_PROPOSAL_ALLOWED_KEY_REF)
+        || serialized.contains("Authorization")
+        || serialized.contains("Bearer ")
+        || serialized.contains("-----BEGIN ")
+    {
+        return Err(live_deepseek_invalid(
+            "Live proposal response contains unsafe credential marker",
+        ));
+    }
+    Ok(())
+}
+
+fn find_forbidden_live_response_key(value: &Value) -> Option<String> {
+    match value {
+        Value::Array(items) => items.iter().find_map(find_forbidden_live_response_key),
+        Value::Object(object) => {
+            for (key, nested_value) in object {
+                if forbidden_approved_apply_key(key)
+                    && key != "reasoning_content"
+                    && key != "reasoningContent"
+                {
+                    return Some(key.to_string());
+                }
+                if let Some(found) = find_forbidden_live_response_key(nested_value) {
+                    return Some(found);
+                }
+            }
+            None
+        }
+        _ => None,
+    }
+}
+
+fn validate_live_proposal_candidate(value: &Value) -> Result<(), DesktopFlowError> {
+    if let Some(key) = find_forbidden_approved_apply_key(value) {
+        return Err(live_deepseek_invalid(format!(
+            "Live proposal candidate contains forbidden field {key}"
+        )));
+    }
+    validate_live_value_string_safety(value).map_err(live_deepseek_invalid)?;
+    Ok(())
+}
+
+fn live_usage_summary(
+    response_json: &Value,
+) -> Result<Option<LiveDeepSeekPatchProposalUsageSummary>, DesktopFlowError> {
+    let Some(usage) = response_json.get("usage") else {
+        return Ok(None);
+    };
+    let Some(usage_object) = usage.as_object() else {
+        return Err(live_deepseek_invalid(
+            "Live proposal usage summary was not numeric",
+        ));
+    };
+    if usage_object
+        .values()
+        .any(|value| !(value.is_number() || value.is_null()))
+    {
+        return Err(live_deepseek_invalid(
+            "Live proposal usage summary contained unsafe text",
+        ));
+    }
+    Ok(Some(LiveDeepSeekPatchProposalUsageSummary {
+        prompt_tokens: usage.get("prompt_tokens").and_then(Value::as_u64),
+        completion_tokens: usage.get("completion_tokens").and_then(Value::as_u64),
+        total_tokens: usage.get("total_tokens").and_then(Value::as_u64),
+    }))
+}
+
+fn live_deepseek_invalid(message: impl Into<String>) -> DesktopFlowError {
+    DesktopFlowError::new(
+        "LIVE_DEEPSEEK_PROPOSAL_BLOCKED",
+        message.into(),
+        "live_deepseek_proposal",
+    )
 }
 
 #[tauri::command(rename_all = "camelCase")]
@@ -4847,6 +5496,347 @@ mod tests {
             timeout_ms: Some(5_000),
             max_output_bytes: Some(65_536),
         }
+    }
+
+    fn safe_live_proposal_session_receipt() -> Value {
+        serde_json::json!({
+            "status": "ready",
+            "receiptId": "app-live-proposal-session-test",
+            "kind": "live_proposal_generation",
+            "providerId": "deepseek",
+            "modelProfileId": "deepseek-chat",
+            "objectiveSummaryHash": "objective-hash-test",
+            "allowedPathRefs": ["docs/live-proposal.md"],
+            "contextRefHashes": ["context-ref-test"],
+            "apiKeyPolicyId": "policy-test",
+            "requestBuilderId": "request-builder-test",
+            "expiresAt": "2099-01-01T00:00:00.000Z",
+            "typedConfirmation": LIVE_PROPOSAL_CONFIRMATION,
+            "receiptHash": "receipt-hash-test",
+            "typedConfirmationAccepted": true,
+            "findings": [],
+            "blockerCount": 0,
+            "warningCount": 0,
+            "findingCount": 0,
+            "readiness": {
+                "canProceedToLiveProposalCommand": true,
+                "canReadApiKey": false,
+                "canCallLiveModel": false,
+                "canFetchNetwork": false,
+                "canSendLiveRequest": false,
+                "canWriteFilesystem": false,
+                "canWriteEventStore": false,
+                "canApplyPatch": false,
+                "canRollback": false,
+                "canExecuteGit": false,
+                "canExecuteShell": false,
+                "canIssuePermissionLease": false,
+                "appCanExecute": false
+            },
+            "nextAction": "Call the fixed Tauri command with summary-only refs.",
+            "summaryOnly": true,
+            "source": "runtime_app_live_proposal_session_receipt"
+        })
+    }
+
+    fn safe_live_request_envelope() -> Value {
+        serde_json::json!({
+            "schemaVersion": 1,
+            "requestId": "live-proposal-request-test",
+            "providerId": "deepseek",
+            "modelProfileId": "deepseek-chat",
+            "objectiveSummary": "Generate a summary-only proposal.",
+            "intent": "code_change",
+            "responseFormat": "model_patch_proposal",
+            "summaryOnly": true,
+            "noExecution": true,
+            "noFileWrite": true,
+            "noApply": true,
+            "noRollback": true,
+            "noEventStoreWrite": true,
+            "noGitShell": true,
+            "noTools": true,
+            "toolChoiceOmitted": true,
+            "requestHash": "request-hash-test",
+            "apiKeyPolicyRef": {
+                "policyId": "policy-test",
+                "keySourceType": "env_var_ref",
+                "refNameHash": "key-ref-hash-test",
+                "rawKeyIncluded": false
+            },
+            "contextRefs": {
+                "workspaceIndexRefs": ["workspace-index-ref"],
+                "contextAssemblyRefs": ["context-ref"],
+                "userWorkspaceReadinessRefs": ["readiness-ref"],
+                "evidenceRefs": ["evidence-ref"]
+            },
+            "allowedPathRefs": ["docs/live-proposal.md"],
+            "forbiddenPathPolicy": "relative safe paths only",
+            "promptBoundary": {
+                "frozenPrefixRefs": ["prefix-ref"],
+                "volatileTailRefs": ["tail-ref"],
+                "noCompressRefs": ["no-compress-ref"]
+            },
+            "safetyInstructions": {
+                "mustReturnJson": true,
+                "mustReturnModelPatchProposal": true,
+                "noFileWrite": true,
+                "noCommands": true,
+                "noGitShell": true,
+                "noSecrets": true,
+                "noRawDiff": true,
+                "noRawWorkspaceDump": true,
+                "outputGoesThroughValidationChain": true
+            },
+            "readiness": {
+                "canReadApiKey": false,
+                "canCallLiveModel": false,
+                "canFetchNetwork": false,
+                "canWriteEventStore": false,
+                "canApplyPatch": false,
+                "canRollback": false,
+                "canExecuteGit": false,
+                "canExecuteShell": false,
+                "canIssuePermissionLease": false,
+                "appCanExecute": false
+            },
+            "source": "runtime_live_proposal_request_builder"
+        })
+    }
+
+    fn safe_live_proposal_command_request() -> LiveDeepSeekPatchProposalCommandRequest {
+        LiveDeepSeekPatchProposalCommandRequest {
+            session_receipt: safe_live_proposal_session_receipt(),
+            api_key_source_ref: LIVE_PROPOSAL_ALLOWED_KEY_REF.to_string(),
+            provider_id: "deepseek".to_string(),
+            model_profile_id: "deepseek-chat".to_string(),
+            request_envelope: safe_live_request_envelope(),
+            objective_summary: "Generate a summary-only proposal.".to_string(),
+            allowed_path_refs: vec!["docs/live-proposal.md".to_string()],
+            context_refs: vec!["context-ref-test".to_string()],
+            max_response_bytes: 20_000,
+            timeout_ms: 5_000,
+        }
+    }
+
+    fn safe_live_key_resolver(_: &str) -> Result<String, DesktopFlowError> {
+        Ok("test-live-key-value".to_string())
+    }
+
+    fn safe_live_transport_response() -> LiveDeepSeekTransportResponse {
+        let proposal = serde_json::json!({
+            "schemaVersion": 1,
+            "proposalId": "proposal-live-test",
+            "title": "Update docs summary",
+            "intent": "code_change",
+            "operations": [
+                {
+                    "operationId": "operation-live-test",
+                    "changeKind": "update",
+                    "path": "docs/live-proposal.md",
+                    "summary": "Update docs summary only."
+                }
+            ],
+            "pathSummaries": [
+                {
+                    "path": "docs/live-proposal.md",
+                    "summary": "Update docs summary only."
+                }
+            ],
+            "evidenceRefs": ["evidence-ref"],
+            "riskNotes": ["Requires review before apply."]
+        });
+        LiveDeepSeekTransportResponse {
+            status_code: 200,
+            body: serde_json::json!({
+                "id": "deepseek-response-test",
+                "choices": [
+                    {
+                        "message": {
+                            "content": proposal.to_string(),
+                            "reasoning_content": "internal chain should be dropped"
+                        }
+                    }
+                ],
+                "usage": {
+                    "prompt_tokens": 11,
+                    "completion_tokens": 22,
+                    "total_tokens": 33
+                }
+            })
+            .to_string(),
+        }
+    }
+
+    fn run_safe_live_command(
+        request: LiveDeepSeekPatchProposalCommandRequest,
+    ) -> Result<LiveDeepSeekPatchProposalCommandResult, DesktopFlowError> {
+        run_generate_live_deepseek_patch_proposal_with_executor(
+            request,
+            safe_live_key_resolver,
+            |_, body, _| {
+                assert!(body.get("tools").is_none());
+                assert!(body.get("tool_choice").is_none());
+                Ok(safe_live_transport_response())
+            },
+        )
+    }
+
+    #[test]
+    fn live_deepseek_proposal_blocks_missing_or_wrong_receipt() {
+        let mut missing_receipt = safe_live_proposal_command_request();
+        missing_receipt.session_receipt = Value::Null;
+        let error = run_safe_live_command(missing_receipt).expect_err("missing receipt blocks");
+        assert_eq!(error.error_code, "LIVE_DEEPSEEK_PROPOSAL_BLOCKED");
+        assert_eq!(error.stage, "live_deepseek_proposal");
+
+        let mut wrong_receipt = safe_live_proposal_command_request();
+        wrong_receipt.session_receipt["typedConfirmationAccepted"] = Value::Bool(false);
+        let error = run_safe_live_command(wrong_receipt).expect_err("wrong receipt blocks");
+        assert_eq!(error.error_code, "LIVE_DEEPSEEK_PROPOSAL_BLOCKED");
+        assert_eq!(error.stage, "live_deepseek_proposal");
+    }
+
+    #[test]
+    fn live_deepseek_proposal_blocks_missing_or_raw_key_ref() {
+        let mut missing_ref = safe_live_proposal_command_request();
+        missing_ref.api_key_source_ref = String::new();
+        let error = run_safe_live_command(missing_ref).expect_err("missing ref blocks");
+        assert_eq!(error.error_code, "LIVE_DEEPSEEK_PROPOSAL_BLOCKED");
+
+        let mut raw_key = safe_live_proposal_command_request();
+        raw_key.api_key_source_ref = "sk-fake-live-proposal-key-000000".to_string();
+        let error = run_safe_live_command(raw_key).expect_err("raw key ref blocks");
+        assert_eq!(error.error_code, "LIVE_DEEPSEEK_PROPOSAL_BLOCKED");
+        assert!(!error.safe_message.contains("sk-fake"));
+    }
+
+    #[test]
+    fn live_deepseek_proposal_blocks_raw_request_fields() {
+        let raw_prompt_field = ["raw", "Prompt"].join("");
+        let raw_source_field = ["raw", "Source"].join("");
+        let raw_diff_field = ["raw", "Diff"].join("");
+        let mut request = safe_live_proposal_command_request();
+        request.request_envelope[raw_prompt_field.as_str()] = Value::String("hidden".to_string());
+        let error = run_safe_live_command(request).expect_err("raw prompt blocks");
+        assert_eq!(error.error_code, "LIVE_DEEPSEEK_PROPOSAL_BLOCKED");
+
+        let mut request = safe_live_proposal_command_request();
+        request.request_envelope[raw_source_field.as_str()] = Value::String("hidden".to_string());
+        let error = run_safe_live_command(request).expect_err("raw source blocks");
+        assert_eq!(error.error_code, "LIVE_DEEPSEEK_PROPOSAL_BLOCKED");
+
+        let mut request = safe_live_proposal_command_request();
+        request.request_envelope[raw_diff_field.as_str()] = Value::String("hidden".to_string());
+        let error = run_safe_live_command(request).expect_err("raw diff blocks");
+        assert_eq!(error.error_code, "LIVE_DEEPSEEK_PROPOSAL_BLOCKED");
+    }
+
+    #[test]
+    fn live_deepseek_proposal_blocks_large_response() {
+        let mut request = safe_live_proposal_command_request();
+        request.max_response_bytes = LIVE_PROPOSAL_MIN_RESPONSE_BYTES;
+        let error = run_generate_live_deepseek_patch_proposal_with_executor(
+            request,
+            safe_live_key_resolver,
+            |_, _, _| {
+                Ok(LiveDeepSeekTransportResponse {
+                    status_code: 200,
+                    body: "x".repeat(LIVE_PROPOSAL_MIN_RESPONSE_BYTES + 1),
+                })
+            },
+        )
+        .expect_err("large response blocks");
+        assert_eq!(error.error_code, "LIVE_DEEPSEEK_PROPOSAL_BLOCKED");
+    }
+
+    #[test]
+    fn live_deepseek_proposal_returns_summary_without_key_or_reasoning() {
+        let result =
+            run_safe_live_command(safe_live_proposal_command_request()).expect("safe live result");
+        let serialized = serde_json::to_string(&result).expect("serialize");
+
+        assert!(result.ok);
+        assert_eq!(result.status, "generated");
+        assert_eq!(result.provider_id, "deepseek");
+        assert_eq!(result.model_profile_id, "deepseek-chat");
+        assert_eq!(result.request_id, "live-proposal-request-test");
+        assert!(result.dropped_reasoning_content);
+        assert!(result.reasoning_content_char_count > 0);
+        assert!(result.summary_only);
+        assert!(!result.raw_prompt_included);
+        assert!(!result.raw_response_included);
+        assert!(!result.raw_reasoning_content_included);
+        assert!(!result.can_apply_patch);
+        assert!(!result.can_rollback);
+        assert!(!result.can_write_event_store);
+        assert!(!result.can_execute_git);
+        assert!(!result.can_execute_shell);
+        assert!(result
+            .warning_codes
+            .contains(&"REASONING_CONTENT_DROPPED".to_string()));
+        assert!(!serialized.contains("test-live-key-value"));
+        assert!(!serialized.contains("internal chain should be dropped"));
+        assert!(!serialized.contains("Authorization"));
+        assert!(!serialized.contains("raw prompt"));
+        assert!(!serialized.contains("raw response"));
+    }
+
+    #[test]
+    fn live_deepseek_proposal_blocks_unsafe_model_response() {
+        let secret_error = run_generate_live_deepseek_patch_proposal_with_executor(
+            safe_live_proposal_command_request(),
+            safe_live_key_resolver,
+            |_, _, _| {
+                let proposal = serde_json::json!({
+                    "proposalId": "proposal-secret",
+                    "operations": [],
+                    "riskNotes": ["Bearer fake-token-value-000000"]
+                });
+                Ok(LiveDeepSeekTransportResponse {
+                    status_code: 200,
+                    body: serde_json::json!({
+                        "choices": [{ "message": { "content": proposal.to_string() } }]
+                    })
+                    .to_string(),
+                })
+            },
+        )
+        .expect_err("secret marker blocks");
+        assert_eq!(secret_error.error_code, "LIVE_DEEPSEEK_PROPOSAL_BLOCKED");
+
+        let execution_error = run_generate_live_deepseek_patch_proposal_with_executor(
+            safe_live_proposal_command_request(),
+            safe_live_key_resolver,
+            |_, _, _| {
+                let proposal = serde_json::json!({
+                    "proposalId": "proposal-exec",
+                    "eventStoreWrite": true
+                });
+                Ok(LiveDeepSeekTransportResponse {
+                    status_code: 200,
+                    body: serde_json::json!({
+                        "choices": [{ "message": { "content": proposal.to_string() } }]
+                    })
+                    .to_string(),
+                })
+            },
+        )
+        .expect_err("execution field blocks");
+        assert_eq!(execution_error.error_code, "LIVE_DEEPSEEK_PROPOSAL_BLOCKED");
+    }
+
+    #[test]
+    fn live_deepseek_proposal_does_not_call_resolver_or_transport_before_validation() {
+        let mut request = safe_live_proposal_command_request();
+        request.session_receipt["source"] = Value::String("wrong".to_string());
+        let error = run_generate_live_deepseek_patch_proposal_with_executor(
+            request,
+            |_| panic!("resolver should not be called"),
+            |_, _, _| panic!("transport should not be called"),
+        )
+        .expect_err("invalid request blocks early");
+        assert_eq!(error.error_code, "LIVE_DEEPSEEK_PROPOSAL_BLOCKED");
     }
 
     #[test]

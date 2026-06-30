@@ -8,9 +8,11 @@ import { afterEach, describe, expect, it } from "vitest";
 import {
   checkDesktopRunnerPreflight,
   applyApprovedUserWorkspacePatch,
+  generateLiveDeepSeekPatchProposal,
   invokeAllowedCommand,
   isAllowedDesktopCommand,
   loadWorkspaceEventSummary,
+  liveProposalAllowedKeySourceRef,
   recordVerificationLaneEvent,
   recordApprovedUserWorkspaceExecutionEvent,
   recordControlRunDraftEvent,
@@ -22,6 +24,8 @@ import {
   type ApprovedUserWorkspaceApplyResult,
   type ApprovedUserWorkspaceRollbackResult,
   type GitReadLaneResult,
+  type LiveDeepSeekPatchProposalCommandRequest,
+  type LiveDeepSeekPatchProposalCommandResult,
   type VerificationLaneEventRecordResult,
   type ShellVerificationLaneResult,
   type TauriInvoke
@@ -890,7 +894,209 @@ describe("desktop command wrapper", () => {
     expect(
       isAllowedDesktopCommand("record_approved_user_workspace_execution_event")
     ).toBe(true);
+    expect(isAllowedDesktopCommand("generate_live_deepseek_patch_proposal")).toBe(
+      true
+    );
     expect(isAllowedDesktopCommand("run_web_table_to_csv_flow")).toBe(true);
+  });
+
+  function safeLiveProposalCommandRequest(): LiveDeepSeekPatchProposalCommandRequest {
+    return {
+      sessionReceipt: {
+        status: "ready",
+        receiptId: "receipt-test",
+        kind: "live_proposal_generation",
+        providerId: "deepseek",
+        modelProfileId: "deepseek-chat",
+        objectiveSummaryHash: "objective-hash-test",
+        allowedPathRefs: ["docs/live-proposal.md"],
+        contextRefHashes: ["context-ref"],
+        apiKeyPolicyId: "policy-test",
+        requestBuilderId: "request-builder-test",
+        expiresAt: "2099-01-01T00:00:00.000Z",
+        typedConfirmation: "CALL DEEPSEEK FOR PROPOSAL",
+        typedConfirmationAccepted: true,
+        summaryOnly: true,
+        readiness: {
+          canProceedToLiveProposalCommand: true,
+          canReadApiKey: false,
+          canCallLiveModel: false,
+          canFetchNetwork: false,
+          canSendLiveRequest: false,
+          canWriteFilesystem: false,
+          canWriteEventStore: false,
+          canApplyPatch: false,
+          canRollback: false,
+          canExecuteGit: false,
+          canExecuteShell: false,
+          canIssuePermissionLease: false,
+          appCanExecute: false
+        },
+        source: "runtime_app_live_proposal_session_receipt"
+      },
+      apiKeySourceRef: liveProposalAllowedKeySourceRef,
+      providerId: "deepseek",
+      modelProfileId: "deepseek-chat",
+      requestEnvelope: {
+        requestId: "live-proposal-request-test",
+        responseFormat: "model_patch_proposal",
+        summaryOnly: true,
+        noExecution: true,
+        noFileWrite: true,
+        noApply: true,
+        noRollback: true,
+        noEventStoreWrite: true,
+        noGitShell: true,
+        noTools: true,
+        toolChoiceOmitted: true
+      },
+      objectiveSummary: "Generate a summary-only proposal.",
+      allowedPathRefs: ["docs/live-proposal.md"],
+      contextRefs: ["context-ref"],
+      maxResponseBytes: 20_000,
+      timeoutMs: 5_000
+    };
+  }
+
+  function safeLiveProposalCommandResult(): LiveDeepSeekPatchProposalCommandResult {
+    return {
+      ok: true,
+      status: "generated",
+      providerId: "deepseek",
+      modelProfileId: "deepseek-chat",
+      requestId: "live-proposal-request-test",
+      responseId: "response-test",
+      proposalCandidate: {
+        proposalId: "proposal-test",
+        title: "Update docs",
+        intent: "code_change",
+        operations: [
+          {
+            operationId: "operation-test",
+            changeKind: "update",
+            path: "docs/live-proposal.md",
+            summary: "Update docs summary."
+          }
+        ]
+      },
+      proposalCandidateHash: "proposal-hash-test",
+      responseHash: "response-hash-test",
+      usageSummary: {
+        promptTokens: 1,
+        completionTokens: 2,
+        totalTokens: 3
+      },
+      droppedReasoningContent: true,
+      reasoningContentCharCount: 12,
+      warningCodes: ["REASONING_CONTENT_DROPPED"],
+      summaryOnly: true,
+      rawPromptIncluded: false,
+      rawResponseIncluded: false,
+      rawReasoningContentIncluded: false,
+      canApplyPatch: false,
+      canRollback: false,
+      canWriteEventStore: false,
+      canExecuteGit: false,
+      canExecuteShell: false,
+      safeMessage: "Live DeepSeek proposal command returned a summary-only proposal candidate."
+    };
+  }
+
+  it("calls live DeepSeek proposal generation only through the fixed wrapper", async () => {
+    const invoke: TauriInvoke = async (command, args) => {
+      expect(command).toBe("generate_live_deepseek_patch_proposal");
+      expect(args).toMatchObject({
+        request: {
+          providerId: "deepseek",
+          modelProfileId: "deepseek-chat",
+          apiKeySourceRef: liveProposalAllowedKeySourceRef,
+          maxResponseBytes: 20_000,
+          timeoutMs: 5_000
+        }
+      });
+      return safeLiveProposalCommandResult() as never;
+    };
+
+    const result = await generateLiveDeepSeekPatchProposal(
+      safeLiveProposalCommandRequest(),
+      invoke
+    );
+    const serialized = JSON.stringify(result);
+
+    expect(result.ok).toBe(true);
+    expect(result.status).toBe("generated");
+    expect(result.summaryOnly).toBe(true);
+    expect(result.rawPromptIncluded).toBe(false);
+    expect(result.rawResponseIncluded).toBe(false);
+    expect(result.rawReasoningContentIncluded).toBe(false);
+    expect(result.canApplyPatch).toBe(false);
+    expect(result.canRollback).toBe(false);
+    expect(result.canWriteEventStore).toBe(false);
+    expect(serialized).not.toContain("sk-");
+    expect(serialized).not.toContain("Authorization");
+    expect(serialized).not.toContain("internal chain");
+  });
+
+  it("blocks live proposal wrapper inputs and unsafe responses before App use", async () => {
+    await expect(
+      generateLiveDeepSeekPatchProposal(
+        {
+          ...safeLiveProposalCommandRequest(),
+          apiKeySourceRef: "sk-fake-live-proposal-key-000000"
+        },
+        async () => safeLiveProposalCommandResult() as never
+      )
+    ).rejects.toThrow("credential ref");
+
+    await expect(
+      generateLiveDeepSeekPatchProposal(
+        {
+          ...safeLiveProposalCommandRequest(),
+          requestEnvelope: {
+            ...safeLiveProposalCommandRequest().requestEnvelope,
+            rawPrompt: "hidden"
+          }
+        },
+        async () => safeLiveProposalCommandResult() as never
+      )
+    ).rejects.toThrow("unsafe fields");
+
+    await expect(
+      generateLiveDeepSeekPatchProposal(
+        safeLiveProposalCommandRequest(),
+        async () =>
+          ({
+            ...safeLiveProposalCommandResult(),
+            rawResponseIncluded: true
+          }) as never
+      )
+    ).rejects.toMatchObject({
+      errorCode: "INVALID_RESPONSE"
+    });
+  });
+
+  it("keeps live proposal command boundary fixed outside App UI execution", async () => {
+    const appSource = await readFile(
+      path.join(appRoot, "src", "App.tsx"),
+      "utf8"
+    );
+    const flowSource = await readFile(
+      path.join(appRoot, "src", "desktop-flow.ts"),
+      "utf8"
+    );
+
+    expect(flowSource).toContain("generate_live_deepseek_patch_proposal");
+    expect(flowSource).toContain("generateLiveDeepSeekPatchProposal");
+    expect(flowSource).not.toContain("fetch(");
+    expect(flowSource).not.toContain("XMLHttpRequest");
+    expect(flowSource).not.toContain("createLiveHttpCommand");
+    expect(flowSource).not.toContain("genericHttp");
+    expect(appSource).toContain("Call DeepSeek (disabled)");
+    expect(appSource).not.toContain("generateLiveDeepSeekPatchProposal(");
+    expect(appSource).not.toContain("handleGenerateLiveDeepSeekPatchProposal");
+    expect(appSource).not.toContain("handleCallDeepSeek");
+    expect(appSource).not.toContain('type="password"');
+    expect(appSource).not.toContain("API key input");
   });
 
   it("calls approved apply only through the fixed wrapper and normalizes summary result", async () => {

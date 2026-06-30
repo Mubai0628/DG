@@ -13,6 +13,7 @@ fn main() {
             commands::record_approved_user_workspace_execution_event,
             commands::record_control_run_draft_event,
             commands::record_verification_lane_event,
+            commands::generate_live_deepseek_patch_proposal,
             commands::run_web_table_to_csv_flow
         ])
         .run(tauri::generate_context!())
