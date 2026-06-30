@@ -86,6 +86,7 @@ import {
   parseLiveProposalEvaluationSummaryJson
 } from "../src/live-proposal-evaluation-summary-view.js";
 import { buildLiveProposalEvaluationTelemetryAuditView } from "../src/live-proposal-evaluation-telemetry-audit-view.js";
+import { buildE2ECodingTaskWizardView } from "../src/e2e-coding-task-wizard-view.js";
 import {
   buildPatchProposalValidationPreviewView,
   patchProposalValidationApprovalRefs,
@@ -15322,6 +15323,194 @@ describe("desktop source boundaries", () => {
     expect(docsIndex).toContain(
       "runtime-e2e-coding-task-orchestrator-v0.13.md"
     );
+  });
+
+  it("previews the P0R-004 E2E coding task wizard without auto-apply", () => {
+    const proposalCandidate = {
+      schemaVersion: "model_patch_proposal.v1",
+      proposalId: "e2e-wizard-proposal",
+      title: "Clarify task wizard docs",
+      intent: "Update summary-only task wizard documentation.",
+      objectiveSummary: "Preview a guided E2E task flow without apply.",
+      operations: [
+        {
+          operationId: "op-e2e-docs",
+          path: "docs/app-shell-e2e-coding-task-wizard-v0.13.md",
+          changeKind: "documentation",
+          summary: "Document the wizard preview boundary.",
+          rationale: "The App Shell should show guidance without execution.",
+          estimatedLinesAdded: 6,
+          estimatedLinesRemoved: 0,
+          warningCodes: []
+        }
+      ],
+      pathSummaries: [
+        {
+          path: "docs/app-shell-e2e-coding-task-wizard-v0.13.md",
+          changeKind: "documentation",
+          summary: "Wizard docs summary."
+        }
+      ],
+      evidenceRefs: [
+        {
+          refId: "workspace-index-summary",
+          kind: "workspace_index",
+          summary: "Workspace index summary ref only.",
+          hashPrefix: "abc12345"
+        }
+      ],
+      riskNotes: [
+        {
+          code: "PREVIEW_ONLY",
+          severity: "info",
+          summary: "No execution is enabled."
+        }
+      ],
+      source: "deepseek_model_patch_proposal"
+    };
+    const importView = buildModelPatchProposalImportView({
+      draftText: JSON.stringify(proposalCandidate),
+      sourceKind: "manual_test"
+    });
+    const chainView = buildModelProposalChainIntegrationView({
+      modelImportView: importView,
+      patchProposalCreationPreview:
+        buildPatchProposalCreationPreviewFromModelImport(importView)
+    });
+    const policy = buildLiveProposalOptInGateView({
+      modelProfileId: "deepseek-chat",
+      keySourceRef: liveProposalAllowedKeySourceRef,
+      optInMode: "explicit_live_proposal_opt_in"
+    });
+    const request = buildLiveProposalRequestBuilderView({
+      objectiveSummary: "Preview a guided E2E task flow without apply.",
+      intent: "Generate a structured model_patch_proposal draft.",
+      modelProfileId: "deepseek-chat",
+      keySourceRef: liveProposalAllowedKeySourceRef,
+      optInMode: "explicit_live_proposal_opt_in",
+      allowedPathRefsText: "docs/app-shell-e2e-coding-task-wizard-v0.13.md"
+    });
+    const receipt = buildAppLiveProposalSessionReceiptView({
+      typedConfirmation: "CALL DEEPSEEK FOR PROPOSAL",
+      objectiveSummary: "Preview a guided E2E task flow without apply.",
+      modelProfileId: "deepseek-chat",
+      allowedPathRefsText: "docs/app-shell-e2e-coding-task-wizard-v0.13.md",
+      apiKeyPolicyId: policy.policyId,
+      requestBuilderId: request.requestId,
+      requestBoundaryHash: request.requestHashPrefix
+    });
+    const readyLiveView = buildLiveDeepSeekProposalGenerationView({
+      liveProposalOptInGateView: policy,
+      requestBuilderView: request,
+      sessionReceiptView: receipt,
+      keySourceRef: liveProposalAllowedKeySourceRef,
+      expectedKeySourceRef: liveProposalAllowedKeySourceRef
+    });
+    const wizard = buildE2ECodingTaskWizardView({
+      objectiveSummary: "Preview a guided E2E task flow without apply.",
+      liveProposalGenerationView: readyLiveView,
+      modelPatchProposalImportView: importView,
+      modelProposalChainIntegrationView: chainView,
+      idGenerator: () => "e2e-wizard-test-run"
+    });
+    const serialized = JSON.stringify(wizard);
+
+    expect(wizard.status).not.toBe("blocked");
+    expect(wizard.sections.map((section) => section.label)).toEqual([
+      "Objective summary",
+      "Live proposal status",
+      "Proposal import status",
+      "Chain integration status",
+      "Approval readiness",
+      "Apply readiness",
+      "Verification readiness",
+      "Rollback readiness"
+    ]);
+    expect(wizard.readiness.canRequestLiveProposal).toBe(true);
+    expect(wizard.readiness.canAutoApply).toBe(false);
+    expect(wizard.readiness.canApplyPatch).toBe(false);
+    expect(wizard.readiness.canRollback).toBe(false);
+    expect(wizard.readiness.canWriteEventStore).toBe(false);
+    expect(serialized).not.toContain("rawPrompt");
+    expect(serialized).not.toContain("rawResponse");
+    expect(serialized).not.toContain("Authorization");
+    expect(serialized).not.toContain("sk-fake");
+  });
+
+  it("blocks unsafe raw wizard inputs and keeps the App wizard copy preview-only", async () => {
+    const blocked = buildE2ECodingTaskWizardView({
+      objectiveSummary: "Preview a guided E2E task flow.",
+      liveProposalGenerationView: {
+        rawPrompt: "RAW_PROMPT_BODY_SHOULD_NOT_LEAK",
+        status: "generated"
+      } as never
+    });
+    const appSource = await readFile(
+      path.join(appRoot, "src", "App.tsx"),
+      "utf8"
+    );
+    const wizardSource = await readFile(
+      path.join(appRoot, "src", "e2e-coding-task-wizard-view.ts"),
+      "utf8"
+    );
+    const combinedSource = `${appSource}\n${wizardSource}`;
+
+    expect(blocked.status).toBe("blocked");
+    expect(JSON.stringify(blocked)).not.toContain(
+      "RAW_PROMPT_BODY_SHOULD_NOT_LEAK"
+    );
+    expect(appSource).toContain("End-to-End Coding Task Wizard");
+    expect(appSource).toContain("Guided flow / no auto-apply");
+    expect(appSource).toContain("Preview Task Flow");
+    expect(appSource).toContain("Request Live Proposal");
+    expect(appSource).toContain("Import Proposal to Chain");
+    expect(combinedSource).toContain("Objective summary");
+    expect(combinedSource).toContain("Live proposal status");
+    expect(combinedSource).toContain("Proposal import status");
+    expect(combinedSource).toContain("Chain integration status");
+    expect(combinedSource).toContain("Approval readiness");
+    expect(combinedSource).toContain("Apply readiness");
+    expect(combinedSource).toContain("Verification readiness");
+    expect(combinedSource).toContain("Rollback readiness");
+    expect(appSource).toContain("Convert");
+    expect(appSource).toContain("Refresh events");
+    expect(appSource).not.toContain("Auto Apply Task");
+    expect(appSource).not.toContain("Apply E2E Task");
+    expect(appSource).not.toContain("Rollback E2E Task");
+    expect(appSource).not.toContain("Raw model response enabled");
+    expect(appSource).not.toContain("raw prompt persistence enabled");
+  });
+
+  it("documents the P0R-004 App E2E coding task wizard boundary", async () => {
+    const docs = await readFile(
+      path.join(repoRoot, "docs", "app-shell-e2e-coding-task-wizard-v0.13.md"),
+      "utf8"
+    );
+    const docsIndex = await readFile(
+      path.join(repoRoot, "docs", "README.md"),
+      "utf8"
+    );
+    const appReadme = await readFile(path.join(appRoot, "README.md"), "utf8");
+    const combined = `${docs}\n${docsIndex}\n${appReadme}`;
+
+    expect(combined).toContain("App Shell E2E Coding Task Wizard v0.13");
+    expect(combined).toContain("objective summary");
+    expect(combined).toContain("live proposal status");
+    expect(combined).toContain("proposal import status");
+    expect(combined).toContain("chain integration status");
+    expect(combined).toContain("approval readiness");
+    expect(combined).toContain("apply readiness");
+    expect(combined).toContain("verification readiness");
+    expect(combined).toContain("rollback readiness");
+    expect(combined).toContain("No auto-apply");
+    expect(combined).toContain("No EventStore write");
+    expect(combined).toContain("No raw prompt persistence");
+    expect(combined).toContain("No raw response display");
+    expect(combined).toContain("No arbitrary Git execution");
+    expect(combined).toContain("No arbitrary shell execution");
+    expect(combined).toContain("No native bridge");
+    expect(combined).toContain("No desktop action");
+    expect(docsIndex).toContain("app-shell-e2e-coding-task-wizard-v0.13.md");
   });
 
   it("documents the P0L-001 DeepSeek patch proposal ADR and gates without implementation", async () => {

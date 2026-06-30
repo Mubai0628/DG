@@ -151,6 +151,11 @@ import {
   type LiveProposalEvaluationTelemetryAuditView
 } from "./live-proposal-evaluation-telemetry-audit-view.js";
 import {
+  buildE2ECodingTaskWizardView,
+  summarizeE2ECodingTaskWizardView,
+  type E2ECodingTaskWizardView
+} from "./e2e-coding-task-wizard-view.js";
+import {
   buildPatchProposalValidationPreviewView,
   patchProposalValidationApprovalRefs,
   patchProposalValidationAuditWarningCodes,
@@ -501,6 +506,9 @@ export function DesktopShell(): JSX.Element {
     modelProposalChainIntegrationPreview,
     setModelProposalChainIntegrationPreview
   ] = useState<ModelProposalChainIntegrationView | undefined>();
+  const [e2eCodingTaskWizardPreview, setE2ECodingTaskWizardPreview] = useState<
+    E2ECodingTaskWizardView | undefined
+  >();
   const [liveProposalModelProfileId, setLiveProposalModelProfileId] =
     useState("deepseek-chat");
   const [liveProposalKeySourceRef, setLiveProposalKeySourceRef] = useState("");
@@ -1512,6 +1520,35 @@ export function DesktopShell(): JSX.Element {
         modelProposalChainIntegrationPreview
       ]
     );
+  const e2eCodingTaskObjectiveSummary =
+    liveProposalRequestObjective.trim() || objectiveDraft.trim();
+  const e2eCodingTaskWizardCandidate = useMemo<E2ECodingTaskWizardView>(
+    () =>
+      buildE2ECodingTaskWizardView({
+        objectiveSummary: e2eCodingTaskObjectiveSummary,
+        liveProposalGenerationView: liveDeepSeekProposalGenerationView,
+        modelPatchProposalImportView: modelPatchProposalImportPreview,
+        modelProposalChainIntegrationView: modelProposalChainIntegrationPreview,
+        patchApprovalDraftView: patchApprovalDraftPreview,
+        patchVirtualApplyPreviewView: patchVirtualApplyPreview,
+        patchRollbackCheckpointPreviewView: patchRollbackCheckpointPreview,
+        verificationLaneProjectionView: verificationLaneProjection,
+        replayProjectionView: controlledCreationReplayProjection
+      }),
+    [
+      controlledCreationReplayProjection,
+      e2eCodingTaskObjectiveSummary,
+      liveDeepSeekProposalGenerationView,
+      modelPatchProposalImportPreview,
+      modelProposalChainIntegrationPreview,
+      patchApprovalDraftPreview,
+      patchRollbackCheckpointPreview,
+      patchVirtualApplyPreview,
+      verificationLaneProjection
+    ]
+  );
+  const displayedE2ECodingTaskWizard =
+    e2eCodingTaskWizardPreview ?? buildE2ECodingTaskWizardView();
   const liveProposalSummaryEventPreview = useMemo<
     LiveProposalSummaryEventPreview | undefined
   >(() => {
@@ -1646,6 +1683,19 @@ export function DesktopShell(): JSX.Element {
     liveProposalEvaluationSummaryPreview,
     liveProposalEvaluationSummaryText,
     liveProposalEvaluationTelemetryAuditText
+  ]);
+  useEffect(() => {
+    setE2ECodingTaskWizardPreview(undefined);
+  }, [
+    controlledCreationReplayProjection,
+    e2eCodingTaskObjectiveSummary,
+    liveDeepSeekProposalGenerationView,
+    modelPatchProposalImportPreview,
+    modelProposalChainIntegrationPreview,
+    patchApprovalDraftPreview,
+    patchRollbackCheckpointPreview,
+    patchVirtualApplyPreview,
+    verificationLaneProjection
   ]);
   const contextAssemblyCandidate = useMemo<AppContextAssemblyPreviewView>(
     () =>
@@ -1992,6 +2042,7 @@ export function DesktopShell(): JSX.Element {
     setPatchProposalCreationPreview(patchProposalCreationCandidate);
     setModelPatchProposalImportPreview(undefined);
     setModelProposalChainIntegrationPreview(undefined);
+    setE2ECodingTaskWizardPreview(undefined);
     setLiveProposalPreviewGatePreview(undefined);
     setPatchProposalValidationPreview(undefined);
     setPatchDiffAuditPreview(undefined);
@@ -2003,9 +2054,70 @@ export function DesktopShell(): JSX.Element {
     setUserWorkspacePromotionReadinessPreview(undefined);
   }
 
+  function buildChainPreviewFromModelImport(
+    importView: ModelPatchProposalImportView
+  ): ModelProposalChainIntegrationView {
+    const creationPreview =
+      buildPatchProposalCreationPreviewFromModelImport(importView);
+    return buildModelProposalChainIntegrationView({
+      modelImportView: importView,
+      patchProposalCreationPreview: creationPreview,
+      patchValidationPreview: patchProposalValidationPreview,
+      patchDiffAuditPreview: patchDiffAuditPreview,
+      patchApprovalDraft: patchApprovalDraftPreview,
+      patchVirtualApplyPreview: patchVirtualApplyPreview,
+      patchRollbackCheckpointPreview: patchRollbackCheckpointPreview,
+      controlledCreationReplayProjection,
+      userWorkspaceSnapshotBackupContract: userWorkspaceSnapshotBackupPreview,
+      userWorkspacePromotionReadiness: userWorkspacePromotionReadinessPreview,
+      userWorkspaceApplyPrototype: userWorkspaceApplyPrototypeView,
+      userWorkspaceRollbackPrototype: userWorkspaceRollbackPrototypeView,
+      userWorkspaceApplyRollbackEventWriter: userWorkspaceEventWriterView,
+      appApprovalExecutionDesign: appApprovalExecutionDesignView
+    });
+  }
+
+  function handlePreviewE2ECodingTaskWizard(): void {
+    setE2ECodingTaskWizardPreview(e2eCodingTaskWizardCandidate);
+  }
+
+  function handleImportE2EProposalToChain(): void {
+    const importView =
+      modelPatchProposalImportCandidate.status === "empty"
+        ? modelPatchProposalImportPreview
+        : modelPatchProposalImportCandidate;
+    if (
+      importView === undefined ||
+      importView.status === "empty" ||
+      !importView.readiness.canImportToPatchPreview
+    ) {
+      return;
+    }
+    const chainView = buildChainPreviewFromModelImport(importView);
+    const wizardView = buildE2ECodingTaskWizardView({
+      objectiveSummary: e2eCodingTaskObjectiveSummary,
+      liveProposalGenerationView: liveDeepSeekProposalGenerationView,
+      modelPatchProposalImportView: importView,
+      modelProposalChainIntegrationView: chainView,
+      patchApprovalDraftView: patchApprovalDraftPreview,
+      patchVirtualApplyPreviewView: patchVirtualApplyPreview,
+      patchRollbackCheckpointPreviewView: patchRollbackCheckpointPreview,
+      verificationLaneProjectionView: verificationLaneProjection,
+      replayProjectionView: controlledCreationReplayProjection
+    });
+
+    setModelPatchProposalImportPreview(importView);
+    setModelProposalChainIntegrationPreview(chainView);
+    setE2ECodingTaskWizardPreview(wizardView);
+    setLiveProposalPreviewGatePreview(undefined);
+    setLiveProposalTelemetryAuditPreview(undefined);
+    setContextAssemblyPreview(undefined);
+  }
+
   function handlePreviewModelPatchProposal(): void {
     setModelPatchProposalImportPreview(modelPatchProposalImportCandidate);
     setModelProposalChainIntegrationPreview(undefined);
+    setE2ECodingTaskWizardPreview(undefined);
     setLiveProposalPreviewGatePreview(undefined);
     setLiveProposalTelemetryAuditPreview(undefined);
     setPatchProposalCreationPreview(undefined);
@@ -2024,6 +2136,7 @@ export function DesktopShell(): JSX.Element {
     setModelPatchProposalDraftText("");
     setModelPatchProposalImportPreview(undefined);
     setModelProposalChainIntegrationPreview(undefined);
+    setE2ECodingTaskWizardPreview(undefined);
     setLiveProposalPreviewGatePreview(undefined);
     setLiveProposalTelemetryAuditPreview(undefined);
     setPatchProposalCreationPreview(undefined);
@@ -2042,6 +2155,7 @@ export function DesktopShell(): JSX.Element {
     setModelProposalChainIntegrationPreview(
       modelProposalChainIntegrationCandidate
     );
+    setE2ECodingTaskWizardPreview(undefined);
     setLiveProposalPreviewGatePreview(undefined);
     setLiveProposalTelemetryAuditPreview(undefined);
     setContextAssemblyPreview(undefined);
@@ -2049,6 +2163,7 @@ export function DesktopShell(): JSX.Element {
 
   function handleClearModelProposalChain(): void {
     setModelProposalChainIntegrationPreview(undefined);
+    setE2ECodingTaskWizardPreview(undefined);
     setLiveProposalPreviewGatePreview(undefined);
     setLiveProposalTelemetryAuditPreview(undefined);
     setContextAssemblyPreview(undefined);
@@ -2062,6 +2177,7 @@ export function DesktopShell(): JSX.Element {
     setLiveProposalSummaryEventResult(undefined);
     setLiveProposalSummaryEventError(undefined);
     setAppLiveProposalSessionReceiptPreview(undefined);
+    setE2ECodingTaskWizardPreview(undefined);
     setLiveProposalPreviewGatePreview(undefined);
     setLiveProposalTelemetryAuditPreview(undefined);
   }
@@ -2074,6 +2190,7 @@ export function DesktopShell(): JSX.Element {
     setLiveProposalSummaryEventResult(undefined);
     setLiveProposalSummaryEventError(undefined);
     setAppLiveProposalSessionReceiptPreview(undefined);
+    setE2ECodingTaskWizardPreview(undefined);
     setLiveProposalPreviewGatePreview(undefined);
     setLiveProposalTelemetryAuditPreview(undefined);
   }
@@ -2087,6 +2204,7 @@ export function DesktopShell(): JSX.Element {
     setLiveProposalSummaryEventStatus("idle");
     setLiveProposalSummaryEventResult(undefined);
     setLiveProposalSummaryEventError(undefined);
+    setE2ECodingTaskWizardPreview(undefined);
     setLiveProposalPreviewGatePreview(undefined);
     setLiveProposalTelemetryAuditPreview(undefined);
   }
@@ -2098,6 +2216,7 @@ export function DesktopShell(): JSX.Element {
     setLiveProposalSummaryEventStatus("idle");
     setLiveProposalSummaryEventResult(undefined);
     setLiveProposalSummaryEventError(undefined);
+    setE2ECodingTaskWizardPreview(undefined);
     setLiveProposalPreviewGatePreview(undefined);
     setLiveProposalTelemetryAuditPreview(undefined);
   }
@@ -2131,28 +2250,12 @@ export function DesktopShell(): JSX.Element {
         draftText: JSON.stringify(commandResult.proposalCandidate),
         sourceKind: "manual_test"
       });
-      const creationPreview =
-        buildPatchProposalCreationPreviewFromModelImport(importView);
-      const chainView = buildModelProposalChainIntegrationView({
-        modelImportView: importView,
-        patchProposalCreationPreview: creationPreview,
-        patchValidationPreview: patchProposalValidationPreview,
-        patchDiffAuditPreview: patchDiffAuditPreview,
-        patchApprovalDraft: patchApprovalDraftPreview,
-        patchVirtualApplyPreview: patchVirtualApplyPreview,
-        patchRollbackCheckpointPreview: patchRollbackCheckpointPreview,
-        controlledCreationReplayProjection,
-        userWorkspaceSnapshotBackupContract: userWorkspaceSnapshotBackupPreview,
-        userWorkspacePromotionReadiness: userWorkspacePromotionReadinessPreview,
-        userWorkspaceApplyPrototype: userWorkspaceApplyPrototypeView,
-        userWorkspaceRollbackPrototype: userWorkspaceRollbackPrototypeView,
-        userWorkspaceApplyRollbackEventWriter: userWorkspaceEventWriterView,
-        appApprovalExecutionDesign: appApprovalExecutionDesignView
-      });
+      const chainView = buildChainPreviewFromModelImport(importView);
 
       setLiveDeepSeekProposalCommandResult(commandResult);
       setModelPatchProposalImportPreview(importView);
       setModelProposalChainIntegrationPreview(chainView);
+      setE2ECodingTaskWizardPreview(undefined);
       setPatchProposalCreationPreview(undefined);
       setLiveProposalPreviewGatePreview(undefined);
       setLiveProposalTelemetryAuditPreview(undefined);
@@ -2172,6 +2275,7 @@ export function DesktopShell(): JSX.Element {
     setModelPatchProposalImportPreview(undefined);
     setModelProposalChainIntegrationPreview(undefined);
     setPatchProposalCreationPreview(undefined);
+    setE2ECodingTaskWizardPreview(undefined);
     setLiveProposalSummaryEventStatus("idle");
     setLiveProposalSummaryEventResult(undefined);
     setLiveProposalSummaryEventError(undefined);
@@ -2252,12 +2356,14 @@ export function DesktopShell(): JSX.Element {
     setSandboxApplyRollbackEventProjection(undefined);
     setUserWorkspacePromotionReadinessPreview(undefined);
     setModelProposalChainIntegrationPreview(undefined);
+    setE2ECodingTaskWizardPreview(undefined);
     setLiveProposalPreviewGatePreview(undefined);
   }
 
   function handlePreviewDiffAudit(): void {
     setPatchDiffAuditPreview(patchDiffAuditCandidate);
     setModelProposalChainIntegrationPreview(undefined);
+    setE2ECodingTaskWizardPreview(undefined);
     setLiveProposalPreviewGatePreview(undefined);
     setPatchApprovalDraftPreview(undefined);
     setPatchVirtualApplyPreview(undefined);
@@ -2270,6 +2376,7 @@ export function DesktopShell(): JSX.Element {
   function handlePreviewApprovalDraft(): void {
     setPatchApprovalDraftPreview(patchApprovalDraftCandidate);
     setModelProposalChainIntegrationPreview(undefined);
+    setE2ECodingTaskWizardPreview(undefined);
     setLiveProposalPreviewGatePreview(undefined);
     setPatchVirtualApplyPreview(undefined);
     setPatchRollbackCheckpointPreview(undefined);
@@ -2281,6 +2388,7 @@ export function DesktopShell(): JSX.Element {
   function handlePreviewVirtualApply(): void {
     setPatchVirtualApplyPreview(patchVirtualApplyCandidate);
     setModelProposalChainIntegrationPreview(undefined);
+    setE2ECodingTaskWizardPreview(undefined);
     setLiveProposalPreviewGatePreview(undefined);
     setPatchRollbackCheckpointPreview(undefined);
     setControlledCreationReplayProjection(undefined);
@@ -2291,6 +2399,7 @@ export function DesktopShell(): JSX.Element {
   function handlePreviewRollbackCheckpoint(): void {
     setPatchRollbackCheckpointPreview(patchRollbackCheckpointCandidate);
     setModelProposalChainIntegrationPreview(undefined);
+    setE2ECodingTaskWizardPreview(undefined);
     setLiveProposalPreviewGatePreview(undefined);
     setControlledCreationReplayProjection(undefined);
     setSandboxApplyRollbackEventProjection(undefined);
@@ -2318,6 +2427,7 @@ export function DesktopShell(): JSX.Element {
   function handlePreviewControlledReplayProjection(): void {
     setControlledCreationReplayProjection(controlledCreationReplayCandidate);
     setModelProposalChainIntegrationPreview(undefined);
+    setE2ECodingTaskWizardPreview(undefined);
     setLiveProposalPreviewGatePreview(undefined);
     setSandboxApplyRollbackEventProjection(undefined);
     setUserWorkspacePromotionReadinessPreview(undefined);
@@ -3817,6 +3927,214 @@ export function DesktopShell(): JSX.Element {
 
             <p className="fieldHelp">
               {liveProposalValidationIntegrationView.nextAction}
+            </p>
+          </section>
+
+          <section
+            className="eventPanel"
+            aria-label="End-to-End Coding Task Wizard"
+          >
+            <div className="panelHeader">
+              <h2>End-to-End Coding Task Wizard</h2>
+              <span className="muted">Guided flow / no auto-apply</span>
+            </div>
+            <p className="fieldHelp">
+              Guides an objective through explicit live proposal request, model
+              proposal import, and existing chain preview summaries. The wizard
+              does not auto-apply patches, rollback, write events, issue
+              approvals, persist raw prompts, or display raw model responses.
+            </p>
+
+            <div className="buttonRow">
+              <button
+                type="button"
+                className="secondary"
+                onClick={(event) => {
+                  event.preventDefault();
+                  event.stopPropagation();
+                  handlePreviewE2ECodingTaskWizard();
+                }}
+              >
+                Preview Task Flow
+              </button>
+              <button
+                type="button"
+                className="secondary"
+                disabled={
+                  !e2eCodingTaskWizardCandidate.readiness
+                    .canRequestLiveProposal ||
+                  liveDeepSeekProposalGenerationInFlight
+                }
+                onClick={(event) => {
+                  event.preventDefault();
+                  event.stopPropagation();
+                  void handleGenerateLiveProposal();
+                }}
+              >
+                Request Live Proposal
+              </button>
+              <button
+                type="button"
+                className="secondary"
+                disabled={
+                  !modelPatchProposalImportCandidate.readiness
+                    .canImportToPatchPreview &&
+                  !displayedModelPatchProposalImport.readiness
+                    .canImportToPatchPreview
+                }
+                onClick={(event) => {
+                  event.preventDefault();
+                  event.stopPropagation();
+                  handleImportE2EProposalToChain();
+                }}
+              >
+                Import Proposal to Chain
+              </button>
+            </div>
+
+            {displayedE2ECodingTaskWizard.status === "empty" ? (
+              <p className="empty">
+                No task flow preview yet. Enter an objective or preview the
+                current proposal summaries to inspect the guided chain.
+              </p>
+            ) : null}
+
+            {displayedE2ECodingTaskWizard.status === "blocked" ? (
+              <div className="errorBox">
+                <strong>End-to-end coding task wizard blocked</strong>
+                <p>{displayedE2ECodingTaskWizard.nextAction}</p>
+              </div>
+            ) : null}
+
+            <dl className="summaryGrid compact">
+              <div>
+                <dt>Status</dt>
+                <dd>{displayedE2ECodingTaskWizard.status}</dd>
+              </div>
+              <div>
+                <dt>Wizard</dt>
+                <dd>{displayedE2ECodingTaskWizard.wizardId}</dd>
+              </div>
+              <div>
+                <dt>Orchestrator state</dt>
+                <dd>{displayedE2ECodingTaskWizard.orchestratorState}</dd>
+              </div>
+              <div>
+                <dt>Stages complete / missing</dt>
+                <dd>
+                  {displayedE2ECodingTaskWizard.completedStageCount} /{" "}
+                  {displayedE2ECodingTaskWizard.missingStageCount}
+                </dd>
+              </div>
+              <div>
+                <dt>Sections ready / warning / blocked</dt>
+                <dd>
+                  {displayedE2ECodingTaskWizard.readySectionCount} /{" "}
+                  {displayedE2ECodingTaskWizard.warningSectionCount} /{" "}
+                  {displayedE2ECodingTaskWizard.blockedSectionCount}
+                </dd>
+              </div>
+              <div>
+                <dt>Blockers / warnings</dt>
+                <dd>
+                  {displayedE2ECodingTaskWizard.blockerCount} /{" "}
+                  {displayedE2ECodingTaskWizard.warningCount}
+                </dd>
+              </div>
+              <div>
+                <dt>Hash</dt>
+                <dd>
+                  {displayedE2ECodingTaskWizard.wizardHash.substring(0, 12)}
+                </dd>
+              </div>
+              <div>
+                <dt>Live request / chain import</dt>
+                <dd>
+                  {displayedE2ECodingTaskWizard.readiness.canRequestLiveProposal
+                    ? "yes"
+                    : "no"}{" "}
+                  /{" "}
+                  {displayedE2ECodingTaskWizard.readiness
+                    .canImportProposalToChain
+                    ? "yes"
+                    : "no"}
+                </dd>
+              </div>
+              <div>
+                <dt>Auto-apply / apply</dt>
+                <dd>
+                  {displayedE2ECodingTaskWizard.readiness.canAutoApply
+                    ? "yes"
+                    : "no"}{" "}
+                  /{" "}
+                  {displayedE2ECodingTaskWizard.readiness.canApplyPatch
+                    ? "yes"
+                    : "no"}
+                </dd>
+              </div>
+              <div>
+                <dt>Rollback / event write</dt>
+                <dd>
+                  {displayedE2ECodingTaskWizard.readiness.canRollback
+                    ? "yes"
+                    : "no"}{" "}
+                  /{" "}
+                  {displayedE2ECodingTaskWizard.readiness.canWriteEventStore
+                    ? "yes"
+                    : "no"}
+                </dd>
+              </div>
+              <div>
+                <dt>Git / shell</dt>
+                <dd>
+                  {displayedE2ECodingTaskWizard.readiness.canExecuteGit
+                    ? "yes"
+                    : "no"}{" "}
+                  /{" "}
+                  {displayedE2ECodingTaskWizard.readiness.canExecuteShell
+                    ? "yes"
+                    : "no"}
+                </dd>
+              </div>
+            </dl>
+
+            {displayedE2ECodingTaskWizard.sections.length > 0 ? (
+              <ol className="timeline">
+                {displayedE2ECodingTaskWizard.sections.map((section) => (
+                  <li key={section.kind}>
+                    <span className="timelineMeta">
+                      {section.label} · {section.status}
+                    </span>
+                    <span>{section.summary}</span>
+                    {section.warningCodes.length > 0 ? (
+                      <span className="timelineMeta">
+                        Warnings: {section.warningCodes.join(", ")}
+                      </span>
+                    ) : null}
+                    {section.blockerCodes.length > 0 ? (
+                      <span className="timelineMeta">
+                        Blockers: {section.blockerCodes.join(", ")}
+                      </span>
+                    ) : null}
+                  </li>
+                ))}
+              </ol>
+            ) : null}
+
+            {displayedE2ECodingTaskWizard.findings.length > 0 ? (
+              <p className="muted">
+                findings{" "}
+                {displayedE2ECodingTaskWizard.findings
+                  .map((finding) => finding.code)
+                  .join(", ")}
+              </p>
+            ) : null}
+
+            <p className="fieldHelp">
+              {
+                summarizeE2ECodingTaskWizardView(displayedE2ECodingTaskWizard)
+                  .nextAction
+              }
             </p>
           </section>
 

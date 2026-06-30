@@ -76,6 +76,11 @@ Current scope:
   proposal events, approved execution integration smoke, and redaction/failure
   hardening while auto-apply, model-driven writes, arbitrary Git/shell,
   native bridge, desktop action, and broad PermissionLease remain absent
+- preview the P0R End-to-End Coding Task Wizard as a guided App state summary
+  from objective to live proposal status, model proposal import, chain
+  integration, approval readiness, apply readiness, verification readiness, and
+  rollback readiness while auto-apply remains disabled and existing approved
+  execution gates stay separate
 - preview the P0M Live Proposal Opt-in Gate as policy metadata only, with no
   API key read, no environment value read, no vault read, no fetch/network, no
   live DeepSeek call, and no App execution
@@ -160,7 +165,10 @@ Current limitations:
   events; Live Proposal Evaluation Telemetry Audit is read-only and accepts
   pasted summary-only audit reports without persisting raw prompt, raw response,
   reasoning_content, API keys, or raw proposal output; none of these App
-  surfaces reads or writes files; Approved Execution is the only App-side user
+  surfaces reads or writes files; End-to-End Coding Task Wizard is a guided
+  preview surface only and does not auto-apply, rollback, write events, issue
+  approvals, persist raw prompts, or display raw model responses; Approved
+  Execution is the only App-side user
   workspace write path, and it requires an approved receipt, exact typed
   confirmation, safe path and content gates, private checkpoint metadata, and
   summary-only events; it does not expose a generic command UI, Git execution,

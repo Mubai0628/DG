@@ -194,6 +194,7 @@ foundation.
 - [P0R-002 Golden End-to-End Task Fixture Schema plan](p0r-002-golden-end-to-end-task-fixture-schema-plan.md)
 - [Runtime E2E Coding Task Fixture Schema v0.13](runtime-e2e-coding-task-fixture-schema-v0.13.md)
 - [Runtime E2E Coding Task Orchestrator v0.13](runtime-e2e-coding-task-orchestrator-v0.13.md)
+- [App Shell E2E Coding Task Wizard v0.13](app-shell-e2e-coding-task-wizard-v0.13.md)
 - [Runtime Memory Recall Preview v0.3](runtime-memory-recall-preview-v0.3.md)
 - [v0.4.0 Controlled Creation Preview RC release notes](release-notes-v0.4.0-controlled-creation-preview-rc.1.md)
 - [App Shell Controlled Creation manual QA](app-shell-controlled-creation-manual-qa.md)
