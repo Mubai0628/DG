@@ -253,6 +253,8 @@ v0.10 Live Proposal Evaluation RC references:
 - [v0.12.0 Git / Shell Safe Lanes MVP RC release notes](docs/release-notes-v0.12.0-git-shell-safe-lanes-mvp-rc.1.md)
 - [Git / Shell Safe Lanes manual QA](docs/git-shell-safe-lanes-manual-qa.md)
 - [Git / Shell Safe Lanes RC checklist](docs/git-shell-safe-lanes-rc-checklist.md)
+- [v0.13 App Live Proposal Generation MVP prompts](docs/v0.13-app-live-proposal-generation-mvp-prompts.md)
+- [P0Q App Live Proposal Generation roadmap](docs/p0q-app-live-proposal-generation-roadmap.md)
 
 ## v0.11 App-side Approved Execution MVP RC status
 
@@ -279,6 +281,18 @@ remain summary-only, redacted, replayable, and unable to perform Git writes,
 arbitrary shell, install, network, destructive command, native bridge, desktop
 action, or broad PermissionLease operations.
 
+## v0.13 App Live Proposal Generation MVP planning status
+
+Recommended tag:
+`v0.13.0-app-live-proposal-generation-mvp-rc.1`.
+
+P0Q is planned as an explicit user-confirmed App live proposal generation MVP.
+It may request one live DeepSeek patch proposal only after API key opt-in,
+request-boundary, redaction, schema, repair, validation, audit, and approval
+gates are satisfied. It must not auto-apply, write files from model output,
+rollback from model output, execute Git/shell, issue broad PermissionLeases,
+enable native bridge, or perform desktop actions.
+
 ## Current roadmap
 
 P0F is complete after `v0.2.0-app-shell-rc.1`, P0G is complete after
@@ -301,7 +315,9 @@ human-approved App-side apply/rollback MVP, private checkpoints, summary-only
 approved execution events, replay counts, and an E2E approved execution smoke.
 P0P is complete for the v0.12 RC with fixed Git read-only summary lanes, fixed
 shell verification templates, summary-only verification events, replay
-projection, and approved execution plus verification smoke coverage. App-side
+projection, and approved execution plus verification smoke coverage. P0Q is now
+planned for explicit App live proposal generation with no auto-apply and no
+execution expansion. App-side
 live model calls, App evaluation runs, App API
 key reads, App fetch/network, model-driven auto-apply, approval/rejection
 execution, run execution, arbitrary Git execution, arbitrary shell execution,
@@ -347,6 +363,10 @@ deferred.
 - [v0.12.0 Git / Shell Safe Lanes MVP RC release notes](docs/release-notes-v0.12.0-git-shell-safe-lanes-mvp-rc.1.md)
 - [Git / Shell Safe Lanes manual QA](docs/git-shell-safe-lanes-manual-qa.md)
 - [Git / Shell Safe Lanes RC checklist](docs/git-shell-safe-lanes-rc-checklist.md)
+- [v0.13 App Live Proposal Generation MVP prompts](docs/v0.13-app-live-proposal-generation-mvp-prompts.md)
+- [v0.12 Git / Shell Safe Lanes post-release review](docs/v0.12-git-shell-safe-lanes-postrelease-review.md)
+- [P0Q App Live Proposal Generation roadmap](docs/p0q-app-live-proposal-generation-roadmap.md)
+- [P0Q-001 App Live Proposal Generation Gate plan](docs/p0q-001-app-live-proposal-generation-gate-plan.md)
 
 ## What v0.1.0 does not support
 

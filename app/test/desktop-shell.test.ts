@@ -13489,6 +13489,98 @@ describe("desktop source boundaries", () => {
     expect(appSource).not.toMatch(/>\s*Install\s*</);
   });
 
+  it("documents the v0.12 post-release review and P0Q app live proposal roadmap", async () => {
+    const review = await readFile(
+      path.join(
+        repoRoot,
+        "docs",
+        "v0.12-git-shell-safe-lanes-postrelease-review.md"
+      ),
+      "utf8"
+    );
+    const roadmap = await readFile(
+      path.join(
+        repoRoot,
+        "docs",
+        "p0q-app-live-proposal-generation-roadmap.md"
+      ),
+      "utf8"
+    );
+    const plan = await readFile(
+      path.join(
+        repoRoot,
+        "docs",
+        "p0q-001-app-live-proposal-generation-gate-plan.md"
+      ),
+      "utf8"
+    );
+    const prompts = await readFile(
+      path.join(
+        repoRoot,
+        "docs",
+        "v0.13-app-live-proposal-generation-mvp-prompts.md"
+      ),
+      "utf8"
+    );
+    const docsIndex = await readFile(
+      path.join(repoRoot, "docs", "README.md"),
+      "utf8"
+    );
+    const rootReadme = await readFile(path.join(repoRoot, "README.md"), "utf8");
+    const combined = `${review}\n${roadmap}\n${plan}\n${prompts}\n${docsIndex}\n${rootReadme}`;
+
+    expect(combined).toContain("v0.12.0-git-shell-safe-lanes-mvp-rc.1");
+    expect(combined).toContain("Git and shell verification safe lanes MVP");
+    expect(combined).toContain("P0P is complete");
+    expect(combined).toContain("P0Q: App Live Proposal Generation MVP");
+    expect(combined).toContain(
+      "App can explicitly request live DeepSeek patch proposal generation"
+    );
+    expect(combined).toContain("Live proposal generation is opt-in only");
+    expect(combined).toContain("App must not auto-apply");
+    expect(combined).toContain("App must not write files from model output");
+    expect(combined).toContain("App must not rollback from model output");
+    expect(combined).toContain("App must not execute Git or shell");
+    expect(combined).toContain(
+      "schema / repair / validation / audit / approval"
+    );
+    expect(combined).toContain("approved apply / verification / rollback");
+    expect(combined).toContain("no auto-apply");
+    expect(combined).toContain("no model-driven file write");
+    expect(combined).toContain("no model-driven rollback");
+    expect(combined).toContain("no App-side Git write");
+    expect(combined).toContain("no arbitrary shell");
+    expect(combined).toContain("no broad PermissionLease");
+    expect(combined).toContain("no native bridge");
+    expect(combined).toContain("no desktop action");
+    expect(combined).toContain("No live DeepSeek call");
+    expect(combined).toContain("No API key read");
+    expect(combined).toContain("No fetch/network");
+    expect(combined).toContain("No Tauri command");
+    expect(combined).toContain("No EventStore writer");
+    expect(combined).toContain("No user workspace mutation");
+    expect(combined).toContain("No Git execution");
+    expect(combined).toContain("No shell execution");
+    expect(combined).toContain("No raw prompt persistence");
+    expect(combined).toContain("No raw response persistence");
+    expect(combined).toContain("No reasoning_content persistence");
+    expect(combined).toContain("DW-P0Q-001");
+    expect(combined).toContain("DW-P0Q-008");
+    expect(docsIndex).toContain(
+      "v0.13-app-live-proposal-generation-mvp-prompts.md"
+    );
+    expect(docsIndex).toContain(
+      "v0.12-git-shell-safe-lanes-postrelease-review.md"
+    );
+    expect(docsIndex).toContain("p0q-app-live-proposal-generation-roadmap.md");
+    expect(docsIndex).toContain(
+      "p0q-001-app-live-proposal-generation-gate-plan.md"
+    );
+    expect(rootReadme).toContain(
+      "v0.13 App Live Proposal Generation MVP planning status"
+    );
+  });
+
   it("documents the P0L-001 DeepSeek patch proposal ADR and gates without implementation", async () => {
     const adr = await readFile(
       path.join(
