@@ -11,8 +11,10 @@ import {
 import {
   applyApprovedUserWorkspacePatch,
   checkDesktopRunnerPreflight,
+  generateLiveDeepSeekPatchProposal,
   getDesktopAppVersion,
   loadWorkspaceEventSummary,
+  liveProposalAllowedKeySourceRef,
   recordApprovedUserWorkspaceExecutionEvent,
   recordControlRunDraftEvent,
   recordVerificationLaneEvent,
@@ -25,6 +27,8 @@ import {
   type ApprovedUserWorkspaceExecutionEventRecordResult,
   type GitReadLane,
   type GitReadLaneResult,
+  type LiveDeepSeekPatchProposalCommandRequest,
+  type LiveDeepSeekPatchProposalCommandResult,
   type VerificationLaneEventRecordResult,
   type ShellVerificationLaneResult,
   type ShellVerificationTemplateId
@@ -115,6 +119,10 @@ import {
   buildLiveProposalRequestBuilderView,
   type LiveProposalRequestBuilderView
 } from "./live-proposal-request-builder-view.js";
+import {
+  buildLiveDeepSeekProposalGenerationView,
+  type LiveDeepSeekProposalGenerationView
+} from "./live-deepseek-proposal-generation-view.js";
 import {
   buildLiveProposalValidationIntegrationView,
   type LiveProposalValidationIntegrationView
@@ -348,6 +356,47 @@ export function parseShellVerificationSafeArgs(
   return trimmed.length === 0 ? undefined : { testFilePath: trimmed };
 }
 
+export function parseLiveProposalGenerationAllowedPathRefs(
+  text: string
+): string[] {
+  return text
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter((line) => line.length > 0)
+    .filter((_, index) => index < 20);
+}
+
+function buildLiveProposalGenerationCommandRequest(input: {
+  sessionReceiptView: AppLiveProposalSessionReceiptView;
+  requestBuilderView: LiveProposalRequestBuilderView;
+  keySourceRef: string;
+  objectiveSummary: string;
+  allowedPathRefsText: string;
+}): LiveDeepSeekPatchProposalCommandRequest {
+  if (input.requestBuilderView.requestEnvelope === undefined) {
+    throw new Error("Live proposal request envelope is missing");
+  }
+  return {
+    sessionReceipt: input.sessionReceiptView
+      .receiptEnvelope as unknown as Record<string, unknown>,
+    apiKeySourceRef: input.keySourceRef.trim(),
+    providerId: "deepseek",
+    modelProfileId: input.requestBuilderView.modelProfileId,
+    requestEnvelope: input.requestBuilderView
+      .requestEnvelope as unknown as Record<string, unknown>,
+    objectiveSummary: input.objectiveSummary.trim(),
+    allowedPathRefs: parseLiveProposalGenerationAllowedPathRefs(
+      input.allowedPathRefsText
+    ),
+    contextRefs: [
+      `app-live-proposal-session:${input.sessionReceiptView.receiptId}`,
+      `app-live-proposal-request:${input.requestBuilderView.requestId}`
+    ],
+    maxResponseBytes: 50_000,
+    timeoutMs: 60_000
+  };
+}
+
 export function DesktopShell(): JSX.Element {
   const [workspaceRoot, setWorkspaceRoot] = useState("");
   const [payloadText, setPayloadText] = useState("");
@@ -439,6 +488,18 @@ export function DesktopShell(): JSX.Element {
     liveProposalRequestBuilderPreview,
     setLiveProposalRequestBuilderPreview
   ] = useState<LiveProposalRequestBuilderView | undefined>();
+  const [
+    liveDeepSeekProposalCommandResult,
+    setLiveDeepSeekProposalCommandResult
+  ] = useState<LiveDeepSeekPatchProposalCommandResult | undefined>();
+  const [
+    liveDeepSeekProposalGenerationInFlight,
+    setLiveDeepSeekProposalGenerationInFlight
+  ] = useState(false);
+  const [
+    liveDeepSeekProposalGenerationError,
+    setLiveDeepSeekProposalGenerationError
+  ] = useState<string | undefined>();
   const [liveProposalPreviewGatePreview, setLiveProposalPreviewGatePreview] =
     useState<LiveProposalPreviewGateView | undefined>();
   const [
@@ -1378,6 +1439,34 @@ export function DesktopShell(): JSX.Element {
   const displayedAppLiveProposalSessionReceipt =
     appLiveProposalSessionReceiptPreview ??
     appLiveProposalSessionReceiptCandidate;
+  const liveDeepSeekProposalGenerationView =
+    useMemo<LiveDeepSeekProposalGenerationView>(
+      () =>
+        buildLiveDeepSeekProposalGenerationView({
+          liveProposalOptInGateView: liveProposalOptInGatePreview,
+          sessionReceiptView: appLiveProposalSessionReceiptPreview,
+          requestBuilderView: liveProposalRequestBuilderPreview,
+          keySourceRef: liveProposalKeySourceRef,
+          expectedKeySourceRef: liveProposalAllowedKeySourceRef,
+          commandResult: liveDeepSeekProposalCommandResult,
+          modelImportView: modelPatchProposalImportPreview,
+          modelProposalChainIntegrationView:
+            modelProposalChainIntegrationPreview,
+          isGenerating: liveDeepSeekProposalGenerationInFlight,
+          errorMessage: liveDeepSeekProposalGenerationError
+        }),
+      [
+        appLiveProposalSessionReceiptPreview,
+        liveDeepSeekProposalCommandResult,
+        liveDeepSeekProposalGenerationError,
+        liveDeepSeekProposalGenerationInFlight,
+        liveProposalOptInGatePreview,
+        liveProposalKeySourceRef,
+        liveProposalRequestBuilderPreview,
+        modelPatchProposalImportPreview,
+        modelProposalChainIntegrationPreview
+      ]
+    );
   const liveProposalValidationIntegrationView =
     useMemo<LiveProposalValidationIntegrationView>(
       () => buildLiveProposalValidationIntegrationView(),
@@ -1463,6 +1552,19 @@ export function DesktopShell(): JSX.Element {
     liveProposalRequestBuilderPreview,
     modelPatchProposalImportPreview,
     modelProposalChainIntegrationPreview
+  ]);
+  useEffect(() => {
+    setLiveDeepSeekProposalCommandResult(undefined);
+    setLiveDeepSeekProposalGenerationError(undefined);
+    setLiveDeepSeekProposalGenerationInFlight(false);
+  }, [
+    appLiveProposalSessionTypedConfirmation,
+    liveProposalKeySourceRef,
+    liveProposalModelProfileId,
+    liveProposalOptInMode,
+    liveProposalRequestAllowedPaths,
+    liveProposalRequestIntent,
+    liveProposalRequestObjective
   ]);
   useEffect(() => {
     setLiveProposalEvaluationSummaryPreview(undefined);
@@ -1883,6 +1985,8 @@ export function DesktopShell(): JSX.Element {
 
   function handlePreviewLiveProposalOptInGate(): void {
     setLiveProposalOptInGatePreview(liveProposalOptInGateCandidate);
+    setLiveDeepSeekProposalCommandResult(undefined);
+    setLiveDeepSeekProposalGenerationError(undefined);
     setAppLiveProposalSessionReceiptPreview(undefined);
     setLiveProposalPreviewGatePreview(undefined);
     setLiveProposalTelemetryAuditPreview(undefined);
@@ -1890,6 +1994,8 @@ export function DesktopShell(): JSX.Element {
 
   function handlePreviewLiveProposalRequest(): void {
     setLiveProposalRequestBuilderPreview(liveProposalRequestBuilderCandidate);
+    setLiveDeepSeekProposalCommandResult(undefined);
+    setLiveDeepSeekProposalGenerationError(undefined);
     setAppLiveProposalSessionReceiptPreview(undefined);
     setLiveProposalPreviewGatePreview(undefined);
     setLiveProposalTelemetryAuditPreview(undefined);
@@ -1899,12 +2005,86 @@ export function DesktopShell(): JSX.Element {
     setAppLiveProposalSessionReceiptPreview(
       appLiveProposalSessionReceiptCandidate
     );
+    setLiveDeepSeekProposalCommandResult(undefined);
+    setLiveDeepSeekProposalGenerationError(undefined);
     setLiveProposalPreviewGatePreview(undefined);
     setLiveProposalTelemetryAuditPreview(undefined);
   }
 
   function handleClearAppLiveProposalSessionReceipt(): void {
     setAppLiveProposalSessionReceiptPreview(undefined);
+    setLiveDeepSeekProposalCommandResult(undefined);
+    setLiveDeepSeekProposalGenerationError(undefined);
+    setLiveProposalPreviewGatePreview(undefined);
+    setLiveProposalTelemetryAuditPreview(undefined);
+  }
+
+  async function handleGenerateLiveProposal(): Promise<void> {
+    if (
+      !liveDeepSeekProposalGenerationView.readiness
+        .canGenerateLiveProposal ||
+      appLiveProposalSessionReceiptPreview === undefined ||
+      liveProposalRequestBuilderPreview === undefined
+    ) {
+      return;
+    }
+
+    setLiveDeepSeekProposalGenerationInFlight(true);
+    setLiveDeepSeekProposalGenerationError(undefined);
+    setLiveDeepSeekProposalCommandResult(undefined);
+    try {
+      const commandRequest = buildLiveProposalGenerationCommandRequest({
+        sessionReceiptView: appLiveProposalSessionReceiptPreview,
+        requestBuilderView: liveProposalRequestBuilderPreview,
+        keySourceRef: liveProposalKeySourceRef,
+        objectiveSummary: liveProposalRequestObjective,
+        allowedPathRefsText: liveProposalRequestAllowedPaths
+      });
+      const commandResult =
+        await generateLiveDeepSeekPatchProposal(commandRequest);
+      const importView = buildModelPatchProposalImportView({
+        draftText: JSON.stringify(commandResult.proposalCandidate),
+        sourceKind: "manual_test"
+      });
+      const creationPreview =
+        buildPatchProposalCreationPreviewFromModelImport(importView);
+      const chainView = buildModelProposalChainIntegrationView({
+        modelImportView: importView,
+        patchProposalCreationPreview: creationPreview,
+        patchValidationPreview: patchProposalValidationPreview,
+        patchDiffAuditPreview: patchDiffAuditPreview,
+        patchApprovalDraft: patchApprovalDraftPreview,
+        patchVirtualApplyPreview: patchVirtualApplyPreview,
+        patchRollbackCheckpointPreview: patchRollbackCheckpointPreview,
+        controlledCreationReplayProjection,
+        userWorkspaceSnapshotBackupContract:
+          userWorkspaceSnapshotBackupPreview,
+        userWorkspacePromotionReadiness:
+          userWorkspacePromotionReadinessPreview,
+        userWorkspaceApplyPrototype: userWorkspaceApplyPrototypeView,
+        userWorkspaceRollbackPrototype: userWorkspaceRollbackPrototypeView,
+        userWorkspaceApplyRollbackEventWriter: userWorkspaceEventWriterView,
+        appApprovalExecutionDesign: appApprovalExecutionDesignView
+      });
+
+      setLiveDeepSeekProposalCommandResult(commandResult);
+      setModelPatchProposalImportPreview(importView);
+      setModelProposalChainIntegrationPreview(chainView);
+      setPatchProposalCreationPreview(undefined);
+      setLiveProposalPreviewGatePreview(undefined);
+      setLiveProposalTelemetryAuditPreview(undefined);
+      setContextAssemblyPreview(undefined);
+    } catch (caught) {
+      setLiveDeepSeekProposalGenerationError(safeErrorMessage(caught));
+    } finally {
+      setLiveDeepSeekProposalGenerationInFlight(false);
+    }
+  }
+
+  function handleClearLiveProposalGeneration(): void {
+    setLiveDeepSeekProposalCommandResult(undefined);
+    setLiveDeepSeekProposalGenerationError(undefined);
+    setLiveDeepSeekProposalGenerationInFlight(false);
     setLiveProposalPreviewGatePreview(undefined);
     setLiveProposalTelemetryAuditPreview(undefined);
   }
@@ -4397,6 +4577,178 @@ export function DesktopShell(): JSX.Element {
 
             <p className="fieldHelp">
               {displayedLiveProposalRequestBuilder.nextAction}
+            </p>
+          </section>
+
+          <section
+            className="eventPanel"
+            aria-label="Live DeepSeek Proposal Generation"
+          >
+            <div className="panelHeader">
+              <h2>Live DeepSeek Proposal Generation</h2>
+              <span className="muted">
+                Explicit opt-in / proposal only
+              </span>
+            </div>
+            <p className="fieldHelp">
+              Calls the fixed runtime-only Tauri command only after the policy,
+              request, receipt, typed confirmation, and allowed path gates are
+              satisfied. Returned proposal candidates enter repair, schema
+              validation, model import, and chain previews only; the App Shell
+              does not apply patches, rollback, approve, or write events.
+            </p>
+
+            <div className="buttonRow">
+              <button
+                type="button"
+                className="secondary"
+                disabled={
+                  !liveDeepSeekProposalGenerationView.readiness
+                    .canGenerateLiveProposal
+                }
+                onClick={(event) => {
+                  event.preventDefault();
+                  event.stopPropagation();
+                  void handleGenerateLiveProposal();
+                }}
+              >
+                Generate Live Proposal
+              </button>
+              <button
+                type="button"
+                className="secondary"
+                onClick={(event) => {
+                  event.preventDefault();
+                  event.stopPropagation();
+                  handleClearLiveProposalGeneration();
+                }}
+              >
+                Clear Live Proposal Result
+              </button>
+            </div>
+
+            {liveDeepSeekProposalGenerationView.status === "blocked" ? (
+              <div className="errorBox">
+                <strong>Live proposal generation blocked</strong>
+                <p>{liveDeepSeekProposalGenerationView.nextAction}</p>
+              </div>
+            ) : null}
+
+            <dl className="summaryGrid compact">
+              <div>
+                <dt>Status</dt>
+                <dd>{liveDeepSeekProposalGenerationView.status}</dd>
+              </div>
+              <div>
+                <dt>Request</dt>
+                <dd>{liveDeepSeekProposalGenerationView.requestId}</dd>
+              </div>
+              <div>
+                <dt>Response</dt>
+                <dd>{liveDeepSeekProposalGenerationView.responseId}</dd>
+              </div>
+              <div>
+                <dt>Proposal</dt>
+                <dd>{liveDeepSeekProposalGenerationView.proposalId}</dd>
+              </div>
+              <div>
+                <dt>Repair</dt>
+                <dd>{liveDeepSeekProposalGenerationView.repairStatus}</dd>
+              </div>
+              <div>
+                <dt>Schema validation</dt>
+                <dd>
+                  {liveDeepSeekProposalGenerationView.schemaValidationStatus}
+                </dd>
+              </div>
+              <div>
+                <dt>Import / chain</dt>
+                <dd>
+                  {liveDeepSeekProposalGenerationView.importStatus} /{" "}
+                  {liveDeepSeekProposalGenerationView.chainStatus}
+                </dd>
+              </div>
+              <div>
+                <dt>Blockers / warnings</dt>
+                <dd>
+                  {liveDeepSeekProposalGenerationView.blockerCount} /{" "}
+                  {liveDeepSeekProposalGenerationView.warningCount}
+                </dd>
+              </div>
+              <div>
+                <dt>Usage tokens</dt>
+                <dd>
+                  {liveDeepSeekProposalGenerationView.usageSummary
+                    ?.promptTokens ?? 0}{" "}
+                  /{" "}
+                  {liveDeepSeekProposalGenerationView.usageSummary
+                    ?.completionTokens ?? 0}{" "}
+                  /{" "}
+                  {liveDeepSeekProposalGenerationView.usageSummary
+                    ?.totalTokens ?? 0}
+                </dd>
+              </div>
+              <div>
+                <dt>Dropped reasoning</dt>
+                <dd>
+                  {liveDeepSeekProposalGenerationView.droppedReasoningContent
+                    ? "yes"
+                    : "no"}{" "}
+                  ({liveDeepSeekProposalGenerationView.reasoningContentCharCount}
+                  )
+                </dd>
+              </div>
+              <div>
+                <dt>Can generate</dt>
+                <dd>
+                  {liveDeepSeekProposalGenerationView.readiness
+                    .canGenerateLiveProposal
+                    ? "yes"
+                    : "no"}
+                </dd>
+              </div>
+              <div>
+                <dt>Can apply / events</dt>
+                <dd>
+                  {liveDeepSeekProposalGenerationView.readiness.canApplyPatch
+                    ? "yes"
+                    : "no"}{" "}
+                  /{" "}
+                  {liveDeepSeekProposalGenerationView.readiness
+                    .canWriteEventStore
+                    ? "yes"
+                    : "no"}
+                </dd>
+              </div>
+              <div>
+                <dt>Flow hash</dt>
+                <dd>
+                  {liveDeepSeekProposalGenerationView.generationHash.substring(
+                    0,
+                    12
+                  )}
+                </dd>
+              </div>
+            </dl>
+
+            {liveDeepSeekProposalGenerationView.warningCodes.length > 0 ? (
+              <p className="muted">
+                warnings{" "}
+                {liveDeepSeekProposalGenerationView.warningCodes.join(", ")}
+              </p>
+            ) : null}
+
+            {liveDeepSeekProposalGenerationView.findings.length > 0 ? (
+              <p className="muted">
+                findings{" "}
+                {liveDeepSeekProposalGenerationView.findings
+                  .map((finding) => finding.code)
+                  .join(", ")}
+              </p>
+            ) : null}
+
+            <p className="fieldHelp">
+              {liveDeepSeekProposalGenerationView.nextAction}
             </p>
           </section>
 

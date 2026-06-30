@@ -28,6 +28,7 @@ export type LiveProposalRequestBuilderView = {
   }>;
   requestHash?: string | undefined;
   requestHashPrefix?: string | undefined;
+  requestEnvelope: LiveProposalRequestBuildResult["request"] | undefined;
   readiness: LiveProposalRequestBuildResult["readiness"];
   summary: ReturnType<typeof summarizeLiveProposalRequestBuild>;
   nextAction: string;
@@ -144,6 +145,7 @@ export function buildLiveProposalRequestBuilderView(
     })),
     requestHash: result.requestHash,
     requestHashPrefix: result.requestHash?.slice(0, 12),
+    requestEnvelope: request,
     readiness: result.readiness,
     summary,
     nextAction: isEmpty

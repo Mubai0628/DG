@@ -11,6 +11,7 @@ import { safeErrorMessage, safeText } from "./safety.js";
 export type AppLiveProposalSessionReceiptView = {
   status: AppLiveProposalSessionStatus | "empty";
   source: "runtime_app_live_proposal_session_receipt";
+  receiptEnvelope: AppLiveProposalSessionReceipt;
   receiptId: string;
   providerId: "deepseek";
   modelProfileId: string;
@@ -89,6 +90,7 @@ export function buildAppLiveProposalSessionReceiptView(
   return {
     status: isEmpty ? "empty" : receipt.status,
     source: receipt.source,
+    receiptEnvelope: receipt,
     receiptId: receipt.receiptId,
     providerId: receipt.providerId,
     modelProfileId: receipt.modelProfileId,

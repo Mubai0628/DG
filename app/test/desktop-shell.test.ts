@@ -73,6 +73,7 @@ import {
 } from "../src/model-proposal-chain-integration-view.js";
 import { buildLiveProposalOptInGateView } from "../src/live-proposal-opt-in-gate-view.js";
 import { buildAppLiveProposalSessionReceiptView } from "../src/app-live-proposal-session-receipt-view.js";
+import { buildLiveDeepSeekProposalGenerationView } from "../src/live-deepseek-proposal-generation-view.js";
 import { buildLiveProposalRequestBuilderView } from "../src/live-proposal-request-builder-view.js";
 import { buildLiveProposalValidationIntegrationView } from "../src/live-proposal-validation-integration-view.js";
 import { buildLiveProposalPreviewGateView } from "../src/live-proposal-preview-gate-view.js";
@@ -1075,7 +1076,7 @@ describe("desktop command wrapper", () => {
     });
   });
 
-  it("keeps live proposal command boundary fixed outside App UI execution", async () => {
+  it("keeps live proposal command boundary fixed behind the App generation gate", async () => {
     const appSource = await readFile(
       path.join(appRoot, "src", "App.tsx"),
       "utf8"
@@ -1092,7 +1093,10 @@ describe("desktop command wrapper", () => {
     expect(flowSource).not.toContain("createLiveHttpCommand");
     expect(flowSource).not.toContain("genericHttp");
     expect(appSource).toContain("Call DeepSeek (disabled)");
-    expect(appSource).not.toContain("generateLiveDeepSeekPatchProposal(");
+    expect(appSource).toContain("Live DeepSeek Proposal Generation");
+    expect(appSource).toContain("Generate Live Proposal");
+    expect(appSource).toContain("canGenerateLiveProposal");
+    expect(appSource).toContain("generateLiveDeepSeekPatchProposal(");
     expect(appSource).not.toContain("handleGenerateLiveDeepSeekPatchProposal");
     expect(appSource).not.toContain("handleCallDeepSeek");
     expect(appSource).not.toContain('type="password"');
@@ -5144,6 +5148,303 @@ describe("app live proposal request builder", () => {
     expect(docsIndex).toContain(
       "runtime-live-deepseek-proposal-adapter-v0.8.md"
     );
+  });
+});
+
+describe("app live DeepSeek proposal generation flow", () => {
+  function safePolicy() {
+    return buildLiveProposalOptInGateView({
+      modelProfileId: "deepseek-chat",
+      keySourceRef: liveProposalAllowedKeySourceRef,
+      optInMode: "explicit_live_proposal_opt_in"
+    });
+  }
+
+  function safeRequest() {
+    return buildLiveProposalRequestBuilderView({
+      objectiveSummary: "Generate a summary-only docs proposal.",
+      intent: "Generate a structured model_patch_proposal draft.",
+      modelProfileId: "deepseek-chat",
+      keySourceRef: liveProposalAllowedKeySourceRef,
+      optInMode: "explicit_live_proposal_opt_in",
+      allowedPathRefsText: "docs/app-shell-preview.md"
+    });
+  }
+
+  function safeReceipt() {
+    return buildAppLiveProposalSessionReceiptView({
+      typedConfirmation: "CALL DEEPSEEK FOR PROPOSAL",
+      objectiveSummary: "Generate a summary-only docs proposal.",
+      modelProfileId: "deepseek-chat",
+      allowedPathRefsText: "docs/app-shell-preview.md",
+      apiKeyPolicyId: safePolicy().policyId,
+      requestBuilderId: safeRequest().requestId,
+      requestBoundaryHash: safeRequest().requestHashPrefix
+    });
+  }
+
+  function safeLiveGenerationCommandResult(
+    proposalCandidate: Record<string, unknown> = {
+      schemaVersion: "model_patch_proposal.v1",
+      proposalId: "model-proposal-safe-basic",
+      title: "Clarify disabled App copy",
+      intent: "Update read-only copy for a disabled App preview surface.",
+      objectiveSummary:
+        "Keep App execution disabled while clarifying proposal flow.",
+      operations: [
+        {
+          operationId: "op-doc-001",
+          path: "docs/app-shell-preview.md",
+          changeKind: "documentation",
+          summary: "Document that model proposals remain draft-only.",
+          rationale: "Docs should distinguish proposals from apply execution.",
+          estimatedLinesAdded: 8,
+          estimatedLinesRemoved: 1,
+          warningCodes: []
+        }
+      ],
+      pathSummaries: [
+        {
+          path: "docs/app-shell-preview.md",
+          changeKind: "documentation",
+          summary: "Documentation-only update"
+        }
+      ],
+      evidenceRefs: [
+        {
+          refId: "workspace-index-summary",
+          kind: "workspace_index",
+          summary: "Workspace index summary ref only.",
+          hashPrefix: "abc12345"
+        }
+      ],
+      riskNotes: [
+        {
+          code: "DRAFT_ONLY",
+          severity: "info",
+          summary: "No execution controls are added."
+        }
+      ],
+      createdAt: "2026-06-28T00:00:00.000Z",
+      modelProfileId: "deepseek-chat",
+      source: "deepseek_model_patch_proposal"
+    }
+  ): LiveDeepSeekPatchProposalCommandResult {
+    return {
+      ok: true,
+      status: "generated",
+      providerId: "deepseek",
+      modelProfileId: "deepseek-chat",
+      requestId: safeRequest().requestId,
+      responseId: "response-safe-summary",
+      proposalCandidate,
+      proposalCandidateHash: "proposal-candidate-hash",
+      responseHash: "response-hash",
+      usageSummary: {
+        promptTokens: 10,
+        completionTokens: 20,
+        totalTokens: 30
+      },
+      droppedReasoningContent: true,
+      reasoningContentCharCount: 42,
+      warningCodes: ["REASONING_CONTENT_DROPPED"],
+      summaryOnly: true,
+      rawPromptIncluded: false,
+      rawResponseIncluded: false,
+      rawReasoningContentIncluded: false,
+      canApplyPatch: false,
+      canRollback: false,
+      canWriteEventStore: false,
+      canExecuteGit: false,
+      canExecuteShell: false,
+      safeMessage:
+        "Live DeepSeek proposal command returned a summary-only proposal candidate."
+    };
+  }
+
+  it("keeps Generate Live Proposal disabled until policy, request, and receipt gates are satisfied", () => {
+    const noReceipt = buildLiveDeepSeekProposalGenerationView({
+      liveProposalOptInGateView: safePolicy(),
+      requestBuilderView: safeRequest(),
+      keySourceRef: liveProposalAllowedKeySourceRef,
+      expectedKeySourceRef: liveProposalAllowedKeySourceRef
+    });
+    const wrongConfirmation = buildLiveDeepSeekProposalGenerationView({
+      liveProposalOptInGateView: safePolicy(),
+      requestBuilderView: safeRequest(),
+      sessionReceiptView: buildAppLiveProposalSessionReceiptView({
+        typedConfirmation: "CALL MODEL",
+        objectiveSummary: "Generate a summary-only docs proposal.",
+        modelProfileId: "deepseek-chat",
+        allowedPathRefsText: "docs/app-shell-preview.md",
+        apiKeyPolicyId: safePolicy().policyId,
+        requestBuilderId: safeRequest().requestId
+      }),
+      keySourceRef: liveProposalAllowedKeySourceRef,
+      expectedKeySourceRef: liveProposalAllowedKeySourceRef
+    });
+    const noRequest = buildLiveDeepSeekProposalGenerationView({
+      liveProposalOptInGateView: safePolicy(),
+      sessionReceiptView: safeReceipt(),
+      keySourceRef: liveProposalAllowedKeySourceRef,
+      expectedKeySourceRef: liveProposalAllowedKeySourceRef
+    });
+    const ready = buildLiveDeepSeekProposalGenerationView({
+      liveProposalOptInGateView: safePolicy(),
+      requestBuilderView: safeRequest(),
+      sessionReceiptView: safeReceipt(),
+      keySourceRef: liveProposalAllowedKeySourceRef,
+      expectedKeySourceRef: liveProposalAllowedKeySourceRef
+    });
+
+    expect(noReceipt.readiness.canGenerateLiveProposal).toBe(false);
+    expect(noReceipt.status).toBe("blocked");
+    expect(wrongConfirmation.readiness.canGenerateLiveProposal).toBe(false);
+    expect(wrongConfirmation.status).toBe("blocked");
+    expect(noRequest.readiness.canGenerateLiveProposal).toBe(false);
+    expect(noRequest.status).toBe("blocked");
+    expect(ready.status).toBe("ready");
+    expect(ready.readiness.canGenerateLiveProposal).toBe(true);
+    expect(ready.readiness.canApplyPatch).toBe(false);
+    expect(ready.readiness.canWriteEventStore).toBe(false);
+  });
+
+  it("imports a fake live command success into repair/schema and chain previews", async () => {
+    const commandResult = await generateLiveDeepSeekPatchProposal(
+      {
+        sessionReceipt: safeReceipt().receiptEnvelope as unknown as Record<
+          string,
+          unknown
+        >,
+        apiKeySourceRef: liveProposalAllowedKeySourceRef,
+        providerId: "deepseek",
+        modelProfileId: "deepseek-chat",
+        requestEnvelope: safeRequest().requestEnvelope as unknown as Record<
+          string,
+          unknown
+        >,
+        objectiveSummary: "Generate a summary-only docs proposal.",
+        allowedPathRefs: ["docs/app-shell-preview.md"],
+        contextRefs: ["context-ref"],
+        maxResponseBytes: 20_000,
+        timeoutMs: 5_000
+      },
+      async () => safeLiveGenerationCommandResult() as never
+    );
+    const importView = buildModelPatchProposalImportView({
+      draftText: JSON.stringify(commandResult.proposalCandidate),
+      sourceKind: "manual_test"
+    });
+    const chainView = buildModelProposalChainIntegrationView({
+      modelImportView: importView,
+      patchProposalCreationPreview:
+        buildPatchProposalCreationPreviewFromModelImport(importView)
+    });
+    const flowView = buildLiveDeepSeekProposalGenerationView({
+      liveProposalOptInGateView: safePolicy(),
+      requestBuilderView: safeRequest(),
+      sessionReceiptView: safeReceipt(),
+      keySourceRef: liveProposalAllowedKeySourceRef,
+      expectedKeySourceRef: liveProposalAllowedKeySourceRef,
+      commandResult,
+      modelImportView: importView,
+      modelProposalChainIntegrationView: chainView
+    });
+    const serialized = JSON.stringify(flowView);
+
+    expect(commandResult.ok).toBe(true);
+    expect(importView.status).not.toBe("blocked");
+    expect(importView.readiness.canImportToPatchPreview).toBe(true);
+    expect(chainView.status).not.toBe("blocked");
+    expect(flowView.proposalId).toBe("model-proposal-safe-basic");
+    expect(flowView.repairStatus).not.toBe("blocked");
+    expect(flowView.schemaValidationStatus).not.toBe("blocked");
+    expect(flowView.readiness.canEnterModelImport).toBe(true);
+    expect(flowView.readiness.canApplyPatch).toBe(false);
+    expect(flowView.readiness.canWriteEventStore).toBe(false);
+    expect(serialized).not.toContain("sk-");
+    expect(serialized).not.toContain("Authorization");
+    expect(serialized).not.toContain("internal chain");
+  });
+
+  it("blocks unsafe and secret proposal candidates through import validation", () => {
+    const unsafeImport = buildModelPatchProposalImportView({
+      draftText: JSON.stringify(
+        safeLiveGenerationCommandResult({
+          schemaVersion: "model_patch_proposal.v1",
+          proposalId: "proposal-unsafe-path",
+          title: "Unsafe path",
+          intent: "Attempt unsafe path",
+          objectiveSummary: "Attempt unsafe path.",
+          operations: [
+            {
+              operationId: "op-unsafe",
+              path: "../escape.ts",
+              changeKind: "update",
+              summary: "Attempt unsafe path."
+            }
+          ],
+          evidenceRefs: [],
+          riskNotes: []
+        }).proposalCandidate
+      ),
+      sourceKind: "manual_test"
+    });
+    const secretImport = buildModelPatchProposalImportView({
+      draftText: JSON.stringify(
+        safeLiveGenerationCommandResult({
+          schemaVersion: "model_patch_proposal.v1",
+          proposalId: "proposal-secret",
+          title: "Secret marker",
+          intent: "Attempt secret marker",
+          objectiveSummary: "Attempt secret marker.",
+          operations: [
+            {
+              operationId: "op-secret",
+              path: "docs/secret.md",
+              changeKind: "update",
+              summary: "fake marker sk-fake-secret-marker-000000"
+            }
+          ],
+          evidenceRefs: [],
+          riskNotes: []
+        }).proposalCandidate
+      ),
+      sourceKind: "manual_test"
+    });
+
+    expect(unsafeImport.status).toBe("blocked");
+    expect(secretImport.status).toBe("blocked");
+  });
+
+  it("keeps App live generation UI proposal-only without raw output or enabled execution", async () => {
+    const appSource = await readFile(
+      path.join(appRoot, "src", "App.tsx"),
+      "utf8"
+    );
+    const viewSource = await readFile(
+      path.join(appRoot, "src", "live-deepseek-proposal-generation-view.ts"),
+      "utf8"
+    );
+    const combined = `${appSource}\n${viewSource}`;
+
+    expect(appSource).toContain("Live DeepSeek Proposal Generation");
+    expect(appSource).toContain("Explicit opt-in / proposal only");
+    expect(appSource).toContain("Generate Live Proposal");
+    expect(appSource).toContain("repair, schema");
+    expect(appSource).toContain("Dropped reasoning");
+    expect(appSource).not.toContain("raw response display");
+    expect(appSource).not.toContain("raw prompt display");
+    expect(appSource).not.toContain("API key display");
+    expect(appSource).not.toContain('type="password"');
+    expect(appSource).not.toContain("Apply Live Proposal");
+    expect(appSource).not.toContain("Rollback Live Proposal");
+    expect(appSource).not.toContain("Write Live Proposal Events");
+    expect(appSource).not.toContain("Approve Live Proposal");
+    expect(appSource).not.toContain("Reject Live Proposal");
+    expect(combined).not.toContain("handleApplyLiveProposal");
+    expect(combined).not.toContain("handleRollbackLiveProposal");
+    expect(combined).not.toContain("recordLiveProposalEvent");
   });
 });
 
