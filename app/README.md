@@ -81,6 +81,10 @@ Current scope:
   integration, approval readiness, apply readiness, verification readiness, and
   rollback readiness while auto-apply remains disabled and existing approved
   execution gates stay separate
+- preview the P0R End-to-End Apply / Verify / Rollback Sequencer over existing
+  approved apply, fixed Git/shell verification, and approved rollback handlers
+  while arbitrary Git/shell, auto-apply, new execution commands, raw event
+  payloads, native bridge, and desktop action remain absent
 - preview the P0M Live Proposal Opt-in Gate as policy metadata only, with no
   API key read, no environment value read, no vault read, no fetch/network, no
   live DeepSeek call, and no App execution
@@ -167,8 +171,11 @@ Current limitations:
   reasoning_content, API keys, or raw proposal output; none of these App
   surfaces reads or writes files; End-to-End Coding Task Wizard is a guided
   preview surface only and does not auto-apply, rollback, write events, issue
-  approvals, persist raw prompts, or display raw model responses; Approved
-  Execution is the only App-side user
+  approvals, persist raw prompts, or display raw model responses; End-to-End
+  Apply / Verify / Rollback Sequencer reuses only existing approved execution,
+  fixed verification lane, and approved rollback handlers, and never exposes
+  arbitrary Git/shell, auto-apply, raw event payloads, native bridge, or desktop
+  action; Approved Execution is the only App-side user
   workspace write path, and it requires an approved receipt, exact typed
   confirmation, safe path and content gates, private checkpoint metadata, and
   summary-only events; it does not expose a generic command UI, Git execution,

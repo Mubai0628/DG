@@ -87,6 +87,7 @@ import {
 } from "../src/live-proposal-evaluation-summary-view.js";
 import { buildLiveProposalEvaluationTelemetryAuditView } from "../src/live-proposal-evaluation-telemetry-audit-view.js";
 import { buildE2ECodingTaskWizardView } from "../src/e2e-coding-task-wizard-view.js";
+import { buildE2ECodingTaskSequencerView } from "../src/e2e-coding-task-sequencer-view.js";
 import {
   buildPatchProposalValidationPreviewView,
   patchProposalValidationApprovalRefs,
@@ -15511,6 +15512,286 @@ describe("desktop source boundaries", () => {
     expect(combined).toContain("No native bridge");
     expect(combined).toContain("No desktop action");
     expect(docsIndex).toContain("app-shell-e2e-coding-task-wizard-v0.13.md");
+  });
+
+  it("sequences approved apply, verification, and rollback without arbitrary execution", () => {
+    const patchProposalPreview = {
+      proposalId: "proposal-1",
+      status: "preview",
+      items: [{ path: "src/safe-file.ts", changeKind: "update" }]
+    };
+    const patchValidationPreview = {
+      validationId: "validation-1",
+      status: "valid"
+    };
+    const patchDiffAuditPreview = {
+      auditId: "audit-1",
+      status: "audit_ready"
+    };
+    const patchApprovalDraft = {
+      approvalDraftId: "approval-1",
+      status: "approval_ready"
+    };
+    const workspaceSnapshotBackupContract = {
+      userWorkspaceRootRef: "workspace-ref-demo"
+    };
+    const applyReceipt = buildAppApprovedExecutionReceiptView({
+      receiptKind: "apply",
+      applyTypedConfirmation: "APPLY TO USER WORKSPACE",
+      allowedRelativePathsText: "src/safe-file.ts",
+      workspaceSnapshotBackupContract,
+      patchProposalPreview,
+      patchValidationPreview,
+      patchDiffAuditPreview,
+      patchApprovalDraft
+    });
+    const applyFlow = buildAppApprovedExecutionFlowView({
+      workspaceRoot: "D:\\workspace",
+      receiptView: applyReceipt,
+      patchProposalPreview,
+      patchValidationPreview,
+      patchDiffAuditPreview,
+      patchApprovalDraft,
+      contentDraft: "safe content"
+    });
+    const applyResult: ApprovedUserWorkspaceApplyResult = {
+      ok: true,
+      applyId: "apply-1",
+      checkpointId: "checkpoint-1",
+      checkpointHash: "checkpoint-hash-123456",
+      workspaceRootRef: "workspace-ref-demo",
+      operationCount: 1,
+      filesCreated: 0,
+      filesUpdated: 1,
+      filesDeleted: 0,
+      bytesWritten: 12,
+      warningCodes: [],
+      inputSnapshotHash: "input-hash",
+      outputSnapshotHash: "output-hash",
+      resultHash: "apply-result-hash",
+      eventPreview: {
+        type: "user_workspace.patch_apply.approved_result",
+        applyId: "apply-1",
+        checkpointId: "checkpoint-1",
+        checkpointHash: "checkpoint-hash-123456",
+        workspaceRootRef: "workspace-ref-demo",
+        operationCount: 1,
+        filesCreated: 0,
+        filesUpdated: 1,
+        filesDeleted: 0,
+        bytesWritten: 12,
+        pathSummaries: ["src/safe-file.ts update"],
+        pathSummaryCount: 1,
+        resultHash: "apply-result-hash",
+        warningCodes: [],
+        notWritten: true
+      },
+      safeMessage: "Approved apply summary."
+    };
+    const rollbackReceipt = buildAppApprovedExecutionReceiptView({
+      receiptKind: "rollback",
+      rollbackTypedConfirmation: "ROLLBACK USER WORKSPACE",
+      allowedRelativePathsText: "src/safe-file.ts",
+      workspaceSnapshotBackupContract,
+      patchProposalPreview,
+      patchValidationPreview,
+      patchDiffAuditPreview,
+      patchApprovalDraft,
+      approvedApplyResult: applyResult
+    });
+    const rollbackFlow = buildAppApprovedExecutionFlowView({
+      workspaceRoot: "D:\\workspace",
+      receiptView: rollbackReceipt,
+      patchProposalPreview,
+      patchValidationPreview,
+      patchDiffAuditPreview,
+      patchApprovalDraft,
+      contentDraft: "safe content",
+      applyResult
+    });
+    const failedVerification: ShellVerificationLaneResult = {
+      ok: true,
+      templateId: "app.typecheck",
+      status: "failed",
+      exitCode: 1,
+      workspaceRootRef: "workspace-ref-demo",
+      stdoutBytes: 120,
+      stderrBytes: 0,
+      stdoutLineCount: 4,
+      stderrLineCount: 0,
+      warningCodes: [],
+      commandHash: "command-hash",
+      outputHash: "verification-output-hash",
+      durationMs: 20,
+      truncated: false,
+      rawStdoutIncluded: false,
+      rawStderrIncluded: false,
+      eventPreview: {
+        type: "shell.verification_lane.executed",
+        templateId: "app.typecheck",
+        workspaceRootRef: "workspace-ref-demo",
+        commandHash: "command-hash",
+        resultHash: "verification-output-hash",
+        exitCode: 1,
+        stdoutBytes: 120,
+        stderrBytes: 0,
+        warningCodes: [],
+        durationMs: 20,
+        truncated: false,
+        summaryOnly: true,
+        notWritten: true
+      },
+      safeMessage: "Verification failed with summary-only output."
+    };
+    const rollbackResult: ApprovedUserWorkspaceRollbackResult = {
+      ok: true,
+      rollbackId: "rollback-1",
+      applyId: "apply-1",
+      checkpointId: "checkpoint-1",
+      checkpointHash: "checkpoint-hash-123456",
+      workspaceRootRef: "workspace-ref-demo",
+      operationCount: 1,
+      filesRemoved: 0,
+      filesRestored: 1,
+      restoredSnapshotHash: "restored-hash",
+      resultHash: "rollback-result-hash",
+      warningCodes: [],
+      eventPreview: {
+        type: "user_workspace.patch_rollback.approved_result",
+        rollbackId: "rollback-1",
+        applyId: "apply-1",
+        checkpointId: "checkpoint-1",
+        checkpointHash: "checkpoint-hash-123456",
+        workspaceRootRef: "workspace-ref-demo",
+        operationCount: 1,
+        filesRemoved: 0,
+        filesRestored: 1,
+        pathSummaries: ["src/safe-file.ts restored"],
+        pathSummaryCount: 1,
+        restoredSnapshotHash: "restored-hash",
+        resultHash: "rollback-result-hash",
+        warningCodes: [],
+        notWritten: true
+      },
+      safeMessage: "Approved rollback summary."
+    };
+
+    const beforeGates = buildE2ECodingTaskSequencerView();
+    const applyReady = buildE2ECodingTaskSequencerView({
+      approvedExecutionFlowView: applyFlow
+    });
+    const afterApply = buildE2ECodingTaskSequencerView({
+      approvedExecutionFlowView: rollbackFlow,
+      applyResult
+    });
+    const rollbackReady = buildE2ECodingTaskSequencerView({
+      approvedExecutionFlowView: rollbackFlow,
+      applyResult,
+      shellVerificationResult: failedVerification
+    });
+    const rolledBack = buildE2ECodingTaskSequencerView({
+      approvedExecutionFlowView: rollbackFlow,
+      applyResult,
+      shellVerificationResult: failedVerification,
+      rollbackResult
+    });
+    const unsafe = buildE2ECodingTaskSequencerView({
+      approvedExecutionFlowView: {
+        shellCommand: "npm test && arbitrary",
+        canAutoApply: true
+      } as never
+    });
+
+    expect(beforeGates.readiness.canRunApprovedApply).toBe(false);
+    expect(beforeGates.readiness.canRunVerification).toBe(false);
+    expect(beforeGates.readiness.canRunApprovedRollback).toBe(false);
+    expect(applyReady.status).toBe("apply_ready");
+    expect(applyReady.readiness.canRunApprovedApply).toBe(true);
+    expect(applyReady.readiness.canRunVerification).toBe(false);
+    expect(afterApply.status).toBe("verification_ready");
+    expect(afterApply.readiness.canRunVerification).toBe(true);
+    expect(afterApply.readiness.canRunApprovedRollback).toBe(false);
+    expect(rollbackReady.status).toBe("rollback_ready");
+    expect(rollbackReady.readiness.canRunApprovedRollback).toBe(true);
+    expect(rolledBack.status).toBe("done");
+    expect(unsafe.status).toBe("blocked");
+    expect(unsafe.findings.map((finding) => finding.code)).toContain(
+      "ARBITRARY_SHELL_FIELD_REJECTED"
+    );
+    expect(rollbackReady.readiness.canAutoApply).toBe(false);
+    expect(rollbackReady.readiness.canUseArbitraryGit).toBe(false);
+    expect(rollbackReady.readiness.canUseArbitraryShell).toBe(false);
+    expect(JSON.stringify(rollbackReady)).not.toContain("rawPrompt");
+    expect(JSON.stringify(rollbackReady)).not.toContain("rawResponse");
+    expect(JSON.stringify(rollbackReady)).not.toContain("Authorization");
+    expect(JSON.stringify(rollbackReady)).not.toContain("sk-fake");
+  });
+
+  it("renders the P0R-005 sequencer controls as gated existing commands", async () => {
+    const appSource = await readFile(
+      path.join(appRoot, "src", "App.tsx"),
+      "utf8"
+    );
+    const sequencerSource = await readFile(
+      path.join(appRoot, "src", "e2e-coding-task-sequencer-view.ts"),
+      "utf8"
+    );
+    const combinedSource = `${appSource}\n${sequencerSource}`;
+
+    expect(appSource).toContain(
+      "End-to-End Apply / Verify / Rollback Sequencer"
+    );
+    expect(appSource).toContain("Approved gates only / no arbitrary execution");
+    expect(appSource).toContain("Run Sequenced Approved Apply");
+    expect(appSource).toContain("Run Sequenced Git Read Lane");
+    expect(appSource).toContain("Run Sequenced Verification Lane");
+    expect(appSource).toContain("Run Sequenced Approved Rollback");
+    expect(appSource).toContain("User explicitly requested rollback");
+    expect(combinedSource).toContain("proposal_ready");
+    expect(combinedSource).toContain("approval_required");
+    expect(combinedSource).toContain("apply_ready");
+    expect(combinedSource).toContain("apply_executed");
+    expect(combinedSource).toContain("verification_ready");
+    expect(combinedSource).toContain("verification_passed");
+    expect(combinedSource).toContain("verification_failed");
+    expect(combinedSource).toContain("rollback_ready");
+    expect(combinedSource).toContain("rollback_executed");
+    expect(combinedSource).toContain("done");
+    expect(appSource).not.toContain("Run Arbitrary Shell");
+    expect(appSource).not.toContain("Run Git Write");
+    expect(appSource).not.toContain("Auto Apply Task");
+  });
+
+  it("documents the P0R-005 App E2E apply verify rollback sequencer boundary", async () => {
+    const docs = await readFile(
+      path.join(
+        repoRoot,
+        "docs",
+        "app-shell-e2e-coding-task-sequencer-v0.13.md"
+      ),
+      "utf8"
+    );
+    const docsIndex = await readFile(
+      path.join(repoRoot, "docs", "README.md"),
+      "utf8"
+    );
+    const appReadme = await readFile(path.join(appRoot, "README.md"), "utf8");
+    const combined = `${docs}\n${docsIndex}\n${appReadme}`;
+
+    expect(combined).toContain("App Shell E2E Coding Task Sequencer v0.13");
+    expect(combined).toContain("approved apply from v0.11");
+    expect(combined).toContain("Git read and shell verification lanes");
+    expect(combined).toContain("approved rollback from v0.11");
+    expect(combined).toContain("proposal_ready");
+    expect(combined).toContain("rollback_executed");
+    expect(combined).toContain("No auto-apply");
+    expect(combined).toContain("No arbitrary Git");
+    expect(combined).toContain("No arbitrary shell");
+    expect(combined).toContain("No Git write");
+    expect(combined).toContain("No raw event payload");
+    expect(combined).toContain("No native bridge");
+    expect(combined).toContain("No desktop action");
+    expect(docsIndex).toContain("app-shell-e2e-coding-task-sequencer-v0.13.md");
   });
 
   it("documents the P0L-001 DeepSeek patch proposal ADR and gates without implementation", async () => {

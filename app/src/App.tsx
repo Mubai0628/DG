@@ -156,6 +156,11 @@ import {
   type E2ECodingTaskWizardView
 } from "./e2e-coding-task-wizard-view.js";
 import {
+  buildE2ECodingTaskSequencerView,
+  summarizeE2ECodingTaskSequencerView,
+  type E2ECodingTaskSequencerView
+} from "./e2e-coding-task-sequencer-view.js";
+import {
   buildPatchProposalValidationPreviewView,
   patchProposalValidationApprovalRefs,
   patchProposalValidationAuditWarningCodes,
@@ -509,6 +514,10 @@ export function DesktopShell(): JSX.Element {
   const [e2eCodingTaskWizardPreview, setE2ECodingTaskWizardPreview] = useState<
     E2ECodingTaskWizardView | undefined
   >();
+  const [e2eCodingTaskSequencerPreview, setE2ECodingTaskSequencerPreview] =
+    useState<E2ECodingTaskSequencerView | undefined>();
+  const [e2eSequencerRollbackRequested, setE2ESequencerRollbackRequested] =
+    useState(false);
   const [liveProposalModelProfileId, setLiveProposalModelProfileId] =
     useState("deepseek-chat");
   const [liveProposalKeySourceRef, setLiveProposalKeySourceRef] = useState("");
@@ -1549,6 +1558,49 @@ export function DesktopShell(): JSX.Element {
   );
   const displayedE2ECodingTaskWizard =
     e2eCodingTaskWizardPreview ?? buildE2ECodingTaskWizardView();
+  const e2eCodingTaskSequencerCandidate = useMemo<E2ECodingTaskSequencerView>(
+    () =>
+      buildE2ECodingTaskSequencerView({
+        wizardView: e2eCodingTaskWizardCandidate,
+        modelPatchProposalImportView: modelPatchProposalImportPreview,
+        modelProposalChainIntegrationView: modelProposalChainIntegrationPreview,
+        patchValidationPreview: patchProposalValidationPreview,
+        patchDiffAuditPreview,
+        patchApprovalDraft: patchApprovalDraftPreview,
+        approvalReceiptView: displayedAppApprovedExecutionReceipt,
+        approvedExecutionFlowView: appApprovedExecutionFlowView,
+        applyResult: appApprovedApplyResult,
+        rollbackResult: appApprovedRollbackResult,
+        approvedExecutionEventResult: appApprovedExecutionEventResult,
+        gitReadLaneResult,
+        shellVerificationResult,
+        gitVerificationEventResult,
+        shellVerificationEventResult,
+        verificationLaneProjectionView: verificationLaneProjection,
+        userRequestedRollback: e2eSequencerRollbackRequested
+      }),
+    [
+      appApprovedApplyResult,
+      appApprovedExecutionEventResult,
+      appApprovedExecutionFlowView,
+      appApprovedRollbackResult,
+      displayedAppApprovedExecutionReceipt,
+      e2eCodingTaskWizardCandidate,
+      e2eSequencerRollbackRequested,
+      gitReadLaneResult,
+      gitVerificationEventResult,
+      modelPatchProposalImportPreview,
+      modelProposalChainIntegrationPreview,
+      patchApprovalDraftPreview,
+      patchDiffAuditPreview,
+      patchProposalValidationPreview,
+      shellVerificationEventResult,
+      shellVerificationResult,
+      verificationLaneProjection
+    ]
+  );
+  const displayedE2ECodingTaskSequencer =
+    e2eCodingTaskSequencerPreview ?? buildE2ECodingTaskSequencerView();
   const liveProposalSummaryEventPreview = useMemo<
     LiveProposalSummaryEventPreview | undefined
   >(() => {
@@ -1695,6 +1747,27 @@ export function DesktopShell(): JSX.Element {
     patchApprovalDraftPreview,
     patchRollbackCheckpointPreview,
     patchVirtualApplyPreview,
+    verificationLaneProjection
+  ]);
+  useEffect(() => {
+    setE2ECodingTaskSequencerPreview(undefined);
+  }, [
+    appApprovedApplyResult,
+    appApprovedExecutionEventResult,
+    appApprovedExecutionFlowView,
+    appApprovedRollbackResult,
+    displayedAppApprovedExecutionReceipt,
+    e2eCodingTaskWizardPreview,
+    e2eSequencerRollbackRequested,
+    gitReadLaneResult,
+    gitVerificationEventResult,
+    modelPatchProposalImportPreview,
+    modelProposalChainIntegrationPreview,
+    patchApprovalDraftPreview,
+    patchDiffAuditPreview,
+    patchProposalValidationPreview,
+    shellVerificationEventResult,
+    shellVerificationResult,
     verificationLaneProjection
   ]);
   const contextAssemblyCandidate = useMemo<AppContextAssemblyPreviewView>(
@@ -2079,6 +2152,10 @@ export function DesktopShell(): JSX.Element {
 
   function handlePreviewE2ECodingTaskWizard(): void {
     setE2ECodingTaskWizardPreview(e2eCodingTaskWizardCandidate);
+  }
+
+  function handlePreviewE2ECodingTaskSequencer(): void {
+    setE2ECodingTaskSequencerPreview(e2eCodingTaskSequencerCandidate);
   }
 
   function handleImportE2EProposalToChain(): void {
@@ -4134,6 +4211,257 @@ export function DesktopShell(): JSX.Element {
               {
                 summarizeE2ECodingTaskWizardView(displayedE2ECodingTaskWizard)
                   .nextAction
+              }
+            </p>
+          </section>
+
+          <section
+            className="eventPanel"
+            aria-label="End-to-End Apply Verify Rollback Sequencer"
+          >
+            <div className="panelHeader">
+              <h2>End-to-End Apply / Verify / Rollback Sequencer</h2>
+              <span className="muted">
+                Approved gates only / no arbitrary execution
+              </span>
+            </div>
+            <p className="fieldHelp">
+              Sequences the existing approved apply command, fixed Git/shell
+              verification lanes, and approved rollback command. It does not
+              auto-apply, run arbitrary Git or shell, write raw content events,
+              issue leases, use a native bridge, or perform desktop actions.
+            </p>
+
+            <label className="checkboxRow">
+              <input
+                type="checkbox"
+                checked={e2eSequencerRollbackRequested}
+                onChange={(event) => {
+                  setE2ESequencerRollbackRequested(event.target.checked);
+                }}
+              />
+              <span>User explicitly requested rollback after apply</span>
+            </label>
+
+            <div className="buttonRow">
+              <button
+                type="button"
+                className="secondary"
+                onClick={(event) => {
+                  event.preventDefault();
+                  event.stopPropagation();
+                  handlePreviewE2ECodingTaskSequencer();
+                }}
+              >
+                Preview Apply / Verify / Rollback Sequencer
+              </button>
+              <button
+                type="button"
+                className="secondary"
+                disabled={
+                  !e2eCodingTaskSequencerCandidate.readiness.canRunApprovedApply
+                }
+                onClick={(event) => {
+                  event.preventDefault();
+                  event.stopPropagation();
+                  void handleApplyApprovedPatch();
+                }}
+              >
+                Run Sequenced Approved Apply
+              </button>
+              <button
+                type="button"
+                className="secondary"
+                disabled={
+                  !e2eCodingTaskSequencerCandidate.readiness
+                    .canRunVerification || gitReadLaneStatus === "running"
+                }
+                onClick={(event) => {
+                  event.preventDefault();
+                  event.stopPropagation();
+                  void handleRunGitReadLane();
+                }}
+              >
+                Run Sequenced Git Read Lane
+              </button>
+              <button
+                type="button"
+                className="secondary"
+                disabled={
+                  !e2eCodingTaskSequencerCandidate.readiness
+                    .canRunVerification || shellVerificationStatus === "running"
+                }
+                onClick={(event) => {
+                  event.preventDefault();
+                  event.stopPropagation();
+                  void handleRunVerificationLane();
+                }}
+              >
+                Run Sequenced Verification Lane
+              </button>
+              <button
+                type="button"
+                className="secondary"
+                disabled={
+                  !e2eCodingTaskSequencerCandidate.readiness
+                    .canRunApprovedRollback
+                }
+                onClick={(event) => {
+                  event.preventDefault();
+                  event.stopPropagation();
+                  void handleRollbackApprovedPatch();
+                }}
+              >
+                Run Sequenced Approved Rollback
+              </button>
+            </div>
+
+            {displayedE2ECodingTaskSequencer.status === "empty" ? (
+              <p className="empty">
+                No sequencer preview yet. Preview the wizard, approval receipt,
+                approved execution flow, or verification summaries first.
+              </p>
+            ) : null}
+
+            {displayedE2ECodingTaskSequencer.status === "blocked" ? (
+              <div className="errorBox">
+                <strong>E2E sequencer blocked</strong>
+                <p>{displayedE2ECodingTaskSequencer.nextAction}</p>
+              </div>
+            ) : null}
+
+            <dl className="summaryGrid compact">
+              <div>
+                <dt>Status</dt>
+                <dd>{displayedE2ECodingTaskSequencer.status}</dd>
+              </div>
+              <div>
+                <dt>Sequencer</dt>
+                <dd>{displayedE2ECodingTaskSequencer.sequencerId}</dd>
+              </div>
+              <div>
+                <dt>Proposal</dt>
+                <dd>{displayedE2ECodingTaskSequencer.proposalId}</dd>
+              </div>
+              <div>
+                <dt>Apply / checkpoint</dt>
+                <dd>
+                  {displayedE2ECodingTaskSequencer.applyId} /{" "}
+                  {displayedE2ECodingTaskSequencer.checkpointId}
+                </dd>
+              </div>
+              <div>
+                <dt>Verification / rollback</dt>
+                <dd>
+                  {displayedE2ECodingTaskSequencer.verificationStatus} /{" "}
+                  {displayedE2ECodingTaskSequencer.rollbackId}
+                </dd>
+              </div>
+              <div>
+                <dt>Stages ready / executed / blocked</dt>
+                <dd>
+                  {displayedE2ECodingTaskSequencer.readyStageCount} /{" "}
+                  {displayedE2ECodingTaskSequencer.executedStageCount} /{" "}
+                  {displayedE2ECodingTaskSequencer.blockedStageCount}
+                </dd>
+              </div>
+              <div>
+                <dt>Blockers / warnings</dt>
+                <dd>
+                  {displayedE2ECodingTaskSequencer.blockerCount} /{" "}
+                  {displayedE2ECodingTaskSequencer.warningCount}
+                </dd>
+              </div>
+              <div>
+                <dt>Summary events</dt>
+                <dd>{displayedE2ECodingTaskSequencer.summaryEventCount}</dd>
+              </div>
+              <div>
+                <dt>Hash</dt>
+                <dd>
+                  {displayedE2ECodingTaskSequencer.sequencerHash.substring(
+                    0,
+                    12
+                  )}
+                </dd>
+              </div>
+              <div>
+                <dt>Approved apply / verification</dt>
+                <dd>
+                  {displayedE2ECodingTaskSequencer.readiness.canRunApprovedApply
+                    ? "yes"
+                    : "no"}{" "}
+                  /{" "}
+                  {displayedE2ECodingTaskSequencer.readiness.canRunVerification
+                    ? "yes"
+                    : "no"}
+                </dd>
+              </div>
+              <div>
+                <dt>Approved rollback / auto-apply</dt>
+                <dd>
+                  {displayedE2ECodingTaskSequencer.readiness
+                    .canRunApprovedRollback
+                    ? "yes"
+                    : "no"}{" "}
+                  /{" "}
+                  {displayedE2ECodingTaskSequencer.readiness.canAutoApply
+                    ? "yes"
+                    : "no"}
+                </dd>
+              </div>
+              <div>
+                <dt>Arbitrary Git / shell</dt>
+                <dd>
+                  {displayedE2ECodingTaskSequencer.readiness.canUseArbitraryGit
+                    ? "yes"
+                    : "no"}{" "}
+                  /{" "}
+                  {displayedE2ECodingTaskSequencer.readiness
+                    .canUseArbitraryShell
+                    ? "yes"
+                    : "no"}
+                </dd>
+              </div>
+            </dl>
+
+            {displayedE2ECodingTaskSequencer.stages.length > 0 ? (
+              <ol className="timeline">
+                {displayedE2ECodingTaskSequencer.stages.map((stage) => (
+                  <li key={stage.kind}>
+                    <span className="timelineMeta">
+                      {stage.label} · {stage.status}
+                    </span>
+                    <span>{stage.summary}</span>
+                    {stage.warningCodes.length > 0 ? (
+                      <span className="timelineMeta">
+                        Warnings: {stage.warningCodes.join(", ")}
+                      </span>
+                    ) : null}
+                    {stage.blockerCodes.length > 0 ? (
+                      <span className="timelineMeta">
+                        Blockers: {stage.blockerCodes.join(", ")}
+                      </span>
+                    ) : null}
+                  </li>
+                ))}
+              </ol>
+            ) : null}
+
+            {displayedE2ECodingTaskSequencer.findings.length > 0 ? (
+              <p className="muted">
+                findings{" "}
+                {displayedE2ECodingTaskSequencer.findings
+                  .map((finding) => finding.code)
+                  .join(", ")}
+              </p>
+            ) : null}
+
+            <p className="fieldHelp">
+              {
+                summarizeE2ECodingTaskSequencerView(
+                  displayedE2ECodingTaskSequencer
+                ).nextAction
               }
             </p>
           </section>
