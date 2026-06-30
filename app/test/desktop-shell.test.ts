@@ -15276,6 +15276,54 @@ describe("desktop source boundaries", () => {
     );
   });
 
+  it("documents the P0R-003 E2E coding task orchestrator as state machine only", async () => {
+    const docs = await readFile(
+      path.join(
+        repoRoot,
+        "docs",
+        "runtime-e2e-coding-task-orchestrator-v0.13.md"
+      ),
+      "utf8"
+    );
+    const docsIndex = await readFile(
+      path.join(repoRoot, "docs", "README.md"),
+      "utf8"
+    );
+    const combined = `${docs}\n${docsIndex}`;
+
+    expect(combined).toContain("Runtime E2E Coding Task Orchestrator v0.13");
+    expect(combined).toContain("pure state machine model");
+    expect(combined).toContain("live proposal generation summary");
+    expect(combined).toContain("model proposal import summary");
+    expect(combined).toContain("chain integration summary");
+    expect(combined).toContain("validation/audit/approval summary");
+    expect(combined).toContain("approval receipt summary");
+    expect(combined).toContain("apply result summary");
+    expect(combined).toContain("verification result summary");
+    expect(combined).toContain("rollback result summary");
+    expect(combined).toContain("replay summary");
+    expect(combined).toContain("verification_failed");
+    expect(combined).toContain("rollback_ready");
+    expect(combined).toContain("rolled_back");
+    expect(combined).toContain("No App execution");
+    expect(combined).toContain("No live DeepSeek call");
+    expect(combined).toContain("No API key read");
+    expect(combined).toContain("No fetch/network");
+    expect(combined).toContain("No apply");
+    expect(combined).toContain("No rollback");
+    expect(combined).toContain("No EventStore write");
+    expect(combined).toContain("No arbitrary Git/shell");
+    expect(combined).toContain("No native bridge");
+    expect(combined).toContain("No desktop action");
+    expect(combined).toContain("raw prompt");
+    expect(combined).toContain("raw response");
+    expect(combined).toContain("reasoning_content");
+    expect(combined).toContain("checkpoint preimage");
+    expect(docsIndex).toContain(
+      "runtime-e2e-coding-task-orchestrator-v0.13.md"
+    );
+  });
+
   it("documents the P0L-001 DeepSeek patch proposal ADR and gates without implementation", async () => {
     const adr = await readFile(
       path.join(
