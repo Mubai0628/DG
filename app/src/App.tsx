@@ -2461,11 +2461,12 @@ export function DesktopShell(): JSX.Element {
           <section className="bridgePreview" aria-label="Git Read Lanes">
             <div className="panelHeader">
               <h2>Git Read Lanes</h2>
-              <span className="muted">Read-only / fixed lanes</span>
+              <span className="muted">Read-only / no Git writes</span>
             </div>
             <p className="fieldHelp">
-              Runs a fixed read-only Git summary lane. No raw diff,
-              stdout/stderr, Git write command, or EventStore write is exposed.
+              Runs a fixed read-only Git summary lane with fixed argv. No raw
+              diff, stdout/stderr, Git write command, or EventStore write is
+              exposed.
             </p>
             <label>
               <span>Lane</span>
@@ -2596,9 +2597,9 @@ export function DesktopShell(): JSX.Element {
               <span className="muted">Allowlist only / no arbitrary shell</span>
             </div>
             <p className="fieldHelp">
-              Runs only fixed verification templates. No generic shell command,
-              raw stdout/stderr, install command, network command, or EventStore
-              write is exposed.
+              Runs only fixed verification templates with fixed argv and no
+              shell interpreter. No generic shell command, raw stdout/stderr,
+              install command, network command, or EventStore write is exposed.
             </p>
             <label>
               <span>Template</span>

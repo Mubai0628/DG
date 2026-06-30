@@ -64,6 +64,12 @@ Current scope:
   checkpoints, summary-only approved execution events, replay counts, and E2E
   smoke coverage while auto-apply, model-driven writes, generic commands, Git,
   shell, native bridge, desktop action, and broad PermissionLease remain absent
+- prepare the v0.12 Git / Shell Safe Lanes MVP RC with fixed Git read-only
+  status/diff/log/branch summary lanes, fixed shell verification templates,
+  summary-only verification events, replay projection, and approved execution
+  plus verification smoke coverage while arbitrary Git, arbitrary shell, Git
+  writes, install/network/destructive commands, raw output events, native
+  bridge, desktop action, and broad PermissionLease remain absent
 - preview the P0M Live Proposal Opt-in Gate as policy metadata only, with no
   API key read, no environment value read, no vault read, no fetch/network, no
   live DeepSeek call, and no App execution
@@ -150,7 +156,11 @@ Current limitations:
   confirmation, safe path and content gates, private checkpoint metadata, and
   summary-only events; it does not expose a generic command UI, Git execution,
   shell execution, native bridge, desktop action, broad PermissionLease, raw
-  content event payload, or model-driven auto-apply
+  content event payload, or model-driven auto-apply; Git Read Lanes are
+  read-only summary lanes with no Git writes and no raw diff/stdout/stderr in
+  events; Shell Verification Lanes are fixed allowlist templates with fixed
+  argv, no shell interpreter, no arbitrary shell, no install/network/destructive
+  command, and no raw stdout/stderr in events
 - no validation, audit, approval, virtual apply, rollback, or replay preview is
   an apply/approval/rollback/execution lane
 - no real DeepSeek API call from the desktop shell

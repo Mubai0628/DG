@@ -1385,16 +1385,17 @@ describe("desktop command wrapper", () => {
       path.join(appRoot, "src", "desktop-flow.ts"),
       "utf8"
     );
+    const normalizedAppSource = appSource.replace(/\s+/g, " ");
 
     expect(appSource).toContain("Git Read Lanes");
-    expect(appSource).toContain("Read-only / fixed lanes");
+    expect(appSource).toContain("Read-only / no Git writes");
     expect(appSource).toContain("Run Git Read Lane");
     expect(appSource).toContain("status_summary");
     expect(appSource).toContain("diff_summary");
     expect(appSource).toContain("log_summary");
     expect(appSource).toContain("branch_summary");
     expect(appSource).toContain("No raw diff");
-    expect(appSource).toContain("No raw diff,");
+    expect(normalizedAppSource).toContain("No raw diff, stdout/stderr");
     expect(appSource).not.toMatch(/>\s*Git Commit\s*</);
     expect(appSource).not.toMatch(/>\s*Git Push\s*</);
     expect(appSource).not.toMatch(/>\s*Git Checkout\s*</);
@@ -13171,8 +13172,8 @@ describe("desktop source boundaries", () => {
     expect(combined).toContain("P0O is complete");
     expect(combined).toContain("P0P: Git / Shell Safe Lanes MVP");
     expect(combined).toContain("Git / Shell Safe Lanes MVP");
-    expect(combined).toContain("Git starts only as fixed read-only");
-    expect(combined).toContain("Shell appears only as fixed verification");
+    expect(combined).toContain("Git is available only as fixed read-only");
+    expect(combined).toContain("shell is available only as fixed verification");
     expect(combined).toContain("status_summary");
     expect(combined).toContain("diff_summary");
     expect(combined).toContain("log_summary");
@@ -13207,9 +13208,7 @@ describe("desktop source boundaries", () => {
     expect(docsIndex).toContain("p0p-git-shell-safe-lanes-roadmap.md");
     expect(docsIndex).toContain("p0p-001-git-shell-safe-lanes-plan.md");
     expect(rootReadme).toContain("v0.12-git-shell-safe-lanes-mvp-prompts.md");
-    expect(rootReadme).toContain(
-      "v0.12 Git / Shell Safe Lanes MVP planning status"
-    );
+    expect(rootReadme).toContain("v0.12 Git / Shell Safe Lanes MVP RC status");
   });
 
   it("documents the P0P-002 Git and shell safe lanes ADR and implementation gate", async () => {
@@ -13376,6 +13375,118 @@ describe("desktop source boundaries", () => {
     expect(docsIndex).toContain(
       "app-approved-execution-verification-smoke-v0.12.md"
     );
+  });
+
+  it("documents the v0.12 Git and shell safe lanes RC release boundary", async () => {
+    const releaseNotes = await readFile(
+      path.join(
+        repoRoot,
+        "docs",
+        "release-notes-v0.12.0-git-shell-safe-lanes-mvp-rc.1.md"
+      ),
+      "utf8"
+    );
+    const manualQa = await readFile(
+      path.join(repoRoot, "docs", "git-shell-safe-lanes-manual-qa.md"),
+      "utf8"
+    );
+    const rcChecklist = await readFile(
+      path.join(repoRoot, "docs", "git-shell-safe-lanes-rc-checklist.md"),
+      "utf8"
+    );
+    const docsIndex = await readFile(
+      path.join(repoRoot, "docs", "README.md"),
+      "utf8"
+    );
+    const appReadme = await readFile(
+      path.join(repoRoot, "app", "README.md"),
+      "utf8"
+    );
+    const appSource = await readFile(
+      path.join(appRoot, "src", "App.tsx"),
+      "utf8"
+    );
+    const normalizedAppSource = appSource.replace(/\s+/g, " ");
+    const combined = `${releaseNotes}\n${manualQa}\n${rcChecklist}\n${docsIndex}\n${appReadme}`;
+
+    expect(combined).toContain("v0.12.0-git-shell-safe-lanes-mvp-rc.1");
+    expect(combined).toContain("Git and shell verification safe lanes MVP");
+    expect(combined).toContain("web_table_to_csv");
+    expect(combined).toContain("App-side approved apply and rollback");
+    expect(combined).toContain(
+      "Git read lanes provide status, diff, log, and branch summaries only"
+    );
+    expect(combined).toContain(
+      "Shell verification lanes run fixed allowlist templates only"
+    );
+    expect(combined).toContain(
+      "Verification events are summary-only and replayable"
+    );
+    expect(combined).toContain("No arbitrary shell");
+    expect(combined).toContain("No arbitrary Git");
+    expect(combined).toContain("No Git write commands");
+    expect(combined).toContain("No install, network, or destructive commands");
+    expect(combined).toContain(
+      "No raw stdout, raw stderr, or raw diff in events"
+    );
+    expect(combined).toContain("No DeepSeek auto-execution");
+    expect(combined).toContain("No native bridge");
+    expect(combined).toContain("No desktop action");
+    expect(combined).toContain("fixed argv");
+    expect(combined).toContain("No shell interpreter");
+    expect(combined).toContain("Pathspec guard");
+    expect(combined).toContain("Cwd guard");
+    expect(combined).toContain("Timeout guards");
+    expect(combined).toContain("Output truncation");
+    expect(combined).toContain("Secret redaction");
+    expect(combined).toContain("Convert Smoke");
+    expect(combined).toContain("Approved Docs-only Apply");
+    expect(combined).toContain("Git Status Summary");
+    expect(combined).toContain("Git Diff Summary");
+    expect(combined).toContain("Shell Verification Lane");
+    expect(combined).toContain("Event Log Verification Summary");
+    expect(combined).toContain("Rollback");
+    expect(combined).toContain("Event Log Rollback Summary");
+    expect(combined).toContain("Raw Output Absent");
+    expect(combined).toContain("Arbitrary Command Absent");
+    expect(combined).toContain("Git Write Command Absent");
+    expect(combined).toContain("Local Scoped Command Gate");
+    expect(combined).toContain("Full Stage-End Command Gate");
+    expect(combined).toContain("Visual Smoke Gate");
+    expect(combined).toContain("GitHub Actions");
+    expect(combined).toContain("Generated Artifacts");
+    expect(combined).toContain("Release / Tag Suggestion");
+    expect(combined).toContain("Release Commands");
+    expect(combined).toContain("Rollback Guidance");
+    expect(combined).toContain("Known Limitations");
+    expect(combined).toContain("full docs path links");
+    expect(docsIndex).toContain(
+      "release-notes-v0.12.0-git-shell-safe-lanes-mvp-rc.1.md"
+    );
+    expect(docsIndex).toContain("git-shell-safe-lanes-manual-qa.md");
+    expect(docsIndex).toContain("git-shell-safe-lanes-rc-checklist.md");
+
+    expect(appSource).toContain("Read-only / no Git writes");
+    expect(appSource).toContain("Allowlist only / no arbitrary shell");
+    expect(appSource).toContain("Summary events / no raw output");
+    expect(appSource).toContain("Evidence refs / no raw output");
+    expect(normalizedAppSource).toContain(
+      "Runs a fixed read-only Git summary lane with fixed argv."
+    );
+    expect(normalizedAppSource).toContain(
+      "Runs only fixed verification templates with fixed argv and no shell interpreter."
+    );
+    expect(appSource).toContain("Event log events");
+    expect(appSource).not.toContain("DeepSeek auto-execution enabled");
+    expect(appSource).not.toContain("Arbitrary Git enabled");
+    expect(appSource).not.toContain("Arbitrary shell enabled");
+    expect(appSource).not.toContain("Git write command enabled");
+    expect(appSource).not.toContain("Native bridge is enabled");
+    expect(appSource).not.toContain("Desktop action is enabled");
+    expect(appSource).not.toMatch(/>\s*Execute\s*</);
+    expect(appSource).not.toMatch(/>\s*Commit\s*</);
+    expect(appSource).not.toMatch(/>\s*Push\s*</);
+    expect(appSource).not.toMatch(/>\s*Install\s*</);
   });
 
   it("documents the P0L-001 DeepSeek patch proposal ADR and gates without implementation", async () => {

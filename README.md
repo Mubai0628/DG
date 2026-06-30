@@ -250,6 +250,9 @@ v0.10 Live Proposal Evaluation RC references:
 - [v0.12 Git / Shell Safe Lanes MVP prompts](docs/v0.12-git-shell-safe-lanes-mvp-prompts.md)
 - [P0P Git / Shell Safe Lanes roadmap](docs/p0p-git-shell-safe-lanes-roadmap.md)
 - [P0P-001 Git / Shell Safe Lanes plan](docs/p0p-001-git-shell-safe-lanes-plan.md)
+- [v0.12.0 Git / Shell Safe Lanes MVP RC release notes](docs/release-notes-v0.12.0-git-shell-safe-lanes-mvp-rc.1.md)
+- [Git / Shell Safe Lanes manual QA](docs/git-shell-safe-lanes-manual-qa.md)
+- [Git / Shell Safe Lanes RC checklist](docs/git-shell-safe-lanes-rc-checklist.md)
 
 ## v0.11 App-side Approved Execution MVP RC status
 
@@ -264,17 +267,17 @@ model auto-execution, Git execution, shell execution, native bridge, desktop
 action, broad PermissionLease, arbitrary filesystem writes, or raw content in
 events.
 
-## v0.12 Git / Shell Safe Lanes MVP planning status
+## v0.12 Git / Shell Safe Lanes MVP RC status
 
 Recommended tag:
 `v0.12.0-git-shell-safe-lanes-mvp-rc.1`.
 
-P0P is planned as a narrow verification-lane MVP after approved apply /
-rollback. Git starts only as fixed read-only summary lanes, shell starts only
-as fixed verification templates, and all outputs must be summary-only,
-redacted, replayable, and unable to perform Git writes, arbitrary shell,
-install, network, destructive command, native bridge, desktop action, or broad
-PermissionLease operations.
+P0P is complete for the v0.12 RC as a narrow verification-lane MVP after
+approved apply / rollback. Git is available only as fixed read-only summary
+lanes, shell is available only as fixed verification templates, and all outputs
+remain summary-only, redacted, replayable, and unable to perform Git writes,
+arbitrary shell, install, network, destructive command, native bridge, desktop
+action, or broad PermissionLease operations.
 
 ## Current roadmap
 
@@ -296,8 +299,10 @@ taxonomy and repair metrics, App read-only summary display, and evaluation
 telemetry/redaction audit. P0O is complete for the v0.11 RC with a narrow
 human-approved App-side apply/rollback MVP, private checkpoints, summary-only
 approved execution events, replay counts, and an E2E approved execution smoke.
-P0P is now planned for fixed Git read-only summary lanes and fixed shell
-verification templates. App-side live model calls, App evaluation runs, App API
+P0P is complete for the v0.12 RC with fixed Git read-only summary lanes, fixed
+shell verification templates, summary-only verification events, replay
+projection, and approved execution plus verification smoke coverage. App-side
+live model calls, App evaluation runs, App API
 key reads, App fetch/network, model-driven auto-apply, approval/rejection
 execution, run execution, arbitrary Git execution, arbitrary shell execution,
 Git write commands, install/network/destructive shell commands, broad
@@ -339,6 +344,9 @@ deferred.
 - [v0.12 Git / Shell Safe Lanes MVP prompts](docs/v0.12-git-shell-safe-lanes-mvp-prompts.md)
 - [P0P Git / Shell Safe Lanes roadmap](docs/p0p-git-shell-safe-lanes-roadmap.md)
 - [P0P-001 Git / Shell Safe Lanes plan](docs/p0p-001-git-shell-safe-lanes-plan.md)
+- [v0.12.0 Git / Shell Safe Lanes MVP RC release notes](docs/release-notes-v0.12.0-git-shell-safe-lanes-mvp-rc.1.md)
+- [Git / Shell Safe Lanes manual QA](docs/git-shell-safe-lanes-manual-qa.md)
+- [Git / Shell Safe Lanes RC checklist](docs/git-shell-safe-lanes-rc-checklist.md)
 
 ## What v0.1.0 does not support
 
