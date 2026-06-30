@@ -192,6 +192,7 @@ foundation.
 - [End-to-End Coding Task threat model v0.13](end-to-end-coding-task-threat-model-v0.13.md)
 - [End-to-End Coding Task implementation gate v0.13](end-to-end-coding-task-implementation-gate-v0.13.md)
 - [P0R-002 Golden End-to-End Task Fixture Schema plan](p0r-002-golden-end-to-end-task-fixture-schema-plan.md)
+- [Runtime E2E Coding Task Fixture Schema v0.13](runtime-e2e-coding-task-fixture-schema-v0.13.md)
 - [Runtime Memory Recall Preview v0.3](runtime-memory-recall-preview-v0.3.md)
 - [v0.4.0 Controlled Creation Preview RC release notes](release-notes-v0.4.0-controlled-creation-preview-rc.1.md)
 - [App Shell Controlled Creation manual QA](app-shell-controlled-creation-manual-qa.md)

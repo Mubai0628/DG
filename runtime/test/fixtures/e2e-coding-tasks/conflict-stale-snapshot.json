@@ -1,0 +1,56 @@
+{
+  "schemaVersion": "e2e_coding_task_fixture.v1",
+  "taskId": "e2e-conflict-stale-snapshot",
+  "title": "Conflict from stale snapshot",
+  "objectiveSummary": "Detect a stale snapshot before approved apply and block mutation.",
+  "intent": "code_change",
+  "workspaceRootRef": "workspace:demo-summary",
+  "allowedPathRefs": ["app/src/demo-safe-view.ts"],
+  "forbiddenPathPolicy": [
+    "expected-before hash required",
+    "no mutation on stale snapshot"
+  ],
+  "expectedProposalSummary": {
+    "refId": "proposal:stale-snapshot",
+    "summary": "Proposal references an allowed App path but requires expected-before hash.",
+    "pathRefs": ["app/src/demo-safe-view.ts"],
+    "eventKinds": [],
+    "hashPrefix": "stale01",
+    "warningCodes": ["STALE_SNAPSHOT_EXPECTED"]
+  },
+  "expectedApplySummary": {
+    "refId": "apply:stale-snapshot",
+    "summary": "Approved apply blocks before mutation because expected-before hash mismatches.",
+    "pathRefs": ["app/src/demo-safe-view.ts"],
+    "eventKinds": ["approved_apply_blocked_summary"],
+    "hashPrefix": "staleapply01",
+    "warningCodes": ["APPLY_CONFLICT"]
+  },
+  "expectedVerificationSummary": {
+    "refId": "verify:stale-snapshot",
+    "summary": "Verification is skipped because apply is blocked.",
+    "pathRefs": ["app/src/demo-safe-view.ts"],
+    "eventKinds": ["verification_skipped_summary"],
+    "hashPrefix": "staleverify01",
+    "warningCodes": ["VERIFICATION_SKIPPED"]
+  },
+  "expectedEvents": [
+    {
+      "refId": "event:apply-blocked",
+      "summary": "Apply blocked summary event records stale snapshot only.",
+      "eventKinds": ["approved_apply_blocked_summary"],
+      "pathRefs": ["app/src/demo-safe-view.ts"],
+      "warningCodes": ["APPLY_CONFLICT"]
+    }
+  ],
+  "expectedReplaySummary": {
+    "refId": "replay:stale-snapshot",
+    "summary": "Replay shows proposal and blocked apply without workspace mutation.",
+    "expectedStatus": "blocked",
+    "eventKinds": ["approved_apply_blocked_summary"],
+    "pathRefs": ["app/src/demo-safe-view.ts"],
+    "warningCodes": ["APPLY_CONFLICT"]
+  },
+  "expectedFailureCategories": ["stale_snapshot", "apply_conflict"],
+  "tags": ["conflict", "stale-snapshot", "blocked"]
+}

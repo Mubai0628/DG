@@ -1,0 +1,83 @@
+{
+  "schemaVersion": "e2e_coding_task_fixture.v1",
+  "taskId": "e2e-verification-failure-rollback",
+  "title": "Verification failure requires rollback",
+  "objectiveSummary": "Apply a safe fixture change, detect verification failure, and require rollback from checkpoint.",
+  "intent": "code_change",
+  "workspaceRootRef": "workspace:demo-summary",
+  "allowedPathRefs": ["runtime/src/fixtures/demo-safe-module.ts"],
+  "forbiddenPathPolicy": [
+    "no arbitrary shell",
+    "no Git write",
+    "checkpoint required"
+  ],
+  "expectedProposalSummary": {
+    "refId": "proposal:verification-failure",
+    "summary": "One safe code proposal with test evidence warning.",
+    "pathRefs": ["runtime/src/fixtures/demo-safe-module.ts"],
+    "eventKinds": [],
+    "hashPrefix": "verifyfail01",
+    "warningCodes": ["TEST_FAILURE_EXPECTED"]
+  },
+  "expectedApplySummary": {
+    "refId": "apply:verification-failure",
+    "summary": "Approved apply updates one safe fixture file and records checkpoint metadata.",
+    "pathRefs": ["runtime/src/fixtures/demo-safe-module.ts"],
+    "eventKinds": ["approved_apply_summary"],
+    "hashPrefix": "applyfail01",
+    "warningCodes": []
+  },
+  "expectedVerificationSummary": {
+    "refId": "verify:verification-failure",
+    "summary": "Fixed verification lane reports a failing scoped test summary.",
+    "pathRefs": ["runtime/src/fixtures/demo-safe-module.ts"],
+    "eventKinds": ["verification_summary"],
+    "hashPrefix": "verifyfail02",
+    "warningCodes": ["VERIFICATION_FAILED"]
+  },
+  "expectedRollbackSummary": {
+    "refId": "rollback:verification-failure",
+    "summary": "Rollback restores the checkpoint after exact typed confirmation.",
+    "pathRefs": ["runtime/src/fixtures/demo-safe-module.ts"],
+    "eventKinds": ["approved_rollback_summary"],
+    "hashPrefix": "rollback01",
+    "warningCodes": []
+  },
+  "expectedEvents": [
+    {
+      "refId": "event:apply",
+      "summary": "Approved apply summary event exists.",
+      "eventKinds": ["approved_apply_summary"],
+      "pathRefs": ["runtime/src/fixtures/demo-safe-module.ts"],
+      "warningCodes": []
+    },
+    {
+      "refId": "event:rollback",
+      "summary": "Rollback summary event exists.",
+      "eventKinds": ["approved_rollback_summary"],
+      "pathRefs": ["runtime/src/fixtures/demo-safe-module.ts"],
+      "warningCodes": []
+    }
+  ],
+  "expectedReplaySummary": {
+    "refId": "replay:verification-failure",
+    "summary": "Replay shows apply, failed verification, rollback, and final safe state.",
+    "expectedStatus": "rollback_required",
+    "eventKinds": [
+      "approved_apply_summary",
+      "verification_summary",
+      "approved_rollback_summary"
+    ],
+    "pathRefs": ["runtime/src/fixtures/demo-safe-module.ts"],
+    "warningCodes": ["VERIFICATION_FAILED"]
+  },
+  "expectedFailureCategories": ["verification_failure"],
+  "failureExpectations": [
+    {
+      "category": "verification_failure",
+      "severity": "warning",
+      "summary": "Verification failure must not auto-rollback; it enters recovery UX."
+    }
+  ],
+  "tags": ["rollback", "verification", "summary-only"]
+}

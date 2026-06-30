@@ -15237,6 +15237,45 @@ describe("desktop source boundaries", () => {
     );
   });
 
+  it("documents the P0R-002 E2E coding task fixture schema without execution", async () => {
+    const docs = await readFile(
+      path.join(
+        repoRoot,
+        "docs",
+        "runtime-e2e-coding-task-fixture-schema-v0.13.md"
+      ),
+      "utf8"
+    );
+    const docsIndex = await readFile(
+      path.join(repoRoot, "docs", "README.md"),
+      "utf8"
+    );
+    const combined = `${docs}\n${docsIndex}`;
+
+    expect(combined).toContain("Runtime E2E Coding Task Fixture Schema v0.13");
+    expect(combined).toContain("summary-only fixtures");
+    expect(combined).toContain("No evaluator runner");
+    expect(combined).toContain("No orchestrator");
+    expect(combined).toContain("No live DeepSeek call");
+    expect(combined).toContain("No API key read");
+    expect(combined).toContain("No fetch/network");
+    expect(combined).toContain("No apply");
+    expect(combined).toContain("No rollback");
+    expect(combined).toContain("No EventStore write");
+    expect(combined).toContain("No App execution");
+    expect(combined).toContain("No arbitrary Git/shell");
+    expect(combined).toContain("No native bridge");
+    expect(combined).toContain("No desktop action");
+    expect(combined).toContain("rawPrompt");
+    expect(combined).toContain("rawResponse");
+    expect(combined).toContain("reasoning_content");
+    expect(combined).toContain("preimageContent");
+    expect(combined).toContain("expectedEvents");
+    expect(docsIndex).toContain(
+      "runtime-e2e-coding-task-fixture-schema-v0.13.md"
+    );
+  });
+
   it("documents the P0L-001 DeepSeek patch proposal ADR and gates without implementation", async () => {
     const adr = await readFile(
       path.join(

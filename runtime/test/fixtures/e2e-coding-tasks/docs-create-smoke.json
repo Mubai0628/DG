@@ -1,0 +1,71 @@
+{
+  "schemaVersion": "e2e_coding_task_fixture.v1",
+  "taskId": "e2e-docs-create-smoke",
+  "title": "Create a small docs note",
+  "objectiveSummary": "Create a short release hygiene note under docs without touching source code.",
+  "intent": "docs_create",
+  "workspaceRootRef": "workspace:demo-summary",
+  "allowedPathRefs": ["docs/release-hygiene-note.md"],
+  "forbiddenPathPolicy": [
+    "no .git",
+    "no .env",
+    "no node_modules",
+    "no dist",
+    "no target",
+    "no .tmp"
+  ],
+  "expectedProposalSummary": {
+    "refId": "proposal:docs-create",
+    "summary": "One create-file proposal for a docs note.",
+    "pathRefs": ["docs/release-hygiene-note.md"],
+    "eventKinds": [],
+    "hashPrefix": "docscreate01",
+    "warningCodes": []
+  },
+  "expectedApplySummary": {
+    "refId": "apply:docs-create",
+    "summary": "Approved apply creates one docs file after receipt and typed confirmation.",
+    "pathRefs": ["docs/release-hygiene-note.md"],
+    "eventKinds": ["approved_apply_summary"],
+    "hashPrefix": "applydocs01",
+    "warningCodes": []
+  },
+  "expectedVerificationSummary": {
+    "refId": "verify:docs-create",
+    "summary": "Fixed verification lanes report clean git status and scoped docs checks.",
+    "pathRefs": ["docs/release-hygiene-note.md"],
+    "eventKinds": ["verification_summary"],
+    "hashPrefix": "verifydocs01",
+    "warningCodes": []
+  },
+  "expectedEvents": [
+    {
+      "refId": "event:proposal",
+      "summary": "Live proposal summary event exists without raw model payload.",
+      "eventKinds": ["live_proposal_summary"],
+      "pathRefs": ["docs/release-hygiene-note.md"],
+      "warningCodes": []
+    },
+    {
+      "refId": "event:apply",
+      "summary": "Approved apply summary event exists without raw source content.",
+      "eventKinds": ["approved_apply_summary"],
+      "pathRefs": ["docs/release-hygiene-note.md"],
+      "warningCodes": []
+    }
+  ],
+  "expectedReplaySummary": {
+    "refId": "replay:docs-create",
+    "summary": "Replay links proposal, approved apply, and verification summaries.",
+    "expectedStatus": "pass",
+    "eventKinds": [
+      "live_proposal_summary",
+      "approved_apply_summary",
+      "verification_summary"
+    ],
+    "pathRefs": ["docs/release-hygiene-note.md"],
+    "warningCodes": []
+  },
+  "expectedFailureCategories": ["no_failure_expected"],
+  "tags": ["smoke", "docs", "summary-only"]
+}

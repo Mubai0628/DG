@@ -1,0 +1,68 @@
+{
+  "schemaVersion": "e2e_coding_task_fixture.v1",
+  "taskId": "e2e-docs-update-verify-smoke",
+  "title": "Update docs and verify",
+  "objectiveSummary": "Update an existing docs checklist and run fixed verification lanes.",
+  "intent": "docs_update",
+  "workspaceRootRef": "workspace:demo-summary",
+  "allowedPathRefs": ["docs/app-live-proposal-generation-rc-checklist.md"],
+  "forbiddenPathPolicy": [
+    "no raw source",
+    "no raw diff",
+    "no checkpoint preimage"
+  ],
+  "expectedProposalSummary": {
+    "refId": "proposal:docs-update",
+    "summary": "One update proposal for an existing docs checklist.",
+    "pathRefs": ["docs/app-live-proposal-generation-rc-checklist.md"],
+    "eventKinds": [],
+    "hashPrefix": "docsupdate01",
+    "warningCodes": []
+  },
+  "expectedApplySummary": {
+    "refId": "apply:docs-update",
+    "summary": "Approved apply updates one docs file with checkpoint metadata.",
+    "pathRefs": ["docs/app-live-proposal-generation-rc-checklist.md"],
+    "eventKinds": ["approved_apply_summary"],
+    "hashPrefix": "applydocs02",
+    "warningCodes": []
+  },
+  "expectedVerificationSummary": {
+    "refId": "verify:docs-update",
+    "summary": "Fixed git diff summary and scoped docs tests complete.",
+    "pathRefs": ["docs/app-live-proposal-generation-rc-checklist.md"],
+    "eventKinds": ["verification_summary"],
+    "hashPrefix": "verifydocs02",
+    "warningCodes": []
+  },
+  "expectedEvents": [
+    {
+      "refId": "event:proposal",
+      "summary": "Proposal event is summary-only.",
+      "eventKinds": ["live_proposal_summary"],
+      "pathRefs": ["docs/app-live-proposal-generation-rc-checklist.md"],
+      "warningCodes": []
+    },
+    {
+      "refId": "event:verification",
+      "summary": "Verification event records fixed lane counts only.",
+      "eventKinds": ["verification_summary"],
+      "pathRefs": ["docs/app-live-proposal-generation-rc-checklist.md"],
+      "warningCodes": []
+    }
+  ],
+  "expectedReplaySummary": {
+    "refId": "replay:docs-update",
+    "summary": "Replay shows proposal, apply, and verification summaries.",
+    "expectedStatus": "pass",
+    "eventKinds": [
+      "live_proposal_summary",
+      "approved_apply_summary",
+      "verification_summary"
+    ],
+    "pathRefs": ["docs/app-live-proposal-generation-rc-checklist.md"],
+    "warningCodes": []
+  },
+  "expectedFailureCategories": ["no_failure_expected"],
+  "tags": ["smoke", "docs", "verification"]
+}

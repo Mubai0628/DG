@@ -1,0 +1,50 @@
+{
+  "schemaVersion": "e2e_coding_task_fixture.v1",
+  "taskId": "e2e-blocked-unsafe-path",
+  "title": "Block unsafe path",
+  "objectiveSummary": "Reject a proposed task that attempts parent traversal.",
+  "intent": "code_change",
+  "workspaceRootRef": "workspace:demo-summary",
+  "allowedPathRefs": ["../outside-workspace.txt"],
+  "forbiddenPathPolicy": ["no parent traversal"],
+  "expectedProposalSummary": {
+    "refId": "proposal:unsafe-path",
+    "summary": "Unsafe path must be blocked before proposal import.",
+    "pathRefs": [],
+    "eventKinds": [],
+    "warningCodes": ["UNSAFE_PATH"]
+  },
+  "expectedApplySummary": {
+    "refId": "apply:unsafe-path",
+    "summary": "No apply is allowed for unsafe path.",
+    "pathRefs": [],
+    "eventKinds": [],
+    "warningCodes": ["UNSAFE_PATH"]
+  },
+  "expectedVerificationSummary": {
+    "refId": "verify:unsafe-path",
+    "summary": "No verification runs because proposal is blocked.",
+    "pathRefs": [],
+    "eventKinds": [],
+    "warningCodes": ["UNSAFE_PATH"]
+  },
+  "expectedEvents": [
+    {
+      "refId": "event:blocker",
+      "summary": "Blocked unsafe path summary exists.",
+      "eventKinds": ["proposal_blocked_summary"],
+      "pathRefs": [],
+      "warningCodes": ["UNSAFE_PATH"]
+    }
+  ],
+  "expectedReplaySummary": {
+    "refId": "replay:unsafe-path",
+    "summary": "Replay shows blocked proposal without mutation.",
+    "expectedStatus": "blocked",
+    "eventKinds": ["proposal_blocked_summary"],
+    "pathRefs": [],
+    "warningCodes": ["UNSAFE_PATH"]
+  },
+  "expectedFailureCategories": ["unsafe_path"],
+  "tags": ["blocked", "path"]
+}
