@@ -1655,7 +1655,7 @@ describe("desktop command wrapper", () => {
     const workspaceRoot = await createTempWorkspace();
     const payload = await readFixture();
     const calls: string[] = [];
-    const invoke: TauriInvoke = async (command, args) => {
+    const invoke: TauriInvoke = async (command) => {
       calls.push(command);
       return fixedPreflight({
         ok: false,
@@ -15049,6 +15049,130 @@ describe("desktop source boundaries", () => {
     expect(appSource).not.toMatch(/>\s*Execute Run\s*</);
     expect(appSource).not.toMatch(/>\s*Commit\s*</);
     expect(appSource).not.toMatch(/>\s*Push\s*</);
+  });
+
+  it("documents the v0.14 E2E coding task MVP RC release boundary", async () => {
+    const releaseNotes = await readFile(
+      path.join(
+        repoRoot,
+        "docs",
+        "release-notes-v0.14.0-end-to-end-coding-task-mvp-rc.1.md"
+      ),
+      "utf8"
+    );
+    const manualQa = await readFile(
+      path.join(repoRoot, "docs", "e2e-coding-task-manual-qa.md"),
+      "utf8"
+    );
+    const rcChecklist = await readFile(
+      path.join(repoRoot, "docs", "e2e-coding-task-rc-checklist.md"),
+      "utf8"
+    );
+    const docsIndex = await readFile(
+      path.join(repoRoot, "docs", "README.md"),
+      "utf8"
+    );
+    const rootReadme = await readFile(path.join(repoRoot, "README.md"), "utf8");
+    const appReadme = await readFile(
+      path.join(repoRoot, "app", "README.md"),
+      "utf8"
+    );
+    const appSource = await readFile(
+      path.join(repoRoot, "app", "src", "App.tsx"),
+      "utf8"
+    );
+    const combined = `${releaseNotes}\n${manualQa}\n${rcChecklist}\n${docsIndex}\n${rootReadme}\n${appReadme}`;
+    const normalizedCombined = combined.replace(/\s+/g, " ");
+    const normalizedAppSource = appSource.replace(/\s+/g, " ");
+
+    expect(combined).toContain("v0.14.0-end-to-end-coding-task-mvp-rc.1");
+    expect(normalizedCombined).toContain("End-to-end DeepSeek coding task MVP");
+    expect(combined).toContain(
+      "web_table_to_csv` Convert remains the real conversion flow"
+    );
+    expect(combined).toContain(
+      "App can request live DeepSeek proposal generation with explicit opt-in"
+    );
+    expect(combined).toContain(
+      "Generated proposal enters repair/schema/import/chain preview"
+    );
+    expect(combined).toContain("Human approval receipt and typed confirmation");
+    expect(combined).toContain("Approved apply writes only safe paths");
+    expect(combined).toContain(
+      "Git/shell verification lanes are fixed and bounded"
+    );
+    expect(combined).toContain("Rollback is available from checkpoint");
+    expect(combined).toContain(
+      "Summary-only events/replay reconstruct the flow"
+    );
+    expect(combined).toContain("No auto-apply");
+    expect(combined).toContain("No autonomous coding loop");
+    expect(combined).toContain("No arbitrary Git/shell");
+    expect(combined).toContain("No broad PermissionLease");
+    expect(combined).toContain("No native bridge");
+    expect(combined).toContain("No desktop action");
+    expect(combined).toContain(
+      "No raw prompt/response/reasoning/API key in events"
+    );
+    expect(combined).toContain("No raw source/diff/preimage in event payloads");
+    expect(combined).toContain("Human approval");
+    expect(combined).toContain("Typed confirmation");
+    expect(combined).toContain("Path guard");
+    expect(combined).toContain("Content/secret guard");
+    expect(combined).toContain("Checkpoint");
+    expect(combined).toContain("Verification");
+    expect(combined).toContain("Summary-only events");
+    expect(combined).toContain("Replay");
+    expect(combined).toContain("Failure recovery");
+    expect(combined).toContain("Convert Smoke");
+    expect(combined).toContain("Live Proposal Request With Explicit Opt-in");
+    expect(combined).toContain("Import Proposal");
+    expect(combined).toContain("Approval Receipt");
+    expect(combined).toContain("Approved Apply");
+    expect(combined).toContain("Git/Shell Verification");
+    expect(combined).toContain("Event Log / Replay");
+    expect(combined).toContain("Raw Content Absent");
+    expect(combined).toContain("No Arbitrary Git/Shell");
+    expect(combined).toContain("Local Scoped Command Gate");
+    expect(combined).toContain("Full Stage-End Command Gate");
+    expect(combined).toContain("pnpm verify:ci");
+    expect(combined).toContain("pnpm release:smoke");
+    expect(combined).toContain("pnpm app:qa:check");
+    expect(combined).toContain("GitHub Actions Gate");
+    expect(combined).toContain("Generated Artifacts");
+    expect(combined).toContain("Release / Tag Suggestion");
+    expect(combined).toContain("Release Commands");
+    expect(combined).toContain("Rollback Guidance");
+    expect(combined).toContain("Known Limitations");
+    expect(combined).toContain("full docs path links");
+    expect(combined).toContain("docs/e2e-coding-task-manual-qa.md");
+    expect(docsIndex).toContain(
+      "release-notes-v0.14.0-end-to-end-coding-task-mvp-rc.1.md"
+    );
+    expect(docsIndex).toContain("e2e-coding-task-manual-qa.md");
+    expect(docsIndex).toContain("e2e-coding-task-rc-checklist.md");
+    expect(rootReadme).toContain("v0.14 End-to-End Coding Task MVP status");
+    expect(rootReadme).toContain("P0R is complete for the v0.14 RC");
+    expect(appReadme).toContain(
+      "prepare the v0.14 End-to-End Coding Task MVP RC"
+    );
+    expect(appSource).toContain("End-to-End Coding Task Wizard");
+    expect(appSource).toContain("Guided flow / no auto-apply");
+    expect(appSource).toContain(
+      "End-to-End Apply / Verify / Rollback Sequencer"
+    );
+    expect(appSource).toContain("Approved gates only / no arbitrary execution");
+    expect(appSource).toContain("E2E Task Recovery");
+    expect(appSource).toContain("Safe recovery / no auto-retry execution");
+    expect(normalizedAppSource).toContain(
+      "No prompt is assembled and no model request is sent."
+    );
+    expect(normalizedAppSource).toContain(
+      "No capability is invoked and no permission lease is issued."
+    );
+    expect(appSource).not.toContain("Auto Apply Task");
+    expect(appSource).not.toContain("Run Arbitrary Shell");
+    expect(appSource).not.toContain("Run Git Write");
   });
 
   it("documents the v0.13 post-release review and P0R end-to-end coding task roadmap", async () => {

@@ -262,6 +262,9 @@ v0.10 Live Proposal Evaluation RC references:
 - [v0.13 App Live Proposal Generation post-release review](docs/v0.13-app-live-proposal-generation-postrelease-review.md)
 - [P0R End-to-End Coding Task roadmap](docs/p0r-end-to-end-coding-task-roadmap.md)
 - [P0R-001 End-to-End Coding Task MVP plan](docs/p0r-001-end-to-end-coding-task-mvp-plan.md)
+- [v0.14.0 End-to-End Coding Task MVP RC release notes](docs/release-notes-v0.14.0-end-to-end-coding-task-mvp-rc.1.md)
+- [E2E Coding Task manual QA](docs/e2e-coding-task-manual-qa.md)
+- [E2E Coding Task RC checklist](docs/e2e-coding-task-rc-checklist.md)
 
 ## v0.11 App-side Approved Execution MVP RC status
 
@@ -307,14 +310,20 @@ Git and shell remain fixed summary-only verification lanes.
 Recommended tag:
 `v0.14.0-end-to-end-coding-task-mvp-rc.1`.
 
-P0R is the next roadmap line after the v0.13 App live proposal generation RC. It
-is planned as one reliable end-to-end coding task MVP: user objective, live
-proposal generation, repair/schema/import/chain preview, validation/diff/audit,
-human typed confirmation, approved apply, Git/shell verification safe lanes,
-summary events, replay, and rollback if needed. It must preserve no auto-apply,
-no autonomous coding loop, no broad PermissionLease, no arbitrary Git/shell, no
-native bridge, no desktop action, and no raw prompt/response/reasoning/API key
-or raw source/diff/preimage event payloads.
+P0R is complete for the v0.14 RC as one reliable end-to-end coding task MVP:
+user objective, live proposal generation, repair/schema/import/chain preview,
+validation/diff/audit, human typed confirmation, approved apply, Git/shell
+verification safe lanes, summary events, replay, failure recovery, regression
+smoke, and rollback if needed. It preserves no auto-apply, no autonomous coding
+loop, no broad PermissionLease, no arbitrary Git/shell, no native bridge, no
+desktop action, and no raw prompt/response/reasoning/API key or raw
+source/diff/preimage event payloads.
+
+v0.14 End-to-End Coding Task MVP RC references:
+
+- [v0.14.0 End-to-End Coding Task MVP RC release notes](docs/release-notes-v0.14.0-end-to-end-coding-task-mvp-rc.1.md)
+- [E2E Coding Task manual QA](docs/e2e-coding-task-manual-qa.md)
+- [E2E Coding Task RC checklist](docs/e2e-coding-task-rc-checklist.md)
 
 ## Current roadmap
 
@@ -400,6 +409,9 @@ MCP/plugin/skills runtime, native bridge, and desktop action remain deferred.
 - [v0.13 App Live Proposal Generation post-release review](docs/v0.13-app-live-proposal-generation-postrelease-review.md)
 - [P0R End-to-End Coding Task roadmap](docs/p0r-end-to-end-coding-task-roadmap.md)
 - [P0R-001 End-to-End Coding Task MVP plan](docs/p0r-001-end-to-end-coding-task-mvp-plan.md)
+- [v0.14.0 End-to-End Coding Task MVP RC release notes](docs/release-notes-v0.14.0-end-to-end-coding-task-mvp-rc.1.md)
+- [E2E Coding Task manual QA](docs/e2e-coding-task-manual-qa.md)
+- [E2E Coding Task RC checklist](docs/e2e-coding-task-rc-checklist.md)
 
 ## What v0.1.0 does not support
 
