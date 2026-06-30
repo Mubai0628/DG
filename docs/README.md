@@ -197,6 +197,7 @@ foundation.
 - [App Shell E2E Coding Task Wizard v0.13](app-shell-e2e-coding-task-wizard-v0.13.md)
 - [App Shell E2E Coding Task Sequencer v0.13](app-shell-e2e-coding-task-sequencer-v0.13.md)
 - [App Shell E2E Task Failure Recovery v0.13](app-shell-e2e-task-failure-recovery-v0.13.md)
+- [E2E Coding Task Regression Suite v0.13](e2e-coding-task-regression-suite-v0.13.md)
 - [Runtime Memory Recall Preview v0.3](runtime-memory-recall-preview-v0.3.md)
 - [v0.4.0 Controlled Creation Preview RC release notes](release-notes-v0.4.0-controlled-creation-preview-rc.1.md)
 - [App Shell Controlled Creation manual QA](app-shell-controlled-creation-manual-qa.md)

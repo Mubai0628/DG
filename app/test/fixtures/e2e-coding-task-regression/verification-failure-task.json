@@ -1,0 +1,10 @@
+{
+  "fixtureKind": "verification_failure_task",
+  "caseId": "p0r-verification-failure",
+  "templateId": "pnpm.test.scoped",
+  "safeTestFilePath": "app/test/fixtures/e2e-coding-task-regression/failing-smoke.test.ts",
+  "expectedVerificationStatus": "failed",
+  "expectedRecoveryCategory": "verification_failure",
+  "recommendedAction": "Prepare approved rollback from checkpoint.",
+  "summaryOnly": true
+}

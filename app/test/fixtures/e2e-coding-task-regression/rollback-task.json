@@ -1,0 +1,9 @@
+{
+  "fixtureKind": "rollback_task",
+  "caseId": "p0r-rollback-task",
+  "rollbackTypedConfirmation": "ROLLBACK USER WORKSPACE",
+  "checkpointId": "checkpoint-p0r-regression",
+  "checkpointHash": "checkpoint-p0r-regression-hash",
+  "expectedRollbackStatus": "rolled_back",
+  "summaryOnly": true
+}

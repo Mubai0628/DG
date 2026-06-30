@@ -1,0 +1,15 @@
+{
+  "fixtureKind": "safe_docs_task",
+  "caseId": "p0r-safe-docs-task",
+  "objectiveSummary": "Create a small docs smoke file and verify the gated flow.",
+  "proposalId": "proposal-p0r-safe-docs",
+  "validationId": "validation-p0r-safe-docs",
+  "auditId": "audit-p0r-safe-docs",
+  "approvalDraftId": "approval-p0r-safe-docs",
+  "workspaceRootRef": "workspace-ref-p0r-regression",
+  "path": "docs/p0r-regression-smoke.md",
+  "changeKind": "create",
+  "contentDraft": "# P0R Regression Smoke\n\nSummary-only docs task fixture.\n",
+  "applyTypedConfirmation": "APPLY TO USER WORKSPACE",
+  "summaryOnly": true
+}

@@ -89,6 +89,9 @@ Current scope:
   validation, approval, stale snapshot, apply conflict, verification, rollback,
   EventStore, and Convert FILE_EXISTS failures while auto-retry execution and
   raw content display remain absent
+- lock the P0R E2E coding task regression smoke with safe docs-task,
+  verification-failure, rollback, and expected event summary fixtures while no
+  new App execution path is added
 - preview the P0M Live Proposal Opt-in Gate as policy metadata only, with no
   API key read, no environment value read, no vault read, no fetch/network, no
   live DeepSeek call, and no App execution

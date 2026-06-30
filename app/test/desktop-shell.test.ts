@@ -1655,7 +1655,7 @@ describe("desktop command wrapper", () => {
     const workspaceRoot = await createTempWorkspace();
     const payload = await readFixture();
     const calls: string[] = [];
-    const invoke: TauriInvoke = async (command) => {
+    const invoke: TauriInvoke = async (command, args) => {
       calls.push(command);
       return fixedPreflight({
         ok: false,
@@ -15943,6 +15943,475 @@ describe("desktop source boundaries", () => {
     expect(combined).toContain("No arbitrary Git");
     expect(combined).toContain("No arbitrary shell");
     expect(combined).toContain("app-shell-e2e-task-failure-recovery-v0.13.md");
+  });
+
+  it("runs the P0R-007 E2E coding task regression smoke through fixed wrappers", async () => {
+    const workspaceRoot = await createTempWorkspace();
+    const regressionRoot = path.join(
+      appRoot,
+      "test",
+      "fixtures",
+      "e2e-coding-task-regression"
+    );
+    const docsTask = JSON.parse(
+      await readFile(path.join(regressionRoot, "safe-docs-task.json"), "utf8")
+    ) as Record<string, string | boolean>;
+    const verificationTask = JSON.parse(
+      await readFile(
+        path.join(regressionRoot, "verification-failure-task.json"),
+        "utf8"
+      )
+    ) as Record<string, string | boolean>;
+    const rollbackTask = JSON.parse(
+      await readFile(path.join(regressionRoot, "rollback-task.json"), "utf8")
+    ) as Record<string, string | boolean>;
+    const expectedEventSummary = JSON.parse(
+      await readFile(
+        path.join(regressionRoot, "expected-event-summary.json"),
+        "utf8"
+      )
+    ) as Record<string, unknown>;
+    const payload = await readFixture();
+    const calls: string[] = [];
+    const applyResult: ApprovedUserWorkspaceApplyResult = {
+      ok: true,
+      applyId: "apply-p0r-regression",
+      checkpointId: String(rollbackTask.checkpointId),
+      checkpointHash: String(rollbackTask.checkpointHash),
+      workspaceRootRef: String(docsTask.workspaceRootRef),
+      operationCount: 1,
+      filesCreated: 1,
+      filesUpdated: 0,
+      filesDeleted: 0,
+      bytesWritten: 54,
+      warningCodes: [],
+      inputSnapshotHash: "input-p0r-regression",
+      outputSnapshotHash: "output-p0r-regression",
+      resultHash: "apply-result-p0r-regression",
+      eventPreview: {
+        type: "user_workspace.patch_apply.approved_result",
+        applyId: "apply-p0r-regression",
+        checkpointId: String(rollbackTask.checkpointId),
+        checkpointHash: String(rollbackTask.checkpointHash),
+        workspaceRootRef: String(docsTask.workspaceRootRef),
+        operationCount: 1,
+        filesCreated: 1,
+        filesUpdated: 0,
+        filesDeleted: 0,
+        bytesWritten: 54,
+        pathSummaries: [`create ${docsTask.path}`],
+        pathSummaryCount: 1,
+        resultHash: "apply-result-p0r-regression",
+        warningCodes: [],
+        notWritten: true
+      },
+      safeMessage:
+        "Approved user workspace apply completed with a summary-only result."
+    };
+    const rollbackResult: ApprovedUserWorkspaceRollbackResult = {
+      ok: true,
+      rollbackId: "rollback-p0r-regression",
+      applyId: applyResult.applyId,
+      checkpointId: applyResult.checkpointId,
+      checkpointHash: applyResult.checkpointHash,
+      workspaceRootRef: applyResult.workspaceRootRef,
+      operationCount: 1,
+      filesRemoved: 1,
+      filesRestored: 0,
+      restoredSnapshotHash: "restored-p0r-regression",
+      resultHash: "rollback-result-p0r-regression",
+      warningCodes: [],
+      eventPreview: {
+        type: "user_workspace.patch_rollback.approved_result",
+        rollbackId: "rollback-p0r-regression",
+        applyId: applyResult.applyId,
+        checkpointId: applyResult.checkpointId,
+        checkpointHash: applyResult.checkpointHash,
+        workspaceRootRef: applyResult.workspaceRootRef,
+        operationCount: 1,
+        filesRemoved: 1,
+        filesRestored: 0,
+        pathSummaries: [`remove ${docsTask.path}`],
+        pathSummaryCount: 1,
+        restoredSnapshotHash: "restored-p0r-regression",
+        resultHash: "rollback-result-p0r-regression",
+        warningCodes: [],
+        notWritten: true
+      },
+      safeMessage:
+        "Approved user workspace rollback completed with a summary-only result."
+    };
+    const failedVerification = fixedShellVerificationLaneResult({
+      templateId: "pnpm.test.scoped",
+      status: "failed",
+      exitCode: 1,
+      workspaceRootRef: String(docsTask.workspaceRootRef),
+      safeMessage: "Verification failed with summary-only output.",
+      eventPreview: {
+        ...fixedShellVerificationLaneResult().eventPreview,
+        templateId: "pnpm.test.scoped",
+        workspaceRootRef: String(docsTask.workspaceRootRef),
+        exitCode: 1,
+        summaryOnly: true,
+        notWritten: true
+      }
+    });
+    const invoke: TauriInvoke = async (command, args) => {
+      calls.push(command);
+      if (command === "check_runner_preflight") {
+        return fixedPreflight({ workspaceValid: true }) as never;
+      }
+      if (command === "run_web_table_to_csv_flow") {
+        return fixedResult(workspaceRoot) as never;
+      }
+      if (command === "apply_approved_user_workspace_patch") {
+        return applyResult as never;
+      }
+      if (command === "run_shell_verification_lane") {
+        return failedVerification as never;
+      }
+      if (command === "rollback_approved_user_workspace_patch") {
+        return rollbackResult as never;
+      }
+      if (command === "record_approved_user_workspace_execution_event") {
+        const eventPreview = args?.eventPreview as
+          | ApprovedUserWorkspaceApplyResult["eventPreview"]
+          | ApprovedUserWorkspaceRollbackResult["eventPreview"]
+          | undefined;
+        const isRollback =
+          eventPreview?.type ===
+          "user_workspace.patch_rollback.approved_result";
+        return {
+          ok: true,
+          eventId: "approved-execution-event-p0r",
+          eventType: isRollback
+            ? "user_workspace.patch_rollback.app_executed"
+            : "user_workspace.patch_apply.app_executed",
+          operationId: isRollback
+            ? "rollback-p0r-regression"
+            : "apply-p0r-regression",
+          checkpointId: String(rollbackTask.checkpointId),
+          eventLogPath: path.join(
+            workspaceRoot,
+            ".deepseek-workbench",
+            "events.jsonl"
+          ),
+          safeMessage:
+            "Summary-only approved execution event recorded locally.",
+          warnings: []
+        } as never;
+      }
+      if (command === "record_verification_lane_event") {
+        return fixedVerificationLaneEventRecord({
+          eventType: "shell.verification_lane.executed",
+          laneOrTemplateId: "pnpm.test.scoped",
+          resultHash: failedVerification.outputHash
+        }) as never;
+      }
+      throw new Error(`unexpected command ${command}`);
+    };
+
+    const importView = buildModelPatchProposalImportView({
+      draftText: JSON.stringify({
+        schemaVersion: "model_patch_proposal.v1",
+        proposalId: docsTask.proposalId,
+        title: "P0R safe docs regression",
+        intent: "docs_update",
+        operations: [
+          {
+            operationId: "op-p0r-docs",
+            path: docsTask.path,
+            changeKind: "documentation",
+            summary: "Create a safe regression docs smoke file.",
+            rationale: "The P0R regression suite needs a safe docs task.",
+            estimatedLinesAdded: 3,
+            estimatedLinesRemoved: 0,
+            warningCodes: []
+          }
+        ],
+        pathSummaries: [
+          {
+            path: docsTask.path,
+            changeKind: "documentation",
+            summary: "Safe docs regression smoke file."
+          }
+        ],
+        evidenceRefs: [
+          {
+            refId: "fixture",
+            kind: "manual_note",
+            summary: "P0R fixture summary only.",
+            hashPrefix: "p0rfixture"
+          }
+        ],
+        riskNotes: [
+          {
+            code: "DOCS_ONLY",
+            severity: "info",
+            summary: "Docs-only regression fixture."
+          }
+        ],
+        validationHints: ["Run App regression smoke."],
+        modelProfileId: "deepseek-chat",
+        source: "deepseek_model_patch_proposal"
+      }),
+      sourceKind: "fixture"
+    });
+    const chainView = buildModelProposalChainIntegrationView({
+      modelImportView: importView
+    });
+    const receiptView = buildAppApprovedExecutionReceiptView({
+      receiptKind: "apply",
+      applyTypedConfirmation: String(docsTask.applyTypedConfirmation),
+      rollbackTypedConfirmation: String(rollbackTask.rollbackTypedConfirmation),
+      allowedRelativePathsText: String(docsTask.path),
+      workspaceSnapshotBackupContract: {
+        userWorkspaceRootRef: docsTask.workspaceRootRef
+      },
+      patchProposalPreview: {
+        proposalId: docsTask.proposalId,
+        items: [{ path: docsTask.path, changeKind: docsTask.changeKind }]
+      },
+      patchValidationPreview: { validationId: docsTask.validationId },
+      patchDiffAuditPreview: { auditId: docsTask.auditId },
+      patchApprovalDraft: { approvalDraftId: docsTask.approvalDraftId }
+    });
+    const applyFlow = buildAppApprovedExecutionFlowView({
+      workspaceRoot,
+      receiptView,
+      patchProposalPreview: {
+        proposalId: docsTask.proposalId,
+        items: [{ path: docsTask.path, changeKind: docsTask.changeKind }]
+      },
+      patchValidationPreview: { validationId: docsTask.validationId },
+      patchDiffAuditPreview: { auditId: docsTask.auditId },
+      patchApprovalDraft: { approvalDraftId: docsTask.approvalDraftId },
+      contentDraft: String(docsTask.contentDraft)
+    });
+    const convertResult = await runDesktopWebTableToCsvFlow(
+      {
+        workspaceRoot,
+        payloadText: JSON.stringify(payload),
+        filename: "p0r-regression.csv"
+      },
+      invoke
+    );
+    const applied = await applyApprovedUserWorkspacePatch(
+      buildApprovedApplyRequestFromExecutionFlow({
+        workspaceRoot,
+        receiptView,
+        patchProposalPreview: {
+          proposalId: docsTask.proposalId,
+          items: [{ path: docsTask.path, changeKind: docsTask.changeKind }]
+        },
+        patchValidationPreview: { validationId: docsTask.validationId },
+        patchDiffAuditPreview: { auditId: docsTask.auditId },
+        patchApprovalDraft: { approvalDraftId: docsTask.approvalDraftId },
+        contentDraft: String(docsTask.contentDraft)
+      }),
+      invoke
+    );
+    const applyEvent = await recordApprovedUserWorkspaceExecutionEvent(
+      { workspaceRoot, eventPreview: applied.eventPreview },
+      invoke
+    );
+    const verification = await runShellVerificationLane(
+      {
+        workspaceRoot,
+        workspaceRootRef: String(docsTask.workspaceRootRef),
+        templateId: "pnpm.test.scoped",
+        safeArgs: {
+          testFilePath: String(verificationTask.safeTestFilePath)
+        }
+      },
+      invoke
+    );
+    const verificationEvent = await recordVerificationLaneEvent(
+      { workspaceRoot, eventPreview: verification.eventPreview },
+      invoke
+    );
+    const rollbackReceipt = buildAppApprovedExecutionReceiptView({
+      receiptKind: "rollback",
+      applyTypedConfirmation: String(docsTask.applyTypedConfirmation),
+      rollbackTypedConfirmation: String(rollbackTask.rollbackTypedConfirmation),
+      allowedRelativePathsText: String(docsTask.path),
+      workspaceSnapshotBackupContract: {
+        userWorkspaceRootRef: docsTask.workspaceRootRef
+      },
+      patchProposalPreview: {
+        proposalId: docsTask.proposalId,
+        items: [{ path: docsTask.path, changeKind: docsTask.changeKind }]
+      },
+      patchValidationPreview: { validationId: docsTask.validationId },
+      patchDiffAuditPreview: { auditId: docsTask.auditId },
+      patchApprovalDraft: { approvalDraftId: docsTask.approvalDraftId },
+      patchRollbackCheckpointPreview: {
+        checkpointPreviewId: rollbackTask.checkpointId
+      },
+      approvedApplyResult: applied
+    });
+    const rollbackFlow = buildAppApprovedExecutionFlowView({
+      workspaceRoot,
+      receiptView: rollbackReceipt,
+      patchProposalPreview: {
+        proposalId: docsTask.proposalId,
+        items: [{ path: docsTask.path, changeKind: docsTask.changeKind }]
+      },
+      patchValidationPreview: { validationId: docsTask.validationId },
+      patchDiffAuditPreview: { auditId: docsTask.auditId },
+      patchApprovalDraft: { approvalDraftId: docsTask.approvalDraftId },
+      applyResult: applied
+    });
+    const rollbackReady = buildE2ECodingTaskSequencerView({
+      modelPatchProposalImportView: importView,
+      modelProposalChainIntegrationView: chainView,
+      approvedExecutionFlowView: rollbackFlow,
+      applyResult: applied,
+      shellVerificationResult: verification
+    });
+    const recovery = buildE2ETaskRecoveryView({
+      approvalReceiptView: rollbackReceipt,
+      approvedExecutionFlowView: rollbackFlow,
+      applyResult: applied,
+      shellVerificationResult: verification,
+      sequencerView: rollbackReady
+    });
+    const rolledBack = await rollbackApprovedUserWorkspacePatch(
+      buildApprovedRollbackRequestFromExecutionFlow({
+        workspaceRoot,
+        receiptView: rollbackReceipt,
+        patchProposalPreview: {
+          proposalId: docsTask.proposalId,
+          items: [{ path: docsTask.path, changeKind: docsTask.changeKind }]
+        },
+        patchValidationPreview: { validationId: docsTask.validationId },
+        patchDiffAuditPreview: { auditId: docsTask.auditId },
+        patchApprovalDraft: { approvalDraftId: docsTask.approvalDraftId },
+        applyResult: applied
+      }),
+      invoke
+    );
+    const rollbackEvent = await recordApprovedUserWorkspaceExecutionEvent(
+      { workspaceRoot, eventPreview: rolledBack.eventPreview },
+      invoke
+    );
+    const replayPanel = buildEventLogPanelModel(
+      fixedEventSummary({
+        approvedApplyCount: Number(expectedEventSummary.approvedApplyCount),
+        approvedRollbackCount: Number(
+          expectedEventSummary.approvedRollbackCount
+        ),
+        verificationEventCount: Number(
+          expectedEventSummary.verificationLaneCount
+        ),
+        timeline: [
+          {
+            id: "apply-event",
+            type: "user_workspace.patch_apply.app_executed",
+            summary: "approved apply summary",
+            safePayloadKeys: ["pathSummaries", "pathSummaryCount"]
+          },
+          {
+            id: "verification-event",
+            type: "shell.verification_lane.executed",
+            summary: "shell verification summary",
+            safePayloadKeys: ["templateId", "resultHash"]
+          },
+          {
+            id: "rollback-event",
+            type: "user_workspace.patch_rollback.app_executed",
+            summary: "approved rollback summary",
+            safePayloadKeys: ["pathSummaries", "pathSummaryCount"]
+          }
+        ]
+      })
+    );
+    const serialized = JSON.stringify({
+      importView,
+      chainView,
+      applyFlow,
+      applied,
+      applyEvent,
+      verification,
+      verificationEvent,
+      recovery,
+      rollbackReady,
+      rolledBack,
+      rollbackEvent,
+      replayPanel,
+      convertResult
+    });
+
+    expect(importView.readiness.canImportToPatchPreview).toBe(true);
+    expect(chainView.readiness.canEnterExistingPreviewChain).toBe(true);
+    expect(applyFlow.readiness.canApplyApprovedPatch).toBe(true);
+    expect(applied.eventPreview.pathSummaries).toContain(
+      `create ${docsTask.path}`
+    );
+    expect(verification.status).toBe("failed");
+    expect(rollbackReady.status).toBe("rollback_ready");
+    expect(recovery.failureCategory).toBe("verification_failure");
+    expect(recovery.rollbackAvailable).toBe(true);
+    expect(rollbackFlow.readiness.canRollbackApprovedPatch).toBe(true);
+    expect(rolledBack.eventPreview.pathSummaries).toContain(
+      `remove ${docsTask.path}`
+    );
+    expect(replayPanel?.approvedApplyCount).toBe(1);
+    expect(replayPanel?.approvedRollbackCount).toBe(1);
+    expect(replayPanel?.verificationEventCount).toBe(1);
+    expect(convertResult.draft.relativePath).toBe("drafts/table.csv");
+    expect(calls).toContain("run_web_table_to_csv_flow");
+    expect(calls).toContain("apply_approved_user_workspace_patch");
+    expect(calls).toContain("run_shell_verification_lane");
+    expect(calls).toContain("rollback_approved_user_workspace_patch");
+    expect(serialized).not.toContain("rawPrompt");
+    expect(serialized).not.toContain("rawResponse");
+    expect(serialized).not.toContain("reasoning_content");
+    expect(serialized).not.toContain(["api", "Key"].join(""));
+    expect(serialized).not.toContain("preimageContent");
+  });
+
+  it("documents the P0R-007 E2E coding task regression suite and fixtures", async () => {
+    const docs = await readFile(
+      path.join(repoRoot, "docs", "e2e-coding-task-regression-suite-v0.13.md"),
+      "utf8"
+    );
+    const docsIndex = await readFile(
+      path.join(repoRoot, "docs", "README.md"),
+      "utf8"
+    );
+    const appReadme = await readFile(path.join(appRoot, "README.md"), "utf8");
+    const fixtureNames = [
+      "safe-docs-task.json",
+      "verification-failure-task.json",
+      "rollback-task.json",
+      "expected-event-summary.json"
+    ];
+    const combined = `${docs}\n${docsIndex}\n${appReadme}`;
+
+    for (const fixtureName of fixtureNames) {
+      await access(
+        path.join(
+          appRoot,
+          "test",
+          "fixtures",
+          "e2e-coding-task-regression",
+          fixtureName
+        )
+      );
+      expect(combined).toContain(fixtureName);
+    }
+    expect(combined).toContain("proposal/import chain works");
+    expect(combined).toContain(
+      "verification failure triggers rollback readiness"
+    );
+    expect(combined).toContain("rollback restores the checkpoint summary");
+    expect(combined).toContain("Convert still works");
+    expect(combined).toContain("No auto-apply");
+    expect(combined).toContain("No arbitrary Git");
+    expect(combined).toContain("No arbitrary shell");
+    expect(combined).toContain("No raw prompt");
+    expect(docsIndex).toContain("e2e-coding-task-regression-suite-v0.13.md");
   });
 
   it("documents the P0L-001 DeepSeek patch proposal ADR and gates without implementation", async () => {

@@ -1,0 +1,13 @@
+{
+  "fixtureKind": "expected_event_summary",
+  "approvedApplyCount": 1,
+  "approvedRollbackCount": 1,
+  "verificationLaneCount": 1,
+  "expectedTimelineTypes": [
+    "user_workspace.patch_apply.app_executed",
+    "shell.verification_lane.executed",
+    "user_workspace.patch_rollback.app_executed"
+  ],
+  "summaryOnly": true,
+  "rawPayloadIncluded": false
+}
