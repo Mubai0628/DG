@@ -30,6 +30,7 @@ const APPROVED_APPLY_PREVIEW_TYPE: &str = "user_workspace.patch_apply.approved_r
 const APPROVED_ROLLBACK_PREVIEW_TYPE: &str = "user_workspace.patch_rollback.approved_result";
 const APPROVED_APPLY_EXECUTED_TYPE: &str = "user_workspace.patch_apply.app_executed";
 const APPROVED_ROLLBACK_EXECUTED_TYPE: &str = "user_workspace.patch_rollback.app_executed";
+const LIVE_PROPOSAL_GENERATED_TYPE: &str = "model.patch_proposal.live_generated";
 const LIVE_PROPOSAL_CONFIRMATION: &str = "CALL DEEPSEEK FOR PROPOSAL";
 const LIVE_PROPOSAL_ALLOWED_KEY_REF: &str = "DEEPSEEK_API_KEY";
 const LIVE_PROPOSAL_ENDPOINT: &str = "https://api.deepseek.com/chat/completions";
@@ -237,8 +238,10 @@ pub struct WorkspaceEventSummary {
     approved_apply_count: usize,
     approved_rollback_count: usize,
     verification_event_count: usize,
+    live_proposal_event_count: usize,
     latest_approved_execution_summary: Option<String>,
     latest_verification_summary: Option<String>,
+    latest_live_proposal_summary: Option<String>,
     last_event_at: Option<String>,
     type_counts: BTreeMap<String, usize>,
     timeline: Vec<EventTimelineItem>,
@@ -280,6 +283,19 @@ pub struct VerificationLaneEventRecordResult {
     event_type: String,
     lane_or_template_id: String,
     result_hash: String,
+    event_log_path: String,
+    safe_message: String,
+    warnings: Vec<String>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct LiveProposalSummaryEventRecordResult {
+    ok: bool,
+    event_id: String,
+    event_type: String,
+    generation_id: String,
+    proposal_id: String,
     event_log_path: String,
     safe_message: String,
     warnings: Vec<String>,
@@ -982,6 +998,85 @@ pub fn record_verification_lane_event(
         result_hash: verification_event.result_hash,
         event_log_path: event_log_path.to_string_lossy().to_string(),
         safe_message: "Summary-only verification lane event recorded locally.".to_string(),
+        warnings: Vec::new(),
+    })
+}
+
+#[tauri::command(rename_all = "camelCase")]
+pub fn record_live_proposal_summary_event(
+    workspace_root: String,
+    event_preview: Value,
+) -> Result<LiveProposalSummaryEventRecordResult, DesktopFlowError> {
+    let workspace_root = validate_workspace_root(&workspace_root).map_err(|message| {
+        DesktopFlowError::new(
+            "WORKSPACE_INVALID",
+            message,
+            "record_live_proposal_summary_event",
+        )
+    })?;
+    let live_event =
+        build_live_proposal_summary_event_payload(&event_preview).map_err(|message| {
+            DesktopFlowError::invalid_payload(message)
+                .with_stage("record_live_proposal_summary_event")
+        })?;
+    let event_log_path = resolve_safe_event_log_path(&workspace_root, "Live proposal event")?;
+
+    let millis = unix_epoch_millis();
+    let event_id = format!("live-proposal-{millis}");
+    let timestamp = format!("unix-ms-{millis}");
+    let event = serde_json::json!({
+        "id": event_id,
+        "ts": timestamp,
+        "type": LIVE_PROPOSAL_GENERATED_TYPE,
+        "schemaVersion": 1,
+        "taskId": Value::Null,
+        "payload": live_event.payload
+    });
+    let event_line = serde_json::to_string(&event).map_err(|_| {
+        DesktopFlowError::new(
+            "EVENT_SERIALIZE_FAILED",
+            "Live proposal event could not be serialized",
+            "record_live_proposal_summary_event",
+        )
+    })?;
+    if event_line.as_bytes().len() > MAX_RUN_DRAFT_EVENT_PAYLOAD_BYTES + 4096
+        || contains_approved_apply_sensitive_marker(&event_line)
+    {
+        return Err(DesktopFlowError::new(
+            "LIVE_PROPOSAL_EVENT_REJECTED",
+            "Live proposal event payload failed final safety validation",
+            "record_live_proposal_summary_event",
+        ));
+    }
+
+    use std::io::Write;
+    let mut file = fs::OpenOptions::new()
+        .create(true)
+        .append(true)
+        .open(&event_log_path)
+        .map_err(|_| {
+            DesktopFlowError::new(
+                "EVENT_LOG_WRITE_FAILED",
+                "Live proposal event could not be written",
+                "record_live_proposal_summary_event",
+            )
+        })?;
+    writeln!(file, "{event_line}").map_err(|_| {
+        DesktopFlowError::new(
+            "EVENT_LOG_WRITE_FAILED",
+            "Live proposal event could not be written",
+            "record_live_proposal_summary_event",
+        )
+    })?;
+
+    Ok(LiveProposalSummaryEventRecordResult {
+        ok: true,
+        event_id,
+        event_type: LIVE_PROPOSAL_GENERATED_TYPE.to_string(),
+        generation_id: live_event.generation_id,
+        proposal_id: live_event.proposal_id,
+        event_log_path: event_log_path.to_string_lossy().to_string(),
+        safe_message: "Summary-only live proposal event recorded locally.".to_string(),
         warnings: Vec::new(),
     })
 }
@@ -3702,8 +3797,10 @@ fn load_event_summary(workspace_root: &str, max_events: Option<usize>) -> Worksp
     let mut approved_apply_count = 0usize;
     let mut approved_rollback_count = 0usize;
     let mut verification_event_count = 0usize;
+    let mut live_proposal_event_count = 0usize;
     let mut latest_approved_execution_summary: Option<String> = None;
     let mut latest_verification_summary: Option<String> = None;
+    let mut latest_live_proposal_summary: Option<String> = None;
     let mut last_event_at: Option<String> = None;
 
     for event in &events {
@@ -3738,6 +3835,10 @@ fn load_event_summary(workspace_root: &str, max_events: Option<usize>) -> Worksp
             verification_event_count += 1;
             latest_verification_summary = Some(summarize_safe_event(event));
         }
+        if event_type == LIVE_PROPOSAL_GENERATED_TYPE {
+            live_proposal_event_count += 1;
+            latest_live_proposal_summary = Some(summarize_safe_event(event));
+        }
     }
 
     let mut timeline = events
@@ -3762,8 +3863,10 @@ fn load_event_summary(workspace_root: &str, max_events: Option<usize>) -> Worksp
         approved_apply_count,
         approved_rollback_count,
         verification_event_count,
+        live_proposal_event_count,
         latest_approved_execution_summary,
         latest_verification_summary,
+        latest_live_proposal_summary,
         last_event_at,
         type_counts,
         timeline,
@@ -3789,8 +3892,10 @@ fn empty_event_summary(
         approved_apply_count: 0,
         approved_rollback_count: 0,
         verification_event_count: 0,
+        live_proposal_event_count: 0,
         latest_approved_execution_summary: None,
         latest_verification_summary: None,
+        latest_live_proposal_summary: None,
         last_event_at: None,
         type_counts: BTreeMap::new(),
         timeline: Vec::new(),
@@ -3816,8 +3921,10 @@ fn event_summary_error(code: &str, message: String) -> WorkspaceEventSummary {
         approved_apply_count: 0,
         approved_rollback_count: 0,
         verification_event_count: 0,
+        live_proposal_event_count: 0,
         latest_approved_execution_summary: None,
         latest_verification_summary: None,
+        latest_live_proposal_summary: None,
         last_event_at: None,
         type_counts: BTreeMap::new(),
         timeline: Vec::new(),
@@ -3853,6 +3960,7 @@ fn safe_payload_keys(payload: &serde_json::Map<String, Value>) -> BTreeSet<Strin
         "agentRouteSummary",
         "argumentSummary",
         "applyId",
+        "blockerCount",
         "bytes",
         "bytesWritten",
         "capabilityPlanSummary",
@@ -3868,6 +3976,7 @@ fn safe_payload_keys(payload: &serde_json::Map<String, Value>) -> BTreeSet<Strin
         "errorKind",
         "eventKind",
         "formulaEscapedCount",
+        "generationId",
         "addedLineCount",
         "changedFileCount",
         "deletedLineCount",
@@ -3885,17 +3994,26 @@ fn safe_payload_keys(payload: &serde_json::Map<String, Value>) -> BTreeSet<Strin
         "localTaskId",
         "memoryRecallSummary",
         "metadataSummary",
+        "modelProfileId",
+        "noApiKey",
         "noExecution",
         "noRawOutput",
+        "noRawPrompt",
+        "noRawResponse",
+        "noReasoningContent",
         "objectiveSummary",
         "operationCount",
         "overwritten",
         "pathSummaries",
         "pathSummaryCount",
         "previewOnly",
+        "proposalHash",
+        "proposalId",
         "redactedTextCount",
         "redaction",
         "relativePath",
+        "repairStatus",
+        "requestId",
         "restoredSnapshotHash",
         "resultSummary",
         "resultHash",
@@ -3918,6 +4036,8 @@ fn safe_payload_keys(payload: &serde_json::Map<String, Value>) -> BTreeSet<Strin
         "title",
         "toolName",
         "truncated",
+        "usageSummary",
+        "validationStatus",
         "warningCount",
         "warningCodes",
         "workspaceIndexRef",
@@ -4061,6 +4181,19 @@ fn summarize_safe_event(event: &Value) -> String {
                     format!("result {prefix}")
                 }),
                 nested_array_display(payload, "warningCodes", "warning codes"),
+            ],
+        ),
+        LIVE_PROPOSAL_GENERATED_TYPE => format_parts(
+            "live proposal generated",
+            [
+                nested_string(payload, "proposalId"),
+                nested_string(payload, "requestId").map(|value| format!("request {value}")),
+                nested_string(payload, "modelProfileId"),
+                nested_string(payload, "repairStatus").map(|value| format!("repair {value}")),
+                nested_string(payload, "validationStatus")
+                    .map(|value| format!("validation {value}")),
+                nested_display(payload, "warningCount", "warnings"),
+                nested_display(payload, "blockerCount", "blockers"),
             ],
         ),
         _ => format_parts(
@@ -4459,6 +4592,12 @@ struct VerificationLaneEventPayload {
     payload: Value,
 }
 
+struct LiveProposalSummaryEventPayload {
+    generation_id: String,
+    proposal_id: String,
+    payload: Value,
+}
+
 fn resolve_safe_event_log_path(
     workspace_root: &Path,
     label: &str,
@@ -4759,6 +4898,118 @@ fn build_shell_verification_event_payload(
         result_hash,
         payload,
     })
+}
+
+fn build_live_proposal_summary_event_payload(
+    event_preview: &Value,
+) -> Result<LiveProposalSummaryEventPayload, String> {
+    let object = event_preview
+        .as_object()
+        .ok_or_else(|| "Live proposal event preview must be an object".to_string())?;
+    validate_live_value_forbidden_keys(event_preview)?;
+    validate_live_value_string_safety(event_preview)?;
+    validate_live_readiness_disabled(object.get("readiness"))?;
+    if object.get("notWritten").and_then(Value::as_bool) != Some(true) {
+        return Err("Live proposal event preview must be notWritten".to_string());
+    }
+    if object.get("summaryOnly").and_then(Value::as_bool) != Some(true) {
+        return Err("Live proposal event preview must be summaryOnly".to_string());
+    }
+    if object.get("type").and_then(Value::as_str) != Some(LIVE_PROPOSAL_GENERATED_TYPE) {
+        return Err("Live proposal event preview type is unsupported".to_string());
+    }
+    if object.get("noRawPrompt").and_then(Value::as_bool) != Some(true)
+        || object.get("noRawResponse").and_then(Value::as_bool) != Some(true)
+        || object.get("noReasoningContent").and_then(Value::as_bool) != Some(true)
+        || object.get("noApiKey").and_then(Value::as_bool) != Some(true)
+        || object
+            .get("contentDraftRawIncluded")
+            .and_then(Value::as_bool)
+            != Some(false)
+    {
+        return Err("Live proposal event preview must exclude raw content".to_string());
+    }
+    if object.get("canApplyPatch").and_then(Value::as_bool) != Some(false)
+        || object.get("canRollback").and_then(Value::as_bool) != Some(false)
+        || object
+            .get("canWriteEventStore")
+            .and_then(Value::as_bool)
+            != Some(false)
+    {
+        return Err("Live proposal event preview must keep execution disabled".to_string());
+    }
+
+    let generation_id = required_event_string(object, "generationId")?;
+    let request_id = required_event_string(object, "requestId")?;
+    let proposal_id = required_event_string(object, "proposalId")?;
+    let model_profile_id = required_event_string(object, "modelProfileId")?;
+    let repair_status = required_event_string(object, "repairStatus")?;
+    let validation_status = required_event_string(object, "validationStatus")?;
+    let proposal_hash = required_event_string(object, "proposalHash")?;
+    for (field, value) in [
+        ("generationId", &generation_id),
+        ("requestId", &request_id),
+        ("proposalId", &proposal_id),
+        ("modelProfileId", &model_profile_id),
+        ("repairStatus", &repair_status),
+        ("validationStatus", &validation_status),
+        ("proposalHash", &proposal_hash),
+    ] {
+        validate_approved_rollback_safe_ref(value, field)?;
+        if value.to_ascii_lowercase().starts_with("sk-")
+            || contains_approved_apply_sensitive_marker(value)
+        {
+            return Err(format!("Live proposal event preview has unsafe {field}"));
+        }
+    }
+    let usage_summary = safe_live_proposal_usage_summary(object.get("usageSummary"))?;
+    let payload = serde_json::json!({
+        "eventKind": LIVE_PROPOSAL_GENERATED_TYPE,
+        "schemaVersion": 1,
+        "summaryOnly": true,
+        "safetyScanOk": true,
+        "canApplyPatch": false,
+        "canRollback": false,
+        "canWriteEventStore": false,
+        "generationId": generation_id,
+        "requestId": request_id,
+        "proposalId": proposal_id,
+        "modelProfileId": model_profile_id,
+        "usageSummary": usage_summary,
+        "repairStatus": repair_status,
+        "validationStatus": validation_status,
+        "warningCount": required_event_usize(object, "warningCount")?,
+        "blockerCount": required_event_usize(object, "blockerCount")?,
+        "proposalHash": proposal_hash,
+        "droppedReasoningContent": required_event_bool(object, "droppedReasoningContent")?,
+        "warningCodes": []
+    });
+    Ok(LiveProposalSummaryEventPayload {
+        generation_id,
+        proposal_id,
+        payload,
+    })
+}
+
+fn safe_live_proposal_usage_summary(value: Option<&Value>) -> Result<Value, String> {
+    let Some(value) = value else {
+        return Ok(serde_json::json!({}));
+    };
+    let object = value
+        .as_object()
+        .ok_or_else(|| "Live proposal usage summary must be an object".to_string())?;
+    let allowed = ["promptTokens", "completionTokens", "totalTokens"];
+    let mut output = serde_json::Map::new();
+    for (key, nested) in object {
+        if !allowed.contains(&key.as_str()) {
+            return Err("Live proposal usage summary contains unsupported field".to_string());
+        }
+        let Some(number) = nested.as_u64() else {
+            return Err("Live proposal usage summary must be numeric".to_string());
+        };
+        output.insert(key.clone(), Value::from(number));
+    }
+    Ok(Value::Object(output))
 }
 
 fn required_event_string(
@@ -5619,6 +5870,38 @@ mod tests {
         }
     }
 
+    fn safe_live_proposal_summary_event_preview() -> Value {
+        serde_json::json!({
+            "type": LIVE_PROPOSAL_GENERATED_TYPE,
+            "generationId": "live-proposal-generation-test",
+            "requestId": "live-proposal-request-test",
+            "proposalId": "proposal-live-test",
+            "modelProfileId": "deepseek-chat",
+            "usageSummary": {
+                "promptTokens": 11,
+                "completionTokens": 22,
+                "totalTokens": 33
+            },
+            "repairStatus": "valid",
+            "validationStatus": "valid",
+            "warningCount": 1,
+            "blockerCount": 0,
+            "proposalHash": "proposal-hash-test",
+            "droppedReasoningContent": true,
+            "warningCodes": ["REASONING_CONTENT_DROPPED"],
+            "summaryOnly": true,
+            "noRawPrompt": true,
+            "noRawResponse": true,
+            "noReasoningContent": true,
+            "noApiKey": true,
+            "contentDraftRawIncluded": false,
+            "canApplyPatch": false,
+            "canRollback": false,
+            "canWriteEventStore": false,
+            "notWritten": true
+        })
+    }
+
     fn safe_live_key_resolver(_: &str) -> Result<String, DesktopFlowError> {
         Ok("test-live-key-value".to_string())
     }
@@ -5837,6 +6120,95 @@ mod tests {
         )
         .expect_err("invalid request blocks early");
         assert_eq!(error.error_code, "LIVE_DEEPSEEK_PROPOSAL_BLOCKED");
+    }
+
+    #[test]
+    fn records_live_proposal_summary_event_without_raw_output() {
+        let workspace = temp_workspace("live-proposal-event");
+        let result = record_live_proposal_summary_event(
+            workspace.to_string_lossy().to_string(),
+            safe_live_proposal_summary_event_preview(),
+        )
+        .expect("summary event recorded");
+        let event_log = workspace.join(".deepseek-workbench").join("events.jsonl");
+        let text = fs::read_to_string(event_log).expect("event log");
+
+        assert!(result.ok);
+        assert_eq!(result.event_type, LIVE_PROPOSAL_GENERATED_TYPE);
+        assert_eq!(result.proposal_id, "proposal-live-test");
+        assert!(text.contains(LIVE_PROPOSAL_GENERATED_TYPE));
+        assert!(text.contains("\"proposalId\":\"proposal-live-test\""));
+        assert!(text.contains("\"summaryOnly\":true"));
+        assert!(text.contains("\"canApplyPatch\":false"));
+        assert!(text.contains("\"canRollback\":false"));
+        assert!(text.contains("\"canWriteEventStore\":false"));
+        assert!(!text.contains(&["raw", "Response"].join("")));
+        assert!(!text.contains(&["raw", "Prompt"].join("")));
+        assert!(!text.contains("reasoning_content"));
+        assert!(!text.contains("test-live-key-value"));
+        assert!(!text.contains("Authorization"));
+        assert!(!text.contains("sk-"));
+    }
+
+    #[test]
+    fn live_proposal_summary_event_replay_projection_is_summary_only() {
+        let workspace = temp_workspace("live-proposal-replay");
+        record_live_proposal_summary_event(
+            workspace.to_string_lossy().to_string(),
+            safe_live_proposal_summary_event_preview(),
+        )
+        .expect("summary event recorded");
+
+        let summary = load_workspace_event_summary(
+            workspace.to_string_lossy().to_string(),
+            Some(20),
+        );
+        let serialized = serde_json::to_string(&summary).expect("serialize");
+
+        assert!(summary.ok);
+        assert_eq!(summary.live_proposal_event_count, 1);
+        assert!(summary
+            .latest_live_proposal_summary
+            .as_deref()
+            .unwrap_or_default()
+            .contains("live proposal generated: proposal-live-test"));
+        assert!(serialized.contains("model.patch_proposal.live_generated"));
+        assert!(!serialized.contains(&["raw", "Response"].join("")));
+        assert!(!serialized.contains(&["raw", "Prompt"].join("")));
+        assert!(!serialized.contains("reasoning_content"));
+        assert!(!serialized.contains("test-live-key-value"));
+    }
+
+    #[test]
+    fn live_proposal_summary_event_rejects_unsafe_preview() {
+        let workspace = temp_workspace("live-proposal-event-blocked");
+
+        let mut raw_response = safe_live_proposal_summary_event_preview();
+        raw_response["rawResponse"] = Value::String("hidden".to_string());
+        let error = record_live_proposal_summary_event(
+            workspace.to_string_lossy().to_string(),
+            raw_response,
+        )
+        .expect_err("raw response blocks");
+        assert_eq!(error.error_code, "INVALID_PAYLOAD");
+
+        let mut secret = safe_live_proposal_summary_event_preview();
+        secret["proposalHash"] = Value::String("sk-fake-live-event-secret-000000".to_string());
+        let error = record_live_proposal_summary_event(
+            workspace.to_string_lossy().to_string(),
+            secret,
+        )
+        .expect_err("secret marker blocks");
+        assert_eq!(error.error_code, "INVALID_PAYLOAD");
+
+        let mut execution = safe_live_proposal_summary_event_preview();
+        execution["canApplyPatch"] = Value::Bool(true);
+        let error = record_live_proposal_summary_event(
+            workspace.to_string_lossy().to_string(),
+            execution,
+        )
+        .expect_err("execution flag blocks");
+        assert_eq!(error.error_code, "INVALID_PAYLOAD");
     }
 
     #[test]

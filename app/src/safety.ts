@@ -85,8 +85,10 @@ export type WorkspaceEventSummary = {
   approvedApplyCount: number;
   approvedRollbackCount: number;
   verificationEventCount: number;
+  liveProposalEventCount: number;
   latestApprovedExecutionSummary?: string;
   latestVerificationSummary?: string;
+  latestLiveProposalSummary?: string;
   lastEventAt?: string;
   typeCounts: Record<string, number>;
   timeline: unknown[];
@@ -138,8 +140,10 @@ export type EventLogPanelModel = {
   approvedApplyCount: number;
   approvedRollbackCount: number;
   verificationEventCount: number;
+  liveProposalEventCount: number;
   latestApprovedExecutionSummary?: string;
   latestVerificationSummary?: string;
+  latestLiveProposalSummary?: string;
   lastEventAt?: string;
   safetyOk: boolean;
   safetyFindingCount: number;
@@ -464,6 +468,11 @@ export function normalizeWorkspaceEventSummary(
     "latestVerificationSummary",
     "latest_verification_summary"
   );
+  const latestLiveProposalSummary = readString(
+    value,
+    "latestLiveProposalSummary",
+    "latest_live_proposal_summary"
+  );
   const safeMessage = readString(value, "safeMessage", "safe_message");
   const warnings = Array.isArray(value.warnings)
     ? readStringArray(value, "warnings")
@@ -491,11 +500,17 @@ export function normalizeWorkspaceEventSummary(
     verificationEventCount: finiteNumber(
       readValue(value, "verificationEventCount", "verification_event_count")
     ),
+    liveProposalEventCount: finiteNumber(
+      readValue(value, "liveProposalEventCount", "live_proposal_event_count")
+    ),
     ...(latestApprovedExecutionSummary !== undefined
       ? { latestApprovedExecutionSummary }
       : {}),
     ...(latestVerificationSummary !== undefined
       ? { latestVerificationSummary }
+      : {}),
+    ...(latestLiveProposalSummary !== undefined
+      ? { latestLiveProposalSummary }
       : {}),
     ...(lastEventAt !== undefined ? { lastEventAt } : {}),
     typeCounts: isRecord(readValue(value, "typeCounts", "type_counts"))
@@ -614,6 +629,7 @@ export function buildEventLogPanelModel(
     approvedApplyCount: finiteNumber(summary.approvedApplyCount),
     approvedRollbackCount: finiteNumber(summary.approvedRollbackCount),
     verificationEventCount: finiteNumber(summary.verificationEventCount),
+    liveProposalEventCount: finiteNumber(summary.liveProposalEventCount),
     ...(typeof summary.latestApprovedExecutionSummary === "string"
       ? {
           latestApprovedExecutionSummary: safeErrorMessage(
@@ -625,6 +641,13 @@ export function buildEventLogPanelModel(
       ? {
           latestVerificationSummary: safeErrorMessage(
             summary.latestVerificationSummary
+          )
+        }
+      : {}),
+    ...(typeof summary.latestLiveProposalSummary === "string"
+      ? {
+          latestLiveProposalSummary: safeErrorMessage(
+            summary.latestLiveProposalSummary
           )
         }
       : {}),
@@ -1109,6 +1132,7 @@ function invalidWorkspaceEventSummary(message: string): WorkspaceEventSummary {
     approvedApplyCount: 0,
     approvedRollbackCount: 0,
     verificationEventCount: 0,
+    liveProposalEventCount: 0,
     typeCounts: {},
     timeline: [],
     safetyScan: {

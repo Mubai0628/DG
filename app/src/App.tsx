@@ -17,6 +17,7 @@ import {
   liveProposalAllowedKeySourceRef,
   recordApprovedUserWorkspaceExecutionEvent,
   recordControlRunDraftEvent,
+  recordLiveProposalSummaryEvent,
   recordVerificationLaneEvent,
   rollbackApprovedUserWorkspacePatch,
   runDesktopWebTableToCsvFlow,
@@ -29,6 +30,8 @@ import {
   type GitReadLaneResult,
   type LiveDeepSeekPatchProposalCommandRequest,
   type LiveDeepSeekPatchProposalCommandResult,
+  type LiveProposalSummaryEventPreview,
+  type LiveProposalSummaryEventRecordResult,
   type VerificationLaneEventRecordResult,
   type ShellVerificationLaneResult,
   type ShellVerificationTemplateId
@@ -397,6 +400,42 @@ function buildLiveProposalGenerationCommandRequest(input: {
   };
 }
 
+export function buildLiveProposalSummaryEventPreview(input: {
+  generationView: LiveDeepSeekProposalGenerationView;
+  commandResult: LiveDeepSeekPatchProposalCommandResult;
+  importView: ModelPatchProposalImportView;
+}): LiveProposalSummaryEventPreview {
+  const proposalHash =
+    input.importView.preview?.proposalHash ??
+    input.commandResult.proposalCandidateHash;
+
+  return {
+    type: "model.patch_proposal.live_generated",
+    generationId: input.generationView.flowId,
+    requestId: input.generationView.requestId,
+    proposalId: input.generationView.proposalId,
+    modelProfileId: input.commandResult.modelProfileId,
+    usageSummary: input.generationView.usageSummary,
+    repairStatus: input.generationView.repairStatus,
+    validationStatus: input.generationView.schemaValidationStatus,
+    warningCount: input.generationView.warningCount,
+    blockerCount: input.generationView.blockerCount,
+    proposalHash,
+    droppedReasoningContent: input.generationView.droppedReasoningContent,
+    warningCodes: input.generationView.warningCodes,
+    summaryOnly: true,
+    noRawPrompt: true,
+    noRawResponse: true,
+    noReasoningContent: true,
+    noApiKey: true,
+    contentDraftRawIncluded: false,
+    canApplyPatch: false,
+    canRollback: false,
+    canWriteEventStore: false,
+    notWritten: true
+  };
+}
+
 export function DesktopShell(): JSX.Element {
   const [workspaceRoot, setWorkspaceRoot] = useState("");
   const [payloadText, setPayloadText] = useState("");
@@ -499,6 +538,18 @@ export function DesktopShell(): JSX.Element {
   const [
     liveDeepSeekProposalGenerationError,
     setLiveDeepSeekProposalGenerationError
+  ] = useState<string | undefined>();
+  const [
+    liveProposalSummaryEventStatus,
+    setLiveProposalSummaryEventStatus
+  ] = useState<DraftEventStatus>("idle");
+  const [
+    liveProposalSummaryEventResult,
+    setLiveProposalSummaryEventResult
+  ] = useState<LiveProposalSummaryEventRecordResult | undefined>();
+  const [
+    liveProposalSummaryEventError,
+    setLiveProposalSummaryEventError
   ] = useState<string | undefined>();
   const [liveProposalPreviewGatePreview, setLiveProposalPreviewGatePreview] =
     useState<LiveProposalPreviewGateView | undefined>();
@@ -1467,6 +1518,31 @@ export function DesktopShell(): JSX.Element {
         modelProposalChainIntegrationPreview
       ]
     );
+  const liveProposalSummaryEventPreview =
+    useMemo<LiveProposalSummaryEventPreview | undefined>(() => {
+      if (
+        liveDeepSeekProposalCommandResult === undefined ||
+        modelPatchProposalImportPreview === undefined ||
+        modelPatchProposalImportPreview.readiness.canImportToPatchPreview !==
+          true ||
+        liveDeepSeekProposalGenerationView.blockerCount > 0
+      ) {
+        return undefined;
+      }
+      return buildLiveProposalSummaryEventPreview({
+        generationView: liveDeepSeekProposalGenerationView,
+        commandResult: liveDeepSeekProposalCommandResult,
+        importView: modelPatchProposalImportPreview
+      });
+    }, [
+      liveDeepSeekProposalCommandResult,
+      liveDeepSeekProposalGenerationView,
+      modelPatchProposalImportPreview
+    ]);
+  const canRecordLiveProposalSummaryEvent =
+    liveProposalSummaryEventPreview !== undefined &&
+    workspaceRoot.trim().length > 0 &&
+    liveProposalSummaryEventStatus !== "recording";
   const liveProposalValidationIntegrationView =
     useMemo<LiveProposalValidationIntegrationView>(
       () => buildLiveProposalValidationIntegrationView(),
@@ -1987,6 +2063,9 @@ export function DesktopShell(): JSX.Element {
     setLiveProposalOptInGatePreview(liveProposalOptInGateCandidate);
     setLiveDeepSeekProposalCommandResult(undefined);
     setLiveDeepSeekProposalGenerationError(undefined);
+    setLiveProposalSummaryEventStatus("idle");
+    setLiveProposalSummaryEventResult(undefined);
+    setLiveProposalSummaryEventError(undefined);
     setAppLiveProposalSessionReceiptPreview(undefined);
     setLiveProposalPreviewGatePreview(undefined);
     setLiveProposalTelemetryAuditPreview(undefined);
@@ -1996,6 +2075,9 @@ export function DesktopShell(): JSX.Element {
     setLiveProposalRequestBuilderPreview(liveProposalRequestBuilderCandidate);
     setLiveDeepSeekProposalCommandResult(undefined);
     setLiveDeepSeekProposalGenerationError(undefined);
+    setLiveProposalSummaryEventStatus("idle");
+    setLiveProposalSummaryEventResult(undefined);
+    setLiveProposalSummaryEventError(undefined);
     setAppLiveProposalSessionReceiptPreview(undefined);
     setLiveProposalPreviewGatePreview(undefined);
     setLiveProposalTelemetryAuditPreview(undefined);
@@ -2007,6 +2089,9 @@ export function DesktopShell(): JSX.Element {
     );
     setLiveDeepSeekProposalCommandResult(undefined);
     setLiveDeepSeekProposalGenerationError(undefined);
+    setLiveProposalSummaryEventStatus("idle");
+    setLiveProposalSummaryEventResult(undefined);
+    setLiveProposalSummaryEventError(undefined);
     setLiveProposalPreviewGatePreview(undefined);
     setLiveProposalTelemetryAuditPreview(undefined);
   }
@@ -2015,6 +2100,9 @@ export function DesktopShell(): JSX.Element {
     setAppLiveProposalSessionReceiptPreview(undefined);
     setLiveDeepSeekProposalCommandResult(undefined);
     setLiveDeepSeekProposalGenerationError(undefined);
+    setLiveProposalSummaryEventStatus("idle");
+    setLiveProposalSummaryEventResult(undefined);
+    setLiveProposalSummaryEventError(undefined);
     setLiveProposalPreviewGatePreview(undefined);
     setLiveProposalTelemetryAuditPreview(undefined);
   }
@@ -2032,6 +2120,9 @@ export function DesktopShell(): JSX.Element {
     setLiveDeepSeekProposalGenerationInFlight(true);
     setLiveDeepSeekProposalGenerationError(undefined);
     setLiveDeepSeekProposalCommandResult(undefined);
+    setLiveProposalSummaryEventStatus("idle");
+    setLiveProposalSummaryEventResult(undefined);
+    setLiveProposalSummaryEventError(undefined);
     try {
       const commandRequest = buildLiveProposalGenerationCommandRequest({
         sessionReceiptView: appLiveProposalSessionReceiptPreview,
@@ -2074,6 +2165,7 @@ export function DesktopShell(): JSX.Element {
       setLiveProposalPreviewGatePreview(undefined);
       setLiveProposalTelemetryAuditPreview(undefined);
       setContextAssemblyPreview(undefined);
+      setLiveProposalSummaryEventStatus("idle");
     } catch (caught) {
       setLiveDeepSeekProposalGenerationError(safeErrorMessage(caught));
     } finally {
@@ -2085,8 +2177,35 @@ export function DesktopShell(): JSX.Element {
     setLiveDeepSeekProposalCommandResult(undefined);
     setLiveDeepSeekProposalGenerationError(undefined);
     setLiveDeepSeekProposalGenerationInFlight(false);
+    setLiveProposalSummaryEventStatus("idle");
+    setLiveProposalSummaryEventResult(undefined);
+    setLiveProposalSummaryEventError(undefined);
     setLiveProposalPreviewGatePreview(undefined);
     setLiveProposalTelemetryAuditPreview(undefined);
+  }
+
+  async function handleRecordLiveProposalSummaryEvent(): Promise<void> {
+    if (liveProposalSummaryEventPreview === undefined) {
+      setLiveProposalSummaryEventStatus("error");
+      setLiveProposalSummaryEventError(
+        "Live proposal summary event preview is not ready."
+      );
+      return;
+    }
+    setLiveProposalSummaryEventStatus("recording");
+    setLiveProposalSummaryEventError(undefined);
+    try {
+      const eventResult = await recordLiveProposalSummaryEvent({
+        workspaceRoot,
+        eventPreview: liveProposalSummaryEventPreview
+      });
+      setLiveProposalSummaryEventResult(eventResult);
+      setLiveProposalSummaryEventStatus("recorded");
+      await refreshEvents(workspaceRoot);
+    } catch (caught) {
+      setLiveProposalSummaryEventError(safeErrorMessage(caught));
+      setLiveProposalSummaryEventStatus("error");
+    }
   }
 
   function handlePreviewLiveProposalGate(): void {
@@ -4595,7 +4714,8 @@ export function DesktopShell(): JSX.Element {
               request, receipt, typed confirmation, and allowed path gates are
               satisfied. Returned proposal candidates enter repair, schema
               validation, model import, and chain previews only; the App Shell
-              does not apply patches, rollback, approve, or write events.
+              does not apply patches, rollback, approve, or write
+              apply/rollback events.
             </p>
 
             <div className="buttonRow">
@@ -4624,6 +4744,20 @@ export function DesktopShell(): JSX.Element {
                 }}
               >
                 Clear Live Proposal Result
+              </button>
+              <button
+                type="button"
+                className="secondary"
+                disabled={!canRecordLiveProposalSummaryEvent}
+                onClick={(event) => {
+                  event.preventDefault();
+                  event.stopPropagation();
+                  void handleRecordLiveProposalSummaryEvent();
+                }}
+              >
+                {liveProposalSummaryEventStatus === "recording"
+                  ? "Recording Summary Event..."
+                  : "Record Live Proposal Summary Event"}
               </button>
             </div>
 
@@ -4729,7 +4863,29 @@ export function DesktopShell(): JSX.Element {
                   )}
                 </dd>
               </div>
+              <div>
+                <dt>Summary event</dt>
+                <dd>{liveProposalSummaryEventStatus}</dd>
+              </div>
+              <div>
+                <dt>Event id</dt>
+                <dd>{liveProposalSummaryEventResult?.eventId ?? "n/a"}</dd>
+              </div>
             </dl>
+
+            {liveProposalSummaryEventError !== undefined ? (
+              <div className="errorBox">
+                <strong>Live proposal summary event blocked</strong>
+                <p>{liveProposalSummaryEventError}</p>
+              </div>
+            ) : null}
+
+            {liveProposalSummaryEventResult !== undefined ? (
+              <p className="muted">
+                {liveProposalSummaryEventResult.safeMessage} ·{" "}
+                {liveProposalSummaryEventResult.proposalId}
+              </p>
+            ) : null}
 
             {liveDeepSeekProposalGenerationView.warningCodes.length > 0 ? (
               <p className="muted">
@@ -9805,6 +9961,10 @@ export function DesktopShell(): JSX.Element {
                     <dd>{eventPanel.verificationEventCount}</dd>
                   </div>
                   <div>
+                    <dt>Live proposal events</dt>
+                    <dd>{eventPanel.liveProposalEventCount}</dd>
+                  </div>
+                  <div>
                     <dt>Latest approved execution</dt>
                     <dd>
                       {eventPanel.latestApprovedExecutionSummary ?? "n/a"}
@@ -9813,6 +9973,10 @@ export function DesktopShell(): JSX.Element {
                   <div>
                     <dt>Latest verification</dt>
                     <dd>{eventPanel.latestVerificationSummary ?? "n/a"}</dd>
+                  </div>
+                  <div>
+                    <dt>Latest live proposal</dt>
+                    <dd>{eventPanel.latestLiveProposalSummary ?? "n/a"}</dd>
                   </div>
                   <div>
                     <dt>Tasks completed</dt>

@@ -139,6 +139,37 @@ export type VerificationLaneEventRequest = {
     | ShellVerificationLaneResult["eventPreview"];
 };
 
+export type LiveProposalSummaryEventPreview = {
+  type: "model.patch_proposal.live_generated";
+  generationId: string;
+  requestId: string;
+  proposalId: string;
+  modelProfileId: string;
+  usageSummary?: LiveDeepSeekPatchProposalUsageSummary | undefined;
+  repairStatus: string;
+  validationStatus: string;
+  warningCount: number;
+  blockerCount: number;
+  proposalHash: string;
+  droppedReasoningContent: boolean;
+  warningCodes: string[];
+  summaryOnly: true;
+  noRawPrompt: true;
+  noRawResponse: true;
+  noReasoningContent: true;
+  noApiKey: true;
+  contentDraftRawIncluded: false;
+  canApplyPatch: false;
+  canRollback: false;
+  canWriteEventStore: false;
+  notWritten: true;
+};
+
+export type LiveProposalSummaryEventRequest = {
+  workspaceRoot: string;
+  eventPreview: LiveProposalSummaryEventPreview;
+};
+
 export type ApprovedUserWorkspaceExecutionEventRecordResult = {
   ok: true;
   eventId: string;
@@ -158,6 +189,17 @@ export type VerificationLaneEventRecordResult = {
   eventType: "git.read_lane.executed" | "shell.verification_lane.executed";
   laneOrTemplateId: string;
   resultHash: string;
+  eventLogPath: string;
+  safeMessage: string;
+  warnings: string[];
+};
+
+export type LiveProposalSummaryEventRecordResult = {
+  ok: true;
+  eventId: string;
+  eventType: "model.patch_proposal.live_generated";
+  generationId: string;
+  proposalId: string;
   eventLogPath: string;
   safeMessage: string;
   warnings: string[];
@@ -328,6 +370,7 @@ export const allowedDesktopCommands = [
   "record_approved_user_workspace_execution_event",
   "record_control_run_draft_event",
   "record_verification_lane_event",
+  "record_live_proposal_summary_event",
   "generate_live_deepseek_patch_proposal",
   "run_git_read_lane",
   "run_shell_verification_lane",
@@ -482,6 +525,21 @@ export async function recordVerificationLaneEvent(
   );
 }
 
+export async function recordLiveProposalSummaryEvent(
+  request: LiveProposalSummaryEventRequest,
+  invokeImpl?: TauriInvoke
+): Promise<LiveProposalSummaryEventRecordResult> {
+  validateLiveProposalSummaryEventRequest(request);
+  return invokeAllowedCommand<LiveProposalSummaryEventRecordResult>(
+    "record_live_proposal_summary_event",
+    {
+      workspaceRoot: request.workspaceRoot,
+      eventPreview: request.eventPreview
+    },
+    invokeImpl
+  );
+}
+
 export async function runGitReadLane(
   request: GitReadLaneRequest,
   invokeImpl?: TauriInvoke
@@ -568,6 +626,8 @@ function normalizeAllowedCommandResponse(
       return normalizeApprovedExecutionEventRecordResult(raw);
     case "record_verification_lane_event":
       return normalizeVerificationLaneEventRecordResult(raw);
+    case "record_live_proposal_summary_event":
+      return normalizeLiveProposalSummaryEventRecordResult(raw);
     case "run_git_read_lane":
       return normalizeGitReadLaneResult(raw);
     case "run_shell_verification_lane":
@@ -659,6 +719,35 @@ function validateVerificationLaneEventRequest(
       preview.type !== "shell.verification_lane.executed")
   ) {
     throw new Error("Verification lane event preview is required");
+  }
+}
+
+function validateLiveProposalSummaryEventRequest(
+  request: LiveProposalSummaryEventRequest
+): void {
+  if (request.workspaceRoot.trim().length === 0) {
+    throw new Error("Workspace root is required");
+  }
+  const preview: Record<string, unknown> = isRecord(request.eventPreview)
+    ? request.eventPreview
+    : {};
+  if (
+    preview.type !== "model.patch_proposal.live_generated" ||
+    preview.notWritten !== true ||
+    preview.summaryOnly !== true ||
+    preview.noRawPrompt !== true ||
+    preview.noRawResponse !== true ||
+    preview.noReasoningContent !== true ||
+    preview.noApiKey !== true ||
+    preview.contentDraftRawIncluded !== false ||
+    preview.canApplyPatch !== false ||
+    preview.canRollback !== false ||
+    preview.canWriteEventStore !== false
+  ) {
+    throw new Error("Live proposal summary event preview is required");
+  }
+  if (containsForbiddenLiveProposalValue(preview)) {
+    throw new Error("Live proposal summary event preview contains unsafe fields");
   }
 }
 
@@ -1172,6 +1261,47 @@ function normalizeVerificationLaneEventRecordResult(
     eventType: record.eventType,
     laneOrTemplateId: safeErrorMessage(record.laneOrTemplateId),
     resultHash: safeErrorMessage(record.resultHash),
+    eventLogPath: safeErrorMessage(record.eventLogPath),
+    safeMessage: safeErrorMessage(record.safeMessage),
+    warnings: record.warnings.filter(
+      (value): value is string => typeof value === "string"
+    )
+  };
+}
+
+function normalizeLiveProposalSummaryEventRecordResult(
+  raw: unknown
+): LiveProposalSummaryEventRecordResult {
+  const record = isRecord(raw) ? raw : {};
+  if (
+    record.ok !== true ||
+    record.eventType !== "model.patch_proposal.live_generated" ||
+    typeof record.eventId !== "string" ||
+    typeof record.generationId !== "string" ||
+    typeof record.proposalId !== "string" ||
+    typeof record.eventLogPath !== "string" ||
+    typeof record.safeMessage !== "string" ||
+    !Array.isArray(record.warnings)
+  ) {
+    throw normalizeDesktopCommandError({
+      errorCode: "INVALID_RESPONSE",
+      safeMessage: "Live proposal summary event response was invalid",
+      stage: "normalize_response"
+    });
+  }
+  if (containsForbiddenLiveProposalValue(record)) {
+    throw normalizeDesktopCommandError({
+      errorCode: "INVALID_RESPONSE",
+      safeMessage: "Live proposal summary event response contained unsafe fields",
+      stage: "normalize_response"
+    });
+  }
+  return {
+    ok: true,
+    eventId: safeErrorMessage(record.eventId),
+    eventType: "model.patch_proposal.live_generated",
+    generationId: safeErrorMessage(record.generationId),
+    proposalId: safeErrorMessage(record.proposalId),
     eventLogPath: safeErrorMessage(record.eventLogPath),
     safeMessage: safeErrorMessage(record.safeMessage),
     warnings: record.warnings.filter(

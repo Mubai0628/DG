@@ -13,6 +13,7 @@ import {
   isAllowedDesktopCommand,
   loadWorkspaceEventSummary,
   liveProposalAllowedKeySourceRef,
+  recordLiveProposalSummaryEvent,
   recordVerificationLaneEvent,
   recordApprovedUserWorkspaceExecutionEvent,
   recordControlRunDraftEvent,
@@ -26,6 +27,8 @@ import {
   type GitReadLaneResult,
   type LiveDeepSeekPatchProposalCommandRequest,
   type LiveDeepSeekPatchProposalCommandResult,
+  type LiveProposalSummaryEventPreview,
+  type LiveProposalSummaryEventRecordResult,
   type VerificationLaneEventRecordResult,
   type ShellVerificationLaneResult,
   type TauriInvoke
@@ -400,6 +403,7 @@ function fixedEventSummary(
     approvedApplyCount: 0,
     approvedRollbackCount: 0,
     verificationEventCount: 0,
+    liveProposalEventCount: 0,
     lastEventAt: "2026-06-16T00:00:01.000Z",
     typeCounts: {
       "task.completed": 1,
@@ -898,6 +902,9 @@ describe("desktop command wrapper", () => {
     expect(isAllowedDesktopCommand("generate_live_deepseek_patch_proposal")).toBe(
       true
     );
+    expect(isAllowedDesktopCommand("record_live_proposal_summary_event")).toBe(
+      true
+    );
     expect(isAllowedDesktopCommand("run_web_table_to_csv_flow")).toBe(true);
   });
 
@@ -1003,6 +1010,58 @@ describe("desktop command wrapper", () => {
     };
   }
 
+  function safeLiveProposalSummaryEventPreview(
+    overrides: Partial<LiveProposalSummaryEventPreview> = {}
+  ): LiveProposalSummaryEventPreview {
+    return {
+      type: "model.patch_proposal.live_generated",
+      generationId: "live-proposal-flow-test",
+      requestId: "live-proposal-request-test",
+      proposalId: "proposal-test",
+      modelProfileId: "deepseek-chat",
+      usageSummary: {
+        promptTokens: 1,
+        completionTokens: 2,
+        totalTokens: 3
+      },
+      repairStatus: "valid",
+      validationStatus: "valid",
+      warningCount: 1,
+      blockerCount: 0,
+      proposalHash: "proposal-hash-test",
+      droppedReasoningContent: true,
+      warningCodes: ["REASONING_CONTENT_DROPPED"],
+      summaryOnly: true,
+      noRawPrompt: true,
+      noRawResponse: true,
+      noReasoningContent: true,
+      noApiKey: true,
+      contentDraftRawIncluded: false,
+      canApplyPatch: false,
+      canRollback: false,
+      canWriteEventStore: false,
+      notWritten: true,
+      ...overrides
+    };
+  }
+
+  function safeLiveProposalSummaryEventRecordResult(
+    overrides: Partial<LiveProposalSummaryEventRecordResult> = {}
+  ): LiveProposalSummaryEventRecordResult {
+    return {
+      ok: true,
+      eventId: "live-proposal-event-test",
+      eventType: "model.patch_proposal.live_generated",
+      generationId: "live-proposal-flow-test",
+      proposalId: "proposal-test",
+      eventLogPath: "D:\\workspace\\.deepseek-workbench\\events.jsonl",
+      safeMessage:
+        "Summary-only live proposal generation event recorded locally.",
+      warnings: [],
+      ...overrides
+    };
+  }
+
   it("calls live DeepSeek proposal generation only through the fixed wrapper", async () => {
     const invoke: TauriInvoke = async (command, args) => {
       expect(command).toBe("generate_live_deepseek_patch_proposal");
@@ -1076,6 +1135,90 @@ describe("desktop command wrapper", () => {
     });
   });
 
+  it("records live proposal generation events through a summary-only fixed wrapper", async () => {
+    const invoke: TauriInvoke = async (command, args) => {
+      expect(command).toBe("record_live_proposal_summary_event");
+      expect(args).toMatchObject({
+        workspaceRoot: "D:\\workspace",
+        eventPreview: {
+          type: "model.patch_proposal.live_generated",
+          generationId: "live-proposal-flow-test",
+          requestId: "live-proposal-request-test",
+          proposalId: "proposal-test",
+          summaryOnly: true,
+          noRawPrompt: true,
+          noRawResponse: true,
+          noReasoningContent: true,
+          noApiKey: true,
+          contentDraftRawIncluded: false,
+          canApplyPatch: false,
+          canRollback: false,
+          canWriteEventStore: false,
+          notWritten: true
+        }
+      });
+      return safeLiveProposalSummaryEventRecordResult() as never;
+    };
+
+    const result = await recordLiveProposalSummaryEvent(
+      {
+        workspaceRoot: "D:\\workspace",
+        eventPreview: safeLiveProposalSummaryEventPreview()
+      },
+      invoke
+    );
+    const serialized = JSON.stringify(result);
+
+    expect(result.ok).toBe(true);
+    expect(result.eventType).toBe("model.patch_proposal.live_generated");
+    expect(result.proposalId).toBe("proposal-test");
+    expect(serialized).not.toContain("rawResponse");
+    expect(serialized).not.toContain("reasoning_content");
+    expect(serialized).not.toContain("sk-");
+    expect(serialized).not.toContain("Authorization");
+  });
+
+  it("blocks unsafe live proposal event previews before Tauri invocation", async () => {
+    await expect(
+      recordLiveProposalSummaryEvent(
+        {
+          workspaceRoot: "D:\\workspace",
+          eventPreview: {
+            ...safeLiveProposalSummaryEventPreview(),
+            rawResponse: "hidden"
+          } as unknown as LiveProposalSummaryEventPreview
+        },
+        async () => safeLiveProposalSummaryEventRecordResult() as never
+      )
+    ).rejects.toThrow("unsafe fields");
+
+    await expect(
+      recordLiveProposalSummaryEvent(
+        {
+          workspaceRoot: "D:\\workspace",
+          eventPreview: {
+            ...safeLiveProposalSummaryEventPreview(),
+            proposalHash: "sk-fake-live-event-secret-000000"
+          }
+        },
+        async () => safeLiveProposalSummaryEventRecordResult() as never
+      )
+    ).rejects.toThrow("unsafe fields");
+
+    await expect(
+      recordLiveProposalSummaryEvent(
+        {
+          workspaceRoot: "D:\\workspace",
+          eventPreview: {
+            ...safeLiveProposalSummaryEventPreview(),
+            canApplyPatch: true
+          } as unknown as LiveProposalSummaryEventPreview
+        },
+        async () => safeLiveProposalSummaryEventRecordResult() as never
+      )
+    ).rejects.toThrow("required");
+  });
+
   it("keeps live proposal command boundary fixed behind the App generation gate", async () => {
     const appSource = await readFile(
       path.join(appRoot, "src", "App.tsx"),
@@ -1087,7 +1230,9 @@ describe("desktop command wrapper", () => {
     );
 
     expect(flowSource).toContain("generate_live_deepseek_patch_proposal");
+    expect(flowSource).toContain("record_live_proposal_summary_event");
     expect(flowSource).toContain("generateLiveDeepSeekPatchProposal");
+    expect(flowSource).toContain("recordLiveProposalSummaryEvent");
     expect(flowSource).not.toContain("fetch(");
     expect(flowSource).not.toContain("XMLHttpRequest");
     expect(flowSource).not.toContain("createLiveHttpCommand");
@@ -1095,8 +1240,11 @@ describe("desktop command wrapper", () => {
     expect(appSource).toContain("Call DeepSeek (disabled)");
     expect(appSource).toContain("Live DeepSeek Proposal Generation");
     expect(appSource).toContain("Generate Live Proposal");
+    expect(appSource).toContain("Record Live Proposal Summary Event");
     expect(appSource).toContain("canGenerateLiveProposal");
+    expect(appSource).toContain("canRecordLiveProposalSummaryEvent");
     expect(appSource).toContain("generateLiveDeepSeekPatchProposal(");
+    expect(appSource).toContain("recordLiveProposalSummaryEvent(");
     expect(appSource).not.toContain("handleGenerateLiveDeepSeekPatchProposal");
     expect(appSource).not.toContain("handleCallDeepSeek");
     expect(appSource).not.toContain('type="password"');
@@ -1878,6 +2026,57 @@ describe("desktop command wrapper", () => {
     expect(model?.timeline).toEqual([]);
     expect(model?.warnings).toContain("MALFORMED_EVENT_SUMMARY");
     expect(model?.safetyFindingCount).toBe(1);
+  });
+
+  it("projects live proposal summary events into Event Log / Replay", () => {
+    const summary = normalizeWorkspaceEventSummary(
+      fixedEventSummary({
+        eventCount: 3,
+        displayedEventCount: 3,
+        liveProposalEventCount: 1,
+        latestLiveProposalSummary:
+          "live proposal generated: proposal-test · request live-proposal-request-test · deepseek-chat · repair valid · validation valid · 1 warnings · 0 blockers",
+        typeCounts: {
+          "task.completed": 1,
+          "fs.draft_written": 1,
+          "model.patch_proposal.live_generated": 1
+        },
+        timeline: [
+          {
+            id: "live-proposal-event-test",
+            ts: "2026-06-30T00:00:00.000Z",
+            type: "model.patch_proposal.live_generated",
+            taskId: "no task",
+            summary:
+              "live proposal generated: proposal-test · request live-proposal-request-test · deepseek-chat · repair valid · validation valid · 1 warnings · 0 blockers",
+            safePayloadKeys: [
+              "generationId",
+              "requestId",
+              "proposalId",
+              "modelProfileId",
+              "usageSummary",
+              "repairStatus",
+              "validationStatus",
+              "proposalHash"
+            ]
+          }
+        ]
+      })
+    );
+    const model = buildEventLogPanelModel(summary);
+    const serialized = JSON.stringify(model);
+
+    expect(model?.liveProposalEventCount).toBe(1);
+    expect(model?.latestLiveProposalSummary).toContain(
+      "live proposal generated: proposal-test"
+    );
+    expect(model?.timeline[0]?.type).toBe(
+      "model.patch_proposal.live_generated"
+    );
+    expect(serialized).not.toContain("rawResponse");
+    expect(serialized).not.toContain("reasoning_content");
+    expect(serialized).not.toContain("sk-");
+    expect(serialized).not.toContain("canApplyPatch\":true");
   });
 
   it("models refresh and convert event summaries with null taskId without ErrorBoundary fallback", async () => {
@@ -7782,6 +7981,7 @@ describe("app controlled creation replay projection", () => {
       approvedApplyCount: 0,
       approvedRollbackCount: 0,
       verificationEventCount: 0,
+      liveProposalEventCount: 0,
       lastEventAt: "2026-06-25T00:00:00.000Z",
       typeCounts: {
         "control.run.draft_recorded": 1
