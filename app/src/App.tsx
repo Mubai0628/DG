@@ -2177,11 +2177,15 @@ export function DesktopShell(): JSX.Element {
     setLiveDeepSeekProposalCommandResult(undefined);
     setLiveDeepSeekProposalGenerationError(undefined);
     setLiveDeepSeekProposalGenerationInFlight(false);
+    setModelPatchProposalImportPreview(undefined);
+    setModelProposalChainIntegrationPreview(undefined);
+    setPatchProposalCreationPreview(undefined);
     setLiveProposalSummaryEventStatus("idle");
     setLiveProposalSummaryEventResult(undefined);
     setLiveProposalSummaryEventError(undefined);
     setLiveProposalPreviewGatePreview(undefined);
     setLiveProposalTelemetryAuditPreview(undefined);
+    setContextAssemblyPreview(undefined);
   }
 
   async function handleRecordLiveProposalSummaryEvent(): Promise<void> {

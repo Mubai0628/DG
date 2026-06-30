@@ -180,6 +180,7 @@ foundation.
 - [App Live Proposal Generation threat model v0.12](app-live-proposal-generation-threat-model-v0.12.md)
 - [App Live Proposal Generation implementation gate v0.12](app-live-proposal-generation-implementation-gate-v0.12.md)
 - [P0Q-002 App Live Proposal Session Receipt plan](p0q-002-app-live-proposal-session-receipt-plan.md)
+- [App Live Proposal Generation Failure Hardening v0.13](app-live-proposal-generation-failure-hardening-v0.13.md)
 - [Runtime Memory Recall Preview v0.3](runtime-memory-recall-preview-v0.3.md)
 - [v0.4.0 Controlled Creation Preview RC release notes](release-notes-v0.4.0-controlled-creation-preview-rc.1.md)
 - [App Shell Controlled Creation manual QA](app-shell-controlled-creation-manual-qa.md)

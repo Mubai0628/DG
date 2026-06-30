@@ -5461,6 +5461,38 @@ describe("app live DeepSeek proposal generation flow", () => {
     };
   }
 
+  function safeLiveGenerationCommandRequest(): LiveDeepSeekPatchProposalCommandRequest {
+    return {
+      sessionReceipt: safeReceipt().receiptEnvelope as unknown as Record<
+        string,
+        unknown
+      >,
+      apiKeySourceRef: liveProposalAllowedKeySourceRef,
+      providerId: "deepseek",
+      modelProfileId: "deepseek-chat",
+      requestEnvelope: safeRequest().requestEnvelope as unknown as Record<
+        string,
+        unknown
+      >,
+      objectiveSummary: "Generate a summary-only docs proposal.",
+      allowedPathRefs: ["docs/app-shell-preview.md"],
+      contextRefs: ["context-ref"],
+      maxResponseBytes: 20_000,
+      timeoutMs: 5_000
+    };
+  }
+
+  function expectNoLiveProposalLeak(value: unknown): void {
+    const serialized = JSON.stringify(value);
+
+    expect(serialized).not.toContain("RAW_PROMPT_BODY_SHOULD_NOT_LEAK");
+    expect(serialized).not.toContain("RAW_RESPONSE_BODY_SHOULD_NOT_LEAK");
+    expect(serialized).not.toContain("REASONING_CONTENT_SHOULD_NOT_LEAK");
+    expect(serialized).not.toContain("Authorization: Bearer");
+    expect(serialized).not.toContain("sk-fake-live-proposal-secret");
+    expect(serialized).not.toContain("api-key-value-should-not-leak");
+  }
+
   it("keeps Generate Live Proposal disabled until policy, request, and receipt gates are satisfied", () => {
     const noReceipt = buildLiveDeepSeekProposalGenerationView({
       liveProposalOptInGateView: safePolicy(),
@@ -5614,6 +5646,335 @@ describe("app live DeepSeek proposal generation flow", () => {
 
     expect(unsafeImport.status).toBe("blocked");
     expect(secretImport.status).toBe("blocked");
+  });
+
+  it("summarizes live proposal failure states without raw leakage or auto-apply", () => {
+    const missingPolicy = buildLiveDeepSeekProposalGenerationView({
+      requestBuilderView: safeRequest(),
+      sessionReceiptView: safeReceipt(),
+      keySourceRef: liveProposalAllowedKeySourceRef,
+      expectedKeySourceRef: liveProposalAllowedKeySourceRef
+    });
+    const missingReceipt = buildLiveDeepSeekProposalGenerationView({
+      liveProposalOptInGateView: safePolicy(),
+      requestBuilderView: safeRequest(),
+      keySourceRef: liveProposalAllowedKeySourceRef,
+      expectedKeySourceRef: liveProposalAllowedKeySourceRef
+    });
+    const wrongConfirmation = buildLiveDeepSeekProposalGenerationView({
+      liveProposalOptInGateView: safePolicy(),
+      requestBuilderView: safeRequest(),
+      sessionReceiptView: buildAppLiveProposalSessionReceiptView({
+        typedConfirmation: "CALL MODEL",
+        objectiveSummary: "Generate a summary-only docs proposal.",
+        modelProfileId: "deepseek-chat",
+        allowedPathRefsText: "docs/app-shell-preview.md",
+        apiKeyPolicyId: safePolicy().policyId,
+        requestBuilderId: safeRequest().requestId
+      }),
+      keySourceRef: liveProposalAllowedKeySourceRef,
+      expectedKeySourceRef: liveProposalAllowedKeySourceRef
+    });
+    const commandFailure = buildLiveDeepSeekProposalGenerationView({
+      liveProposalOptInGateView: safePolicy(),
+      requestBuilderView: safeRequest(),
+      sessionReceiptView: safeReceipt(),
+      keySourceRef: liveProposalAllowedKeySourceRef,
+      expectedKeySourceRef: liveProposalAllowedKeySourceRef,
+      errorMessage:
+        "Live proposal command failed safely before returning a proposal."
+    });
+    const timeoutSummary = buildLiveDeepSeekProposalGenerationView({
+      liveProposalOptInGateView: safePolicy(),
+      requestBuilderView: safeRequest(),
+      sessionReceiptView: safeReceipt(),
+      keySourceRef: liveProposalAllowedKeySourceRef,
+      expectedKeySourceRef: liveProposalAllowedKeySourceRef,
+      errorMessage:
+        "Live proposal request timed out safely before returning a proposal."
+    });
+    const repairFailedImport = buildModelPatchProposalImportView({
+      draftText: "{ malformed model_patch_proposal",
+      sourceKind: "manual_test"
+    });
+    const repairFailed = buildLiveDeepSeekProposalGenerationView({
+      liveProposalOptInGateView: safePolicy(),
+      requestBuilderView: safeRequest(),
+      sessionReceiptView: safeReceipt(),
+      keySourceRef: liveProposalAllowedKeySourceRef,
+      expectedKeySourceRef: liveProposalAllowedKeySourceRef,
+      commandResult: safeLiveGenerationCommandResult(),
+      modelImportView: repairFailedImport
+    });
+    const schemaBlockedImport = buildModelPatchProposalImportView({
+      draftText: JSON.stringify({
+        schemaVersion: "model_patch_proposal.v1",
+        proposalId: "proposal-schema-blocked",
+        title: "Schema blocked",
+        intent: "Schema blocked candidate.",
+        objectiveSummary: "Schema blocked candidate.",
+        operations: [
+          {
+            operationId: "op-schema-blocked",
+            path: "docs/app-shell-preview.md",
+            changeKind: "execute",
+            summary: "Unsupported operation kind."
+          }
+        ],
+        evidenceRefs: [],
+        riskNotes: []
+      }),
+      sourceKind: "manual_test"
+    });
+    const schemaBlocked = buildLiveDeepSeekProposalGenerationView({
+      liveProposalOptInGateView: safePolicy(),
+      requestBuilderView: safeRequest(),
+      sessionReceiptView: safeReceipt(),
+      keySourceRef: liveProposalAllowedKeySourceRef,
+      expectedKeySourceRef: liveProposalAllowedKeySourceRef,
+      commandResult: safeLiveGenerationCommandResult(),
+      modelImportView: schemaBlockedImport
+    });
+    const unsafeImport = buildModelPatchProposalImportView({
+      draftText: JSON.stringify({
+        schemaVersion: "model_patch_proposal.v1",
+        proposalId: "proposal-unsafe-path",
+        title: "Unsafe path",
+        intent: "Attempt unsafe path.",
+        objectiveSummary: "Attempt unsafe path.",
+        operations: [
+          {
+            operationId: "op-unsafe",
+            path: "../escape.ts",
+            changeKind: "update",
+            summary: "Attempt unsafe path."
+          }
+        ],
+        evidenceRefs: [],
+        riskNotes: []
+      }),
+      sourceKind: "manual_test"
+    });
+    const unsafePath = buildLiveDeepSeekProposalGenerationView({
+      liveProposalOptInGateView: safePolicy(),
+      requestBuilderView: safeRequest(),
+      sessionReceiptView: safeReceipt(),
+      keySourceRef: liveProposalAllowedKeySourceRef,
+      expectedKeySourceRef: liveProposalAllowedKeySourceRef,
+      commandResult: safeLiveGenerationCommandResult(),
+      modelImportView: unsafeImport
+    });
+    const secretImport = buildModelPatchProposalImportView({
+      draftText: JSON.stringify({
+        schemaVersion: "model_patch_proposal.v1",
+        proposalId: "proposal-secret-marker",
+        title: "Secret marker",
+        intent: "Attempt secret marker.",
+        objectiveSummary: "Attempt secret marker.",
+        operations: [
+          {
+            operationId: "op-secret",
+            path: "docs/app-shell-preview.md",
+            changeKind: "update",
+            summary: "Contains sk-fake-live-proposal-secret-000000 marker."
+          }
+        ],
+        evidenceRefs: [],
+        riskNotes: []
+      }),
+      sourceKind: "manual_test"
+    });
+    const secretMarker = buildLiveDeepSeekProposalGenerationView({
+      liveProposalOptInGateView: safePolicy(),
+      requestBuilderView: safeRequest(),
+      sessionReceiptView: safeReceipt(),
+      keySourceRef: liveProposalAllowedKeySourceRef,
+      expectedKeySourceRef: liveProposalAllowedKeySourceRef,
+      commandResult: safeLiveGenerationCommandResult(),
+      modelImportView: secretImport
+    });
+    const reasoningDropped = buildLiveDeepSeekProposalGenerationView({
+      liveProposalOptInGateView: safePolicy(),
+      requestBuilderView: safeRequest(),
+      sessionReceiptView: safeReceipt(),
+      keySourceRef: liveProposalAllowedKeySourceRef,
+      expectedKeySourceRef: liveProposalAllowedKeySourceRef,
+      commandResult: safeLiveGenerationCommandResult()
+    });
+    const failureViews = [
+      missingPolicy,
+      missingReceipt,
+      wrongConfirmation,
+      commandFailure,
+      timeoutSummary,
+      repairFailed,
+      schemaBlocked,
+      unsafePath,
+      secretMarker,
+      reasoningDropped
+    ];
+    const codes = new Set(
+      failureViews.flatMap((view) => view.findings.map((finding) => finding.code))
+    );
+
+    expect(Array.from(codes)).toEqual(
+      expect.arrayContaining([
+        "LIVE_PROPOSAL_POLICY_MISSING",
+        "LIVE_PROPOSAL_SESSION_RECEIPT_MISSING",
+        "LIVE_PROPOSAL_CONFIRMATION_MISSING",
+        "LIVE_PROPOSAL_COMMAND_ERROR",
+        "LIVE_PROPOSAL_IMPORT_BLOCKED",
+        "LIVE_PROPOSAL_REASONING_DROPPED"
+      ])
+    );
+    expect(repairFailed.repairStatus).toBe("blocked");
+    expect(schemaBlocked.schemaValidationStatus).toBe("blocked");
+    expect(reasoningDropped.droppedReasoningContent).toBe(true);
+    expect(reasoningDropped.reasoningContentCharCount).toBe(42);
+    for (const view of failureViews) {
+      expect(view.readiness.canApplyPatch).toBe(false);
+      expect(view.readiness.canRollback).toBe(false);
+      expect(view.readiness.canWriteEventStore).toBe(false);
+      expect(view.readiness.appCanExecute).toBe(false);
+      expectNoLiveProposalLeak(view);
+    }
+  });
+
+  it("keeps live proposal command and event write failures safe-summary only", async () => {
+    try {
+      await generateLiveDeepSeekPatchProposal(
+        safeLiveGenerationCommandRequest(),
+        async () => {
+          throw {
+            errorCode: "LIVE_PROPOSAL_COMMAND_FAILED",
+            safeMessage: "Live proposal command failed safely.",
+            stage: "generate_live_deepseek_patch_proposal",
+            rawResponse: "RAW_RESPONSE_BODY_SHOULD_NOT_LEAK",
+            Authorization: "Bearer api-key-value-should-not-leak"
+          };
+        }
+      );
+      throw new Error("expected command failure");
+    } catch (error) {
+      const message = safeErrorMessage(error);
+
+      expect(message).toContain("Live proposal command failed safely.");
+      expectNoLiveProposalLeak(message);
+    }
+
+    try {
+      await generateLiveDeepSeekPatchProposal(
+        safeLiveGenerationCommandRequest(),
+        async () => {
+          throw {
+            errorCode: "LIVE_PROPOSAL_TIMEOUT",
+            safeMessage: "Live proposal request timed out safely.",
+            stage: "generate_live_deepseek_patch_proposal",
+            rawPrompt: "RAW_PROMPT_BODY_SHOULD_NOT_LEAK"
+          };
+        }
+      );
+      throw new Error("expected timeout failure");
+    } catch (error) {
+      const message = safeErrorMessage(error);
+
+      expect(message).toContain("timed out safely");
+      expectNoLiveProposalLeak(message);
+    }
+
+    try {
+      await generateLiveDeepSeekPatchProposal(
+        safeLiveGenerationCommandRequest(),
+        async () =>
+          ({
+            ok: true,
+            rawResponse: "RAW_RESPONSE_BODY_SHOULD_NOT_LEAK",
+            reasoning_content: "REASONING_CONTENT_SHOULD_NOT_LEAK"
+          }) as never
+      );
+      throw new Error("expected malformed response failure");
+    } catch (error) {
+      const message = safeErrorMessage(error);
+
+      expect(message).toContain("Live proposal command response was invalid");
+      expectNoLiveProposalLeak(message);
+    }
+
+    try {
+      await recordLiveProposalSummaryEvent(
+        {
+          workspaceRoot: "D:\\workspace",
+          eventPreview: {
+            type: "model.patch_proposal.live_generated",
+            generationId: "live-proposal-flow-test",
+            requestId: "live-proposal-request-test",
+            proposalId: "proposal-test",
+            modelProfileId: "deepseek-chat",
+            usageSummary: {
+              promptTokens: 1,
+              completionTokens: 2,
+              totalTokens: 3
+            },
+            repairStatus: "valid",
+            validationStatus: "valid",
+            warningCount: 1,
+            blockerCount: 0,
+            proposalHash: "proposal-hash-test",
+            droppedReasoningContent: true,
+            warningCodes: ["REASONING_CONTENT_DROPPED"],
+            summaryOnly: true,
+            noRawPrompt: true,
+            noRawResponse: true,
+            noReasoningContent: true,
+            noApiKey: true,
+            contentDraftRawIncluded: false,
+            canApplyPatch: false,
+            canRollback: false,
+            canWriteEventStore: false,
+            notWritten: true
+          }
+        },
+        async () => {
+          throw {
+            errorCode: "LIVE_PROPOSAL_EVENT_WRITE_FAILED",
+            safeMessage: "Live proposal summary event write failed safely.",
+            stage: "record_live_proposal_summary_event",
+            rawResponse: "RAW_RESPONSE_BODY_SHOULD_NOT_LEAK",
+            apiKey: "sk-fake-live-proposal-secret-000000"
+          };
+        }
+      );
+      throw new Error("expected event write failure");
+    } catch (error) {
+      const message = safeErrorMessage(error);
+
+      expect(message).toContain("summary event write failed safely");
+      expectNoLiveProposalLeak(message);
+    }
+  });
+
+  it("clears generated proposal previews and event status from the live generation handler", async () => {
+    const appSource = await readFile(
+      path.join(appRoot, "src", "App.tsx"),
+      "utf8"
+    );
+    const clearStart = appSource.indexOf(
+      "function handleClearLiveProposalGeneration"
+    );
+    const clearEnd = appSource.indexOf(
+      "async function handleRecordLiveProposalSummaryEvent"
+    );
+    const clearHandler = appSource.slice(clearStart, clearEnd);
+
+    expect(clearHandler).toContain("setLiveDeepSeekProposalCommandResult(undefined)");
+    expect(clearHandler).toContain("setLiveDeepSeekProposalGenerationError(undefined)");
+    expect(clearHandler).toContain("setModelPatchProposalImportPreview(undefined)");
+    expect(clearHandler).toContain("setModelProposalChainIntegrationPreview(undefined)");
+    expect(clearHandler).toContain("setPatchProposalCreationPreview(undefined)");
+    expect(clearHandler).toContain('setLiveProposalSummaryEventStatus("idle")');
+    expect(clearHandler).toContain("setLiveProposalSummaryEventResult(undefined)");
+    expect(clearHandler).toContain("setLiveProposalSummaryEventError(undefined)");
+    expect(clearHandler).toContain("setContextAssemblyPreview(undefined)");
   });
 
   it("keeps App live generation UI proposal-only without raw output or enabled execution", async () => {
@@ -14478,6 +14839,52 @@ describe("desktop source boundaries", () => {
     );
     expect(docsIndex).toContain(
       "p0q-002-app-live-proposal-session-receipt-plan.md"
+    );
+  });
+
+  it("documents P0Q live proposal failure hardening without enabling execution", async () => {
+    const docs = await readFile(
+      path.join(
+        repoRoot,
+        "docs",
+        "app-live-proposal-generation-failure-hardening-v0.13.md"
+      ),
+      "utf8"
+    );
+    const docsIndex = await readFile(
+      path.join(repoRoot, "docs", "README.md"),
+      "utf8"
+    );
+    const combined = `${docs}\n${docsIndex}`;
+
+    expect(combined).toContain(
+      "App Live Proposal Generation Failure Hardening v0.13"
+    );
+    expect(combined).toContain("Safe summary-only failure reporting");
+    expect(combined).toContain("missing live proposal opt-in policy");
+    expect(combined).toContain("missing live proposal session receipt");
+    expect(combined).toContain("wrong typed confirmation");
+    expect(combined).toContain("command failure");
+    expect(combined).toContain("network timeout summary");
+    expect(combined).toContain("malformed response");
+    expect(combined).toContain("unsafe path");
+    expect(combined).toContain("secret marker");
+    expect(combined).toContain("reasoning_content dropped");
+    expect(combined).toContain("repair failed");
+    expect(combined).toContain("schema blocked");
+    expect(combined).toContain("event write failure");
+    expect(combined).toContain("raw prompt");
+    expect(combined).toContain("raw response");
+    expect(combined).toContain("reasoning_content");
+    expect(combined).toContain("API key values");
+    expect(combined).toContain("No Auto-Apply");
+    expect(combined).toContain("No App-side apply or rollback");
+    expect(combined).toContain("No EventStore writer expansion");
+    expect(combined).toContain("No Git or shell execution");
+    expect(combined).toContain("No native bridge");
+    expect(combined).toContain("No desktop action");
+    expect(docsIndex).toContain(
+      "app-live-proposal-generation-failure-hardening-v0.13.md"
     );
   });
 
