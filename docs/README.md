@@ -168,6 +168,7 @@ foundation.
 - [App Shell Verification Lanes v0.12](app-shell-shell-verification-lanes-v0.12.md)
 - [App Shell Verification Summary Events v0.12](app-shell-verification-summary-events-v0.12.md)
 - [App Shell Verification Replay Projection v0.12](app-shell-verification-replay-projection-v0.12.md)
+- [App Approved Execution Verification Smoke v0.12](app-approved-execution-verification-smoke-v0.12.md)
 - [Runtime Memory Recall Preview v0.3](runtime-memory-recall-preview-v0.3.md)
 - [v0.4.0 Controlled Creation Preview RC release notes](release-notes-v0.4.0-controlled-creation-preview-rc.1.md)
 - [App Shell Controlled Creation manual QA](app-shell-controlled-creation-manual-qa.md)

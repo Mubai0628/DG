@@ -13329,11 +13329,19 @@ describe("desktop source boundaries", () => {
       ),
       "utf8"
     );
+    const smoke = await readFile(
+      path.join(
+        repoRoot,
+        "docs",
+        "app-approved-execution-verification-smoke-v0.12.md"
+      ),
+      "utf8"
+    );
     const docsIndex = await readFile(
       path.join(repoRoot, "docs", "README.md"),
       "utf8"
     );
-    const combined = `${summaryEvents}\n${replayProjection}\n${docsIndex}`;
+    const combined = `${summaryEvents}\n${replayProjection}\n${smoke}\n${docsIndex}`;
 
     expect(combined).toContain("git.read_lane.executed");
     expect(combined).toContain("shell.verification_lane.executed");
@@ -13344,6 +13352,14 @@ describe("desktop source boundaries", () => {
     expect(combined).toContain("shell pass/fail status");
     expect(combined).toContain("Context Assembly Preview");
     expect(combined).toContain("volatile_tail");
+    expect(combined).toContain("approved receipt");
+    expect(combined).toContain("apply approved docs patch");
+    expect(combined).toContain("run Git status summary lane");
+    expect(combined).toContain("run shell verification lane");
+    expect(combined).toContain("rollback approved patch");
+    expect(combined).toContain(
+      "replay confirms apply, verification, and rollback"
+    );
     expect(combined).toContain("No arbitrary shell");
     expect(combined).toContain("No Git write commands");
     expect(combined).toContain("No new Tauri command");
@@ -13356,6 +13372,9 @@ describe("desktop source boundaries", () => {
     );
     expect(docsIndex).toContain(
       "app-shell-verification-replay-projection-v0.12.md"
+    );
+    expect(docsIndex).toContain(
+      "app-approved-execution-verification-smoke-v0.12.md"
     );
   });
 

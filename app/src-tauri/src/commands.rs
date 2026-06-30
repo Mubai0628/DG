@@ -6468,7 +6468,9 @@ mod tests {
             .get("approvalDraftId")
             .and_then(Value::as_str)
             .expect("approval draft id");
-        let workspace = temp_workspace("approved-execution-e2e-smoke");
+        let Some(workspace) = temp_git_workspace("approved-execution-e2e-smoke") else {
+            return;
+        };
         fs::create_dir_all(workspace.join("docs")).expect("docs dir");
         let target = workspace.join(path);
         let apply_receipt = serde_json::json!({
@@ -6550,6 +6552,53 @@ mod tests {
             .unwrap_or_default()
             .contains("approved apply executed"));
 
+        let git_result = run_git_read_lane(safe_git_read_request(
+            &workspace,
+            GitReadLane::StatusSummary,
+        ))
+        .expect("git verification summary after apply");
+        assert!(git_result.changed_file_count >= 1);
+        assert!(!git_result.raw_diff_included);
+        assert!(!git_result.raw_stdout_included);
+        assert!(!git_result.raw_stderr_included);
+        record_verification_lane_event(
+            workspace.to_string_lossy().to_string(),
+            serde_json::to_value(&git_result.event_preview).expect("git verification preview"),
+        )
+        .expect("record git verification event");
+
+        let shell_result = run_shell_verification_lane_with_executor(
+            safe_shell_verification_request(&workspace, ShellVerificationTemplateId::AppTypecheck),
+            |_program, _args, _cwd, _timeout, _max_output_bytes| {
+                Ok(ShellCommandOutput {
+                    exit_code: Some(0),
+                    stdout: b"app typecheck passed\n".to_vec(),
+                    stderr: Vec::new(),
+                    duration_ms: 17,
+                    truncated: false,
+                })
+            },
+        )
+        .expect("shell verification summary after apply");
+        assert_eq!(shell_result.status, "passed");
+        assert!(!shell_result.raw_stdout_included);
+        assert!(!shell_result.raw_stderr_included);
+        record_verification_lane_event(
+            workspace.to_string_lossy().to_string(),
+            serde_json::to_value(&shell_result.event_preview).expect("shell verification preview"),
+        )
+        .expect("record shell verification event");
+
+        let verification_summary =
+            load_event_summary(workspace.to_string_lossy().as_ref(), Some(20));
+        assert_eq!(verification_summary.verification_event_count, 2);
+        assert!(verification_summary.safety_scan.ok);
+        assert!(verification_summary
+            .latest_verification_summary
+            .as_deref()
+            .unwrap_or_default()
+            .contains("shell verification lane recorded"));
+
         let conflict_request = ApprovedApplyRequest {
             workspace_root: workspace.to_string_lossy().to_string(),
             workspace_root_ref: workspace_root_ref.to_string(),
@@ -6627,6 +6676,7 @@ mod tests {
 
         assert_eq!(replay_summary.approved_apply_count, 1);
         assert_eq!(replay_summary.approved_rollback_count, 1);
+        assert_eq!(replay_summary.verification_event_count, 2);
         assert!(replay_summary.safety_scan.ok);
         assert!(replay_summary
             .latest_approved_execution_summary
@@ -6635,8 +6685,13 @@ mod tests {
             .contains("approved rollback executed"));
         assert!(event_log.contains(APPROVED_APPLY_EXECUTED_TYPE));
         assert!(event_log.contains(APPROVED_ROLLBACK_EXECUTED_TYPE));
+        assert!(event_log.contains("git.read_lane.executed"));
+        assert!(event_log.contains("shell.verification_lane.executed"));
         assert!(!event_log.contains(content));
         assert!(!event_log.contains("preimage"));
+        assert!(!event_log.contains("diff --git"));
+        assert!(!event_log.contains("rawStdout"));
+        assert!(!event_log.contains("rawStderr"));
         assert!(!event_log.to_ascii_lowercase().contains("deepseek"));
         let api_key_marker = ["api", " key"].concat();
         assert!(!event_log.to_ascii_lowercase().contains(&api_key_marker));
