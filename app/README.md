@@ -111,6 +111,11 @@ Current scope:
   release while production memory persistence, automatic memory commit,
   model-direct policy write, MCP/plugin/skills runtime, native bridge, desktop
   action, autonomous coding loop, and arbitrary Git/shell remain disabled
+- review workspace-local Project Knowledge entries with human-confirmed
+  summary-only commit, revoke, expire, and refresh controls while automatic
+  model/tool commits, memory-triggered apply, raw EventStore content,
+  localStorage/sessionStorage, Git/shell, native bridge, and desktop action
+  remain disabled
 - lock the P0R E2E coding task regression smoke with safe docs-task,
   verification-failure, rollback, and expected event summary fixtures while no
   new App execution path is added

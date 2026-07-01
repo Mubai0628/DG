@@ -90,6 +90,7 @@ import {
   parseLiveProposalEvaluationSummaryJson
 } from "../src/live-proposal-evaluation-summary-view.js";
 import { buildLiveProposalEvaluationTelemetryAuditView } from "../src/live-proposal-evaluation-telemetry-audit-view.js";
+import { buildProjectKnowledgeReviewView } from "../src/project-knowledge-view.js";
 import { buildE2ECodingTaskWizardView } from "../src/e2e-coding-task-wizard-view.js";
 import { buildE2ECodingTaskSequencerView } from "../src/e2e-coding-task-sequencer-view.js";
 import { buildE2ETaskRecoveryView } from "../src/e2e-task-recovery-view.js";
@@ -16307,6 +16308,168 @@ describe("desktop source boundaries", () => {
     expect(combined).toContain("No native bridge");
     expect(combined).toContain("No desktop action");
     expect(docsIndex).toContain("app-tauri-project-knowledge-store-v0.15.md");
+  });
+
+  it("builds a human-reviewed project_fact candidate that can commit", () => {
+    const view = buildProjectKnowledgeReviewView({
+      workspaceRoot: "D:/workspace",
+      typedConfirmation: "COMMIT PROJECT KNOWLEDGE",
+      candidateForm: {
+        type: "project_fact",
+        namespace: "project",
+        summary: "Use summary-only project knowledge for later recall.",
+        evidenceRefsText:
+          "user-request | manual_note | User approved this summary fact | abc12345abc12345",
+        tagsText: "memory, project",
+        trustLevel: "high",
+        trustScore: 0.9,
+        humanReviewed: true,
+        reviewedBy: "manual_user_preview",
+        sourceKind: "human_reviewed",
+        factKind: "project_boundary"
+      }
+    });
+
+    expect(view.status).toBe("candidate_ready");
+    expect(view.readiness.canCommitCandidate).toBe(true);
+    expect(view.readiness.canAutoCommitFromModel).toBe(false);
+    expect(view.readiness.canAutoCommitFromTool).toBe(false);
+    expect(view.readiness.canRunMemoryTriggeredApply).toBe(false);
+    expect(view.readiness.canApplyPatch).toBe(false);
+    expect(view.readiness.canRollback).toBe(false);
+    expect(view.candidate?.type).toBe("project_fact");
+    expect(view.candidateSummary?.summaryOnly).toBe(true);
+  });
+
+  it("blocks unsafe or insufficient project knowledge candidates", () => {
+    const base = {
+      workspaceRoot: "D:/workspace",
+      typedConfirmation: "COMMIT PROJECT KNOWLEDGE",
+      candidateForm: {
+        type: "project_fact" as const,
+        namespace: "project",
+        summary: "Summary-only fact.",
+        evidenceRefsText:
+          "user-request | manual_note | User approved this summary fact | abc12345abc12345",
+        tagsText: "memory",
+        trustLevel: "high" as const,
+        trustScore: 0.9,
+        humanReviewed: true,
+        reviewedBy: "manual_user_preview",
+        sourceKind: "human_reviewed" as const,
+        factKind: "project_boundary"
+      }
+    };
+    const pitfall = buildProjectKnowledgeReviewView({
+      ...base,
+      candidateForm: {
+        ...base.candidateForm,
+        type: "pitfall",
+        triggerSummary: "",
+        mitigationSummary: "",
+        severity: "medium"
+      }
+    });
+    const policy = buildProjectKnowledgeReviewView({
+      ...base,
+      typedConfirmation: "COMMIT PROJECT POLICY",
+      candidateForm: {
+        ...base.candidateForm,
+        type: "policy",
+        sourceKind: "model_suggested",
+        policyScope: "project"
+      }
+    });
+    const secretMarker = buildProjectKnowledgeReviewView({
+      ...base,
+      candidateForm: {
+        ...base.candidateForm,
+        summary: `Do not store ${"sk"}-fakeProjectKnowledgeValue`
+      }
+    });
+
+    expect(pitfall.status).toBe("blocked");
+    expect(pitfall.findings.map((finding) => finding.code)).toContain(
+      "PITFALL_REQUIRES_TRIGGER"
+    );
+    expect(policy.status).toBe("blocked");
+    expect(policy.findings.map((finding) => finding.code)).toContain(
+      "POLICY_SOURCE_MUST_BE_HUMAN_REVIEWED"
+    );
+    expect(secretMarker.status).toBe("blocked");
+    expect(secretMarker.findings.map((finding) => finding.code)).toContain(
+      "API_KEY_MARKER"
+    );
+  });
+
+  it("keeps the Project Knowledge App surface fixed-command and summary-only", async () => {
+    const appSource = await readFile(
+      path.join(appRoot, "src", "App.tsx"),
+      "utf8"
+    );
+    const viewSource = await readFile(
+      path.join(appRoot, "src", "project-knowledge-view.ts"),
+      "utf8"
+    );
+    const combined = `${appSource}\n${viewSource}`;
+
+    expect(appSource).toContain("Project Knowledge");
+    expect(appSource).toContain("Human reviewed / summary-only");
+    expect(appSource).toContain("Refresh Project Knowledge");
+    expect(appSource).toContain("Preview Knowledge Candidate");
+    expect(appSource).toContain("Commit Project Knowledge");
+    expect(appSource).toContain("Revoke Project Knowledge");
+    expect(appSource).toContain("Expire Project Knowledge");
+    expect(combined).toContain("COMMIT PROJECT POLICY");
+    expect(combined).toContain("COMMIT PROJECT KNOWLEDGE");
+    expect(appSource).toContain("REVOKE PROJECT KNOWLEDGE");
+    expect(appSource).toContain("browser storage");
+    expect(appSource).toContain("listProjectKnowledge");
+    expect(appSource).toContain("commitProjectKnowledgeCandidate");
+    expect(appSource).toContain("revokeProjectKnowledgeEntry");
+    expect(appSource).toContain("expireProjectKnowledgeEntry");
+    expect(viewSource).not.toContain("safeInvoke");
+    expect(viewSource).not.toContain("invokeAllowedCommand");
+    expect(combined).not.toContain("autoCommitProjectKnowledge");
+    expect(combined).not.toContain("memoryTriggeredApply");
+    expect(combined).not.toContain("writeProjectKnowledgeEventStoreRaw");
+    expect(combined).not.toContain("projectKnowledgeGenericInvoke");
+  });
+
+  it("documents the P0T-004 App project knowledge review surface", async () => {
+    const appDoc = await readFile(
+      path.join(
+        repoRoot,
+        "docs",
+        "app-shell-project-knowledge-review-v0.15.md"
+      ),
+      "utf8"
+    );
+    const docsIndex = await readFile(
+      path.join(repoRoot, "docs", "README.md"),
+      "utf8"
+    );
+    const appReadme = await readFile(path.join(appRoot, "README.md"), "utf8");
+    const combined = `${appDoc}\n${docsIndex}\n${appReadme}`;
+
+    expect(combined).toContain("App Shell Project Knowledge Review v0.15");
+    expect(combined).toContain("human-reviewed");
+    expect(combined).toContain("summary-only");
+    expect(combined).toContain("project_knowledge_list");
+    expect(combined).toContain("project_knowledge_commit_candidate");
+    expect(combined).toContain("project_knowledge_revoke");
+    expect(combined).toContain("project_knowledge_expire");
+    expect(combined).toContain("COMMIT PROJECT POLICY");
+    expect(combined).toContain("COMMIT PROJECT KNOWLEDGE");
+    expect(combined).toContain("REVOKE PROJECT KNOWLEDGE");
+    expect(combined).toContain("No automatic commit from model output");
+    expect(combined).toContain("No automatic commit from tool output");
+    expect(combined).toContain("No memory-triggered apply");
+    expect(combined).toContain("No localStorage/sessionStorage");
+    expect(combined).toContain("No Git/shell execution");
+    expect(combined).toContain("No native bridge");
+    expect(combined).toContain("No desktop action");
+    expect(docsIndex).toContain("app-shell-project-knowledge-review-v0.15.md");
   });
 
   it("documents the P0S-001 MVP hardening recovery design gate", async () => {

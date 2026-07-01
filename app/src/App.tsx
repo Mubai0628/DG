@@ -11,14 +11,18 @@ import {
 import {
   applyApprovedUserWorkspacePatch,
   checkDesktopRunnerPreflight,
+  commitProjectKnowledgeCandidate,
+  expireProjectKnowledgeEntry,
   generateLiveDeepSeekPatchProposal,
   getDesktopAppVersion,
+  listProjectKnowledge,
   loadWorkspaceEventSummary,
   liveProposalAllowedKeySourceRef,
   recordApprovedUserWorkspaceExecutionEvent,
   recordControlRunDraftEvent,
   recordLiveProposalSummaryEvent,
   recordVerificationLaneEvent,
+  revokeProjectKnowledgeEntry,
   rollbackApprovedUserWorkspacePatch,
   runDesktopWebTableToCsvFlow,
   runGitReadLane,
@@ -32,6 +36,9 @@ import {
   type LiveDeepSeekPatchProposalCommandResult,
   type LiveProposalSummaryEventPreview,
   type LiveProposalSummaryEventRecordResult,
+  type ProjectKnowledgeCommitResult,
+  type ProjectKnowledgeLifecycleResult,
+  type ProjectKnowledgeSnapshotResult,
   type VerificationLaneEventRecordResult,
   type ShellVerificationLaneResult,
   type ShellVerificationTemplateId
@@ -150,6 +157,13 @@ import {
   summarizeLiveProposalEvaluationTelemetryAuditView,
   type LiveProposalEvaluationTelemetryAuditView
 } from "./live-proposal-evaluation-telemetry-audit-view.js";
+import {
+  buildProjectKnowledgeReviewView,
+  summarizeProjectKnowledgeReviewView,
+  type ProjectKnowledgeCandidateForm,
+  type ProjectKnowledgeEntryType,
+  type ProjectKnowledgeReviewView
+} from "./project-knowledge-view.js";
 import {
   buildE2ECodingTaskWizardView,
   summarizeE2ECodingTaskWizardView,
@@ -602,6 +616,67 @@ export function DesktopShell(): JSX.Element {
     liveProposalEvaluationTelemetryAuditPreview,
     setLiveProposalEvaluationTelemetryAuditPreview
   ] = useState<LiveProposalEvaluationTelemetryAuditView | undefined>();
+  const [projectKnowledgeEntryType, setProjectKnowledgeEntryType] =
+    useState<ProjectKnowledgeEntryType>("project_fact");
+  const [projectKnowledgeNamespace, setProjectKnowledgeNamespace] =
+    useState("project");
+  const [projectKnowledgeSummary, setProjectKnowledgeSummary] = useState("");
+  const [
+    projectKnowledgeEvidenceRefsText,
+    setProjectKnowledgeEvidenceRefsText
+  ] = useState("");
+  const [projectKnowledgeTagsText, setProjectKnowledgeTagsText] = useState("");
+  const [projectKnowledgeTrustLevel, setProjectKnowledgeTrustLevel] = useState<
+    "low" | "medium" | "high" | "trusted"
+  >("high");
+  const [projectKnowledgeTrustScore, setProjectKnowledgeTrustScore] =
+    useState("0.9");
+  const [projectKnowledgeHumanReviewed, setProjectKnowledgeHumanReviewed] =
+    useState(false);
+  const [projectKnowledgeReviewedBy, setProjectKnowledgeReviewedBy] = useState(
+    "manual_user_preview"
+  );
+  const [projectKnowledgeSourceKind, setProjectKnowledgeSourceKind] =
+    useState<ProjectKnowledgeCandidateForm["sourceKind"]>("human_reviewed");
+  const [projectKnowledgePolicyScope, setProjectKnowledgePolicyScope] =
+    useState("project");
+  const [projectKnowledgeFactKind, setProjectKnowledgeFactKind] =
+    useState("project_fact");
+  const [projectKnowledgePitfallTrigger, setProjectKnowledgePitfallTrigger] =
+    useState("");
+  const [
+    projectKnowledgePitfallMitigation,
+    setProjectKnowledgePitfallMitigation
+  ] = useState("");
+  const [projectKnowledgePitfallSeverity, setProjectKnowledgePitfallSeverity] =
+    useState<"low" | "medium" | "high">("medium");
+  const [
+    projectKnowledgeTypedConfirmation,
+    setProjectKnowledgeTypedConfirmation
+  ] = useState("");
+  const [projectKnowledgeRevokeEntryId, setProjectKnowledgeRevokeEntryId] =
+    useState("");
+  const [
+    projectKnowledgeRevokeConfirmation,
+    setProjectKnowledgeRevokeConfirmation
+  ] = useState("");
+  const [projectKnowledgeExpireEntryId, setProjectKnowledgeExpireEntryId] =
+    useState("");
+  const [projectKnowledgeExpireReason, setProjectKnowledgeExpireReason] =
+    useState("");
+  const [projectKnowledgeSnapshot, setProjectKnowledgeSnapshot] = useState<
+    ProjectKnowledgeSnapshotResult | undefined
+  >();
+  const [projectKnowledgeReviewPreview, setProjectKnowledgeReviewPreview] =
+    useState<ProjectKnowledgeReviewView | undefined>();
+  const [projectKnowledgeActionStatus, setProjectKnowledgeActionStatus] =
+    useState<EventStatus>("idle");
+  const [projectKnowledgeActionError, setProjectKnowledgeActionError] =
+    useState<string | undefined>();
+  const [projectKnowledgeLatestCommit, setProjectKnowledgeLatestCommit] =
+    useState<ProjectKnowledgeCommitResult | undefined>();
+  const [projectKnowledgeLatestLifecycle, setProjectKnowledgeLatestLifecycle] =
+    useState<ProjectKnowledgeLifecycleResult | undefined>();
   const [patchProposalCreationPreview, setPatchProposalCreationPreview] =
     useState<AppPatchProposalCreationPreviewView | undefined>();
   const [patchProposalValidationPreview, setPatchProposalValidationPreview] =
@@ -1836,6 +1911,76 @@ export function DesktopShell(): JSX.Element {
   const displayedLiveProposalEvaluationTelemetryAudit =
     liveProposalEvaluationTelemetryAuditPreview ??
     buildLiveProposalEvaluationTelemetryAuditView();
+  const projectKnowledgeReviewCandidate = useMemo<ProjectKnowledgeReviewView>(
+    () =>
+      buildProjectKnowledgeReviewView({
+        workspaceRoot,
+        snapshot: projectKnowledgeSnapshot,
+        latestCommit: projectKnowledgeLatestCommit,
+        latestLifecycle: projectKnowledgeLatestLifecycle,
+        typedConfirmation: projectKnowledgeTypedConfirmation,
+        revokeEntryId: projectKnowledgeRevokeEntryId,
+        revokeTypedConfirmation: projectKnowledgeRevokeConfirmation,
+        expireEntryId: projectKnowledgeExpireEntryId,
+        expireReasonSummary: projectKnowledgeExpireReason,
+        candidateForm: {
+          type: projectKnowledgeEntryType,
+          namespace: projectKnowledgeNamespace,
+          summary: projectKnowledgeSummary,
+          evidenceRefsText: projectKnowledgeEvidenceRefsText,
+          tagsText: projectKnowledgeTagsText,
+          trustLevel: projectKnowledgeTrustLevel,
+          trustScore: Number(projectKnowledgeTrustScore),
+          humanReviewed: projectKnowledgeHumanReviewed,
+          reviewedBy: projectKnowledgeReviewedBy,
+          sourceKind: projectKnowledgeSourceKind,
+          policyScope: projectKnowledgePolicyScope,
+          factKind: projectKnowledgeFactKind,
+          triggerSummary: projectKnowledgePitfallTrigger,
+          mitigationSummary: projectKnowledgePitfallMitigation,
+          severity: projectKnowledgePitfallSeverity
+        }
+      }),
+    [
+      projectKnowledgeEntryType,
+      projectKnowledgeEvidenceRefsText,
+      projectKnowledgeExpireEntryId,
+      projectKnowledgeExpireReason,
+      projectKnowledgeFactKind,
+      projectKnowledgeHumanReviewed,
+      projectKnowledgeLatestCommit,
+      projectKnowledgeLatestLifecycle,
+      projectKnowledgeNamespace,
+      projectKnowledgePitfallMitigation,
+      projectKnowledgePitfallSeverity,
+      projectKnowledgePitfallTrigger,
+      projectKnowledgePolicyScope,
+      projectKnowledgeReviewedBy,
+      projectKnowledgeRevokeConfirmation,
+      projectKnowledgeRevokeEntryId,
+      projectKnowledgeSnapshot,
+      projectKnowledgeSourceKind,
+      projectKnowledgeSummary,
+      projectKnowledgeTagsText,
+      projectKnowledgeTrustLevel,
+      projectKnowledgeTrustScore,
+      projectKnowledgeTypedConfirmation,
+      workspaceRoot
+    ]
+  );
+  const displayedProjectKnowledgeReview =
+    projectKnowledgeReviewPreview ??
+    buildProjectKnowledgeReviewView({
+      workspaceRoot,
+      snapshot: projectKnowledgeSnapshot,
+      latestCommit: projectKnowledgeLatestCommit,
+      latestLifecycle: projectKnowledgeLatestLifecycle,
+      typedConfirmation: projectKnowledgeTypedConfirmation,
+      revokeEntryId: projectKnowledgeRevokeEntryId,
+      revokeTypedConfirmation: projectKnowledgeRevokeConfirmation,
+      expireEntryId: projectKnowledgeExpireEntryId,
+      expireReasonSummary: projectKnowledgeExpireReason
+    });
   useEffect(() => {
     setLiveProposalTelemetryAuditPreview(undefined);
   }, [
@@ -1867,6 +2012,30 @@ export function DesktopShell(): JSX.Element {
     liveProposalEvaluationSummaryPreview,
     liveProposalEvaluationSummaryText,
     liveProposalEvaluationTelemetryAuditText
+  ]);
+  useEffect(() => {
+    setProjectKnowledgeReviewPreview(undefined);
+  }, [
+    projectKnowledgeEntryType,
+    projectKnowledgeEvidenceRefsText,
+    projectKnowledgeExpireEntryId,
+    projectKnowledgeExpireReason,
+    projectKnowledgeFactKind,
+    projectKnowledgeHumanReviewed,
+    projectKnowledgeNamespace,
+    projectKnowledgePitfallMitigation,
+    projectKnowledgePitfallSeverity,
+    projectKnowledgePitfallTrigger,
+    projectKnowledgePolicyScope,
+    projectKnowledgeReviewedBy,
+    projectKnowledgeRevokeConfirmation,
+    projectKnowledgeRevokeEntryId,
+    projectKnowledgeSourceKind,
+    projectKnowledgeSummary,
+    projectKnowledgeTagsText,
+    projectKnowledgeTrustLevel,
+    projectKnowledgeTrustScore,
+    projectKnowledgeTypedConfirmation
   ]);
   useEffect(() => {
     setE2ECodingTaskWizardPreview(undefined);
@@ -2613,6 +2782,108 @@ export function DesktopShell(): JSX.Element {
   function handleClearLiveProposalEvaluationTelemetryAudit(): void {
     setLiveProposalEvaluationTelemetryAuditText("");
     setLiveProposalEvaluationTelemetryAuditPreview(undefined);
+  }
+
+  async function handleRefreshProjectKnowledge(): Promise<void> {
+    setProjectKnowledgeActionStatus("loading");
+    setProjectKnowledgeActionError(undefined);
+    try {
+      const snapshot = await listProjectKnowledge(workspaceRoot);
+      setProjectKnowledgeSnapshot(snapshot);
+      setProjectKnowledgeActionStatus("loaded");
+    } catch (caught) {
+      setProjectKnowledgeActionError(safeErrorMessage(caught));
+      setProjectKnowledgeActionStatus("error");
+    }
+  }
+
+  function handlePreviewProjectKnowledgeCandidate(): void {
+    setProjectKnowledgeReviewPreview(projectKnowledgeReviewCandidate);
+  }
+
+  async function runProjectKnowledgeCandidateCommit(): Promise<void> {
+    const candidate = projectKnowledgeReviewCandidate.candidate;
+    if (
+      candidate === undefined ||
+      !projectKnowledgeReviewCandidate.readiness.canCommitCandidate
+    ) {
+      setProjectKnowledgeActionError(
+        "Project knowledge candidate is not ready for commit."
+      );
+      setProjectKnowledgeActionStatus("error");
+      return;
+    }
+    setProjectKnowledgeActionStatus("loading");
+    setProjectKnowledgeActionError(undefined);
+    try {
+      const result = await commitProjectKnowledgeCandidate({
+        workspaceRoot,
+        candidate
+      });
+      setProjectKnowledgeLatestCommit(result);
+      setProjectKnowledgeLatestLifecycle(undefined);
+      const snapshot = await listProjectKnowledge(workspaceRoot);
+      setProjectKnowledgeSnapshot(snapshot);
+      setProjectKnowledgeReviewPreview(undefined);
+      setProjectKnowledgeActionStatus("loaded");
+    } catch (caught) {
+      setProjectKnowledgeActionError(safeErrorMessage(caught));
+      setProjectKnowledgeActionStatus("error");
+    }
+  }
+
+  async function handleRevokeProjectKnowledgeEntry(): Promise<void> {
+    if (!projectKnowledgeReviewCandidate.readiness.canRevokeEntry) {
+      setProjectKnowledgeActionError(
+        "Project knowledge revoke confirmation is required."
+      );
+      setProjectKnowledgeActionStatus("error");
+      return;
+    }
+    setProjectKnowledgeActionStatus("loading");
+    setProjectKnowledgeActionError(undefined);
+    try {
+      const result = await revokeProjectKnowledgeEntry({
+        workspaceRoot,
+        entryId: projectKnowledgeRevokeEntryId,
+        typedConfirmation: projectKnowledgeRevokeConfirmation
+      });
+      setProjectKnowledgeLatestLifecycle(result);
+      const snapshot = await listProjectKnowledge(workspaceRoot);
+      setProjectKnowledgeSnapshot(snapshot);
+      setProjectKnowledgeReviewPreview(undefined);
+      setProjectKnowledgeActionStatus("loaded");
+    } catch (caught) {
+      setProjectKnowledgeActionError(safeErrorMessage(caught));
+      setProjectKnowledgeActionStatus("error");
+    }
+  }
+
+  async function handleExpireProjectKnowledgeEntry(): Promise<void> {
+    if (!projectKnowledgeReviewCandidate.readiness.canExpireEntry) {
+      setProjectKnowledgeActionError(
+        "Project knowledge expire entry and reason are required."
+      );
+      setProjectKnowledgeActionStatus("error");
+      return;
+    }
+    setProjectKnowledgeActionStatus("loading");
+    setProjectKnowledgeActionError(undefined);
+    try {
+      const result = await expireProjectKnowledgeEntry({
+        workspaceRoot,
+        entryId: projectKnowledgeExpireEntryId,
+        reasonSummary: projectKnowledgeExpireReason
+      });
+      setProjectKnowledgeLatestLifecycle(result);
+      const snapshot = await listProjectKnowledge(workspaceRoot);
+      setProjectKnowledgeSnapshot(snapshot);
+      setProjectKnowledgeReviewPreview(undefined);
+      setProjectKnowledgeActionStatus("loaded");
+    } catch (caught) {
+      setProjectKnowledgeActionError(safeErrorMessage(caught));
+      setProjectKnowledgeActionStatus("error");
+    }
   }
 
   function handleValidatePatchProposal(): void {
@@ -10814,6 +11085,561 @@ export function DesktopShell(): JSX.Element {
             ) : null}
 
             <p className="fieldHelp">{capabilityPlanPreview.nextAction}</p>
+          </section>
+
+          <section className="eventPanel" aria-label="Project Knowledge">
+            <div className="panelHeader">
+              <h2>Project Knowledge</h2>
+              <span className="muted">Human reviewed / summary-only</span>
+            </div>
+            <p className="fieldHelp">
+              Review, commit, revoke, expire, and refresh workspace-local
+              project knowledge through fixed Tauri commands. The App Shell does
+              not auto-commit model or tool output, write raw EventStore
+              content, use browser storage, or trigger memory-driven apply.
+            </p>
+
+            <div className="formGrid">
+              <label>
+                <span>Knowledge type</span>
+                <select
+                  value={projectKnowledgeEntryType}
+                  onChange={(event) => {
+                    setProjectKnowledgeEntryType(
+                      event.target.value as ProjectKnowledgeEntryType
+                    );
+                    setProjectKnowledgeTypedConfirmation("");
+                  }}
+                >
+                  <option value="project_fact">project_fact</option>
+                  <option value="pitfall">pitfall</option>
+                  <option value="policy">policy</option>
+                </select>
+              </label>
+              <label>
+                <span>Namespace</span>
+                <input
+                  value={projectKnowledgeNamespace}
+                  onChange={(event) =>
+                    setProjectKnowledgeNamespace(event.target.value)
+                  }
+                  placeholder="project"
+                />
+              </label>
+              <label>
+                <span>Trust</span>
+                <select
+                  value={projectKnowledgeTrustLevel}
+                  onChange={(event) =>
+                    setProjectKnowledgeTrustLevel(
+                      event.target.value as
+                        | "low"
+                        | "medium"
+                        | "high"
+                        | "trusted"
+                    )
+                  }
+                >
+                  <option value="low">low</option>
+                  <option value="medium">medium</option>
+                  <option value="high">high</option>
+                  <option value="trusted">trusted</option>
+                </select>
+              </label>
+              <label>
+                <span>Trust score</span>
+                <input
+                  value={projectKnowledgeTrustScore}
+                  onChange={(event) =>
+                    setProjectKnowledgeTrustScore(event.target.value)
+                  }
+                  inputMode="decimal"
+                  placeholder="0.9"
+                />
+              </label>
+              <label>
+                <span>Source kind</span>
+                <select
+                  value={projectKnowledgeSourceKind}
+                  onChange={(event) =>
+                    setProjectKnowledgeSourceKind(
+                      event.target
+                        .value as ProjectKnowledgeCandidateForm["sourceKind"]
+                    )
+                  }
+                >
+                  <option value="human_reviewed">human_reviewed</option>
+                  <option value="repo_doc_summary">repo_doc_summary</option>
+                  <option value="manual_import_summary">
+                    manual_import_summary
+                  </option>
+                  <option value="model_suggested">model_suggested</option>
+                  <option value="tool_output_summary">
+                    tool_output_summary
+                  </option>
+                  <option value="external_summary">external_summary</option>
+                </select>
+              </label>
+              <label>
+                <span>Reviewed by</span>
+                <input
+                  value={projectKnowledgeReviewedBy}
+                  onChange={(event) =>
+                    setProjectKnowledgeReviewedBy(event.target.value)
+                  }
+                  placeholder="manual_user_preview"
+                />
+              </label>
+            </div>
+
+            <label className="checkboxRow">
+              <input
+                type="checkbox"
+                checked={projectKnowledgeHumanReviewed}
+                onChange={(event) =>
+                  setProjectKnowledgeHumanReviewed(event.target.checked)
+                }
+              />
+              <span>Human confirmation checked</span>
+            </label>
+
+            <label>
+              <span>Summary</span>
+              <textarea
+                className="compactTextarea"
+                value={projectKnowledgeSummary}
+                onChange={(event) =>
+                  setProjectKnowledgeSummary(event.target.value)
+                }
+                placeholder="Write a summary-only project knowledge candidate"
+                spellCheck={false}
+              />
+            </label>
+
+            <label>
+              <span>Evidence refs</span>
+              <textarea
+                className="compactTextarea"
+                value={projectKnowledgeEvidenceRefsText}
+                onChange={(event) =>
+                  setProjectKnowledgeEvidenceRefsText(event.target.value)
+                }
+                placeholder="ref-id | manual_note | summary-only evidence | hashprefix"
+                spellCheck={false}
+              />
+              <p className="fieldHelp">
+                One summary-only ref per line. Do not paste raw prompt, raw
+                source, raw diff, DOM, CSV, or API key material.
+              </p>
+            </label>
+
+            <div className="formGrid">
+              <label>
+                <span>Tags</span>
+                <input
+                  value={projectKnowledgeTagsText}
+                  onChange={(event) =>
+                    setProjectKnowledgeTagsText(event.target.value)
+                  }
+                  placeholder="memory, project"
+                />
+              </label>
+              <label>
+                <span>Policy scope</span>
+                <input
+                  value={projectKnowledgePolicyScope}
+                  onChange={(event) =>
+                    setProjectKnowledgePolicyScope(event.target.value)
+                  }
+                  placeholder="project"
+                  disabled={projectKnowledgeEntryType !== "policy"}
+                />
+              </label>
+              <label>
+                <span>Fact kind</span>
+                <input
+                  value={projectKnowledgeFactKind}
+                  onChange={(event) =>
+                    setProjectKnowledgeFactKind(event.target.value)
+                  }
+                  placeholder="project_fact"
+                  disabled={projectKnowledgeEntryType !== "project_fact"}
+                />
+              </label>
+              <label>
+                <span>Pitfall severity</span>
+                <select
+                  value={projectKnowledgePitfallSeverity}
+                  onChange={(event) =>
+                    setProjectKnowledgePitfallSeverity(
+                      event.target.value as "low" | "medium" | "high"
+                    )
+                  }
+                  disabled={projectKnowledgeEntryType !== "pitfall"}
+                >
+                  <option value="low">low</option>
+                  <option value="medium">medium</option>
+                  <option value="high">high</option>
+                </select>
+              </label>
+            </div>
+
+            <div className="formGrid">
+              <label>
+                <span>Pitfall trigger</span>
+                <input
+                  value={projectKnowledgePitfallTrigger}
+                  onChange={(event) =>
+                    setProjectKnowledgePitfallTrigger(event.target.value)
+                  }
+                  placeholder="Trigger summary"
+                  disabled={projectKnowledgeEntryType !== "pitfall"}
+                />
+              </label>
+              <label>
+                <span>Pitfall mitigation</span>
+                <input
+                  value={projectKnowledgePitfallMitigation}
+                  onChange={(event) =>
+                    setProjectKnowledgePitfallMitigation(event.target.value)
+                  }
+                  placeholder="Mitigation summary"
+                  disabled={projectKnowledgeEntryType !== "pitfall"}
+                />
+              </label>
+              <label>
+                <span>Commit confirmation</span>
+                <input
+                  value={projectKnowledgeTypedConfirmation}
+                  onChange={(event) =>
+                    setProjectKnowledgeTypedConfirmation(event.target.value)
+                  }
+                  placeholder={
+                    projectKnowledgeReviewCandidate.requiredConfirmation
+                  }
+                />
+              </label>
+            </div>
+
+            <div className="buttonRow">
+              <button
+                type="button"
+                className="secondary"
+                onClick={(event) => {
+                  event.preventDefault();
+                  event.stopPropagation();
+                  handleRefreshProjectKnowledge().catch((caught) => {
+                    setProjectKnowledgeActionError(safeErrorMessage(caught));
+                    setProjectKnowledgeActionStatus("error");
+                  });
+                }}
+                disabled={
+                  !displayedProjectKnowledgeReview.readiness
+                    .canRefreshProjectKnowledge ||
+                  projectKnowledgeActionStatus === "loading"
+                }
+              >
+                Refresh Project Knowledge
+              </button>
+              <button
+                type="button"
+                className="secondary"
+                onClick={(event) => {
+                  event.preventDefault();
+                  event.stopPropagation();
+                  handlePreviewProjectKnowledgeCandidate();
+                }}
+                disabled={
+                  !projectKnowledgeReviewCandidate.readiness.canPreviewCandidate
+                }
+              >
+                Preview Knowledge Candidate
+              </button>
+              <button
+                type="button"
+                className="secondary"
+                onClick={(event) => {
+                  event.preventDefault();
+                  event.stopPropagation();
+                  runProjectKnowledgeCandidateCommit().catch((caught) => {
+                    setProjectKnowledgeActionError(safeErrorMessage(caught));
+                    setProjectKnowledgeActionStatus("error");
+                  });
+                }}
+                disabled={
+                  !projectKnowledgeReviewCandidate.readiness
+                    .canCommitCandidate ||
+                  projectKnowledgeActionStatus === "loading"
+                }
+              >
+                Commit Project Knowledge
+              </button>
+            </div>
+
+            <div className="formGrid">
+              <label>
+                <span>Revoke entry id</span>
+                <input
+                  value={projectKnowledgeRevokeEntryId}
+                  onChange={(event) =>
+                    setProjectKnowledgeRevokeEntryId(event.target.value)
+                  }
+                  placeholder="project-knowledge-entry-id"
+                />
+              </label>
+              <label>
+                <span>Revoke confirmation</span>
+                <input
+                  value={projectKnowledgeRevokeConfirmation}
+                  onChange={(event) =>
+                    setProjectKnowledgeRevokeConfirmation(event.target.value)
+                  }
+                  placeholder="REVOKE PROJECT KNOWLEDGE"
+                />
+              </label>
+              <label>
+                <span>Expire entry id</span>
+                <input
+                  value={projectKnowledgeExpireEntryId}
+                  onChange={(event) =>
+                    setProjectKnowledgeExpireEntryId(event.target.value)
+                  }
+                  placeholder="project-knowledge-entry-id"
+                />
+              </label>
+              <label>
+                <span>Expire reason</span>
+                <input
+                  value={projectKnowledgeExpireReason}
+                  onChange={(event) =>
+                    setProjectKnowledgeExpireReason(event.target.value)
+                  }
+                  placeholder="Summary-only reason"
+                />
+              </label>
+            </div>
+
+            <div className="buttonRow">
+              <button
+                type="button"
+                className="secondary"
+                onClick={(event) => {
+                  event.preventDefault();
+                  event.stopPropagation();
+                  handleRevokeProjectKnowledgeEntry().catch((caught) => {
+                    setProjectKnowledgeActionError(safeErrorMessage(caught));
+                    setProjectKnowledgeActionStatus("error");
+                  });
+                }}
+                disabled={
+                  !projectKnowledgeReviewCandidate.readiness.canRevokeEntry ||
+                  projectKnowledgeActionStatus === "loading"
+                }
+              >
+                Revoke Project Knowledge
+              </button>
+              <button
+                type="button"
+                className="secondary"
+                onClick={(event) => {
+                  event.preventDefault();
+                  event.stopPropagation();
+                  handleExpireProjectKnowledgeEntry().catch((caught) => {
+                    setProjectKnowledgeActionError(safeErrorMessage(caught));
+                    setProjectKnowledgeActionStatus("error");
+                  });
+                }}
+                disabled={
+                  !projectKnowledgeReviewCandidate.readiness.canExpireEntry ||
+                  projectKnowledgeActionStatus === "loading"
+                }
+              >
+                Expire Project Knowledge
+              </button>
+            </div>
+
+            {displayedProjectKnowledgeReview.status === "empty" ? (
+              <p className="empty">
+                No project knowledge snapshot loaded. Refresh the workspace or
+                preview a human-reviewed candidate.
+              </p>
+            ) : null}
+
+            {displayedProjectKnowledgeReview.status === "blocked" ? (
+              <div className="errorBox">
+                <strong>Project knowledge blocked</strong>
+                <p>{displayedProjectKnowledgeReview.nextAction}</p>
+              </div>
+            ) : null}
+
+            {projectKnowledgeActionError !== undefined ? (
+              <div className="errorBox">
+                <strong>Project knowledge command failed safely</strong>
+                <p>{projectKnowledgeActionError}</p>
+              </div>
+            ) : null}
+
+            <dl className="summaryGrid compact">
+              <div>
+                <dt>Status</dt>
+                <dd>{displayedProjectKnowledgeReview.status}</dd>
+              </div>
+              <div>
+                <dt>Entries active / total</dt>
+                <dd>
+                  {
+                    displayedProjectKnowledgeReview.snapshotSummary
+                      .activeEntryCount
+                  }{" "}
+                  / {displayedProjectKnowledgeReview.snapshotSummary.entryCount}
+                </dd>
+              </div>
+              <div>
+                <dt>Revoked / expired</dt>
+                <dd>
+                  {
+                    displayedProjectKnowledgeReview.snapshotSummary
+                      .revokedEntryCount
+                  }{" "}
+                  /{" "}
+                  {
+                    displayedProjectKnowledgeReview.snapshotSummary
+                      .expiredEntryCount
+                  }
+                </dd>
+              </div>
+              <div>
+                <dt>Candidate type</dt>
+                <dd>
+                  {displayedProjectKnowledgeReview.candidate?.type ?? "n/a"}
+                </dd>
+              </div>
+              <div>
+                <dt>Evidence refs</dt>
+                <dd>
+                  {displayedProjectKnowledgeReview.candidateSummary
+                    ?.evidenceRefCount ?? 0}
+                </dd>
+              </div>
+              <div>
+                <dt>Blockers / warnings</dt>
+                <dd>
+                  {displayedProjectKnowledgeReview.blockerCount} /{" "}
+                  {displayedProjectKnowledgeReview.warningCount}
+                </dd>
+              </div>
+              <div>
+                <dt>Commit ready</dt>
+                <dd>
+                  {displayedProjectKnowledgeReview.readiness.canCommitCandidate
+                    ? "yes"
+                    : "no"}
+                </dd>
+              </div>
+              <div>
+                <dt>Auto model / tool commit</dt>
+                <dd>
+                  {displayedProjectKnowledgeReview.readiness
+                    .canAutoCommitFromModel
+                    ? "yes"
+                    : "no"}{" "}
+                  /{" "}
+                  {displayedProjectKnowledgeReview.readiness
+                    .canAutoCommitFromTool
+                    ? "yes"
+                    : "no"}
+                </dd>
+              </div>
+              <div>
+                <dt>Apply / rollback</dt>
+                <dd>
+                  {displayedProjectKnowledgeReview.readiness.canApplyPatch
+                    ? "yes"
+                    : "no"}{" "}
+                  /{" "}
+                  {displayedProjectKnowledgeReview.readiness.canRollback
+                    ? "yes"
+                    : "no"}
+                </dd>
+              </div>
+              <div>
+                <dt>Git / shell</dt>
+                <dd>
+                  {displayedProjectKnowledgeReview.readiness.canExecuteGit
+                    ? "yes"
+                    : "no"}{" "}
+                  /{" "}
+                  {displayedProjectKnowledgeReview.readiness.canExecuteShell
+                    ? "yes"
+                    : "no"}
+                </dd>
+              </div>
+              <div>
+                <dt>Hash</dt>
+                <dd>{displayedProjectKnowledgeReview.hashPrefix}</dd>
+              </div>
+              <div>
+                <dt>Action status</dt>
+                <dd>{projectKnowledgeActionStatus}</dd>
+              </div>
+            </dl>
+
+            {displayedProjectKnowledgeReview.latestCommit !== undefined ? (
+              <p className="fieldHelp">
+                Latest commit:{" "}
+                {displayedProjectKnowledgeReview.latestCommit.entry.entryId} ·{" "}
+                {displayedProjectKnowledgeReview.latestCommit.safeMessage}
+              </p>
+            ) : null}
+
+            {displayedProjectKnowledgeReview.latestLifecycle !== undefined ? (
+              <p className="fieldHelp">
+                Latest lifecycle:{" "}
+                {displayedProjectKnowledgeReview.latestLifecycle.entryId} ·{" "}
+                {displayedProjectKnowledgeReview.latestLifecycle.status}
+              </p>
+            ) : null}
+
+            {displayedProjectKnowledgeReview.findings.length > 0 ? (
+              <p className="muted">
+                findings{" "}
+                {displayedProjectKnowledgeReview.findings
+                  .map((finding) => finding.code)
+                  .join(", ")}
+              </p>
+            ) : null}
+
+            {displayedProjectKnowledgeReview.snapshot?.entries.length ? (
+              <ol className="timelineList">
+                {displayedProjectKnowledgeReview.snapshot.entries.map(
+                  (entry) => (
+                    <li key={entry.entryId}>
+                      <strong>{entry.type}</strong> · {entry.entryId} ·{" "}
+                      {entry.namespace}
+                      <span className="timelineMeta">
+                        {entry.status} · evidence {entry.evidenceRefCount} ·
+                        tags {entry.tagCount}
+                      </span>
+                      <span>{entry.summary}</span>
+                      {entry.warningCodes.length > 0 ? (
+                        <span className="timelineMeta">
+                          Warnings: {entry.warningCodes.join(", ")}
+                        </span>
+                      ) : null}
+                    </li>
+                  )
+                )}
+              </ol>
+            ) : null}
+
+            <p className="fieldHelp">
+              {
+                summarizeProjectKnowledgeReviewView(
+                  displayedProjectKnowledgeReview
+                ).source
+              }{" "}
+              · {displayedProjectKnowledgeReview.nextAction}
+            </p>
           </section>
 
           <section className="eventPanel" aria-label="Memory Recall Preview">

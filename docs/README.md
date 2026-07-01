@@ -228,6 +228,7 @@ foundation.
 - [P0T-002 Project Knowledge Store Contract plan](p0t-002-project-knowledge-store-contract-plan.md)
 - [Runtime Project Knowledge Store Contract v0.15](runtime-project-knowledge-store-v0.15.md)
 - [App / Tauri Project Knowledge Store v0.15](app-tauri-project-knowledge-store-v0.15.md)
+- [App Shell Project Knowledge Review v0.15](app-shell-project-knowledge-review-v0.15.md)
 - [Runtime Memory Recall Preview v0.3](runtime-memory-recall-preview-v0.3.md)
 - [v0.4.0 Controlled Creation Preview RC release notes](release-notes-v0.4.0-controlled-creation-preview-rc.1.md)
 - [App Shell Controlled Creation manual QA](app-shell-controlled-creation-manual-qa.md)
