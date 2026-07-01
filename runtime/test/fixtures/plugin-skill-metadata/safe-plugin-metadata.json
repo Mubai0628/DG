@@ -1,0 +1,23 @@
+{
+  "packageKind": "plugin",
+  "packageId": "plugin.readonly.format",
+  "displayName": "Readonly Format Plugin",
+  "version": "1.0.0",
+  "publisherSummary": "Example publisher summary.",
+  "packageSource": "fixture_manifest",
+  "dependencyRefs": ["left-pad@1.3.0"],
+  "declaredCapabilities": [
+    {
+      "capabilityId": "plugin.readonly.format.preview",
+      "displayName": "Preview format",
+      "descriptionSummary": "Previews formatting metadata without loading plugin code.",
+      "operationKind": "compute",
+      "riskLevel": "A1",
+      "defaultInvocationPolicy": "MANUAL_ONLY",
+      "requiresNetwork": false,
+      "requiresFilesystem": false,
+      "requiresDesktop": false
+    }
+  ],
+  "warningCodes": ["PLUGIN_METADATA_ONLY"]
+}

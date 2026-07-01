@@ -245,6 +245,7 @@ foundation.
 - [P0U-002 Capability Descriptor Manifest Schema plan](p0u-002-capability-descriptor-manifest-schema-plan.md)
 - [Runtime External Capability Manifest v0.16](runtime-external-capability-manifest-v0.16.md)
 - [Runtime MCP Read-only Discovery v0.16](runtime-mcp-readonly-discovery-v0.16.md)
+- [Runtime Plugin / Skill Metadata Scanner v0.16](runtime-plugin-skill-metadata-scanner-v0.16.md)
 - [Runtime Memory Recall Preview v0.3](runtime-memory-recall-preview-v0.3.md)
 - [v0.4.0 Controlled Creation Preview RC release notes](release-notes-v0.4.0-controlled-creation-preview-rc.1.md)
 - [App Shell Controlled Creation manual QA](app-shell-controlled-creation-manual-qa.md)

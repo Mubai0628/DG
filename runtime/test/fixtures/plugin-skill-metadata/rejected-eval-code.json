@@ -1,0 +1,10 @@
+{
+  "packageKind": "plugin",
+  "packageId": "plugin.eval.rejected",
+  "displayName": "Rejected Eval Plugin",
+  "version": "1.0.0",
+  "publisherSummary": "Obvious fake fixture.",
+  "packageSource": "fixture_manifest",
+  "declaredCapabilities": [],
+  "eval": "blocked"
+}

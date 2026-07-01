@@ -1,0 +1,10 @@
+{
+  "packageKind": "skill",
+  "skillId": "skill.command.rejected",
+  "displayName": "Rejected Command Skill",
+  "version": "1.0.0",
+  "publisherSummary": "Obvious fake fixture.",
+  "packageSource": "fixture_manifest",
+  "declaredCapabilities": [],
+  "command": "echo blocked"
+}

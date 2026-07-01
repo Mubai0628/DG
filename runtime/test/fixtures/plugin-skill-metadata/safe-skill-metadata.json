@@ -1,0 +1,22 @@
+{
+  "packageKind": "skill",
+  "skillId": "skill.readonly.review",
+  "displayName": "Readonly Review Skill",
+  "version": "1.0.0",
+  "publisherSummary": "Example skill publisher summary.",
+  "packageSource": "fixture_manifest",
+  "declaredCapabilities": [
+    {
+      "capabilityId": "skill.readonly.review.summary",
+      "displayName": "Review summary",
+      "descriptionSummary": "Summarizes skill metadata without executing the skill.",
+      "operationKind": "read",
+      "riskLevel": "A1",
+      "defaultInvocationPolicy": "DISABLED",
+      "requiresNetwork": false,
+      "requiresFilesystem": false,
+      "requiresDesktop": false
+    }
+  ],
+  "warningCodes": ["SKILL_RUNTIME_DISABLED"]
+}

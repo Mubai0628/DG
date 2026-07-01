@@ -1,0 +1,21 @@
+{
+  "packageKind": "plugin",
+  "packageId": "plugin.broad.dependency",
+  "displayName": "Broad Dependency Plugin",
+  "version": "^1.0.0",
+  "packageSource": "unknown",
+  "dependencyRefs": ["example-package@^2.0.0", "helper@latest"],
+  "declaredCapabilities": [
+    {
+      "capabilityId": "plugin.broad.network",
+      "displayName": "Network metadata",
+      "descriptionSummary": "Declares network metadata and remains preview-only.",
+      "operationKind": "network",
+      "riskLevel": "A4",
+      "defaultInvocationPolicy": "MANUAL_ONLY",
+      "requiresNetwork": true,
+      "requiresFilesystem": false,
+      "requiresDesktop": false
+    }
+  ]
+}

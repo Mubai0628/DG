@@ -1,0 +1,10 @@
+{
+  "packageKind": "plugin",
+  "packageId": "plugin.install.rejected",
+  "displayName": "Rejected Install Script Plugin",
+  "version": "1.0.0",
+  "publisherSummary": "Obvious fake fixture.",
+  "packageSource": "fixture_manifest",
+  "installScript": "node install.js",
+  "declaredCapabilities": []
+}
