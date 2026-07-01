@@ -177,6 +177,13 @@ import {
   type McpReadonlyConnectionView
 } from "./mcp-readonly-connection-view.js";
 import {
+  buildMcpToolProposalView,
+  mcpToolProposalApprovalRefs,
+  mcpToolProposalWarningCodes,
+  summarizeMcpToolProposalView,
+  type McpToolProposalView
+} from "./mcp-tool-proposal-view.js";
+import {
   buildMcpMetadataRedactionAuditView,
   summarizeMcpMetadataRedactionAuditView,
   type McpMetadataRedactionAuditView
@@ -685,6 +692,11 @@ export function DesktopShell(): JSX.Element {
   >();
   const [mcpReadonlyConnectionPreview, setMcpReadonlyConnectionPreview] =
     useState<McpReadonlyConnectionView | undefined>();
+  const [mcpToolProposalSummaryText, setMcpToolProposalSummaryText] =
+    useState("");
+  const [mcpToolProposalPreview, setMcpToolProposalPreview] = useState<
+    McpToolProposalView | undefined
+  >();
   const [
     mcpMetadataRedactionAuditPreview,
     setMcpMetadataRedactionAuditPreview
@@ -2066,6 +2078,16 @@ export function DesktopShell(): JSX.Element {
   );
   const displayedMcpReadonlyConnection =
     mcpReadonlyConnectionPreview ?? mcpReadonlyConnectionCandidate;
+  const mcpToolProposalCandidate = useMemo<McpToolProposalView>(
+    () =>
+      buildMcpToolProposalView({
+        summaryJsonText: mcpToolProposalSummaryText,
+        sourceKind: "paste"
+      }),
+    [mcpToolProposalSummaryText]
+  );
+  const displayedMcpToolProposal =
+    mcpToolProposalPreview ?? mcpToolProposalCandidate;
   const mcpMetadataRedactionAuditCandidate =
     useMemo<McpMetadataRedactionAuditView>(
       () =>
@@ -2369,6 +2391,7 @@ export function DesktopShell(): JSX.Element {
         modelPatchProposalImport: modelPatchProposalImportPreview,
         modelProposalChainIntegration: modelProposalChainIntegrationPreview,
         liveProposalPreviewGate: liveProposalPreviewGatePreview,
+        mcpToolProposal: displayedMcpToolProposal,
         capabilityHostSurface: capabilityHostSurfacePreview,
         snapshotContract: displayedDisposableWorkspaceSnapshot,
         userWorkspaceSnapshotContract: displayedUserWorkspaceSnapshotBackup,
@@ -2385,6 +2408,7 @@ export function DesktopShell(): JSX.Element {
       displayedProjectKnowledgeRecall,
       displayedDisposableWorkspaceSnapshot,
       capabilityHostSurfacePreview,
+      displayedMcpToolProposal,
       liveProposalPreviewGatePreview,
       modelProposalChainIntegrationPreview,
       modelPatchProposalImportPreview,
@@ -2465,13 +2489,15 @@ export function DesktopShell(): JSX.Element {
         patchProposalSummaries: patchProposalSurfaceSummaries,
         futureApprovalRefs: [
           ...patchProposalApprovalRefs,
-          ...capabilityPlanApprovalRefs(capabilityPlanPreview)
+          ...capabilityPlanApprovalRefs(capabilityPlanPreview),
+          ...mcpToolProposalApprovalRefs(displayedMcpToolProposal)
         ],
         futureAuditWarningCodes: [
           ...patchProposalAuditWarningCodes,
           ...disposableWorkspaceSnapshotAuditWarningCodes,
           ...userWorkspaceSnapshotAuditWarningCodes,
           ...userWorkspacePromotionAuditWarningCodes,
+          ...mcpToolProposalWarningCodes(displayedMcpToolProposal),
           ...capabilityHostSurfaceWarningCodes(capabilityHostSurfacePreview),
           ...verificationLaneProjectionWarningCodes(verificationLaneProjection)
         ],
@@ -2482,6 +2508,7 @@ export function DesktopShell(): JSX.Element {
       capabilityHostSurfacePreview,
       controlPlanePanel,
       disposableWorkspaceSnapshotAuditWarningCodes,
+      displayedMcpToolProposal,
       error,
       eventSummary,
       patchProposalApprovalRefs,
@@ -3069,7 +3096,20 @@ export function DesktopShell(): JSX.Element {
     setMcpReadonlyDiscoverError(undefined);
     setMcpReadonlyConnectionStatus("idle");
     setMcpReadonlyConnectionPreview(undefined);
+    setMcpToolProposalPreview(undefined);
     setMcpMetadataRedactionAuditPreview(undefined);
+    setContextAssemblyPreview(undefined);
+  }
+
+  function handlePreviewMcpToolProposal(): void {
+    setMcpToolProposalPreview(mcpToolProposalCandidate);
+    setContextAssemblyPreview(undefined);
+  }
+
+  function handleClearMcpToolProposal(): void {
+    setMcpToolProposalSummaryText("");
+    setMcpToolProposalPreview(undefined);
+    setContextAssemblyPreview(undefined);
   }
 
   function handlePreviewMcpMetadataRedactionAudit(): void {
@@ -7598,6 +7638,199 @@ export function DesktopShell(): JSX.Element {
                 ).source
               }{" "}
               · {displayedMcpReadonlyConnection.nextAction}
+            </p>
+          </section>
+
+          <section
+            className="eventPanel"
+            aria-label="MCP Tool Invocation Proposal"
+          >
+            <div className="panelHeader">
+              <h2>MCP Tool Invocation Proposal</h2>
+              <span className="muted">
+                Proposal only / no tool invocation
+              </span>
+            </div>
+            <p className="fieldHelp">
+              Reviews summary-only MCP tool invocation proposals, input schema
+              risk, simulated results, and broker planning refs. The App Shell
+              does not call MCP tools, approve invocations, write events, apply
+              patches, rollback, or issue leases.
+            </p>
+
+            <label>
+              <span>MCP tool proposal summary JSON</span>
+              <textarea
+                className="compactTextarea"
+                value={mcpToolProposalSummaryText}
+                onChange={(event) => {
+                  setMcpToolProposalSummaryText(event.target.value);
+                  setMcpToolProposalPreview(undefined);
+                }}
+                placeholder="Paste summary-only MCP tool proposal JSON"
+                spellCheck={false}
+              />
+              <p className="fieldHelp">
+                The App accepts proposal, risk, simulated result, and broker
+                planning summaries only. Tool arguments, tool outputs,
+                resource content, secrets, and execution flags are rejected.
+              </p>
+            </label>
+
+            <div className="buttonRow">
+              <button
+                type="button"
+                className="secondary"
+                onClick={(event) => {
+                  event.preventDefault();
+                  event.stopPropagation();
+                  handlePreviewMcpToolProposal();
+                }}
+              >
+                Preview MCP Tool Proposal
+              </button>
+              <button
+                type="button"
+                className="secondary"
+                onClick={(event) => {
+                  event.preventDefault();
+                  event.stopPropagation();
+                  handleClearMcpToolProposal();
+                }}
+              >
+                Clear MCP Tool Proposal
+              </button>
+              <button type="button" className="secondary" disabled>
+                Invoke MCP Tool (disabled)
+              </button>
+              <button type="button" className="secondary" disabled>
+                Approve Tool Invocation (disabled)
+              </button>
+            </div>
+
+            {displayedMcpToolProposal.status === "empty" ? (
+              <p className="empty">
+                No MCP tool proposal loaded. Paste a summary-only proposal to
+                preview risk, approval draft, and simulated result refs.
+              </p>
+            ) : null}
+
+            {displayedMcpToolProposal.status === "blocked" ? (
+              <div className="errorBox">
+                <strong>MCP tool proposal blocked</strong>
+                <p>{displayedMcpToolProposal.nextAction}</p>
+                {displayedMcpToolProposal.findings.length > 0 ? (
+                  <p>
+                    codes{" "}
+                    {displayedMcpToolProposal.findings
+                      .map((finding) => finding.code)
+                      .join(", ")}
+                  </p>
+                ) : null}
+              </div>
+            ) : null}
+
+            <dl className="summaryGrid compact">
+              <div>
+                <dt>Status</dt>
+                <dd>{displayedMcpToolProposal.status}</dd>
+              </div>
+              <div>
+                <dt>Proposal</dt>
+                <dd>{displayedMcpToolProposal.proposalId ?? "n/a"}</dd>
+              </div>
+              <div>
+                <dt>Server ref</dt>
+                <dd>{displayedMcpToolProposal.serverRef ?? "n/a"}</dd>
+              </div>
+              <div>
+                <dt>Tool</dt>
+                <dd>{displayedMcpToolProposal.toolName ?? "n/a"}</dd>
+              </div>
+              <div>
+                <dt>Risk</dt>
+                <dd>{displayedMcpToolProposal.riskLevel}</dd>
+              </div>
+              <div>
+                <dt>Input schema</dt>
+                <dd>{displayedMcpToolProposal.inputSchemaSummary}</dd>
+              </div>
+              <div>
+                <dt>Argument hash</dt>
+                <dd>{displayedMcpToolProposal.argumentSummaryHash}</dd>
+              </div>
+              <div>
+                <dt>Approval required</dt>
+                <dd>
+                  {displayedMcpToolProposal.approvalRequired ? "yes" : "no"}
+                </dd>
+              </div>
+              <div>
+                <dt>Simulated result</dt>
+                <dd>{displayedMcpToolProposal.simulatedResultSummary}</dd>
+              </div>
+              <div>
+                <dt>Broker planning</dt>
+                <dd>{displayedMcpToolProposal.brokerPlanningSummary}</dd>
+              </div>
+              <div>
+                <dt>Blockers / warnings</dt>
+                <dd>
+                  {displayedMcpToolProposal.blockerCount} /{" "}
+                  {displayedMcpToolProposal.warningCount}
+                </dd>
+              </div>
+              <div>
+                <dt>Hash</dt>
+                <dd>{displayedMcpToolProposal.proposalHashPrefix ?? "n/a"}</dd>
+              </div>
+              <div>
+                <dt>Display / invoke</dt>
+                <dd>
+                  {displayedMcpToolProposal.readiness.canDisplayProposal
+                    ? "yes"
+                    : "no"}{" "}
+                  /{" "}
+                  {displayedMcpToolProposal.readiness.canInvokeMcpTool
+                    ? "yes"
+                    : "no"}
+                </dd>
+              </div>
+              <div>
+                <dt>Approve / event write</dt>
+                <dd>
+                  {displayedMcpToolProposal.readiness.canApproveToolInvocation
+                    ? "yes"
+                    : "no"}{" "}
+                  /{" "}
+                  {displayedMcpToolProposal.readiness.canWriteEventStore
+                    ? "yes"
+                    : "no"}
+                </dd>
+              </div>
+              <div>
+                <dt>App execute</dt>
+                <dd>
+                  {displayedMcpToolProposal.readiness.appCanExecute
+                    ? "yes"
+                    : "no"}
+                </dd>
+              </div>
+            </dl>
+
+            {displayedMcpToolProposal.status !== "empty" &&
+            displayedMcpToolProposal.findings.length > 0 ? (
+              <p className="muted">
+                findings{" "}
+                {displayedMcpToolProposal.findings
+                  .map((finding) => finding.code)
+                  .join(", ")}
+              </p>
+            ) : null}
+
+            <p className="fieldHelp">
+              {summarizeMcpToolProposalView(displayedMcpToolProposal).source} ·{" "}
+              {displayedMcpToolProposal.nextAction}
             </p>
           </section>
 

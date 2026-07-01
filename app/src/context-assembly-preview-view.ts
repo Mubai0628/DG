@@ -6,6 +6,7 @@ import type { AppControlledCreationReplayProjectionView } from "./controlled-cre
 import type { AppDisposableWorkspaceSnapshotView } from "./disposable-workspace-snapshot-view.js";
 import type { LiveProposalPreviewGateView } from "./live-proposal-preview-gate-view.js";
 import type { AppMemoryRecallPreviewView } from "./memory-recall-preview-view.js";
+import type { McpToolProposalView } from "./mcp-tool-proposal-view.js";
 import type { ModelPatchProposalImportView } from "./model-patch-proposal-import-view.js";
 import type { ModelProposalChainIntegrationView } from "./model-proposal-chain-integration-view.js";
 import type { AppProjectKnowledgeRecallView } from "./project-knowledge-recall-view.js";
@@ -55,6 +56,7 @@ export type AppContextAssemblySourceRef = {
     | "model_patch_proposal_import"
     | "model_proposal_chain_integration"
     | "live_proposal_preview_gate"
+    | "mcp_tool_proposal"
     | "approval_ref"
     | "replay_projection"
     | "sandbox_event_projection"
@@ -140,6 +142,7 @@ export type AppContextAssemblyPreviewInput = {
   modelPatchProposalImport?: ModelPatchProposalImportView | undefined;
   modelProposalChainIntegration?: ModelProposalChainIntegrationView | undefined;
   liveProposalPreviewGate?: LiveProposalPreviewGateView | undefined;
+  mcpToolProposal?: McpToolProposalView | undefined;
   snapshotContract?: AppDisposableWorkspaceSnapshotView | undefined;
   userWorkspaceSnapshotContract?:
     | AppUserWorkspaceSnapshotBackupView
@@ -296,6 +299,7 @@ export function validateContextAssemblyPreviewInput(
     ...rawKeyWarnings(input.patchSurface),
     ...rawKeyWarnings(input.sandboxApplyRollbackEventProjection),
     ...rawKeyWarnings(input.liveProposalPreviewGate),
+    ...rawKeyWarnings(input.mcpToolProposal),
     ...rawKeyWarnings(input.capabilityHostSurface),
     ...rawKeyWarnings(input.verificationLaneProjection),
     ...rawKeyWarnings(input.userWorkspaceSnapshotContract),
@@ -798,6 +802,33 @@ function buildSegments(
           ...input.liveProposalPreviewGate.findings.map(
             (finding) => finding.code
           )
+        ]
+      })
+    );
+  }
+
+  if (
+    input.mcpToolProposal !== undefined &&
+    input.mcpToolProposal.status !== "empty"
+  ) {
+    segments.push(
+      segment({
+        layer: "no_compress_zone",
+        title: "MCP tool invocation proposal summary",
+        sourceKind: "mcp_tool_proposal",
+        sourceRefId: input.mcpToolProposal.proposalViewId,
+        summary: [
+          input.mcpToolProposal.status,
+          `server:${input.mcpToolProposal.serverRef ?? "n/a"}`,
+          `tool:${input.mcpToolProposal.toolName ?? "n/a"}`,
+          `risk:${input.mcpToolProposal.riskLevel}`,
+          `blockers:${input.mcpToolProposal.blockerCount}`,
+          `warnings:${input.mcpToolProposal.warningCount}`,
+          `hash:${input.mcpToolProposal.proposalHashPrefix ?? "n/a"}`
+        ].join(" | "),
+        warningCodes: [
+          "MCP_TOOL_PROPOSAL_NO_COMPRESS",
+          ...input.mcpToolProposal.findings.map((finding) => finding.code)
         ]
       })
     );

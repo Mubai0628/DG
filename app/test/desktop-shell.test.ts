@@ -100,6 +100,11 @@ import {
 import { buildLiveProposalEvaluationTelemetryAuditView } from "../src/live-proposal-evaluation-telemetry-audit-view.js";
 import { buildMcpMetadataRedactionAuditView } from "../src/mcp-metadata-redaction-audit-view.js";
 import { buildMcpReadonlyConnectionView } from "../src/mcp-readonly-connection-view.js";
+import {
+  buildMcpToolProposalView,
+  mcpToolProposalApprovalRefs,
+  mcpToolProposalWarningCodes
+} from "../src/mcp-tool-proposal-view.js";
 import { buildProjectKnowledgeReviewView } from "../src/project-knowledge-view.js";
 import { buildProjectKnowledgeRecallView } from "../src/project-knowledge-recall-view.js";
 import { buildE2ECodingTaskWizardView } from "../src/e2e-coding-task-wizard-view.js";
@@ -1080,6 +1085,140 @@ describe("desktop command wrapper", () => {
     expect(appSource).not.toContain("mcpGenericInvoke");
     expect(appSource).not.toContain("tools/call");
     expect(appSource).not.toContain("resources/read");
+  });
+
+  it("renders MCP tool proposal surface with disabled invocation and approval controls", async () => {
+    const appSource = await readFile(
+      path.join(appRoot, "src", "App.tsx"),
+      "utf8"
+    );
+
+    expect(appSource).toContain("MCP Tool Invocation Proposal");
+    expect(appSource).toContain("Proposal only / no tool invocation");
+    expect(appSource).toContain("Preview MCP Tool Proposal");
+    expect(appSource).toContain("Clear MCP Tool Proposal");
+    expect(appSource).toContain("Invoke MCP Tool (disabled)");
+    expect(appSource).toContain("Approve Tool Invocation (disabled)");
+    expect(appSource).not.toMatch(/>\s*Invoke MCP Tool\s*</);
+    expect(appSource).not.toMatch(/>\s*Approve Tool Invocation\s*</);
+    expect(appSource).not.toContain("handleInvokeMcpTool");
+    expect(appSource).not.toContain("mcpToolCall");
+    expect(appSource).not.toContain("callTool(");
+    expect(appSource).not.toContain("tools/call");
+  });
+
+  it("imports safe MCP tool proposal summaries into read-only App surfaces", () => {
+    const proposal = buildMcpToolProposalView({
+      summaryJsonText: JSON.stringify({
+        proposalId: "mcp-proposal-docs-search",
+        serverRefHash: "server-ref-abc123",
+        toolName: "docs.search",
+        riskLevel: "low",
+        inputSchemaSummary: "schema-hash-001",
+        argumentSummaryHash: "args-hash-001",
+        approvalRequired: true,
+        simulatedResultSummary: {
+          status: "simulated",
+          resultHash: "sim-result-001",
+          warningCount: 0
+        },
+        brokerPlanningSummary: {
+          status: "planning_ready",
+          planningHash: "broker-plan-001",
+          warningCount: 0
+        },
+        readiness: {
+          canInvokeMcpTool: false,
+          canApproveToolInvocation: false,
+          canWriteEventStore: false,
+          appCanExecute: false
+        }
+      })
+    });
+
+    expect(proposal.status).toBe("proposal_ready");
+    expect(proposal.serverRef).toBe("server-ref-abc123");
+    expect(proposal.toolName).toBe("docs.search");
+    expect(proposal.argumentSummaryHash).toBe("args-hash-001");
+    expect(proposal.readiness.canInvokeMcpTool).toBe(false);
+    expect(proposal.readiness.canApproveToolInvocation).toBe(false);
+    expect(proposal.readiness.canWriteEventStore).toBe(false);
+    expect(proposal.readiness.appCanExecute).toBe(false);
+
+    const surfaces = buildWorkbenchSurfacesView({
+      controlProjection: buildControlPlaneProjectionView(undefined),
+      futureApprovalRefs: mcpToolProposalApprovalRefs(proposal),
+      futureAuditWarningCodes: mcpToolProposalWarningCodes(proposal)
+    });
+    expect(surfaces.approval.items).toContainEqual(
+      expect.objectContaining({
+        kind: "capability",
+        status: "dry",
+        label: "MCP tool proposal: docs.search"
+      })
+    );
+    expect(surfaces.approval.nextAction).toContain(
+      "Execution remains disabled"
+    );
+
+    const contextPreview = buildContextAssemblyPreviewView({
+      runDraft: buildRunDraftView({
+        objectiveDraft: "Review MCP tool invocation proposal summary.",
+        selectedIntent: "code_change",
+        acceptanceCriteriaDraft: "No tool invocation",
+        workspaceRoot: "D:\\workspace"
+      }),
+      mcpToolProposal: proposal
+    });
+    expect(contextPreview.segments).toContainEqual(
+      expect.objectContaining({
+        sourceKind: "mcp_tool_proposal",
+        placement: "no_compress_zone"
+      })
+    );
+    expect(JSON.stringify(contextPreview)).not.toContain("tool output value");
+  });
+
+  it("blocks MCP tool proposals that include raw args, raw output, or execution claims", () => {
+    const rawArgsProposal = buildMcpToolProposalView({
+      summaryJsonText: JSON.stringify({
+        proposalId: "mcp-proposal-raw-args",
+        toolName: "docs.search",
+        argumentSummaryHash: "args-hash",
+        ["raw" + "Args"]: { query: "raw argument value" }
+      })
+    });
+    const rawOutputProposal = buildMcpToolProposalView({
+      summaryJsonText: JSON.stringify({
+        proposalId: "mcp-proposal-raw-output",
+        toolName: "docs.search",
+        argumentSummaryHash: "args-hash",
+        ["raw" + "Output"]: "raw output value"
+      })
+    });
+    const executionProposal = buildMcpToolProposalView({
+      summaryJsonText: JSON.stringify({
+        proposalId: "mcp-proposal-execution",
+        toolName: "docs.search",
+        argumentSummaryHash: "args-hash",
+        readiness: {
+          canInvokeMcpTool: true
+        }
+      })
+    });
+
+    expect(rawArgsProposal.status).toBe("blocked");
+    expect(rawOutputProposal.status).toBe("blocked");
+    expect(executionProposal.status).toBe("blocked");
+    expect(rawArgsProposal.readiness.canInvokeMcpTool).toBe(false);
+    expect(rawOutputProposal.readiness.canInvokeMcpTool).toBe(false);
+    expect(executionProposal.readiness.canInvokeMcpTool).toBe(false);
+    expect(JSON.stringify(rawArgsProposal)).not.toContain(
+      "raw argument value"
+    );
+    expect(JSON.stringify(rawOutputProposal)).not.toContain(
+      "raw output value"
+    );
   });
 
   it("blocks raw MCP metadata in the App connection view model", () => {
@@ -18579,6 +18718,45 @@ describe("desktop source boundaries", () => {
     expect(docsIndex).toContain(
       "p0w-002-mcp-tool-invocation-proposal-schema-plan.md"
     );
+  });
+
+  it("documents the App Shell MCP tool proposal surface", async () => {
+    const doc = await readFile(
+      path.join(
+        repoRoot,
+        "docs",
+        "app-shell-mcp-tool-proposal-surface-v0.18.md"
+      ),
+      "utf8"
+    );
+    const docsIndex = await readFile(
+      path.join(repoRoot, "docs", "README.md"),
+      "utf8"
+    );
+    const appSource = await readFile(
+      path.join(appRoot, "src", "App.tsx"),
+      "utf8"
+    );
+    const combined = `${doc}\n${docsIndex}\n${appSource}`;
+
+    expect(doc).toContain("App Shell MCP Tool Proposal Surface v0.18");
+    expect(doc).toContain("read-only and proposal-only");
+    expect(doc).toContain("No real MCP `tools/call`");
+    expect(doc).toContain("No raw tool arguments");
+    expect(doc).toContain("No raw tool output");
+    expect(doc).toContain("No EventStore write");
+    expect(doc).toContain("No Tauri command for MCP tool calls");
+    expect(doc).toContain("No PermissionLease issuing");
+    expect(doc).toContain("No native bridge");
+    expect(doc).toContain("No desktop action");
+    expect(docsIndex).toContain(
+      "app-shell-mcp-tool-proposal-surface-v0.18.md"
+    );
+    expect(combined).toContain("Proposal only / no tool invocation");
+    expect(appSource).toContain("Invoke MCP Tool (disabled)");
+    expect(appSource).toContain("Approve Tool Invocation (disabled)");
+    expect(appSource).not.toMatch(/>\s*Invoke MCP Tool\s*</);
+    expect(appSource).not.toMatch(/>\s*Approve Tool Invocation\s*</);
   });
 
   it("documents the P0S-001 MVP hardening recovery design gate", async () => {
