@@ -165,6 +165,11 @@ import {
   type ProjectKnowledgeReviewView
 } from "./project-knowledge-view.js";
 import {
+  buildProjectKnowledgeRecallView,
+  summarizeProjectKnowledgeRecallView,
+  type AppProjectKnowledgeRecallView
+} from "./project-knowledge-recall-view.js";
+import {
   buildE2ECodingTaskWizardView,
   summarizeE2ECodingTaskWizardView,
   type E2ECodingTaskWizardView
@@ -677,6 +682,30 @@ export function DesktopShell(): JSX.Element {
     useState<ProjectKnowledgeCommitResult | undefined>();
   const [projectKnowledgeLatestLifecycle, setProjectKnowledgeLatestLifecycle] =
     useState<ProjectKnowledgeLifecycleResult | undefined>();
+  const [projectKnowledgeRecallTagsText, setProjectKnowledgeRecallTagsText] =
+    useState("");
+  const [
+    projectKnowledgeRecallIncludeIdsText,
+    setProjectKnowledgeRecallIncludeIdsText
+  ] = useState("");
+  const [
+    projectKnowledgeRecallExcludeIdsText,
+    setProjectKnowledgeRecallExcludeIdsText
+  ] = useState("");
+  const [projectKnowledgeRecallMaxEntries, setProjectKnowledgeRecallMaxEntries] =
+    useState("6");
+  const [
+    projectKnowledgeRecallTrustThreshold,
+    setProjectKnowledgeRecallTrustThreshold
+  ] = useState("0.5");
+  const [
+    projectKnowledgePolicyRecallEnabled,
+    setProjectKnowledgePolicyRecallEnabled
+  ] = useState(false);
+  const [
+    projectKnowledgeRecallPreview,
+    setProjectKnowledgeRecallPreview
+  ] = useState<AppProjectKnowledgeRecallView | undefined>();
   const [patchProposalCreationPreview, setPatchProposalCreationPreview] =
     useState<AppPatchProposalCreationPreviewView | undefined>();
   const [patchProposalValidationPreview, setPatchProposalValidationPreview] =
@@ -1981,6 +2010,42 @@ export function DesktopShell(): JSX.Element {
       expireEntryId: projectKnowledgeExpireEntryId,
       expireReasonSummary: projectKnowledgeExpireReason
     });
+  const projectKnowledgeRecallCandidate =
+    useMemo<AppProjectKnowledgeRecallView>(
+      () =>
+        buildProjectKnowledgeRecallView({
+          projectKnowledgeReview: displayedProjectKnowledgeReview,
+          taskObjective: objectiveDraft,
+          intent: selectedIntent,
+          workspaceRefs:
+            loadedWorkspaceIndexRef?.workspaceIndexId !== undefined
+              ? [loadedWorkspaceIndexRef.workspaceIndexId]
+              : workspaceRoot.trim().length > 0
+                ? [workspaceRoot.trim()]
+                : [],
+          tagsText: projectKnowledgeRecallTagsText,
+          includeEntryIdsText: projectKnowledgeRecallIncludeIdsText,
+          excludeEntryIdsText: projectKnowledgeRecallExcludeIdsText,
+          maxEntries: Number(projectKnowledgeRecallMaxEntries),
+          trustThreshold: Number(projectKnowledgeRecallTrustThreshold),
+          policyRecallEnabled: projectKnowledgePolicyRecallEnabled
+        }),
+      [
+        displayedProjectKnowledgeReview,
+        loadedWorkspaceIndexRef?.workspaceIndexId,
+        objectiveDraft,
+        projectKnowledgePolicyRecallEnabled,
+        projectKnowledgeRecallExcludeIdsText,
+        projectKnowledgeRecallIncludeIdsText,
+        projectKnowledgeRecallMaxEntries,
+        projectKnowledgeRecallTagsText,
+        projectKnowledgeRecallTrustThreshold,
+        selectedIntent,
+        workspaceRoot
+      ]
+    );
+  const displayedProjectKnowledgeRecall =
+    projectKnowledgeRecallPreview ?? buildProjectKnowledgeRecallView();
   useEffect(() => {
     setLiveProposalTelemetryAuditPreview(undefined);
   }, [
@@ -2036,6 +2101,23 @@ export function DesktopShell(): JSX.Element {
     projectKnowledgeTrustLevel,
     projectKnowledgeTrustScore,
     projectKnowledgeTypedConfirmation
+  ]);
+  useEffect(() => {
+    setProjectKnowledgeRecallPreview(undefined);
+  }, [
+    loadedWorkspaceIndexRef?.workspaceIndexId,
+    objectiveDraft,
+    projectKnowledgeLatestCommit,
+    projectKnowledgeLatestLifecycle,
+    projectKnowledgePolicyRecallEnabled,
+    projectKnowledgeRecallExcludeIdsText,
+    projectKnowledgeRecallIncludeIdsText,
+    projectKnowledgeRecallMaxEntries,
+    projectKnowledgeRecallTagsText,
+    projectKnowledgeRecallTrustThreshold,
+    projectKnowledgeSnapshot,
+    selectedIntent,
+    workspaceRoot
   ]);
   useEffect(() => {
     setE2ECodingTaskWizardPreview(undefined);
@@ -2121,6 +2203,10 @@ export function DesktopShell(): JSX.Element {
         runDraft: displayedRunDraft,
         workspaceIndexBridge: loadedWorkspaceIndexRef,
         memoryRecallPreview,
+        projectKnowledgeRecallPreview:
+          displayedProjectKnowledgeRecall.status === "empty"
+            ? undefined
+            : displayedProjectKnowledgeRecall,
         patchSurface: patchWorkbenchSurfaces.diff,
         agentRoutePreview,
         capabilityPlanPreview,
@@ -2145,6 +2231,7 @@ export function DesktopShell(): JSX.Element {
       contextAssemblyPreview,
       controlPlanePanel,
       controlledCreationReplayProjection,
+      displayedProjectKnowledgeRecall,
       displayedDisposableWorkspaceSnapshot,
       liveProposalPreviewGatePreview,
       modelProposalChainIntegrationPreview,
@@ -2799,6 +2886,16 @@ export function DesktopShell(): JSX.Element {
 
   function handlePreviewProjectKnowledgeCandidate(): void {
     setProjectKnowledgeReviewPreview(projectKnowledgeReviewCandidate);
+  }
+
+  function handlePreviewProjectKnowledgeRecall(): void {
+    setProjectKnowledgeRecallPreview(projectKnowledgeRecallCandidate);
+    setContextAssemblyPreview(undefined);
+  }
+
+  function handleClearProjectKnowledgeRecall(): void {
+    setProjectKnowledgeRecallPreview(undefined);
+    setContextAssemblyPreview(undefined);
   }
 
   async function runProjectKnowledgeCandidateCommit(): Promise<void> {
@@ -11640,6 +11737,240 @@ export function DesktopShell(): JSX.Element {
               }{" "}
               · {displayedProjectKnowledgeReview.nextAction}
             </p>
+          </section>
+
+          <section
+            className="eventPanel"
+            aria-label="Project Knowledge Recall"
+          >
+            <div className="panelHeader">
+              <h2>Project Knowledge Recall</h2>
+              <span className="muted">Read-only / summary refs</span>
+            </div>
+            <p className="fieldHelp">
+              Uses committed project knowledge summaries for the current task.
+              The App Shell does not commit memory, apply patches, rollback,
+              write events, or change immutable rules.
+            </p>
+
+            <div className="formGrid">
+              <label>
+                <span>Recall tags</span>
+                <input
+                  value={projectKnowledgeRecallTagsText}
+                  onChange={(event) =>
+                    setProjectKnowledgeRecallTagsText(event.target.value)
+                  }
+                  placeholder="project-knowledge, p0t"
+                />
+              </label>
+              <label>
+                <span>Include entry ids</span>
+                <input
+                  value={projectKnowledgeRecallIncludeIdsText}
+                  onChange={(event) =>
+                    setProjectKnowledgeRecallIncludeIdsText(event.target.value)
+                  }
+                  placeholder="entry-id, optional"
+                />
+              </label>
+              <label>
+                <span>Exclude entry ids</span>
+                <input
+                  value={projectKnowledgeRecallExcludeIdsText}
+                  onChange={(event) =>
+                    setProjectKnowledgeRecallExcludeIdsText(event.target.value)
+                  }
+                  placeholder="entry-id, optional"
+                />
+              </label>
+              <label>
+                <span>Max entries</span>
+                <input
+                  value={projectKnowledgeRecallMaxEntries}
+                  onChange={(event) =>
+                    setProjectKnowledgeRecallMaxEntries(event.target.value)
+                  }
+                  inputMode="numeric"
+                  placeholder="6"
+                />
+              </label>
+              <label>
+                <span>Trust threshold</span>
+                <input
+                  value={projectKnowledgeRecallTrustThreshold}
+                  onChange={(event) =>
+                    setProjectKnowledgeRecallTrustThreshold(event.target.value)
+                  }
+                  inputMode="decimal"
+                  placeholder="0.5"
+                />
+              </label>
+            </div>
+
+            <label className="checkboxRow">
+              <input
+                type="checkbox"
+                checked={projectKnowledgePolicyRecallEnabled}
+                onChange={(event) =>
+                  setProjectKnowledgePolicyRecallEnabled(event.target.checked)
+                }
+              />
+              <span>Enable human-reviewed policy recall for workspace rules</span>
+            </label>
+
+            <div className="buttonRow">
+              <button
+                type="button"
+                className="secondary"
+                onClick={(event) => {
+                  event.preventDefault();
+                  event.stopPropagation();
+                  handlePreviewProjectKnowledgeRecall();
+                }}
+                disabled={
+                  !projectKnowledgeRecallCandidate.readiness.canPreviewRecall
+                }
+              >
+                Preview Project Knowledge Recall
+              </button>
+              <button
+                type="button"
+                className="secondary"
+                onClick={(event) => {
+                  event.preventDefault();
+                  event.stopPropagation();
+                  handleClearProjectKnowledgeRecall();
+                }}
+              >
+                Clear Project Knowledge Recall
+              </button>
+            </div>
+
+            {displayedProjectKnowledgeRecall.status === "empty" ? (
+              <p className="empty">
+                Refresh project knowledge and preview recall to add
+                summary-only refs to the current task context.
+              </p>
+            ) : null}
+
+            {displayedProjectKnowledgeRecall.status === "blocked" ? (
+              <div className="errorBox">
+                <strong>Project knowledge recall blocked</strong>
+                <p>{displayedProjectKnowledgeRecall.nextAction}</p>
+              </div>
+            ) : null}
+
+            <dl className="summaryGrid compact">
+              <div>
+                <dt>Status</dt>
+                <dd>{displayedProjectKnowledgeRecall.status}</dd>
+              </div>
+              <div>
+                <dt>Matches</dt>
+                <dd>{displayedProjectKnowledgeRecall.matchedEntryCount}</dd>
+              </div>
+              <div>
+                <dt>Fact / pitfall / policy</dt>
+                <dd>
+                  {displayedProjectKnowledgeRecall.projectFactCount} /{" "}
+                  {displayedProjectKnowledgeRecall.pitfallCount} /{" "}
+                  {displayedProjectKnowledgeRecall.policyCount}
+                </dd>
+              </div>
+              <div>
+                <dt>volatile_tail</dt>
+                <dd>{displayedProjectKnowledgeRecall.volatileTailCount}</dd>
+              </div>
+              <div>
+                <dt>workspace rules</dt>
+                <dd>
+                  {
+                    displayedProjectKnowledgeRecall
+                      .workspaceRulesSummaryCount
+                  }
+                </dd>
+              </div>
+              <div>
+                <dt>Include / exclude</dt>
+                <dd>
+                  {displayedProjectKnowledgeRecall.includeEntryIds.length} /{" "}
+                  {displayedProjectKnowledgeRecall.excludeEntryIds.length}
+                </dd>
+              </div>
+              <div>
+                <dt>Blockers / warnings</dt>
+                <dd>
+                  {displayedProjectKnowledgeRecall.blockerCount} /{" "}
+                  {displayedProjectKnowledgeRecall.warningCount}
+                </dd>
+              </div>
+              <div>
+                <dt>Context assembly</dt>
+                <dd>
+                  {displayedProjectKnowledgeRecall.readiness
+                    .canEnterContextAssembly
+                    ? "ready"
+                    : "not ready"}
+                </dd>
+              </div>
+              <div>
+                <dt>Mutation / apply</dt>
+                <dd>
+                  {displayedProjectKnowledgeRecall.readiness
+                    .canMutateProjectKnowledge
+                    ? "yes"
+                    : "no"}{" "}
+                  /{" "}
+                  {displayedProjectKnowledgeRecall.readiness.canApplyPatch
+                    ? "yes"
+                    : "no"}
+                </dd>
+              </div>
+              <div>
+                <dt>Hash</dt>
+                <dd>{displayedProjectKnowledgeRecall.hashPrefix}</dd>
+              </div>
+            </dl>
+
+            <p className="fieldHelp">
+              {
+                summarizeProjectKnowledgeRecallView(
+                  displayedProjectKnowledgeRecall
+                ).source
+              }{" "}
+              · {displayedProjectKnowledgeRecall.nextAction}
+            </p>
+
+            {displayedProjectKnowledgeRecall.matchedEntries.length > 0 ? (
+              <ol className="timelineList">
+                {displayedProjectKnowledgeRecall.matchedEntries.map(
+                  (entry) => (
+                    <li key={entry.entryId}>
+                      <strong>{entry.type}</strong> · {entry.entryId} ·{" "}
+                      {entry.namespace}
+                      <span className="timelineMeta">
+                        {entry.status} · score {entry.score.toFixed(1)} ·{" "}
+                        {entry.placement}
+                      </span>
+                      <span>{entry.summary}</span>
+                      <span className="timelineMeta">
+                        Reasons: {entry.reasonCodes.join(", ") || "n/a"}
+                      </span>
+                    </li>
+                  )
+                )}
+              </ol>
+            ) : null}
+
+            {displayedProjectKnowledgeRecall.findings.length > 0 ? (
+              <p className="muted">
+                findings{" "}
+                {displayedProjectKnowledgeRecall.findings
+                  .map((finding) => finding.code)
+                  .join(", ")}
+              </p>
+            ) : null}
           </section>
 
           <section className="eventPanel" aria-label="Memory Recall Preview">

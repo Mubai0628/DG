@@ -116,6 +116,10 @@ Current scope:
   model/tool commits, memory-triggered apply, raw EventStore content,
   localStorage/sessionStorage, Git/shell, native bridge, and desktop action
   remain disabled
+- preview Project Knowledge Recall into Context Assembly with summary-only
+  volatile_tail and workspace rules refs while memory commits, EventStore
+  writes, apply/rollback, Git/shell, native bridge, and desktop action remain
+  disabled
 - lock the P0R E2E coding task regression smoke with safe docs-task,
   verification-failure, rollback, and expected event summary fixtures while no
   new App execution path is added

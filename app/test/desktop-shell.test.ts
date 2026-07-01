@@ -91,6 +91,7 @@ import {
 } from "../src/live-proposal-evaluation-summary-view.js";
 import { buildLiveProposalEvaluationTelemetryAuditView } from "../src/live-proposal-evaluation-telemetry-audit-view.js";
 import { buildProjectKnowledgeReviewView } from "../src/project-knowledge-view.js";
+import { buildProjectKnowledgeRecallView } from "../src/project-knowledge-recall-view.js";
 import { buildE2ECodingTaskWizardView } from "../src/e2e-coding-task-wizard-view.js";
 import { buildE2ECodingTaskSequencerView } from "../src/e2e-coding-task-sequencer-view.js";
 import { buildE2ETaskRecoveryView } from "../src/e2e-task-recovery-view.js";
@@ -16470,6 +16471,197 @@ describe("desktop source boundaries", () => {
     expect(combined).toContain("No native bridge");
     expect(combined).toContain("No desktop action");
     expect(docsIndex).toContain("app-shell-project-knowledge-review-v0.15.md");
+  });
+
+  it("previews Project Knowledge Recall with include and exclude state only", () => {
+    const snapshot = {
+      ok: true as const,
+      status: "ready" as const,
+      storePath: "workspace/.deepseek-workbench/project-knowledge",
+      entriesPath:
+        "workspace/.deepseek-workbench/project-knowledge/entries.jsonl",
+      eventsPath:
+        "workspace/.deepseek-workbench/project-knowledge/events.jsonl",
+      indexPath: "workspace/.deepseek-workbench/project-knowledge/index.json",
+      entryCount: 1,
+      activeEntryCount: 1,
+      revokedEntryCount: 0,
+      expiredEntryCount: 0,
+      entries: [
+        {
+          entryId: "pk-include-1",
+          type: "project_fact" as const,
+          namespace: "deepseek-gui",
+          summary: "Unrelated but safe summary-only project knowledge.",
+          status: "committed",
+          evidenceRefCount: 1,
+          tagCount: 1,
+          entryHash: "entryhash123",
+          warningCodes: [],
+          summaryOnly: true as const
+        }
+      ],
+      warnings: [],
+      snapshotHash: "snap123",
+      summaryOnly: true as const,
+      rawContentIncluded: false as const,
+      safeMessage: "Project knowledge snapshot loaded."
+    };
+    const review = buildProjectKnowledgeReviewView({
+      workspaceRoot: "D:\\workspace",
+      snapshot
+    });
+    const included = buildProjectKnowledgeRecallView({
+      projectKnowledgeReview: review,
+      taskObjective: "Prepare an unrelated task.",
+      intent: "code_change",
+      includeEntryIdsText: "pk-include-1"
+    });
+    const excluded = buildProjectKnowledgeRecallView({
+      projectKnowledgeReview: review,
+      taskObjective: "Prepare an unrelated task.",
+      intent: "code_change",
+      includeEntryIdsText: "pk-include-1",
+      excludeEntryIdsText: "pk-include-1"
+    });
+
+    expect(included.status).toBe("recall_ready");
+    expect(included.matchedEntryCount).toBe(1);
+    expect(included.includeEntryIds).toEqual(["pk-include-1"]);
+    expect(included.readiness.canCommitMemory).toBe(false);
+    expect(included.readiness.canApplyPatch).toBe(false);
+    expect(excluded.status).toBe("empty");
+    expect(excluded.matchedEntryCount).toBe(0);
+    expect(excluded.excludeEntryIds).toEqual(["pk-include-1"]);
+  });
+
+  it("feeds Project Knowledge Recall refs into Context Assembly summaries", () => {
+    const runDraft = buildRunDraftView({
+      objectiveDraft: "Use project knowledge recall for Tauri command wrappers.",
+      selectedIntent: "code_change",
+      acceptanceCriteriaDraft: "Summary refs only",
+      workspaceRoot: "D:\\workspace"
+    });
+    const snapshot = {
+      ok: true as const,
+      status: "ready" as const,
+      storePath: "workspace/.deepseek-workbench/project-knowledge",
+      entriesPath:
+        "workspace/.deepseek-workbench/project-knowledge/entries.jsonl",
+      eventsPath:
+        "workspace/.deepseek-workbench/project-knowledge/events.jsonl",
+      indexPath: "workspace/.deepseek-workbench/project-knowledge/index.json",
+      entryCount: 1,
+      activeEntryCount: 1,
+      revokedEntryCount: 0,
+      expiredEntryCount: 0,
+      entries: [
+        {
+          entryId: "pk-context-1",
+          type: "project_fact" as const,
+          namespace: "deepseek-gui",
+          summary:
+            "Project knowledge recall supports Tauri command wrappers.",
+          status: "committed",
+          evidenceRefCount: 1,
+          tagCount: 1,
+          entryHash: "entryhash456",
+          warningCodes: [],
+          summaryOnly: true as const
+        }
+      ],
+      warnings: [],
+      snapshotHash: "snap456",
+      summaryOnly: true as const,
+      rawContentIncluded: false as const,
+      safeMessage: "Project knowledge snapshot loaded."
+    };
+    const projectKnowledgeRecallPreview = buildProjectKnowledgeRecallView({
+      projectKnowledgeReview: buildProjectKnowledgeReviewView({
+        workspaceRoot: "D:\\workspace",
+        snapshot
+      }),
+      taskObjective: "Use project knowledge recall for Tauri command wrappers.",
+      intent: runDraft.intent,
+      tagsText: "project-knowledge"
+    });
+    const contextPreview = buildContextAssemblyPreviewView({
+      runDraft,
+      projectKnowledgeRecallPreview
+    });
+    const recallSegment = contextPreview.segments.find(
+      (segment) => segment.sourceKind === "project_knowledge_recall"
+    );
+    const serialized = JSON.stringify(contextPreview);
+
+    expect(projectKnowledgeRecallPreview.status).toBe("recall_ready");
+    expect(recallSegment).toMatchObject({
+      layer: "volatile_tail",
+      placement: "volatile_tail",
+      sourceKind: "project_knowledge_recall"
+    });
+    expect(serialized).not.toContain("Project knowledge recall supports");
+    expect(serialized).not.toContain("rawPrompt");
+  });
+
+  it("keeps the Project Knowledge Recall App surface read-only and summary-only", async () => {
+    const appSource = await readFile(
+      path.join(appRoot, "src", "App.tsx"),
+      "utf8"
+    );
+    const viewSource = await readFile(
+      path.join(appRoot, "src", "project-knowledge-recall-view.ts"),
+      "utf8"
+    );
+    const contextSource = await readFile(
+      path.join(appRoot, "src", "context-assembly-preview-view.ts"),
+      "utf8"
+    );
+    const combined = `${appSource}\n${viewSource}\n${contextSource}`;
+
+    expect(appSource).toContain("Project Knowledge Recall");
+    expect(appSource).toContain("Read-only / summary refs");
+    expect(appSource).toContain("Preview Project Knowledge Recall");
+    expect(appSource).toContain("Clear Project Knowledge Recall");
+    expect(appSource).toContain(
+      "does not commit memory, apply patches, rollback"
+    );
+    expect(appSource).toContain(
+      "setProjectKnowledgeRecallPreview(projectKnowledgeRecallCandidate)"
+    );
+    expect(contextSource).toContain("project_knowledge_recall");
+    expect(contextSource).toContain("Project knowledge volatile recall refs");
+    expect(contextSource).toContain("Project knowledge workspace rules summary");
+    expect(combined).not.toContain("projectKnowledgeRecallGenericInvoke");
+    expect(combined).not.toContain("handleProjectKnowledgeRecallApply");
+    expect(combined).not.toContain("projectKnowledgeRecallEventStoreWrite");
+  });
+
+  it("documents the P0T-005 project knowledge recall integration", async () => {
+    const recallDoc = await readFile(
+      path.join(
+        repoRoot,
+        "docs",
+        "project-knowledge-recall-integration-v0.15.md"
+      ),
+      "utf8"
+    );
+    const docsIndex = await readFile(
+      path.join(repoRoot, "docs", "README.md"),
+      "utf8"
+    );
+    const appReadme = await readFile(path.join(appRoot, "README.md"), "utf8");
+    const combined = `${recallDoc}\n${docsIndex}\n${appReadme}`;
+
+    expect(combined).toContain("Project Knowledge Recall Integration v0.15");
+    expect(combined).toContain("volatile_tail");
+    expect(combined).toContain("workspace_rules_summary");
+    expect(combined).toContain("No automatic memory commit");
+    expect(combined).toContain("No App-side apply or rollback");
+    expect(combined).toContain("No EventStore write");
+    expect(combined).toContain("No Git/shell execution");
+    expect(combined).toContain("No native bridge");
+    expect(docsIndex).toContain("project-knowledge-recall-integration-v0.15.md");
   });
 
   it("documents the P0S-001 MVP hardening recovery design gate", async () => {

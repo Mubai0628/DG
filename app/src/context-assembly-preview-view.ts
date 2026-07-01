@@ -7,6 +7,7 @@ import type { LiveProposalPreviewGateView } from "./live-proposal-preview-gate-v
 import type { AppMemoryRecallPreviewView } from "./memory-recall-preview-view.js";
 import type { ModelPatchProposalImportView } from "./model-patch-proposal-import-view.js";
 import type { ModelProposalChainIntegrationView } from "./model-proposal-chain-integration-view.js";
+import type { AppProjectKnowledgeRecallView } from "./project-knowledge-recall-view.js";
 import type { AppRunDraftView } from "./run-draft-view.js";
 import type { AppSandboxApplyRollbackEventProjectionView } from "./sandbox-apply-rollback-event-projection-view.js";
 import type { AppUserWorkspacePromotionReadinessView } from "./user-workspace-promotion-readiness-view.js";
@@ -48,6 +49,7 @@ export type AppContextAssemblySourceRef = {
     | "run_draft_event"
     | "workspace_index"
     | "memory_recall"
+    | "project_knowledge_recall"
     | "patch_proposal"
     | "model_patch_proposal_import"
     | "model_proposal_chain_integration"
@@ -127,6 +129,7 @@ export type AppContextAssemblyPreviewInput = {
   runDraftEventSummary?: unknown;
   workspaceIndexBridge?: AppWorkspaceIndexBridgeView | undefined;
   memoryRecallPreview?: AppMemoryRecallPreviewView | undefined;
+  projectKnowledgeRecallPreview?: AppProjectKnowledgeRecallView | undefined;
   patchSurface?: AppDiffSurfaceView | undefined;
   replayProjection?: AppControlledCreationReplayProjectionView | undefined;
   sandboxApplyRollbackEventProjection?:
@@ -276,11 +279,17 @@ export function validateContextAssemblyPreviewInput(
       input.memoryRecallPreview?.querySummary.objectiveSummary
     ),
     ...unsafeWarningCodes(
+      input.projectKnowledgeRecallPreview?.matchedEntries
+        .map((entry) => entry.summary)
+        .join(" ")
+    ),
+    ...unsafeWarningCodes(
       input.patchSurface?.items.map((item) => item.label).join(" ")
     ),
     ...rawKeyWarnings(input.runDraft),
     ...rawKeyWarnings(input.workspaceIndexBridge),
     ...rawKeyWarnings(input.memoryRecallPreview),
+    ...rawKeyWarnings(input.projectKnowledgeRecallPreview),
     ...rawKeyWarnings(input.patchSurface),
     ...rawKeyWarnings(input.sandboxApplyRollbackEventProjection),
     ...rawKeyWarnings(input.liveProposalPreviewGate),
@@ -463,6 +472,34 @@ function buildSegments(
         )
       })
     );
+  }
+
+  if (
+    input.projectKnowledgeRecallPreview !== undefined &&
+    input.projectKnowledgeRecallPreview.status !== "empty"
+  ) {
+    for (const ref of input.projectKnowledgeRecallPreview.contextSegmentRefs) {
+      segments.push(
+        segment({
+          layer: ref.layer,
+          title:
+            ref.placement === "workspace_rules_summary"
+              ? "Project knowledge workspace rules summary"
+              : "Project knowledge volatile recall refs",
+          sourceKind: "project_knowledge_recall",
+          sourceRefId: ref.sourceRefId,
+          summary: [
+            `entry:${ref.entryId}`,
+            `placement:${ref.placement}`,
+            `hash:${ref.hashPrefix}`
+          ].join(" | "),
+          warningCodes: [
+            "PROJECT_KNOWLEDGE_RECALL_SUMMARY_ONLY",
+            ...ref.warningCodes
+          ]
+        })
+      );
+    }
   }
 
   if (input.eventSummary !== undefined && input.eventSummary.eventCount > 0) {
