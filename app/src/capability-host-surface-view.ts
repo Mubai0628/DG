@@ -48,9 +48,9 @@ export type CapabilityHostSurfaceView = {
   leasePreviewCount: number;
   riskSummary: CapabilityHostSurfaceRiskSummary;
   invocationPolicies: CapabilityHostSurfacePolicySummary;
-  brokerPreviewSummary?: ReturnType<
-    typeof summarizeExternalCapabilityBrokerIntegration
-  > | undefined;
+  brokerPreviewSummary?:
+    | ReturnType<typeof summarizeExternalCapabilityBrokerIntegration>
+    | undefined;
   findings: CapabilityHostSurfaceFinding[];
   blockerCount: number;
   warningCount: number;
@@ -145,7 +145,8 @@ export function buildCapabilityHostSurfaceView(
       invocationPolicies: {},
       findings: [parsed.finding],
       hash,
-      nextAction: "Provide valid summary-only external capability manifest JSON."
+      nextAction:
+        "Provide valid summary-only external capability manifest JSON."
     });
   }
 
@@ -204,9 +205,8 @@ export function buildCapabilityHostSurfaceView(
     leasePreviewCount: brokerResult.leasePreviewCount,
     riskSummary: brokerResult.riskMapping,
     invocationPolicies: brokerResult.policyMapping,
-    brokerPreviewSummary: summarizeExternalCapabilityBrokerIntegration(
-      brokerResult
-    ),
+    brokerPreviewSummary:
+      summarizeExternalCapabilityBrokerIntegration(brokerResult),
     findings,
     hash,
     nextAction: nextActionFor(status)
@@ -294,7 +294,9 @@ function viewFrom(args: {
   };
 }
 
-function parseManifestText(text: string):
+function parseManifestText(
+  text: string
+):
   | { ok: true; value: Record<string, unknown> }
   | { ok: false; finding: CapabilityHostSurfaceFinding } {
   try {
@@ -348,7 +350,9 @@ function selectorFindingsFor(
   ];
 }
 
-function readinessFor(canPreviewDescriptors: boolean): CapabilityHostSurfaceReadiness {
+function readinessFor(
+  canPreviewDescriptors: boolean
+): CapabilityHostSurfaceReadiness {
   return {
     canPreviewDescriptors,
     canConnectMcpServer: false,
@@ -389,10 +393,7 @@ function finding(
 }
 
 function safeCode(code: string): string {
-  return safeText(code, "CAPABILITY_HOST_FINDING").replace(
-    /[^A-Z0-9_]/gi,
-    "_"
-  );
+  return safeText(code, "CAPABILITY_HOST_FINDING").replace(/[^A-Z0-9_]/gi, "_");
 }
 
 function stableStringify(value: unknown): string {

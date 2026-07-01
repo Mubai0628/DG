@@ -17394,7 +17394,10 @@ describe("desktop source boundaries", () => {
   });
 
   it("renders the Capability Host panel as read-only App surface", async () => {
-    const appSource = await readFile(path.join(appRoot, "src", "App.tsx"), "utf8");
+    const appSource = await readFile(
+      path.join(appRoot, "src", "App.tsx"),
+      "utf8"
+    );
     const viewSource = await readFile(
       path.join(appRoot, "src", "capability-host-surface-view.ts"),
       "utf8"
@@ -17503,7 +17506,10 @@ describe("desktop source boundaries", () => {
   });
 
   it("renders the Capability Host audit panel as read-only App surface", async () => {
-    const appSource = await readFile(path.join(appRoot, "src", "App.tsx"), "utf8");
+    const appSource = await readFile(
+      path.join(appRoot, "src", "App.tsx"),
+      "utf8"
+    );
     const viewSource = await readFile(
       path.join(appRoot, "src", "capability-host-audit-view.ts"),
       "utf8"
@@ -17583,19 +17589,22 @@ describe("desktop source boundaries", () => {
     );
     const rootReadme = await readFile(path.join(repoRoot, "README.md"), "utf8");
     const appReadme = await readFile(path.join(appRoot, "README.md"), "utf8");
-    const appSource = await readFile(path.join(appRoot, "src", "App.tsx"), "utf8");
+    const appSource = await readFile(
+      path.join(appRoot, "src", "App.tsx"),
+      "utf8"
+    );
     const combinedDocs = `${releaseNotes}\n${manualQa}\n${rcChecklist}`;
 
-    expect(releaseNotes).toContain(
-      "v0.17.0-capability-host-mvp-rc.1"
-    );
+    expect(releaseNotes).toContain("v0.17.0-capability-host-mvp-rc.1");
     expect(releaseNotes).toContain(
       "Capability Host MVP, read-only descriptors and no external execution"
     );
     expect(releaseNotes).toContain(
       "Capability Host can parse and preview MCP/plugin/skill descriptors."
     );
-    expect(releaseNotes).toContain("No external capability execution is enabled.");
+    expect(releaseNotes).toContain(
+      "No external capability execution is enabled."
+    );
     expect(releaseNotes).toContain("no MCP tool invocation");
     expect(releaseNotes).toContain("no MCP server connection");
     expect(releaseNotes).toContain("no plugin installation");

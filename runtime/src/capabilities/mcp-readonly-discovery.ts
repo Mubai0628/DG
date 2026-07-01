@@ -357,10 +357,7 @@ function normalizeInputToServers(
     );
     return [];
   }
-  if (
-    input.sourceType === "mcp_server" &&
-    Array.isArray(input.capabilities)
-  ) {
+  if (input.sourceType === "mcp_server" && Array.isArray(input.capabilities)) {
     return [
       {
         serverId: input.manifestId,
@@ -396,7 +393,8 @@ function normalizeTool(
   const defaultInvocationPolicy =
     readNonEmptyString(tool.defaultInvocationPolicy) ?? "DISABLED";
   const inputSchemaKnown =
-    tool.inputSchemaSummary !== undefined && tool.inputSchemaSummary !== "unknown";
+    tool.inputSchemaSummary !== undefined &&
+    tool.inputSchemaSummary !== "unknown";
   const outputSchemaKnown =
     tool.outputSchemaSummary !== undefined &&
     tool.outputSchemaSummary !== "unknown";

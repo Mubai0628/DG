@@ -187,7 +187,9 @@ function viewFromAudit(
   };
 }
 
-function parseSummaryText(text: string):
+function parseSummaryText(
+  text: string
+):
   | { ok: true; value?: Record<string, unknown> | undefined }
   | { ok: false; code: string; safeMessage: string } {
   const trimmed = text.trim();

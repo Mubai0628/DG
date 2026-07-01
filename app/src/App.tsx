@@ -642,8 +642,9 @@ export function DesktopShell(): JSX.Element {
   const [capabilityHostSurfacePreview, setCapabilityHostSurfacePreview] =
     useState<CapabilityHostSurfaceView | undefined>();
   const [capabilityHostAuditText, setCapabilityHostAuditText] = useState("");
-  const [capabilityHostAuditPreview, setCapabilityHostAuditPreview] =
-    useState<CapabilityHostAuditView | undefined>();
+  const [capabilityHostAuditPreview, setCapabilityHostAuditPreview] = useState<
+    CapabilityHostAuditView | undefined
+  >();
   const [projectKnowledgeEntryType, setProjectKnowledgeEntryType] =
     useState<ProjectKnowledgeEntryType>("project_fact");
   const [projectKnowledgeNamespace, setProjectKnowledgeNamespace] =
@@ -11262,9 +11263,7 @@ export function DesktopShell(): JSX.Element {
           <section className="eventPanel" aria-label="Capability Host">
             <div className="panelHeader">
               <h2>Capability Host</h2>
-              <span className="muted">
-                Read-only / no external execution
-              </span>
+              <span className="muted">Read-only / no external execution</span>
             </div>
             <p className="fieldHelp">
               Preview MCP, plugin, and skill capability descriptors. The App
@@ -11279,8 +11278,7 @@ export function DesktopShell(): JSX.Element {
                   value={capabilityHostSourceType}
                   onChange={(event) => {
                     setCapabilityHostSourceType(
-                      event.target
-                        .value as NonNullable<
+                      event.target.value as NonNullable<
                         CapabilityHostSurfaceInput["sourceType"]
                       >
                     );
@@ -11633,7 +11631,8 @@ export function DesktopShell(): JSX.Element {
               <div>
                 <dt>Raw prompt / response</dt>
                 <dd>
-                  {displayedCapabilityHostAudit.rawLeakBooleans.rawPromptDetected
+                  {displayedCapabilityHostAudit.rawLeakBooleans
+                    .rawPromptDetected
                     ? "yes"
                     : "no"}{" "}
                   /{" "}
@@ -11726,8 +11725,10 @@ export function DesktopShell(): JSX.Element {
             ) : null}
 
             <p className="fieldHelp">
-              {summarizeCapabilityHostAuditView(displayedCapabilityHostAudit)
-                .appSource}{" "}
+              {
+                summarizeCapabilityHostAuditView(displayedCapabilityHostAudit)
+                  .appSource
+              }{" "}
               · {displayedCapabilityHostAudit.nextAction}
             </p>
           </section>

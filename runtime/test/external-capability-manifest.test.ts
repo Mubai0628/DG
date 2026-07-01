@@ -111,8 +111,10 @@ describe("external capability manifest schema", () => {
       ...(await readFixture("safe-plugin-readonly.json")),
       capabilities: [
         {
-          ...(((await readFixture("safe-plugin-readonly.json"))
-            .capabilities as Record<string, unknown>[])[0] ?? {}),
+          ...((
+            (await readFixture("safe-plugin-readonly.json"))
+              .capabilities as Record<string, unknown>[]
+          )[0] ?? {}),
           script: "blocked"
         }
       ]
@@ -121,8 +123,10 @@ describe("external capability manifest schema", () => {
       ...(await readFixture("safe-plugin-readonly.json")),
       capabilities: [
         {
-          ...(((await readFixture("safe-plugin-readonly.json"))
-            .capabilities as Record<string, unknown>[])[0] ?? {}),
+          ...((
+            (await readFixture("safe-plugin-readonly.json"))
+              .capabilities as Record<string, unknown>[]
+          )[0] ?? {}),
           eval: "blocked"
         }
       ]

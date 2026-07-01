@@ -55,10 +55,7 @@ export type ExternalCapabilityManifest = {
   source: "runtime_external_capability_manifest";
 };
 
-export type ExternalCapabilityManifestStatus =
-  | "parsed"
-  | "warning"
-  | "blocked";
+export type ExternalCapabilityManifestStatus = "parsed" | "warning" | "blocked";
 
 export type ExternalCapabilityManifestFindingSeverity = "blocker" | "warning";
 
@@ -651,11 +648,15 @@ function normalizeCapability(
     riskLevel,
     defaultInvocationPolicy,
     ...(rawCapability.inputSchemaSummary !== undefined
-      ? { inputSchemaSummary: summarizeUnknown(rawCapability.inputSchemaSummary) }
+      ? {
+          inputSchemaSummary: summarizeUnknown(rawCapability.inputSchemaSummary)
+        }
       : {}),
     ...(rawCapability.outputSchemaSummary !== undefined
       ? {
-          outputSchemaSummary: summarizeUnknown(rawCapability.outputSchemaSummary)
+          outputSchemaSummary: summarizeUnknown(
+            rawCapability.outputSchemaSummary
+          )
         }
       : {}),
     requiresNetwork,
@@ -1001,11 +1002,13 @@ function isSafeCapabilityId(value: string): boolean {
 }
 
 function containsSecretMarker(value: string): boolean {
-  return /sk-[a-z0-9_-]{8,}/i.test(value)
-    || /bearer\s+[a-z0-9._-]{8,}/i.test(value)
-    || /authorization\s*[:=]/i.test(value)
-    || /-----BEGIN [A-Z ]*PRIVATE KEY-----/.test(value)
-    || /PASSWORD_VALUE_MARKER/.test(value);
+  return (
+    /sk-[a-z0-9_-]{8,}/i.test(value) ||
+    /bearer\s+[a-z0-9._-]{8,}/i.test(value) ||
+    /authorization\s*[:=]/i.test(value) ||
+    /-----BEGIN [A-Z ]*PRIVATE KEY-----/.test(value) ||
+    /PASSWORD_VALUE_MARKER/.test(value)
+  );
 }
 
 function hasUrlQuerySecret(value: string): boolean {

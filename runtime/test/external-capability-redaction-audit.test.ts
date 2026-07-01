@@ -140,9 +140,7 @@ describe("external capability redaction audit", () => {
     });
     expect(audit.descriptorCounts.totalDescriptorCount).toBeGreaterThan(0);
     expect(audit.rawFieldDetectedCount).toBe(0);
-    expect(summary.source).toBe(
-      "runtime_external_capability_redaction_audit"
-    );
+    expect(summary.source).toBe("runtime_external_capability_redaction_audit");
     expect(audit.readiness.canPreviewAudit).toBe(true);
     expectNoExecution(audit);
   });

@@ -252,7 +252,8 @@ function previewsFromManifest(
       requestedPolicy: capability.defaultInvocationPolicy,
       riskLevel,
       mutating:
-        capability.operationKind !== "read" && capability.operationKind !== "compute",
+        capability.operationKind !== "read" &&
+        capability.operationKind !== "compute",
       requiresNetwork: capability.requiresNetwork,
       requiresFilesystem: capability.requiresFilesystem,
       requiresDesktop: capability.requiresDesktop,
@@ -326,7 +327,8 @@ function previewsFromPluginSkillScan(
       requestedPolicy: capability.defaultInvocationPolicy,
       riskLevel,
       mutating:
-        capability.operationKind !== "read" && capability.operationKind !== "compute",
+        capability.operationKind !== "read" &&
+        capability.operationKind !== "compute",
       requiresNetwork: capability.requiresNetwork,
       requiresFilesystem: capability.requiresFilesystem,
       requiresDesktop: capability.requiresDesktop,

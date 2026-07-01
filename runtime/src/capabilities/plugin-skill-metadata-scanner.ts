@@ -155,7 +155,8 @@ export function scanPluginSkillMetadata(
       `metadata-package-${index}`;
     const displayName = readNonEmptyString(record.displayName) ?? packageId;
     const version = readNonEmptyString(record.version);
-    const publisherPresent = readNonEmptyString(record.publisherSummary) !== undefined;
+    const publisherPresent =
+      readNonEmptyString(record.publisherSummary) !== undefined;
     const packageSource = readNonEmptyString(record.packageSource) ?? "unknown";
     const dependencyRefs = readStringArray(record.dependencyRefs);
     const capabilities = readRecordArray(record.declaredCapabilities);
@@ -307,7 +308,10 @@ function normalizeInput(
   if (Array.isArray(input.packages)) {
     return readRecordArray(input.packages);
   }
-  if (Array.isArray(input.pluginPackages) || Array.isArray(input.skillBundles)) {
+  if (
+    Array.isArray(input.pluginPackages) ||
+    Array.isArray(input.skillBundles)
+  ) {
     return [
       ...readRecordArray(input.pluginPackages),
       ...readRecordArray(input.skillBundles).map((skill) => ({
@@ -325,11 +329,13 @@ function normalizeCapability(
   findings: PluginSkillScanFinding[]
 ): PluginSkillDeclaredCapability {
   const capabilityId = readSafeId(capability.capabilityId) ?? `${path}.unknown`;
-  const displayName = readNonEmptyString(capability.displayName) ?? capabilityId;
+  const displayName =
+    readNonEmptyString(capability.displayName) ?? capabilityId;
   const descriptionSummary =
     readNonEmptyString(capability.descriptionSummary) ??
     "Declared capability summary unavailable.";
-  const operationKind = readNonEmptyString(capability.operationKind) ?? "unknown";
+  const operationKind =
+    readNonEmptyString(capability.operationKind) ?? "unknown";
   const riskLevel = readNonEmptyString(capability.riskLevel) ?? "A5";
   const defaultInvocationPolicy =
     readNonEmptyString(capability.defaultInvocationPolicy) ?? "DISABLED";
@@ -572,7 +578,9 @@ function scanUnsafeString(
   }
 }
 
-function forbiddenFindingKind(normalizedKey: string): PluginSkillScanFindingKind {
+function forbiddenFindingKind(
+  normalizedKey: string
+): PluginSkillScanFindingKind {
   if (
     normalizedKey.includes("command") ||
     normalizedKey === "execute" ||

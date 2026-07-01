@@ -448,9 +448,7 @@ function buildSegments(
         ].join(" | "),
         warningCodes: [
           "CAPABILITY_HOST_SURFACE_NO_COMPRESS",
-          ...input.capabilityHostSurface.findings.map(
-            (finding) => finding.code
-          )
+          ...input.capabilityHostSurface.findings.map((finding) => finding.code)
         ]
       })
     );

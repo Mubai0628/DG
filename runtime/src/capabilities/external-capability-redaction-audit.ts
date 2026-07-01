@@ -23,9 +23,7 @@ export type ExternalCapabilityRedactionAuditStatus =
   | "warning"
   | "blocked";
 
-export type ExternalCapabilityRedactionAuditSeverity =
-  | "blocker"
-  | "warning";
+export type ExternalCapabilityRedactionAuditSeverity = "blocker" | "warning";
 
 export type ExternalCapabilityRedactionAuditFindingKind =
   | "source"
@@ -228,14 +226,13 @@ export function buildExternalCapabilityRedactionAudit(
       sourceCounts.brokerIntegrationResultCount +
       sourceCounts.appSurfaceSummaryCount >
     0;
-  const status: ExternalCapabilityRedactionAuditStatus =
-    !hasInput
-      ? "empty"
-      : blockerCount > 0
-        ? "blocked"
-        : warningCount > 0
-          ? "warning"
-          : "audit_ready";
+  const status: ExternalCapabilityRedactionAuditStatus = !hasInput
+    ? "empty"
+    : blockerCount > 0
+      ? "blocked"
+      : warningCount > 0
+        ? "warning"
+        : "audit_ready";
   const auditHash = stablePreviewHash(
     stableStringify({
       status,
@@ -638,7 +635,10 @@ function scanUnsafeValues(
   }
 }
 
-function isAllowedSafeSummaryKey(path: string[], normalizedKey: string): boolean {
+function isAllowedSafeSummaryKey(
+  path: string[],
+  normalizedKey: string
+): boolean {
   if (
     ["code", "safeMessage", "findingId", "kind", "severity"].some(
       (key) => key.toLowerCase() === normalizedKey
@@ -647,10 +647,7 @@ function isAllowedSafeSummaryKey(path: string[], normalizedKey: string): boolean
   ) {
     return true;
   }
-  if (
-    normalizedKey === "source" &&
-    path.length <= 2
-  ) {
+  if (normalizedKey === "source" && path.length <= 2) {
     return true;
   }
   return false;
@@ -702,7 +699,8 @@ function redactFindings(
   findings: ExternalCapabilityRedactionAuditFinding[]
 ): ExternalCapabilityRedactionAuditFinding[] {
   return findings.map((finding, index) => ({
-    findingId: finding.findingId || `external-capability-audit-finding-${index}`,
+    findingId:
+      finding.findingId || `external-capability-audit-finding-${index}`,
     kind: finding.kind,
     severity: finding.severity,
     code: sanitizeCode(finding.code),
@@ -773,7 +771,8 @@ function recordValue(
   value: unknown,
   key?: string
 ): Record<string, unknown> | undefined {
-  const source = key === undefined ? value : isRecord(value) ? value[key] : undefined;
+  const source =
+    key === undefined ? value : isRecord(value) ? value[key] : undefined;
   return isRecord(source) ? source : undefined;
 }
 

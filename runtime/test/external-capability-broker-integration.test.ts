@@ -163,9 +163,9 @@ describe("external capability broker integration", () => {
 
     expect(result.status).toBe("preview_ready");
     expect(result.descriptorPreviewCount).toBe(2);
-    expect(result.descriptorPreviews.map((preview) => preview.sourceType)).toEqual(
-      ["plugin", "skill"]
-    );
+    expect(
+      result.descriptorPreviews.map((preview) => preview.sourceType)
+    ).toEqual(["plugin", "skill"]);
     expect(result.leasePreviewCount).toBe(2);
     expectNoExecution(result);
   });
@@ -221,9 +221,11 @@ describe("external capability broker integration", () => {
 
     expect(result.status).toBe("preview_ready");
     expect(result.leasePreviewCount).toBe(2);
-    expect(result.descriptorPreviews.every((preview) => preview.leasePreview.canIssueLease === false)).toBe(
-      true
-    );
+    expect(
+      result.descriptorPreviews.every(
+        (preview) => preview.leasePreview.canIssueLease === false
+      )
+    ).toBe(true);
     expect(result.readiness.canIssueLease).toBe(false);
     expectNoExecution(result);
   });
