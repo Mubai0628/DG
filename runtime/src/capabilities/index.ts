@@ -3,6 +3,7 @@ export * from "./descriptor.js";
 export * from "./errors.js";
 export * from "./external-capability-manifest.js";
 export * from "./invocation-policy.js";
+export * from "./mcp-readonly-discovery.js";
 export * from "./native-descriptors.js";
 export * from "./plan-preview.js";
 export * from "./permission-lease.js";
