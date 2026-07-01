@@ -340,8 +340,7 @@ function buildResult(
     findings: findings.map((finding, index) => ({
       ...finding,
       findingId:
-        finding.findingId ||
-        `mcp-tool-proposal-redaction-finding-${index + 1}`
+        finding.findingId || `mcp-tool-proposal-redaction-finding-${index + 1}`
     })),
     blockerCount,
     warningCount,

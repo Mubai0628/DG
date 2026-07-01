@@ -415,6 +415,9 @@ v0.17 Capability Host MVP references:
 - [v0.18 MCP Read-only Connection post-release review](docs/v0.18-mcp-readonly-connection-postrelease-review.md)
 - [P0W MCP Tool Invocation Proposal roadmap](docs/p0w-mcp-tool-invocation-proposal-roadmap.md)
 - [P0W-001 MCP Tool Invocation Proposal gate plan](docs/p0w-001-mcp-tool-invocation-proposal-gate-plan.md)
+- [v0.19.0 MCP Tool Invocation Proposal RC release notes](docs/release-notes-v0.19.0-mcp-tool-invocation-proposal-rc.1.md)
+- [MCP Tool Invocation Proposal manual QA](docs/mcp-tool-invocation-proposal-manual-qa.md)
+- [MCP Tool Invocation Proposal RC checklist](docs/mcp-tool-invocation-proposal-rc-checklist.md)
 
 ## Current roadmap
 
@@ -462,9 +465,11 @@ read-only connection discovery, broker descriptor integration, App read-only
 connection and redaction-audit surfaces, and smoke/QA coverage while preserving
 no MCP tool invocation, no mutating MCP operation, no resource content read by
 default, no arbitrary process spawn, no hidden App connection, and no external
-mutation. P0W is the active v0.19 roadmap for MCP tool invocation proposal and
-approval design, with no real MCP tool invocation, no mutating MCP tools, no raw
-tool args/output, no App hidden invocation, no broad PermissionLease, no native
+mutation. P0W is prepared for the v0.19 RC with MCP tool invocation proposals,
+input risk classification, simulated result summaries, broker planning,
+read-only App proposal surfaces, redaction audit, and smoke coverage while
+preserving no real MCP `tools/call`, no mutating MCP tools, no raw tool
+args/output, no App hidden invocation, no broad PermissionLease, no native
 bridge, and no desktop action.
 
 - [v0.2 App Shell RC post-release review](docs/v0.2-app-shell-rc-postrelease-review.md)

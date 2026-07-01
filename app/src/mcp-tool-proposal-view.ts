@@ -292,9 +292,7 @@ export function buildMcpToolProposalView(
   });
 }
 
-export function summarizeMcpToolProposalView(
-  view: McpToolProposalView
-): {
+export function summarizeMcpToolProposalView(view: McpToolProposalView): {
   status: McpToolProposalStatus;
   proposalViewId: string;
   proposalId?: string | undefined;
@@ -589,7 +587,9 @@ function summarizeNested(
     .join(" | ");
 }
 
-function safeSummarySeed(value: Record<string, unknown>): Record<string, unknown> {
+function safeSummarySeed(
+  value: Record<string, unknown>
+): Record<string, unknown> {
   return {
     proposalId: readString(value, ["proposalId", "proposalSummary.proposalId"]),
     serverRef: readString(value, [

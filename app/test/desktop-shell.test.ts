@@ -1213,12 +1213,8 @@ describe("desktop command wrapper", () => {
     expect(rawArgsProposal.readiness.canInvokeMcpTool).toBe(false);
     expect(rawOutputProposal.readiness.canInvokeMcpTool).toBe(false);
     expect(executionProposal.readiness.canInvokeMcpTool).toBe(false);
-    expect(JSON.stringify(rawArgsProposal)).not.toContain(
-      "raw argument value"
-    );
-    expect(JSON.stringify(rawOutputProposal)).not.toContain(
-      "raw output value"
-    );
+    expect(JSON.stringify(rawArgsProposal)).not.toContain("raw argument value");
+    expect(JSON.stringify(rawOutputProposal)).not.toContain("raw output value");
   });
 
   it("blocks raw MCP metadata in the App connection view model", () => {
@@ -18617,7 +18613,7 @@ describe("desktop source boundaries", () => {
     expect(docsIndex).toContain(
       "p0w-001-mcp-tool-invocation-proposal-gate-plan.md"
     );
-    expect(rootReadme).toContain("P0W is the active v0.19 roadmap");
+    expect(rootReadme).toContain("P0W is prepared for the v0.19 RC");
   });
 
   it("documents the P0W-001 MCP tool invocation proposal gate", async () => {
@@ -18749,9 +18745,7 @@ describe("desktop source boundaries", () => {
     expect(doc).toContain("No PermissionLease issuing");
     expect(doc).toContain("No native bridge");
     expect(doc).toContain("No desktop action");
-    expect(docsIndex).toContain(
-      "app-shell-mcp-tool-proposal-surface-v0.18.md"
-    );
+    expect(docsIndex).toContain("app-shell-mcp-tool-proposal-surface-v0.18.md");
     expect(combined).toContain("Proposal only / no tool invocation");
     expect(appSource).toContain("Invoke MCP Tool (disabled)");
     expect(appSource).toContain("Approve Tool Invocation (disabled)");
@@ -18815,6 +18809,87 @@ describe("desktop source boundaries", () => {
     expect(doc).toContain("No native bridge");
     expect(doc).toContain("No desktop action");
     expect(combined).toContain("mcp-tool-proposal-smoke-v0.18.md");
+  });
+
+  it("documents the v0.19 MCP tool invocation proposal RC release package", async () => {
+    const releaseNotes = await readFile(
+      path.join(
+        repoRoot,
+        "docs",
+        "release-notes-v0.19.0-mcp-tool-invocation-proposal-rc.1.md"
+      ),
+      "utf8"
+    );
+    const manualQa = await readFile(
+      path.join(repoRoot, "docs", "mcp-tool-invocation-proposal-manual-qa.md"),
+      "utf8"
+    );
+    const rcChecklist = await readFile(
+      path.join(
+        repoRoot,
+        "docs",
+        "mcp-tool-invocation-proposal-rc-checklist.md"
+      ),
+      "utf8"
+    );
+    const docsIndex = await readFile(
+      path.join(repoRoot, "docs", "README.md"),
+      "utf8"
+    );
+    const rootReadme = await readFile(path.join(repoRoot, "README.md"), "utf8");
+    const appReadme = await readFile(path.join(appRoot, "README.md"), "utf8");
+    const appSource = await readFile(
+      path.join(appRoot, "src", "App.tsx"),
+      "utf8"
+    );
+    const combinedDocs = `${releaseNotes}\n${manualQa}\n${rcChecklist}`;
+
+    expect(releaseNotes).toContain("v0.19.0-mcp-tool-invocation-proposal-rc.1");
+    expect(releaseNotes).toContain(
+      "MCP tool invocation proposal and approval design, no tool execution"
+    );
+    expect(releaseNotes).toContain(
+      "MCP tool invocation proposals can be modeled, risk-classified"
+    );
+    expect(releaseNotes).toContain("No MCP tool is invoked");
+    expect(releaseNotes).toContain("no MCP `tools/call`");
+    expect(releaseNotes).toContain("no mutating MCP tools");
+    expect(releaseNotes).toContain("manual-only/disabled broker policy");
+    expect(releaseNotes).toContain("simulated result only");
+    expect(releaseNotes).toContain("redaction audit");
+    expect(manualQa).toContain("Convert Smoke");
+    expect(manualQa).toContain("MCP Read-Only Discovery Smoke");
+    expect(manualQa).toContain("Preview MCP Tool Proposal");
+    expect(manualQa).toContain("mutating tool summary is blocked or disabled");
+    expect(manualQa).toContain("raw args are blocked");
+    expect(manualQa).toContain("No `tools/call`");
+    expect(manualQa).toContain("No raw output");
+    expect(manualQa).toContain("No API key");
+    expect(rcChecklist).toContain("pnpm verify:ci");
+    expect(rcChecklist).toContain("pnpm release:smoke");
+    expect(rcChecklist).toContain("pnpm app:qa:check");
+    expect(rcChecklist).toContain(
+      "git tag v0.19.0-mcp-tool-invocation-proposal-rc.1"
+    );
+    expect(rcChecklist).toContain("gh release create");
+    expect(combinedDocs).toContain("full docs path links");
+    expect(docsIndex).toContain(
+      "release-notes-v0.19.0-mcp-tool-invocation-proposal-rc.1.md"
+    );
+    expect(docsIndex).toContain("mcp-tool-invocation-proposal-manual-qa.md");
+    expect(docsIndex).toContain("mcp-tool-invocation-proposal-rc-checklist.md");
+    expect(rootReadme).toContain("P0W is prepared for the v0.19 RC");
+    expect(appReadme).toContain(
+      "prepare the v0.19 MCP Tool Invocation Proposal RC"
+    );
+    expect(appSource).toContain("Proposal only / no tool invocation");
+    expect(appSource).toContain("Preview MCP Tool Proposal");
+    expect(appSource).toContain("Invoke MCP Tool (disabled)");
+    expect(appSource).toContain("Approve Tool Invocation (disabled)");
+    expect(appSource).not.toMatch(/>\s*Invoke MCP Tool\s*</);
+    expect(appSource).not.toMatch(/>\s*Approve Tool Invocation\s*</);
+    expect(appSource).not.toMatch(/>\s*Run MCP Tool\s*</);
+    expect(appSource).not.toMatch(/>\s*Call MCP Tool\s*</);
   });
 
   it("documents the P0S-001 MVP hardening recovery design gate", async () => {

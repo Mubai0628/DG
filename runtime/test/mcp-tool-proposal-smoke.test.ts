@@ -23,18 +23,19 @@ const fixtureRoot = new URL(
 );
 
 async function fixture(name: string): Promise<Record<string, unknown>> {
-  return JSON.parse(await readFile(new URL(name, fixtureRoot), "utf8")) as Record<
-    string,
-    unknown
-  >;
+  return JSON.parse(
+    await readFile(new URL(name, fixtureRoot), "utf8")
+  ) as Record<string, unknown>;
 }
 
-function riskSummary(schemaSummary: string, riskLevel: "low" | "medium" | "high") {
+function riskSummary(
+  schemaSummary: string,
+  riskLevel: "low" | "medium" | "high"
+) {
   const report = buildMcpToolInputRiskReport({
     schemaSummary,
     schemaType: "metadata_summary",
-    riskCategories:
-      riskLevel === "low" ? ["read_only_metadata"] : ["unknown"],
+    riskCategories: riskLevel === "low" ? ["read_only_metadata"] : ["unknown"],
     riskLevel,
     approvalRequired: riskLevel !== "low",
     manualOnly: true,
@@ -46,12 +47,12 @@ function riskSummary(schemaSummary: string, riskLevel: "low" | "medium" | "high"
 
 function expectNoExecution(summary: unknown): void {
   const serialized = JSON.stringify(summary);
-  expect(serialized).toContain("canInvokeMcpTool\":false");
-  expect(serialized).toContain("canCallTool\":false");
-  expect(serialized).toContain("canWriteEventStore\":false");
-  expect(serialized).toContain("canExecuteGit\":false");
-  expect(serialized).toContain("canExecuteShell\":false");
-  expect(serialized).toContain("appCanExecute\":false");
+  expect(serialized).toContain('canInvokeMcpTool":false');
+  expect(serialized).toContain('canCallTool":false');
+  expect(serialized).toContain('canWriteEventStore":false');
+  expect(serialized).toContain('canExecuteGit":false');
+  expect(serialized).toContain('canExecuteShell":false');
+  expect(serialized).toContain('appCanExecute":false');
 }
 
 describe("mcp tool proposal smoke", () => {
@@ -201,7 +202,10 @@ describe("mcp tool proposal smoke", () => {
       idGenerator: () => "mcp-tool-smoke-proposal-policy"
     });
     const proposalSummary = summarizeMcpToolInvocationProposal(proposal);
-    const highRisk = riskSummary(String(metadata.toolInputSchemaSummary), "high");
+    const highRisk = riskSummary(
+      String(metadata.toolInputSchemaSummary),
+      "high"
+    );
     const simulation = buildMcpToolSimulatedResult({
       proposalSummary,
       riskReportSummary: highRisk,

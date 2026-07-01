@@ -1,9 +1,6 @@
 export type McpToolSimulatedResultInput = unknown;
 
-export type McpToolSimulatedResultStatus =
-  | "simulated"
-  | "warning"
-  | "blocked";
+export type McpToolSimulatedResultStatus = "simulated" | "warning" | "blocked";
 
 export type McpToolSimulatedResultFixtureSummary = {
   resultHash: string;
@@ -339,7 +336,8 @@ function normalizeSimulatedResult(
   const riskReportSummary = record.riskReportSummary as Record<string, unknown>;
   const fixture = record.simulatedResultFixture as Record<string, unknown>;
   const resultSummaryText = safeString(fixture.resultSummary, "");
-  const resultHash = safeOptionalString(fixture.resultHash) ?? hashRef(resultSummaryText);
+  const resultHash =
+    safeOptionalString(fixture.resultHash) ?? hashRef(resultSummaryText);
   const simulationId = getGeneratedId(record, "mcp-tool-simulated-result");
   const warningCodes = readWarningCodes(fixture.warningCodes);
   const simulationHash = stablePreviewHash(
@@ -673,7 +671,15 @@ function containsSecretMarker(value: string): boolean {
 }
 
 function containsBinaryMarker(value: string): boolean {
-  return /[\u0000-\u0008\u000b\u000c\u000e-\u001f]/.test(value);
+  return Array.from(value).some((char) => {
+    const code = char.charCodeAt(0);
+    return (
+      (code >= 0 && code <= 8) ||
+      code === 11 ||
+      code === 12 ||
+      (code >= 14 && code <= 31)
+    );
+  });
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {

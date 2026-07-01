@@ -105,7 +105,9 @@ describe("mcp tool broker planning", () => {
       executionMode: "SIMULATE",
       invokePolicy: "MANUAL_ONLY"
     });
-    expect(plan.summary.descriptorId).toBe(plan.descriptorPreview?.descriptorId);
+    expect(plan.summary.descriptorId).toBe(
+      plan.descriptorPreview?.descriptorId
+    );
     expectNoExecution(plan);
   });
 

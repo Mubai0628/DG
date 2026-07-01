@@ -11,10 +11,7 @@ export type McpToolBrokerDescriptorPreview = {
   title: string;
   sourceType: "mcp";
   category: "mcp_tool";
-  riskLevel:
-    | "A1_read"
-    | "A2_draft_write"
-    | "A5_sensitive_or_irreversible";
+  riskLevel: "A1_read" | "A2_draft_write" | "A5_sensitive_or_irreversible";
   invokePolicy: "MANUAL_ONLY" | "DISABLED";
   executionMode: "SIMULATE";
   disabledByDefault: boolean;
@@ -228,7 +225,10 @@ function validateProposalSummary(
       "$.proposalSummary"
     );
   }
-  if (typeof value.toolName !== "string" || value.toolName.trim().length === 0) {
+  if (
+    typeof value.toolName !== "string" ||
+    value.toolName.trim().length === 0
+  ) {
     addFinding(
       findings,
       "proposal",
@@ -295,7 +295,10 @@ function validateRiskReportSummary(
       "$.riskReportSummary.blockerCount"
     );
   }
-  if (value.riskLevel === "high" || hasUnknownRiskCategory(value.riskCategories)) {
+  if (
+    value.riskLevel === "high" ||
+    hasUnknownRiskCategory(value.riskCategories)
+  ) {
     addFinding(
       findings,
       "risk",
@@ -393,7 +396,11 @@ function normalizePlanning(
     safeString(proposalSummary.toolName, "unknown")
   )}.preview`;
   const riskLevel = mapRiskLevel(riskSummary.riskLevel);
-  const invokePolicy = chooseInvokePolicy(proposalSummary, riskSummary, findings);
+  const invokePolicy = chooseInvokePolicy(
+    proposalSummary,
+    riskSummary,
+    findings
+  );
   const disabledByDefault = invokePolicy === "DISABLED";
   const eventHash = stablePreviewHash(
     stableStringify({
@@ -500,8 +507,10 @@ function buildResult(
     emptyDescriptorPreview(planningHash, blockerCount > 0);
   const approvalDraftRequirement =
     planning?.approvalDraftRequirement ?? emptyApprovalDraft(planningHash);
-  const leasePreview = planning?.leasePreview ?? emptyLeasePreview(planningHash);
-  const eventPreview = planning?.eventPreview ?? emptyEventPreview(planningHash);
+  const leasePreview =
+    planning?.leasePreview ?? emptyLeasePreview(planningHash);
+  const eventPreview =
+    planning?.eventPreview ?? emptyEventPreview(planningHash);
   const summary =
     planning?.summary ?? emptySummary(planningHash, descriptorPreview);
 

@@ -7647,9 +7647,7 @@ export function DesktopShell(): JSX.Element {
           >
             <div className="panelHeader">
               <h2>MCP Tool Invocation Proposal</h2>
-              <span className="muted">
-                Proposal only / no tool invocation
-              </span>
+              <span className="muted">Proposal only / no tool invocation</span>
             </div>
             <p className="fieldHelp">
               Reviews summary-only MCP tool invocation proposals, input schema
@@ -7672,8 +7670,8 @@ export function DesktopShell(): JSX.Element {
               />
               <p className="fieldHelp">
                 The App accepts proposal, risk, simulated result, and broker
-                planning summaries only. Tool arguments, tool outputs,
-                resource content, secrets, and execution flags are rejected.
+                planning summaries only. Tool arguments, tool outputs, resource
+                content, secrets, and execution flags are rejected.
               </p>
             </label>
 

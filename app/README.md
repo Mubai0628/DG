@@ -183,6 +183,12 @@ Current scope:
   redaction evidence with no raw output, no App evaluation run, no App live
   DeepSeek call, no telemetry event write, no EventStore write, and no App
   execution
+- prepare the v0.19 MCP Tool Invocation Proposal RC with proposal schema,
+  input risk classification, simulated result summaries, broker planning,
+  read-only App proposal surface, redaction audit, and smoke hardening while
+  no MCP tools/call, mutating MCP tools, resource content reads, plugin/skill
+  runtime, arbitrary process/shell, broad PermissionLease, native bridge, or
+  desktop action are enabled
 
 Current limitations:
 

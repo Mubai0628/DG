@@ -25,10 +25,7 @@ export type McpToolInvocationEvidenceRef = {
   warningCodes: string[];
 };
 
-export type McpToolInvocationProposalStatus =
-  | "parsed"
-  | "warning"
-  | "blocked";
+export type McpToolInvocationProposalStatus = "parsed" | "warning" | "blocked";
 
 export type McpToolInvocationProposalFindingKind =
   | "schema"
@@ -267,7 +264,10 @@ function validateTarget(
     "toolInputSchemaSummary"
   ]) {
     const value = record[key];
-    if (value !== undefined && !isBoundedSafeString(value, maxSummaryTextBytes)) {
+    if (
+      value !== undefined &&
+      !isBoundedSafeString(value, maxSummaryTextBytes)
+    ) {
       addFinding(
         findings,
         "target",
@@ -399,10 +399,7 @@ function validateEvidenceRefs(
       );
     }
     seen.add(refId);
-    if (
-      value.hashPrefix !== undefined &&
-      !isSafeHashPrefix(value.hashPrefix)
-    ) {
+    if (value.hashPrefix !== undefined && !isSafeHashPrefix(value.hashPrefix)) {
       addFinding(
         findings,
         "evidence",
@@ -757,7 +754,10 @@ function isSafeHashPrefix(value: unknown): value is string {
   return typeof value === "string" && /^[a-f0-9]{6,64}$/i.test(value.trim());
 }
 
-function isBoundedSafeString(value: unknown, maxBytes: number): value is string {
+function isBoundedSafeString(
+  value: unknown,
+  maxBytes: number
+): value is string {
   return (
     typeof value === "string" &&
     value.trim().length > 0 &&

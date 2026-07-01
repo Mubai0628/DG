@@ -109,11 +109,7 @@ const allowedRiskCategories = new Set<McpToolRiskCategory>([
   "unknown"
 ]);
 
-const allowedRiskLevels = new Set<McpToolRiskLevel>([
-  "low",
-  "medium",
-  "high"
-]);
+const allowedRiskLevels = new Set<McpToolRiskLevel>(["low", "medium", "high"]);
 
 const forbiddenFieldCodes = new Map<string, string>([
   ["rawschema", "RAW_SCHEMA_FIELD_REJECTED"],
@@ -241,10 +237,7 @@ function validateSchemaSummary(
   }
 
   const schemaType = safeOptionalString(record.schemaType);
-  if (
-    schemaType === "unknown" &&
-    !hasConservativeUnknownRisk(record)
-  ) {
+  if (schemaType === "unknown" && !hasConservativeUnknownRisk(record)) {
     addFinding(
       findings,
       "risk",
@@ -358,13 +351,12 @@ function normalizeRiskReport(
   const detectedCategories = detectRiskCategories(schemaText);
   const riskCategories = mergeCategories(
     declaredCategories,
-    detectedCategories.length > 0
-      ? detectedCategories
-      : ["read_only_metadata"]
+    detectedCategories.length > 0 ? detectedCategories : ["read_only_metadata"]
   );
   const riskLevel = normalizeRiskLevel(record.riskLevel, riskCategories);
   const reportId = getGeneratedId(record, "mcp-tool-input-risk");
-  const schemaHash = safeOptionalString(record.schemaHash) ?? hashRef(schemaText);
+  const schemaHash =
+    safeOptionalString(record.schemaHash) ?? hashRef(schemaText);
   const approvalRequired =
     riskLevel !== "low" ||
     riskCategories.some((category) => category !== "read_only_metadata");
@@ -599,13 +591,23 @@ function detectRiskCategories(schemaText: string): McpToolRiskCategory[] {
     categories.push("filesystem_write");
     categories.push("user_workspace_mutation");
   }
-  if (/\b(exec|execute|shell|command|spawn|process|stdout|stderr)\b/.test(text)) {
+  if (
+    /\b(exec|execute|shell|command|spawn|process|stdout|stderr)\b/.test(text)
+  ) {
     categories.push("command_execution");
   }
-  if (/\b(api key|credential|secret|token|password|authorization|bearer|env)\b/.test(text)) {
+  if (
+    /\b(api key|credential|secret|token|password|authorization|bearer|env)\b/.test(
+      text
+    )
+  ) {
     categories.push("credential_access");
   }
-  if (/\b(desktop action|native bridge|tauri|click|type into|window control)\b/.test(text)) {
+  if (
+    /\b(desktop action|native bridge|tauri|click|type into|window control)\b/.test(
+      text
+    )
+  ) {
     categories.push("desktop_action");
   }
   return uniqueCategories(categories);
@@ -662,7 +664,8 @@ function normalizeRiskLevel(
   ) {
     return "medium";
   }
-  return typeof value === "string" && allowedRiskLevels.has(value as McpToolRiskLevel)
+  return typeof value === "string" &&
+    allowedRiskLevels.has(value as McpToolRiskLevel)
     ? (value as McpToolRiskLevel)
     : "low";
 }
@@ -744,7 +747,10 @@ function readWarningCodes(value: unknown): string[] {
     .filter((item) => /^[A-Z0-9_:-]{2,80}$/.test(item));
 }
 
-function isBoundedSafeString(value: unknown, maxBytes: number): value is string {
+function isBoundedSafeString(
+  value: unknown,
+  maxBytes: number
+): value is string {
   return (
     typeof value === "string" &&
     value.trim().length > 0 &&
