@@ -387,7 +387,7 @@ function recoveryFor(
         "Apply snapshot is stale."
       ),
       recommendedAction:
-        "Refresh workspace summaries, re-preview validation/audit, and rebuild the approval receipt before retrying apply.",
+        "Conflict detected: stale snapshot; revalidate required. Refresh workspace summaries, re-preview validation/audit, and rebuild the approval receipt before retrying apply.",
       retryAllowed: true
     },
     apply_conflict: {
@@ -396,7 +396,7 @@ function recoveryFor(
         "Approved apply encountered a safe conflict."
       ),
       recommendedAction:
-        "Review the safe conflict summary, refresh the proposal or choose another safe path, then re-run the gated approval flow.",
+        "Conflict detected; revalidate required. Review the safe conflict summary, refresh the proposal or choose another safe path, then re-run the gated approval flow.",
       retryAllowed: true
     },
     verification_failure: {

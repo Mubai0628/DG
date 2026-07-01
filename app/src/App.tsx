@@ -4599,10 +4599,15 @@ export function DesktopShell(): JSX.Element {
                 <dd>{displayedE2ETaskRecovery.failureCategory}</dd>
               </div>
               <div>
-                <dt>Retry / rollback</dt>
+                <dt>Retry / rollback state</dt>
                 <dd>
-                  {displayedE2ETaskRecovery.retryAllowed ? "yes" : "no"} /{" "}
-                  {displayedE2ETaskRecovery.rollbackAvailable ? "yes" : "no"}
+                  {displayedE2ETaskRecovery.retryAllowed
+                    ? "retry allowed"
+                    : "retry disabled"}{" "}
+                  /{" "}
+                  {displayedE2ETaskRecovery.rollbackAvailable
+                    ? "rollback safe"
+                    : "rollback unavailable"}
                 </dd>
               </div>
               <div>

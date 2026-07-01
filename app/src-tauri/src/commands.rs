@@ -665,6 +665,10 @@ struct ApprovedApplyCheckpointEntry {
     existed_before: bool,
     preimage_hash: Option<String>,
     preimage_bytes: usize,
+    #[serde(default)]
+    applied_hash: Option<String>,
+    #[serde(default)]
+    applied_bytes: usize,
     change_kind: ApprovedApplyChangeKind,
     content: Option<String>,
 }
@@ -683,6 +687,8 @@ struct PlannedApprovedApplyOperation {
     preimage_content: Option<String>,
     preimage_hash: Option<String>,
     preimage_bytes: usize,
+    applied_hash: Option<String>,
+    applied_bytes: usize,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -2910,6 +2916,8 @@ fn run_approved_user_workspace_rollback(
                 if target_path.exists() {
                     guard_approved_rollback_existing_target(&target_path, &workspace_root)
                         .map_err(approved_rollback_invalid)?;
+                    verify_approved_rollback_current_target_matches(entry, &target_path)
+                        .map_err(approved_rollback_invalid)?;
                     fs::remove_file(&target_path).map_err(|_| {
                         approved_rollback_io("Approved rollback created file could not be removed")
                     })?;
@@ -2939,13 +2947,18 @@ fn run_approved_user_workspace_rollback(
                 if target_path.exists() {
                     guard_approved_rollback_existing_target(&target_path, &workspace_root)
                         .map_err(approved_rollback_invalid)?;
-                    if entry.change_kind == ApprovedApplyChangeKind::Delete {
+                    if entry.change_kind == ApprovedApplyChangeKind::Update {
+                        verify_approved_rollback_current_target_matches(entry, &target_path)
+                            .map_err(approved_rollback_invalid)?;
+                    } else {
                         return Err(approved_rollback_invalid(
                             "Approved rollback delete target already exists",
                         ));
                     }
                 } else if entry.change_kind == ApprovedApplyChangeKind::Update {
-                    operation_warnings.push("ROLLBACK_UPDATE_TARGET_MISSING".to_string());
+                    return Err(approved_rollback_invalid(
+                        "Approved rollback current target is missing before restore",
+                    ));
                 }
                 if let Some(parent) = target_path.parent() {
                     let existing_parent = nearest_existing_parent(parent);
@@ -3478,6 +3491,18 @@ fn plan_approved_apply_operation(
         .as_deref()
         .map(|content| content.as_bytes().len())
         .unwrap_or(0);
+    let applied_content = if matches!(
+        operation.change_kind,
+        ApprovedApplyChangeKind::Create | ApprovedApplyChangeKind::Update
+    ) {
+        operation.content.as_deref()
+    } else {
+        None
+    };
+    let applied_hash = applied_content.map(short_hash);
+    let applied_bytes = applied_content
+        .map(|content| content.as_bytes().len())
+        .unwrap_or(0);
     Ok(PlannedApprovedApplyOperation {
         operation: operation.clone(),
         target_path,
@@ -3485,6 +3510,8 @@ fn plan_approved_apply_operation(
         preimage_content,
         preimage_hash,
         preimage_bytes,
+        applied_hash,
+        applied_bytes,
     })
 }
 
@@ -3544,6 +3571,8 @@ fn write_approved_apply_checkpoint(
                 existed_before: planned.existed_before,
                 preimage_hash: planned.preimage_hash.clone(),
                 preimage_bytes: planned.preimage_bytes,
+                applied_hash: planned.applied_hash.clone(),
+                applied_bytes: planned.applied_bytes,
                 change_kind: planned.operation.change_kind,
                 content: planned.preimage_content.clone(),
             })
@@ -3653,6 +3682,24 @@ fn guard_approved_rollback_existing_target(
         .map_err(|_| "Approved rollback target could not be resolved".to_string())?;
     if !canonical.starts_with(workspace_root) {
         return Err("Approved rollback target escapes workspace root".to_string());
+    }
+    Ok(())
+}
+
+fn verify_approved_rollback_current_target_matches(
+    entry: &ApprovedApplyCheckpointEntry,
+    target_path: &Path,
+) -> Result<(), String> {
+    let Some(expected_hash) = entry.applied_hash.as_deref() else {
+        return Ok(());
+    };
+    let current_content = fs::read_to_string(target_path)
+        .map_err(|_| "Approved rollback current target could not be read".to_string())?;
+    if short_hash(&current_content) != expected_hash {
+        return Err("Approved rollback current file hash mismatch".to_string());
+    }
+    if entry.applied_bytes != current_content.as_bytes().len() {
+        return Err("Approved rollback current file byte count mismatch".to_string());
     }
     Ok(())
 }
@@ -4931,10 +4978,7 @@ fn build_live_proposal_summary_event_payload(
     }
     if object.get("canApplyPatch").and_then(Value::as_bool) != Some(false)
         || object.get("canRollback").and_then(Value::as_bool) != Some(false)
-        || object
-            .get("canWriteEventStore")
-            .and_then(Value::as_bool)
-            != Some(false)
+        || object.get("canWriteEventStore").and_then(Value::as_bool) != Some(false)
     {
         return Err("Live proposal event preview must keep execution disabled".to_string());
     }
@@ -6159,10 +6203,8 @@ mod tests {
         )
         .expect("summary event recorded");
 
-        let summary = load_workspace_event_summary(
-            workspace.to_string_lossy().to_string(),
-            Some(20),
-        );
+        let summary =
+            load_workspace_event_summary(workspace.to_string_lossy().to_string(), Some(20));
         let serialized = serde_json::to_string(&summary).expect("serialize");
 
         assert!(summary.ok);
@@ -6194,20 +6236,16 @@ mod tests {
 
         let mut secret = safe_live_proposal_summary_event_preview();
         secret["proposalHash"] = Value::String("sk-fake-live-event-secret-000000".to_string());
-        let error = record_live_proposal_summary_event(
-            workspace.to_string_lossy().to_string(),
-            secret,
-        )
-        .expect_err("secret marker blocks");
+        let error =
+            record_live_proposal_summary_event(workspace.to_string_lossy().to_string(), secret)
+                .expect_err("secret marker blocks");
         assert_eq!(error.error_code, "INVALID_PAYLOAD");
 
         let mut execution = safe_live_proposal_summary_event_preview();
         execution["canApplyPatch"] = Value::Bool(true);
-        let error = record_live_proposal_summary_event(
-            workspace.to_string_lossy().to_string(),
-            execution,
-        )
-        .expect_err("execution flag blocks");
+        let error =
+            record_live_proposal_summary_event(workspace.to_string_lossy().to_string(), execution)
+                .expect_err("execution flag blocks");
         assert_eq!(error.error_code, "INVALID_PAYLOAD");
     }
 
@@ -7260,6 +7298,101 @@ mod tests {
     }
 
     #[test]
+    fn approved_apply_blocks_stale_delete_before_mutation() {
+        let workspace = temp_workspace("approved-apply-stale-delete");
+        fs::create_dir_all(workspace.join("src")).expect("src dir");
+        let target = workspace.join("src").join("delete-me.txt");
+        fs::write(&target, "delete stale safe content").expect("delete file");
+        let request = safe_approved_apply_request(
+            &workspace,
+            vec![ApprovedApplyOperation {
+                path: "src/delete-me.txt".to_string(),
+                change_kind: ApprovedApplyChangeKind::Delete,
+                content: None,
+                expected_before_hash: Some("deadbeef".to_string()),
+                expected_exists_before: Some(true),
+            }],
+            &["src/delete-me.txt"],
+        );
+
+        let error =
+            apply_approved_user_workspace_patch(request).expect_err("stale delete should block");
+
+        assert_eq!(error.error_code, "APPROVED_APPLY_BLOCKED");
+        assert!(error.safe_message.contains("expectedBeforeHash mismatch"));
+        assert_eq!(
+            fs::read_to_string(&target).expect("unchanged"),
+            "delete stale safe content"
+        );
+        assert!(!workspace.join(".deepseek-workbench").exists());
+
+        let _ = fs::remove_dir_all(workspace);
+    }
+
+    #[test]
+    fn approved_apply_blocks_create_conflict_before_checkpoint() {
+        let workspace = temp_workspace("approved-apply-create-conflict");
+        fs::create_dir_all(workspace.join("src")).expect("src dir");
+        let target = workspace.join("src").join("file.txt");
+        fs::write(&target, "existing safe content").expect("existing file");
+        let request = safe_approved_apply_request(
+            &workspace,
+            vec![ApprovedApplyOperation {
+                path: "src/file.txt".to_string(),
+                change_kind: ApprovedApplyChangeKind::Create,
+                content: Some("new safe content".to_string()),
+                expected_before_hash: None,
+                expected_exists_before: None,
+            }],
+            &["src/file.txt"],
+        );
+
+        let error =
+            apply_approved_user_workspace_patch(request).expect_err("create conflict should block");
+
+        assert_eq!(error.error_code, "APPROVED_APPLY_BLOCKED");
+        assert!(error.safe_message.contains("create target already exists"));
+        assert_eq!(
+            fs::read_to_string(&target).expect("unchanged"),
+            "existing safe content"
+        );
+        assert!(!workspace.join(".deepseek-workbench").exists());
+
+        let _ = fs::remove_dir_all(workspace);
+    }
+
+    #[test]
+    fn approved_apply_handles_checkpoint_creation_failure_without_writing_target() {
+        let workspace = temp_workspace("approved-apply-checkpoint-failure");
+        fs::create_dir_all(workspace.join("src")).expect("src dir");
+        fs::write(workspace.join(".deepseek-workbench"), "not a directory")
+            .expect("checkpoint path blocker");
+        let target = workspace.join("src").join("file.txt");
+        let request = safe_approved_apply_request(
+            &workspace,
+            vec![ApprovedApplyOperation {
+                path: "src/file.txt".to_string(),
+                change_kind: ApprovedApplyChangeKind::Create,
+                content: Some("new safe content".to_string()),
+                expected_before_hash: None,
+                expected_exists_before: Some(false),
+            }],
+            &["src/file.txt"],
+        );
+
+        let error = apply_approved_user_workspace_patch(request)
+            .expect_err("checkpoint failure should block");
+
+        assert_eq!(error.error_code, "APPROVED_APPLY_IO_FAILED");
+        assert!(error
+            .safe_message
+            .contains("checkpoint directory could not be created"));
+        assert!(!target.exists());
+
+        let _ = fs::remove_dir_all(workspace);
+    }
+
+    #[test]
     fn approved_apply_blocks_secret_markers_without_writing() {
         let workspace = temp_workspace("approved-apply-secret");
         fs::create_dir_all(workspace.join("src")).expect("src dir");
@@ -7555,6 +7688,46 @@ mod tests {
 
         let _ = fs::remove_dir_all(workspace);
         let _ = fs::remove_dir_all(outside);
+    }
+
+    #[test]
+    fn approved_rollback_blocks_current_file_hash_mismatch() {
+        let workspace = temp_workspace("approved-rollback-current-hash-mismatch");
+        fs::create_dir_all(workspace.join("src")).expect("src dir");
+        let target = workspace.join("src").join("file.txt");
+        fs::write(&target, "old rollback safe content").expect("old file");
+        let apply_request = safe_approved_apply_request(
+            &workspace,
+            vec![ApprovedApplyOperation {
+                path: "src/file.txt".to_string(),
+                change_kind: ApprovedApplyChangeKind::Update,
+                content: Some("new rollback safe content".to_string()),
+                expected_before_hash: Some(
+                    short_hash("old rollback safe content")[..8].to_string(),
+                ),
+                expected_exists_before: Some(true),
+            }],
+            &["src/file.txt"],
+        );
+        let apply_result = apply_approved_user_workspace_patch(apply_request).expect("apply");
+        fs::write(&target, "external safe modification").expect("external change");
+
+        let error = rollback_approved_user_workspace_patch(safe_approved_rollback_request(
+            &workspace,
+            &apply_result,
+            &["src/file.txt"],
+        ))
+        .expect_err("current hash mismatch should block");
+
+        assert_eq!(error.error_code, "APPROVED_ROLLBACK_BLOCKED");
+        assert!(error.safe_message.contains("current file hash mismatch"));
+        assert_eq!(
+            fs::read_to_string(&target).expect("external content preserved"),
+            "external safe modification"
+        );
+        assert!(!error.safe_message.contains("external safe modification"));
+
+        let _ = fs::remove_dir_all(workspace);
     }
 
     #[test]

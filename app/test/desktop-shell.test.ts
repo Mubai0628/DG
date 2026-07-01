@@ -16196,8 +16196,13 @@ describe("desktop source boundaries", () => {
 
     expect(staleSnapshot.failureCategory).toBe("stale_snapshot");
     expect(staleSnapshot.safeSummary).toContain("Expected before hash");
+    expect(staleSnapshot.recommendedAction).toContain("Conflict detected");
+    expect(staleSnapshot.recommendedAction).toContain("stale snapshot");
+    expect(staleSnapshot.recommendedAction).toContain("revalidate required");
     expect(staleSnapshot.retryAllowed).toBe(true);
     expect(applyConflict.failureCategory).toBe("apply_conflict");
+    expect(applyConflict.recommendedAction).toContain("Conflict detected");
+    expect(applyConflict.recommendedAction).toContain("revalidate required");
     expect(verificationFailure.failureCategory).toBe("verification_failure");
     expect(verificationFailure.recommendedAction).toContain("rollback");
     expect(verificationFailure.rollbackAvailable).toBe(true);
@@ -16235,8 +16240,13 @@ describe("desktop source boundaries", () => {
     expect(appSource).toContain("Safe recovery / no auto-retry execution");
     expect(appSource).toContain("Preview E2E Task Recovery");
     expect(appSource).toContain("Failure category");
+    expect(appSource).toContain("Retry / rollback state");
+    expect(appSource).toContain("rollback unavailable");
+    expect(appSource).toContain("rollback safe");
     expect(appSource).toContain("Safe summary");
     expect(appSource).toContain("Recommended action");
+    expect(combinedSource).toContain("revalidate required");
+    expect(combinedSource).toContain("Conflict detected");
     expect(combinedSource).toContain("stale_snapshot");
     expect(combinedSource).toContain("apply_conflict");
     expect(combinedSource).toContain("verification_failure");
