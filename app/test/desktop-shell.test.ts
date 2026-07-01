@@ -15257,6 +15257,98 @@ describe("desktop source boundaries", () => {
     );
   });
 
+  it("documents the P0S-001 MVP hardening recovery design gate", async () => {
+    const adr = await readFile(
+      path.join(repoRoot, "docs", "adr", "0011-mvp-hardening-recovery.md"),
+      "utf8"
+    );
+    const threatModel = await readFile(
+      path.join(
+        repoRoot,
+        "docs",
+        "mvp-hardening-recovery-threat-model-v0.14.md"
+      ),
+      "utf8"
+    );
+    const implementationGate = await readFile(
+      path.join(
+        repoRoot,
+        "docs",
+        "mvp-hardening-recovery-implementation-gate-v0.14.md"
+      ),
+      "utf8"
+    );
+    const nextPlan = await readFile(
+      path.join(
+        repoRoot,
+        "docs",
+        "p0s-002-e2e-golden-regression-suite-plan.md"
+      ),
+      "utf8"
+    );
+    const docsIndex = await readFile(
+      path.join(repoRoot, "docs", "README.md"),
+      "utf8"
+    );
+    const combined = `${adr}\n${threatModel}\n${implementationGate}\n${nextPlan}\n${docsIndex}`;
+
+    expect(combined).toContain("ADR 0011: MVP Hardening / Recovery");
+    expect(combined).toContain("Proposed / Accepted for P0S design gate");
+    expect(combined).toContain("v0.15 focuses on stabilization");
+    expect(combined).toContain("regression-tested");
+    expect(combined).toContain("Apply/rollback failures");
+    expect(combined).toContain(
+      "Stale snapshots and conflicts must fail closed"
+    );
+    expect(combined).toContain("Event replay must reconstruct");
+    expect(combined).toContain("Manual QA must cover");
+    expect(combined).toContain("Packaging and build warnings");
+    expect(combined).toContain("stale workspace snapshot");
+    expect(combined).toContain("Conflict after proposal approval");
+    expect(combined).toContain("Interrupted apply");
+    expect(combined).toContain("Interrupted rollback");
+    expect(combined).toContain("Checkpoint corruption");
+    expect(combined).toContain("Preimage mismatch");
+    expect(combined).toContain("Event mismatch");
+    expect(combined).toContain("Replay drift");
+    expect(combined).toContain("Duplicate apply");
+    expect(combined).toContain("Rollback after external modification");
+    expect(combined).toContain("Verification command failure");
+    expect(combined).toContain("Git/shell output leakage");
+    expect(combined).toContain("Raw checkpoint or preimage leakage");
+    expect(combined).toContain("Windows path edge cases");
+    expect(combined).toContain("UI accidentally enabling unsafe buttons");
+    expect(combined).toContain("Golden regression tests");
+    expect(combined).toContain("Conflict detection tests");
+    expect(combined).toContain("Checkpoint verification tests");
+    expect(combined).toContain("Rollback verification tests");
+    expect(combined).toContain("Summary-only event tests");
+    expect(combined).toContain("Replay projection tests");
+    expect(combined).toContain("Raw output leakage tests");
+    expect(combined).toContain("no arbitrary Git/shell");
+    expect(combined).toContain("no native bridge");
+    expect(combined).toContain("no auto-apply");
+    expect(combined).toContain("no model execution");
+    expect(combined).toContain("Docs-only create");
+    expect(combined).toContain("Docs-only update");
+    expect(combined).toContain("Conflict after approval");
+    expect(combined).toContain("Failed verification");
+    expect(combined).toContain("Rollback after apply");
+    expect(combined).toContain("Blocked unsafe path");
+    expect(combined).toContain("Blocked raw content marker");
+    expect(combined).toContain("No live DeepSeek call");
+    expect(combined).toContain("No API key read");
+    expect(combined).toContain("No fetch/network");
+    expect(combined).toContain("No new App execution feature");
+    expect(combined).toContain("No auto-apply");
+    expect(docsIndex).toContain("adr/0011-mvp-hardening-recovery.md");
+    expect(docsIndex).toContain("mvp-hardening-recovery-threat-model-v0.14.md");
+    expect(docsIndex).toContain(
+      "mvp-hardening-recovery-implementation-gate-v0.14.md"
+    );
+    expect(docsIndex).toContain("p0s-002-e2e-golden-regression-suite-plan.md");
+  });
+
   it("documents the v0.13 post-release review and P0R end-to-end coding task roadmap", async () => {
     const review = await readFile(
       path.join(
