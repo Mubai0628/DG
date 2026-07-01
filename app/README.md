@@ -146,6 +146,9 @@ Current scope:
 - preview the v0.18 App MCP Read-only Connection surface with fixed metadata
   discovery only, disabled tool invocation, disabled resource content reads,
   no EventStore write, no App execution, and no native bridge or desktop action
+- preview the v0.18 MCP Metadata Redaction Audit as summary-only risk counts
+  with no raw metadata, no EventStore write, no MCP execution, and no App
+  execution
 - lock the P0R E2E coding task regression smoke with safe docs-task,
   verification-failure, rollback, and expected event summary fixtures while no
   new App execution path is added

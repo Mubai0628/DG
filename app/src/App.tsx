@@ -177,6 +177,11 @@ import {
   type McpReadonlyConnectionView
 } from "./mcp-readonly-connection-view.js";
 import {
+  buildMcpMetadataRedactionAuditView,
+  summarizeMcpMetadataRedactionAuditView,
+  type McpMetadataRedactionAuditView
+} from "./mcp-metadata-redaction-audit-view.js";
+import {
   buildProjectKnowledgeReviewView,
   summarizeProjectKnowledgeReviewView,
   type ProjectKnowledgeCandidateForm,
@@ -682,6 +687,10 @@ export function DesktopShell(): JSX.Element {
   >();
   const [mcpReadonlyConnectionPreview, setMcpReadonlyConnectionPreview] =
     useState<McpReadonlyConnectionView | undefined>();
+  const [
+    mcpMetadataRedactionAuditPreview,
+    setMcpMetadataRedactionAuditPreview
+  ] = useState<McpMetadataRedactionAuditView | undefined>();
   const [capabilityHostManifestText, setCapabilityHostManifestText] =
     useState("");
   const [capabilityHostSourceType, setCapabilityHostSourceType] =
@@ -2059,6 +2068,20 @@ export function DesktopShell(): JSX.Element {
   );
   const displayedMcpReadonlyConnection =
     mcpReadonlyConnectionPreview ?? mcpReadonlyConnectionCandidate;
+  const mcpMetadataRedactionAuditCandidate =
+    useMemo<McpMetadataRedactionAuditView>(
+      () =>
+        buildMcpMetadataRedactionAuditView({
+          mcpReadonlyConnectionView:
+            displayedMcpReadonlyConnection.status === "empty"
+              ? undefined
+              : displayedMcpReadonlyConnection,
+          discoveryResult: mcpReadonlyDiscoverResult
+        }),
+      [displayedMcpReadonlyConnection, mcpReadonlyDiscoverResult]
+    );
+  const displayedMcpMetadataRedactionAudit =
+    mcpMetadataRedactionAuditPreview ?? buildMcpMetadataRedactionAuditView();
   const projectKnowledgeReviewCandidate = useMemo<ProjectKnowledgeReviewView>(
     () =>
       buildProjectKnowledgeReviewView({
@@ -2202,7 +2225,11 @@ export function DesktopShell(): JSX.Element {
     setMcpReadonlyDiscoverResult(undefined);
     setMcpReadonlyDiscoverError(undefined);
     setMcpReadonlyConnectionStatus("idle");
+    setMcpMetadataRedactionAuditPreview(undefined);
   }, [mcpReadonlyProfileText, mcpReadonlyTypedConfirmation]);
+  useEffect(() => {
+    setMcpMetadataRedactionAuditPreview(undefined);
+  }, [mcpReadonlyConnectionPreview, mcpReadonlyDiscoverResult]);
   useEffect(() => {
     setProjectKnowledgeReviewPreview(undefined);
   }, [
@@ -3044,6 +3071,11 @@ export function DesktopShell(): JSX.Element {
     setMcpReadonlyDiscoverError(undefined);
     setMcpReadonlyConnectionStatus("idle");
     setMcpReadonlyConnectionPreview(undefined);
+    setMcpMetadataRedactionAuditPreview(undefined);
+  }
+
+  function handlePreviewMcpMetadataRedactionAudit(): void {
+    setMcpMetadataRedactionAuditPreview(mcpMetadataRedactionAuditCandidate);
   }
 
   function handlePreviewCapabilityHostSurface(): void {
@@ -7573,6 +7605,190 @@ export function DesktopShell(): JSX.Element {
                 ).source
               }{" "}
               · {displayedMcpReadonlyConnection.nextAction}
+            </p>
+          </section>
+
+          <section
+            className="eventPanel"
+            aria-label="MCP Metadata Redaction Audit"
+          >
+            <div className="panelHeader">
+              <h2>MCP Metadata Redaction Audit</h2>
+              <span className="muted">Summary only / no raw metadata</span>
+            </div>
+            <p className="fieldHelp">
+              Audits MCP connection, discovery, descriptor, and App surface
+              summaries for raw metadata, prompt/source/diff leaks, secrets,
+              resource content, and tool invocation fields. The App Shell does
+              not invoke MCP tools, read resource content, write events, or
+              execute actions.
+            </p>
+
+            <div className="buttonRow">
+              <button
+                type="button"
+                className="secondary"
+                onClick={(event) => {
+                  event.preventDefault();
+                  event.stopPropagation();
+                  handlePreviewMcpMetadataRedactionAudit();
+                }}
+              >
+                Preview MCP Metadata Audit
+              </button>
+              <button type="button" className="secondary" disabled>
+                Write MCP Audit Event (disabled)
+              </button>
+              <button type="button" className="secondary" disabled>
+                Invoke MCP Tool (disabled)
+              </button>
+            </div>
+
+            {displayedMcpMetadataRedactionAudit.status === "empty" ? (
+              <p className="empty">
+                No MCP metadata audit preview yet. Discover or preview MCP
+                metadata summaries before auditing redaction boundaries.
+              </p>
+            ) : null}
+
+            {displayedMcpMetadataRedactionAudit.status === "blocked" ? (
+              <div className="errorBox">
+                <strong>MCP metadata audit blocked</strong>
+                <p>{displayedMcpMetadataRedactionAudit.nextAction}</p>
+              </div>
+            ) : null}
+
+            <dl className="summaryGrid compact">
+              <div>
+                <dt>Status</dt>
+                <dd>{displayedMcpMetadataRedactionAudit.status}</dd>
+              </div>
+              <div>
+                <dt>Audit</dt>
+                <dd>{displayedMcpMetadataRedactionAudit.auditId}</dd>
+              </div>
+              <div>
+                <dt>Records</dt>
+                <dd>{displayedMcpMetadataRedactionAudit.recordCount}</dd>
+              </div>
+              <div>
+                <dt>Redacted / raw fields</dt>
+                <dd>
+                  {displayedMcpMetadataRedactionAudit.redactedFieldCount} /{" "}
+                  {displayedMcpMetadataRedactionAudit.rawFieldDetectedCount}
+                </dd>
+              </div>
+              <div>
+                <dt>Prompt / source / diff</dt>
+                <dd>
+                  {displayedMcpMetadataRedactionAudit.rawPromptDetected
+                    ? "yes"
+                    : "no"}{" "}
+                  /{" "}
+                  {displayedMcpMetadataRedactionAudit.rawSourceDetected
+                    ? "yes"
+                    : "no"}{" "}
+                  /{" "}
+                  {displayedMcpMetadataRedactionAudit.rawDiffDetected
+                    ? "yes"
+                    : "no"}
+                </dd>
+              </div>
+              <div>
+                <dt>Secret / execution</dt>
+                <dd>
+                  {displayedMcpMetadataRedactionAudit.secretDetected
+                    ? "yes"
+                    : "no"}{" "}
+                  /{" "}
+                  {displayedMcpMetadataRedactionAudit.executionFieldDetected
+                    ? "yes"
+                    : "no"}
+                </dd>
+              </div>
+              <div>
+                <dt>Tool / resource risks</dt>
+                <dd>
+                  {
+                    displayedMcpMetadataRedactionAudit.riskCounts
+                      .toolInvocationRiskCount
+                  }{" "}
+                  /{" "}
+                  {
+                    displayedMcpMetadataRedactionAudit.riskCounts
+                      .resourceContentRiskCount
+                  }
+                </dd>
+              </div>
+              <div>
+                <dt>Command / huge metadata</dt>
+                <dd>
+                  {
+                    displayedMcpMetadataRedactionAudit.riskCounts
+                      .commandInjectionRiskCount
+                  }{" "}
+                  /{" "}
+                  {
+                    displayedMcpMetadataRedactionAudit.riskCounts
+                      .hugeMetadataRiskCount
+                  }
+                </dd>
+              </div>
+              <div>
+                <dt>Blockers / warnings</dt>
+                <dd>
+                  {displayedMcpMetadataRedactionAudit.blockerCount} /{" "}
+                  {displayedMcpMetadataRedactionAudit.warningCount}
+                </dd>
+              </div>
+              <div>
+                <dt>Hash</dt>
+                <dd>{displayedMcpMetadataRedactionAudit.auditHashPrefix}</dd>
+              </div>
+              <div>
+                <dt>Preview / event write</dt>
+                <dd>
+                  {displayedMcpMetadataRedactionAudit.readiness.canPreviewAudit
+                    ? "yes"
+                    : "no"}{" "}
+                  /{" "}
+                  {displayedMcpMetadataRedactionAudit.readiness
+                    .canWriteEventStore
+                    ? "yes"
+                    : "no"}
+                </dd>
+              </div>
+              <div>
+                <dt>Invoke / read content</dt>
+                <dd>
+                  {displayedMcpMetadataRedactionAudit.readiness.canInvokeMcpTool
+                    ? "yes"
+                    : "no"}{" "}
+                  /{" "}
+                  {displayedMcpMetadataRedactionAudit.readiness
+                    .canReadMcpResourceContent
+                    ? "yes"
+                    : "no"}
+                </dd>
+              </div>
+            </dl>
+
+            {displayedMcpMetadataRedactionAudit.findings.length > 0 ? (
+              <p className="muted">
+                findings{" "}
+                {displayedMcpMetadataRedactionAudit.findings
+                  .map((finding) => finding.code)
+                  .join(", ")}
+              </p>
+            ) : null}
+
+            <p className="fieldHelp">
+              {
+                summarizeMcpMetadataRedactionAuditView(
+                  displayedMcpMetadataRedactionAudit
+                ).appSource
+              }{" "}
+              · {displayedMcpMetadataRedactionAudit.nextAction}
             </p>
           </section>
 

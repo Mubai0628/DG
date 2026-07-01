@@ -98,6 +98,7 @@ import {
   parseLiveProposalEvaluationSummaryJson
 } from "../src/live-proposal-evaluation-summary-view.js";
 import { buildLiveProposalEvaluationTelemetryAuditView } from "../src/live-proposal-evaluation-telemetry-audit-view.js";
+import { buildMcpMetadataRedactionAuditView } from "../src/mcp-metadata-redaction-audit-view.js";
 import { buildMcpReadonlyConnectionView } from "../src/mcp-readonly-connection-view.js";
 import { buildProjectKnowledgeReviewView } from "../src/project-knowledge-view.js";
 import { buildProjectKnowledgeRecallView } from "../src/project-knowledge-recall-view.js";
@@ -1199,6 +1200,50 @@ describe("desktop command wrapper", () => {
     expect(view.readiness.canInvokeMcpTool).toBe(false);
     expect(view.readiness.canReadMcpResourceContent).toBe(false);
     expect(JSON.stringify(view)).not.toContain("resource content");
+  });
+
+  it("renders MCP metadata redaction audit panel without execution controls", async () => {
+    const appSource = await readFile(
+      path.join(appRoot, "src", "App.tsx"),
+      "utf8"
+    );
+
+    expect(appSource).toContain("MCP Metadata Redaction Audit");
+    expect(appSource).toContain("Summary only / no raw metadata");
+    expect(appSource).toContain("Preview MCP Metadata Audit");
+    expect(appSource).toContain("Write MCP Audit Event (disabled)");
+    expect(appSource).toContain("Invoke MCP Tool (disabled)");
+    expect(appSource).not.toContain("tools/call");
+    expect(appSource).not.toContain("resources/read");
+  });
+
+  it("keeps MCP metadata audit App view summary-only", () => {
+    const view = buildMcpMetadataRedactionAuditView({
+      mcpReadonlyConnectionView: buildMcpReadonlyConnectionView({
+        profileJsonText: JSON.stringify({
+          profileId: "mcp.docs.injected",
+          displayName: "Docs MCP",
+          transportKind: "injected_test_transport",
+          serverRef: "mcp.docs.server",
+          readOnlyPolicy: {
+            allowInitialize: true,
+            allowListResources: true,
+            allowListPrompts: true,
+            allowListTools: true,
+            allowReadResource: false,
+            allowCallTool: false,
+            allowPromptExecution: false,
+            allowMutation: false
+          }
+        }),
+        typedConfirmation: "DISCOVER MCP METADATA"
+      })
+    });
+
+    expect(view.readiness.canInvokeMcpTool).toBe(false);
+    expect(view.readiness.canReadMcpResourceContent).toBe(false);
+    expect(view.readiness.canWriteEventStore).toBe(false);
+    expect(JSON.stringify(view)).not.toContain("raw metadata value");
   });
 
   it("uses fixed project knowledge commands and normalizes summary-only responses", async () => {
@@ -18079,6 +18124,45 @@ describe("desktop source boundaries", () => {
     expect(doc).toContain("No desktop action");
     expect(docsIndex).toContain("app-shell-mcp-readonly-connection-v0.17.md");
     expect(appReadme).toContain("App MCP Read-only Connection surface");
+  });
+
+  it("documents the MCP metadata redaction audit", async () => {
+    const runtimeDoc = await readFile(
+      path.join(
+        repoRoot,
+        "docs",
+        "runtime-mcp-metadata-redaction-audit-v0.17.md"
+      ),
+      "utf8"
+    );
+    const appDoc = await readFile(
+      path.join(
+        repoRoot,
+        "docs",
+        "app-shell-mcp-metadata-redaction-audit-v0.17.md"
+      ),
+      "utf8"
+    );
+    const docsIndex = await readFile(
+      path.join(repoRoot, "docs", "README.md"),
+      "utf8"
+    );
+    const combined = `${runtimeDoc}\n${appDoc}`;
+
+    expect(runtimeDoc).toContain("Runtime MCP Metadata Redaction Audit v0.17");
+    expect(appDoc).toContain("App Shell MCP Metadata Redaction Audit v0.17");
+    expect(combined).toContain("no raw metadata");
+    expect(combined).toContain("No MCP tool invocation");
+    expect(combined).toContain("No MCP resource content read");
+    expect(combined).toContain("No EventStore write");
+    expect(combined).toContain("No App execution");
+    expect(combined).toContain("No Git or shell");
+    expect(combined).toContain("No native bridge");
+    expect(combined).toContain("No desktop action");
+    expect(docsIndex).toContain("runtime-mcp-metadata-redaction-audit-v0.17.md");
+    expect(docsIndex).toContain(
+      "app-shell-mcp-metadata-redaction-audit-v0.17.md"
+    );
   });
 
   it("documents the P0S-001 MVP hardening recovery design gate", async () => {
