@@ -281,6 +281,7 @@ foundation.
 - [MCP Tool Invocation Proposal implementation gate v0.18](mcp-tool-invocation-proposal-implementation-gate-v0.18.md)
 - [P0W-002 MCP Tool Invocation Proposal Schema plan](p0w-002-mcp-tool-invocation-proposal-schema-plan.md)
 - [Runtime MCP Tool Invocation Proposal v0.18](runtime-mcp-tool-invocation-proposal-v0.18.md)
+- [Runtime MCP Tool Input Risk v0.18](runtime-mcp-tool-input-risk-v0.18.md)
 - [Runtime Memory Recall Preview v0.3](runtime-memory-recall-preview-v0.3.md)
 - [v0.4.0 Controlled Creation Preview RC release notes](release-notes-v0.4.0-controlled-creation-preview-rc.1.md)
 - [App Shell Controlled Creation manual QA](app-shell-controlled-creation-manual-qa.md)
