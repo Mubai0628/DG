@@ -1,0 +1,36 @@
+{
+  "schemaVersion": "external_capability_manifest.v1",
+  "manifestId": "mcp-readonly-docs",
+  "sourceType": "mcp_server",
+  "sourceName": "Docs Index MCP",
+  "sourceVersion": "0.1.0",
+  "publisherSummary": "Example local metadata fixture.",
+  "homepageRef": "https://example.invalid/docs-index",
+  "descriptionSummary": "Read-only metadata for a documentation index capability.",
+  "capabilities": [
+    {
+      "capabilityId": "mcp.docs.search",
+      "displayName": "Search docs",
+      "category": "docs",
+      "descriptionSummary": "Searches indexed documentation summaries.",
+      "operationKind": "read",
+      "riskLevel": "A1",
+      "defaultInvocationPolicy": "MANUAL_ONLY",
+      "inputSchemaSummary": {
+        "keyCount": 1,
+        "keys": ["query"]
+      },
+      "outputSchemaSummary": {
+        "keyCount": 2,
+        "keys": ["matches", "warningCodes"]
+      },
+      "requiresNetwork": false,
+      "requiresFilesystem": false,
+      "requiresShell": false,
+      "requiresDesktop": false,
+      "warningCodes": []
+    }
+  ],
+  "riskNotes": ["Read-only metadata fixture; no MCP transport is opened."],
+  "metadataRefs": ["fixture:mcp-readonly-docs"]
+}

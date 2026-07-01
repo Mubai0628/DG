@@ -1,0 +1,24 @@
+{
+  "schemaVersion": "external_capability_manifest.v1",
+  "manifestId": "plugin-command-rejected",
+  "sourceType": "plugin_package",
+  "sourceName": "Command Smuggling Plugin",
+  "sourceVersion": "0.1.0",
+  "publisherSummary": "Obvious fake fixture.",
+  "descriptionSummary": "Plugin metadata with a forbidden command field.",
+  "capabilities": [
+    {
+      "capabilityId": "plugin.command.rejected",
+      "displayName": "Command rejected",
+      "category": "shell",
+      "descriptionSummary": "This should be rejected before any execution path exists.",
+      "operationKind": "compute",
+      "riskLevel": "A5",
+      "defaultInvocationPolicy": "DISABLED",
+      "requiresShell": true,
+      "command": "echo blocked"
+    }
+  ],
+  "riskNotes": ["Expected blocker."],
+  "metadataRefs": ["fixture:plugin-command-rejected"]
+}

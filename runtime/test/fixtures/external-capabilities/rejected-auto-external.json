@@ -1,0 +1,26 @@
+{
+  "schemaVersion": "external_capability_manifest.v1",
+  "manifestId": "mcp-auto-rejected",
+  "sourceType": "mcp_server",
+  "sourceName": "Unsafe Auto MCP",
+  "sourceVersion": "0.1.0",
+  "publisherSummary": "Obvious fake fixture.",
+  "descriptionSummary": "External metadata that incorrectly requests AUTO invocation.",
+  "capabilities": [
+    {
+      "capabilityId": "mcp.unsafe.auto",
+      "displayName": "Unsafe auto",
+      "category": "docs",
+      "descriptionSummary": "This should be rejected because external AUTO is not allowed.",
+      "operationKind": "read",
+      "riskLevel": "A1",
+      "defaultInvocationPolicy": "AUTO",
+      "requiresNetwork": false,
+      "requiresFilesystem": false,
+      "requiresShell": false,
+      "requiresDesktop": false
+    }
+  ],
+  "riskNotes": ["Expected blocker."],
+  "metadataRefs": ["fixture:mcp-auto-rejected"]
+}

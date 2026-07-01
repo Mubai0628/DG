@@ -1,0 +1,27 @@
+{
+  "schemaVersion": "external_capability_manifest.v1",
+  "manifestId": "skill-readonly-review",
+  "sourceType": "skill_bundle",
+  "sourceName": "Review Skill Bundle",
+  "sourceVersion": "0.3.0",
+  "publisherSummary": "Example skill metadata fixture.",
+  "descriptionSummary": "Read-only skill bundle metadata for review guidance.",
+  "capabilities": [
+    {
+      "capabilityId": "skill.review.summarize",
+      "displayName": "Summarize review guidance",
+      "category": "review",
+      "descriptionSummary": "Summarizes safe review guidance from skill metadata.",
+      "operationKind": "read",
+      "riskLevel": "A1",
+      "defaultInvocationPolicy": "DISABLED",
+      "requiresNetwork": false,
+      "requiresFilesystem": false,
+      "requiresShell": false,
+      "requiresDesktop": false,
+      "warningCodes": ["SKILL_RUNTIME_DISABLED"]
+    }
+  ],
+  "riskNotes": ["Skill runtime execution is disabled."],
+  "metadataRefs": ["fixture:skill-readonly-review"]
+}

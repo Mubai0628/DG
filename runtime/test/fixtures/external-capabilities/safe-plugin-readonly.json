@@ -1,0 +1,27 @@
+{
+  "schemaVersion": "external_capability_manifest.v1",
+  "manifestId": "plugin-readonly-format",
+  "sourceType": "plugin_package",
+  "sourceName": "Readonly Formatter Plugin",
+  "sourceVersion": "0.2.0",
+  "publisherSummary": "Example plugin package metadata fixture.",
+  "descriptionSummary": "Read-only plugin metadata for formatting summaries.",
+  "capabilities": [
+    {
+      "capabilityId": "plugin.format.preview",
+      "displayName": "Preview formatting",
+      "category": "format",
+      "descriptionSummary": "Previews formatting metadata without loading plugin code.",
+      "operationKind": "compute",
+      "riskLevel": "A1",
+      "defaultInvocationPolicy": "MANUAL_ONLY",
+      "requiresNetwork": false,
+      "requiresFilesystem": false,
+      "requiresShell": false,
+      "requiresDesktop": false,
+      "warningCodes": ["PLUGIN_METADATA_ONLY"]
+    }
+  ],
+  "riskNotes": ["Plugin code loading is disabled."],
+  "metadataRefs": ["fixture:plugin-readonly-format"]
+}

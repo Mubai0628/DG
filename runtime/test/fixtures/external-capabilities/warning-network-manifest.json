@@ -1,0 +1,26 @@
+{
+  "schemaVersion": "external_capability_manifest.v1",
+  "manifestId": "mcp-network-warning",
+  "sourceType": "mcp_server",
+  "sourceName": "Network Metadata MCP",
+  "sourceVersion": "0.1.0",
+  "publisherSummary": "Example fixture.",
+  "descriptionSummary": "Network-related metadata that remains disabled/manual-only.",
+  "capabilities": [
+    {
+      "capabilityId": "mcp.network.preview",
+      "displayName": "Network preview",
+      "category": "network",
+      "descriptionSummary": "Declares network metadata without opening a connection.",
+      "operationKind": "network",
+      "riskLevel": "A4",
+      "defaultInvocationPolicy": "MANUAL_ONLY",
+      "requiresNetwork": true,
+      "requiresFilesystem": false,
+      "requiresShell": false,
+      "requiresDesktop": false
+    }
+  ],
+  "riskNotes": ["Network metadata warning only."],
+  "metadataRefs": ["fixture:mcp-network-warning"]
+}
