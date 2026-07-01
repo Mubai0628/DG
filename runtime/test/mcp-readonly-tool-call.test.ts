@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   InMemoryEventStore,
   appendMcpReadonlyToolSummaryEvents,
+  buildMcpReadonlyToolRedactionAudit,
   callMcpReadonlyTool,
   projectMcpReadonlyToolReplay,
   replay,
@@ -267,6 +268,108 @@ describe("mcp readonly tool call wrapper", () => {
     ]);
     expect(integration.replaySummary.rejectedCount).toBe(1);
     expect(serialized).not.toContain("fake-secret-token");
+  });
+
+  it("audits MCP readonly tool summaries without raw output or args", async () => {
+    const eventStore = new InMemoryEventStore();
+    const result = await callMcpReadonlyTool(
+      safeInput({
+        transport: {
+          async send() {
+            return {
+              status: "ok",
+              output: { matchCount: 1, resultRef: "docs-result-summary" }
+            };
+          }
+        }
+      })
+    );
+    appendMcpReadonlyToolSummaryEvents(eventStore, {
+      callResult: result,
+      receiptId: safeReceipt().receiptId
+    });
+    const eventPayloads = eventStore.listEvents().map((event) => event.payload);
+    const audit = buildMcpReadonlyToolRedactionAudit({
+      callResult: result,
+      eventPayloads,
+      replaySummary: projectMcpReadonlyToolReplay(eventStore.listEvents()),
+      idGenerator: () => "mcp-readonly-redaction-audit-test"
+    });
+    const serialized = JSON.stringify(audit);
+
+    expect(audit.status).toBe("audit_ready");
+    expect(audit.rawOutputDetected).toBe(false);
+    expect(audit.rawArgsDetected).toBe(false);
+    expect(audit.secretDetected).toBe(false);
+    expect(audit.eventPayloadSummaryOnly).toBe(true);
+    expect(audit.replaySummaryOnly).toBe(true);
+    expect(audit.readiness).toMatchObject({
+      canPersistRawOutput: false,
+      canPersistRawArgs: false,
+      canWriteEventStore: false,
+      canInvokeMutatingTool: false,
+      canExecuteGit: false,
+      canExecuteShell: false,
+      canIssuePermissionLease: false,
+      appCanExecute: false
+    });
+    expect(serialized).not.toContain("docs-result-summary");
+    expect(serialized).not.toContain("documentation search summary");
+  });
+
+  it("blocks raw and secret MCP readonly audit records", () => {
+    const audit = buildMcpReadonlyToolRedactionAudit({
+      eventPayloads: [
+        {
+          summaryOnly: true,
+          rawOutput: "hidden",
+          rawArgsIncluded: false,
+          rawOutputIncluded: false
+        },
+        {
+          summaryOnly: true,
+          outputSummary: "Bearer fake-secret-token-1234567890",
+          rawArgsIncluded: false,
+          rawOutputIncluded: false
+        }
+      ]
+    });
+
+    expect(audit.status).toBe("blocked");
+    expect(audit.rawOutputDetected).toBe(true);
+    expect(audit.secretDetected).toBe(true);
+    expect(audit.findings.map((finding) => finding.code)).toEqual(
+      expect.arrayContaining([
+        "RAW_OUTPUT_FIELD_REJECTED",
+        "SECRET_MARKER_REJECTED"
+      ])
+    );
+    expect(JSON.stringify(audit)).not.toContain("fake-secret-token");
+  });
+
+  it("blocks oversized MCP readonly output in redaction audit", async () => {
+    const result = await callMcpReadonlyTool(
+      safeInput({
+        transport: {
+          async send() {
+            return {
+              status: "ok",
+              output: { summary: "bounded summary output" }
+            };
+          }
+        }
+      })
+    );
+    const audit = buildMcpReadonlyToolRedactionAudit({
+      callResult: result,
+      maxOutputBytes: 1
+    });
+
+    expect(audit.status).toBe("blocked");
+    expect(audit.oversizedOutputDetected).toBe(true);
+    expect(audit.findings.map((finding) => finding.code)).toContain(
+      "OUTPUT_SIZE_LIMIT_EXCEEDED"
+    );
   });
 
   it("blocks wrong approval confirmation", async () => {

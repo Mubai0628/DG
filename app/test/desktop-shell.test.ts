@@ -1344,6 +1344,168 @@ describe("desktop command wrapper", () => {
     expect(view.readiness.appCanExecute).toBe(false);
   });
 
+  it("smokes MCP readonly tool execution from metadata summary to replay summary", async () => {
+    const discovery = buildMcpReadonlyConnectionView({
+      profileJsonText: JSON.stringify({
+        profileId: "mcp.docs.injected",
+        displayName: "Docs MCP",
+        serverRef: "mcp.docs.server",
+        transportKind: "injected_test_transport",
+        readOnlyPolicy: {
+          allowInitialize: true,
+          allowListResources: true,
+          allowListPrompts: true,
+          allowListTools: true,
+          allowReadResource: false,
+          allowCallTool: false,
+          allowPromptExecution: false,
+          allowMutation: false
+        },
+        maxItems: 10,
+        timeoutMs: 5000
+      }),
+      typedConfirmation: "DISCOVER MCP METADATA",
+      discoveryResult: {
+        ok: true,
+        discoveryId: "mcp-readonly-discovery-smoke",
+        profileId: "mcp.docs.injected",
+        serverInfo: {
+          serverId: "docs-mcp",
+          displayName: "Docs MCP",
+          serverVersion: "0.19.0",
+          metadataHash: "metadatahashsmoke"
+        },
+        resourceCount: 0,
+        promptCount: 0,
+        toolCount: 1,
+        resourceSummaries: [],
+        promptSummaries: [],
+        toolSummaries: [
+          {
+            toolId: "docs.search",
+            displayName: "Docs search",
+            warningCodes: []
+          }
+        ],
+        warningCodes: [],
+        summaryOnly: true,
+        rawMetadataIncluded: false,
+        rawStdoutIncluded: false,
+        rawStderrIncluded: false,
+        canCallTool: false,
+        canReadResource: false,
+        canExecutePrompt: false,
+        canMutate: false,
+        canWriteEventStore: false,
+        resultHash: "discoveryhashsmoke",
+        safeMessage: "Safe MCP metadata summary."
+      } satisfies McpReadonlyDiscoverResult
+    });
+    const ready = buildMcpReadonlyToolExecutionView({
+      connectionProfileRef: "mcp.docs.injected",
+      typedConfirmation: "CALL READONLY MCP TOOL",
+      argumentSummary: "querySummaryHash=docs-smoke; maxResults=2"
+    });
+    const request = ready.safeCallRequest;
+
+    expect(discovery.status).toBe("warning");
+    expect(discovery.descriptorPreview[0]).toMatchObject({
+      kind: "tool_metadata",
+      invokePolicy: "DISABLED"
+    });
+    expect(request).toBeDefined();
+
+    const invoke: TauriInvoke = async <T>(
+      command: string,
+      payload?: Record<string, unknown>
+    ): Promise<T> => {
+      expect(command).toBe("call_mcp_readonly_tool");
+      expect(JSON.stringify(payload)).not.toContain("raw tool output");
+      expect(JSON.stringify(payload)).not.toContain("Authorization");
+      return {
+        ok: true,
+        status: "called",
+        callId: "mcp-readonly-tool-call-smoke",
+        toolId: "docs.search",
+        connectionProfileRef: "mcp.docs.injected",
+        outputSummary: {
+          outputHash: "smokeoutputhash",
+          outputBytes: 96,
+          outputLineCount: 2,
+          warningCodes: [],
+          rawOutputIncluded: false
+        },
+        outputHash: "smokeoutputhash",
+        outputBytes: 96,
+        redactionCounts: {
+          secretMarkerCount: 0,
+          rawMarkerCount: 0,
+          mutatingMarkerCount: 0,
+          truncatedByteCount: 0
+        },
+        warningCodes: [],
+        eventPreview: {
+          type: "mcp.readonly_tool.result",
+          callId: "mcp-readonly-tool-call-smoke",
+          toolId: "docs.search",
+          connectionProfileRefHash: "profilesmokehash",
+          outputHash: "smokeoutputhash",
+          outputBytes: 96,
+          warningCodes: [],
+          summaryOnly: true,
+          rawOutputIncluded: false,
+          notWritten: true
+        },
+        summaryOnly: true,
+        calledReadonlyTool: true,
+        rawOutputIncluded: false,
+        rawArgsIncluded: false,
+        canCallMcpTool: false,
+        canInvokeMutatingTool: false,
+        canWriteEventStore: false,
+        canExecuteGit: false,
+        canExecuteShell: false,
+        canIssuePermissionLease: false,
+        appCanExecute: false,
+        resultHash: "smokeresulthash",
+        safeMessage: "Summary-only smoke result."
+      } satisfies McpReadonlyToolCallCommandResult as T;
+    };
+
+    const result = await callMcpReadonlyTool(request!, invoke);
+    const view = buildMcpReadonlyToolExecutionView({
+      connectionProfileRef: "mcp.docs.injected",
+      typedConfirmation: "CALL READONLY MCP TOOL",
+      argumentSummary: "querySummaryHash=docs-smoke; maxResults=2",
+      result
+    });
+    const serialized = JSON.stringify({ discovery, view });
+
+    expect(view.status).toBe("called");
+    expect(view.eventSummary).toMatchObject({
+      eventType: "mcp.readonly_tool.result",
+      notWritten: true,
+      summaryOnly: true
+    });
+    expect(view.replaySummary).toMatchObject({
+      status: "result_summary_ready",
+      rawOutputIncluded: false,
+      rawArgsIncluded: false
+    });
+    expect(view.redactionSummary).toMatchObject({
+      secretMarkerCount: 0,
+      rawMarkerCount: 0
+    });
+    expect(serialized).not.toContain("raw tool output");
+    expect(serialized).not.toContain("apiKey");
+    expect(view.readiness.canInvokeMutatingTool).toBe(false);
+    expect(view.readiness.canWriteEventStore).toBe(false);
+    expect(view.readiness.canExecuteGit).toBe(false);
+    expect(view.readiness.canExecuteShell).toBe(false);
+    expect(view.readiness.canIssuePermissionLease).toBe(false);
+    expect(view.readiness.appCanExecute).toBe(false);
+  });
+
   it("renders MCP read-only connection surface with disabled execution controls", async () => {
     const appSource = await readFile(
       path.join(appRoot, "src", "App.tsx"),
@@ -19531,6 +19693,55 @@ describe("desktop source boundaries", () => {
     expect(viewSource).toContain("appCanExecute: false");
     expect(appSource).toContain("MCP Read-only Tool Execution");
     expect(appSource).toContain("Call Read-only MCP Tool");
+    expect(combined).not.toContain("fetch(");
+    expect(combined).not.toContain("process.env");
+  });
+
+  it("documents the P0X-007 MCP readonly redaction audit and smoke path", async () => {
+    const auditDoc = await readFile(
+      path.join(repoRoot, "docs", "mcp-readonly-tool-redaction-audit-v0.19.md"),
+      "utf8"
+    );
+    const smokeDoc = await readFile(
+      path.join(repoRoot, "docs", "mcp-readonly-tool-smoke-v0.19.md"),
+      "utf8"
+    );
+    const docsIndex = await readFile(
+      path.join(repoRoot, "docs", "README.md"),
+      "utf8"
+    );
+    const runtimeSource = await readFile(
+      path.join(
+        repoRoot,
+        "runtime",
+        "src",
+        "capabilities",
+        "mcp-readonly-tool-redaction-audit.ts"
+      ),
+      "utf8"
+    );
+    const combined = `${auditDoc}\n${smokeDoc}\n${docsIndex}\n${runtimeSource}`;
+
+    expect(auditDoc).toContain("MCP Read-only Tool Redaction Audit v0.19");
+    expect(auditDoc).toContain("raw output");
+    expect(auditDoc).toContain("raw args");
+    expect(auditDoc).toContain("Authorization");
+    expect(auditDoc).toContain("Bearer");
+    expect(auditDoc).toContain("event payloads that are not summary-only");
+    expect(auditDoc).toContain("Replay summaries");
+    expect(smokeDoc).toContain("MCP Read-only Tool Smoke v0.19");
+    expect(smokeDoc).toContain("Profile discovery");
+    expect(smokeDoc).toContain("Tool contract validation");
+    expect(smokeDoc).toContain("Redaction audit");
+    expect(smokeDoc).toContain("No real external MCP");
+    expect(docsIndex).toContain("mcp-readonly-tool-redaction-audit-v0.19.md");
+    expect(docsIndex).toContain("mcp-readonly-tool-smoke-v0.19.md");
+    expect(runtimeSource).toContain("buildMcpReadonlyToolRedactionAudit");
+    expect(runtimeSource).toContain("canPersistRawOutput: false");
+    expect(runtimeSource).toContain("canPersistRawArgs: false");
+    expect(runtimeSource).toContain("canWriteEventStore: false");
+    expect(runtimeSource).toContain("canExecuteGit: false");
+    expect(runtimeSource).toContain("canExecuteShell: false");
     expect(combined).not.toContain("fetch(");
     expect(combined).not.toContain("process.env");
   });

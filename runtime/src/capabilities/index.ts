@@ -12,6 +12,7 @@ export * from "./mcp-readonly-discovery.js";
 export * from "./mcp-readonly-tool-call.js";
 export * from "./mcp-readonly-tool-contract.js";
 export * from "./mcp-readonly-tool-events.js";
+export * from "./mcp-readonly-tool-redaction-audit.js";
 export * from "./mcp-tool-broker-planning.js";
 export * from "./mcp-tool-input-risk.js";
 export * from "./mcp-tool-invocation-proposal.js";
