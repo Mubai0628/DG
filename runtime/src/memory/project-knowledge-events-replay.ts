@@ -257,7 +257,12 @@ export function buildProjectKnowledgeSummaryEvent(input: {
       ? { reasonSummary: safeString(input.reasonSummary) }
       : {}),
     ...(typeof input.projectKnowledgeCount === "number"
-      ? { projectKnowledgeCount: Math.max(0, Math.floor(input.projectKnowledgeCount)) }
+      ? {
+          projectKnowledgeCount: Math.max(
+            0,
+            Math.floor(input.projectKnowledgeCount)
+          )
+        }
       : {}),
     ...(safeString(input.recallSummary)
       ? { recallSummary: safeString(input.recallSummary) }
@@ -310,9 +315,12 @@ export function replayProjectKnowledgeEvents(
 
   const events = parsedEvents
     .map((event, index) => normalizeReplayEvent(event, input, index, findings))
-    .filter((event): event is ProjectKnowledgeSummaryEvent => event !== undefined);
-  const blockerCount = findings.filter((item) => item.severity === "blocker")
-    .length;
+    .filter(
+      (event): event is ProjectKnowledgeSummaryEvent => event !== undefined
+    );
+  const blockerCount = findings.filter(
+    (item) => item.severity === "blocker"
+  ).length;
 
   const entryStates = new Map<string, ProjectKnowledgeReplayEntryState>();
   let latestSummary: string | undefined;
@@ -371,8 +379,9 @@ export function replayProjectKnowledgeEvents(
   const entries = [...entryStates.values()].sort((left, right) =>
     left.entryId.localeCompare(right.entryId)
   );
-  const warningCount = findings.filter((item) => item.severity === "warning")
-    .length;
+  const warningCount = findings.filter(
+    (item) => item.severity === "warning"
+  ).length;
   const status: ProjectKnowledgeReplayStatus =
     parsedEvents.length === 0
       ? "empty"
@@ -401,7 +410,8 @@ export function replayProjectKnowledgeEvents(
   return {
     status,
     replayId:
-      input.idGenerator?.() ?? `project-knowledge-replay-${replayHash.slice(0, 12)}`,
+      input.idGenerator?.() ??
+      `project-knowledge-replay-${replayHash.slice(0, 12)}`,
     eventCount: events.length,
     displayedEventCount: events.length,
     projectKnowledgeCount: entries.length,
@@ -455,19 +465,22 @@ export function buildProjectKnowledgeRedactionAudit(
     records,
     eventLines: input.eventLines
   });
-  const blockerCount = findings.filter((item) => item.severity === "blocker")
-    .length;
-  const warningCount = findings.filter((item) => item.severity === "warning")
-    .length;
+  const blockerCount = findings.filter(
+    (item) => item.severity === "blocker"
+  ).length;
+  const warningCount = findings.filter(
+    (item) => item.severity === "warning"
+  ).length;
   const rawFieldDetectedCount = findings.filter(
     (item) => item.kind === "raw_field"
   ).length;
-  const apiKeyLeakDetected = findings.some((item) =>
-    item.code.includes("API_KEY") ||
-    item.code.includes("AUTHORIZATION") ||
-    item.code.includes("BEARER") ||
-    item.code.includes("SK_LIKE") ||
-    item.code.includes("PRIVATE_KEY")
+  const apiKeyLeakDetected = findings.some(
+    (item) =>
+      item.code.includes("API_KEY") ||
+      item.code.includes("AUTHORIZATION") ||
+      item.code.includes("BEARER") ||
+      item.code.includes("SK_LIKE") ||
+      item.code.includes("PRIVATE_KEY")
   );
   const reasoningContentDetected = findings.some((item) =>
     item.code.includes("REASONING")
@@ -562,7 +575,9 @@ function normalizeReplayEvent(
     return undefined;
   }
 
-  const type = safeString(raw.type ?? raw.eventType) as ProjectKnowledgeReplayEventType;
+  const type = safeString(
+    raw.type ?? raw.eventType
+  ) as ProjectKnowledgeReplayEventType;
   if (!supportedEventTypes.has(type)) {
     findings.push(finding("schema", "warning", "UNKNOWN_EVENT_TYPE", "type"));
     return undefined;
@@ -624,7 +639,9 @@ function collectAuditRecords(
   return records;
 }
 
-function findUnsafeInputMarkers(value: unknown): ProjectKnowledgeReplayFinding[] {
+function findUnsafeInputMarkers(
+  value: unknown
+): ProjectKnowledgeReplayFinding[] {
   const findings: ProjectKnowledgeReplayFinding[] = [];
   visit(value, "$", findings);
   return uniqueFindings(findings);
@@ -754,10 +771,9 @@ function finding(
   path?: string
 ): ProjectKnowledgeReplayFinding {
   return {
-    findingId: stablePreviewHash(`${kind}:${severity}:${code}:${path ?? ""}`).slice(
-      0,
-      16
-    ),
+    findingId: stablePreviewHash(
+      `${kind}:${severity}:${code}:${path ?? ""}`
+    ).slice(0, 16),
     kind,
     severity,
     code,
@@ -803,7 +819,10 @@ function formatParts(label: string, parts: Array<string | undefined>): string {
   return safeParts.length === 0 ? label : `${label}: ${safeParts.join(" · ")}`;
 }
 
-function displayCount(value: number | undefined, label: string): string | undefined {
+function displayCount(
+  value: number | undefined,
+  label: string
+): string | undefined {
   return typeof value === "number" ? `${value} ${label}` : undefined;
 }
 

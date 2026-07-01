@@ -678,8 +678,12 @@ export function buildEventLogPanelModel(
     approvedRollbackCount: finiteNumber(summary.approvedRollbackCount),
     verificationEventCount: finiteNumber(summary.verificationEventCount),
     liveProposalEventCount: finiteNumber(summary.liveProposalEventCount),
-    projectKnowledgeEventCount: finiteNumber(summary.projectKnowledgeEventCount),
-    projectKnowledgeEntryCount: finiteNumber(summary.projectKnowledgeEntryCount),
+    projectKnowledgeEventCount: finiteNumber(
+      summary.projectKnowledgeEventCount
+    ),
+    projectKnowledgeEntryCount: finiteNumber(
+      summary.projectKnowledgeEntryCount
+    ),
     ...(typeof summary.latestApprovedExecutionSummary === "string"
       ? {
           latestApprovedExecutionSummary: safeErrorMessage(

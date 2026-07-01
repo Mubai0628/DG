@@ -692,8 +692,10 @@ export function DesktopShell(): JSX.Element {
     projectKnowledgeRecallExcludeIdsText,
     setProjectKnowledgeRecallExcludeIdsText
   ] = useState("");
-  const [projectKnowledgeRecallMaxEntries, setProjectKnowledgeRecallMaxEntries] =
-    useState("6");
+  const [
+    projectKnowledgeRecallMaxEntries,
+    setProjectKnowledgeRecallMaxEntries
+  ] = useState("6");
   const [
     projectKnowledgeRecallTrustThreshold,
     setProjectKnowledgeRecallTrustThreshold
@@ -702,10 +704,8 @@ export function DesktopShell(): JSX.Element {
     projectKnowledgePolicyRecallEnabled,
     setProjectKnowledgePolicyRecallEnabled
   ] = useState(false);
-  const [
-    projectKnowledgeRecallPreview,
-    setProjectKnowledgeRecallPreview
-  ] = useState<AppProjectKnowledgeRecallView | undefined>();
+  const [projectKnowledgeRecallPreview, setProjectKnowledgeRecallPreview] =
+    useState<AppProjectKnowledgeRecallView | undefined>();
   const [patchProposalCreationPreview, setPatchProposalCreationPreview] =
     useState<AppPatchProposalCreationPreviewView | undefined>();
   const [patchProposalValidationPreview, setPatchProposalValidationPreview] =
@@ -11193,7 +11193,9 @@ export function DesktopShell(): JSX.Element {
               Review, commit, revoke, expire, and refresh workspace-local
               project knowledge through fixed Tauri commands. The App Shell does
               not auto-commit model or tool output, write raw EventStore
-              content, use browser storage, or trigger memory-driven apply.
+              content, use browser storage, write model-direct policy entries,
+              store raw prompt/source/diff/API key memory, or trigger
+              memory-driven apply, native bridge, or desktop action.
             </p>
 
             <div className="formGrid">
@@ -11739,10 +11741,7 @@ export function DesktopShell(): JSX.Element {
             </p>
           </section>
 
-          <section
-            className="eventPanel"
-            aria-label="Project Knowledge Recall"
-          >
+          <section className="eventPanel" aria-label="Project Knowledge Recall">
             <div className="panelHeader">
               <h2>Project Knowledge Recall</h2>
               <span className="muted">Read-only / summary refs</span>
@@ -11816,7 +11815,9 @@ export function DesktopShell(): JSX.Element {
                   setProjectKnowledgePolicyRecallEnabled(event.target.checked)
                 }
               />
-              <span>Enable human-reviewed policy recall for workspace rules</span>
+              <span>
+                Enable human-reviewed policy recall for workspace rules
+              </span>
             </label>
 
             <div className="buttonRow">
@@ -11849,8 +11850,8 @@ export function DesktopShell(): JSX.Element {
 
             {displayedProjectKnowledgeRecall.status === "empty" ? (
               <p className="empty">
-                Refresh project knowledge and preview recall to add
-                summary-only refs to the current task context.
+                Refresh project knowledge and preview recall to add summary-only
+                refs to the current task context.
               </p>
             ) : null}
 
@@ -11885,10 +11886,7 @@ export function DesktopShell(): JSX.Element {
               <div>
                 <dt>workspace rules</dt>
                 <dd>
-                  {
-                    displayedProjectKnowledgeRecall
-                      .workspaceRulesSummaryCount
-                  }
+                  {displayedProjectKnowledgeRecall.workspaceRulesSummaryCount}
                 </dd>
               </div>
               <div>
@@ -11944,22 +11942,20 @@ export function DesktopShell(): JSX.Element {
 
             {displayedProjectKnowledgeRecall.matchedEntries.length > 0 ? (
               <ol className="timelineList">
-                {displayedProjectKnowledgeRecall.matchedEntries.map(
-                  (entry) => (
-                    <li key={entry.entryId}>
-                      <strong>{entry.type}</strong> · {entry.entryId} ·{" "}
-                      {entry.namespace}
-                      <span className="timelineMeta">
-                        {entry.status} · score {entry.score.toFixed(1)} ·{" "}
-                        {entry.placement}
-                      </span>
-                      <span>{entry.summary}</span>
-                      <span className="timelineMeta">
-                        Reasons: {entry.reasonCodes.join(", ") || "n/a"}
-                      </span>
-                    </li>
-                  )
-                )}
+                {displayedProjectKnowledgeRecall.matchedEntries.map((entry) => (
+                  <li key={entry.entryId}>
+                    <strong>{entry.type}</strong> · {entry.entryId} ·{" "}
+                    {entry.namespace}
+                    <span className="timelineMeta">
+                      {entry.status} · score {entry.score.toFixed(1)} ·{" "}
+                      {entry.placement}
+                    </span>
+                    <span>{entry.summary}</span>
+                    <span className="timelineMeta">
+                      Reasons: {entry.reasonCodes.join(", ") || "n/a"}
+                    </span>
+                  </li>
+                ))}
               </ol>
             ) : null}
 
@@ -12432,9 +12428,7 @@ export function DesktopShell(): JSX.Element {
                   </div>
                   <div>
                     <dt>Latest project knowledge</dt>
-                    <dd>
-                      {eventPanel.latestProjectKnowledgeSummary ?? "n/a"}
-                    </dd>
+                    <dd>{eventPanel.latestProjectKnowledgeSummary ?? "n/a"}</dd>
                   </div>
                   <div>
                     <dt>Latest project knowledge recall</dt>

@@ -1,5 +1,4 @@
-import { createHash } from "node:crypto";
-
+import { stablePreviewHash } from "../models/stable-preview-hash.js";
 import {
   type MemoryCandidate,
   type MemoryRecord,
@@ -15,19 +14,17 @@ export function createMemoryHash(input: {
   trustLevel: string;
   provenance: unknown;
 }): string {
-  return createHash("sha256")
-    .update(
-      JSON.stringify({
-        type: input.type,
-        namespace: input.namespace,
-        scope: input.scope,
-        content: input.content,
-        summary: input.summary,
-        trustLevel: input.trustLevel,
-        provenance: input.provenance
-      })
-    )
-    .digest("hex");
+  return stablePreviewHash(
+    JSON.stringify({
+      type: input.type,
+      namespace: input.namespace,
+      scope: input.scope,
+      content: input.content,
+      summary: input.summary,
+      trustLevel: input.trustLevel,
+      provenance: input.provenance
+    })
+  );
 }
 
 export function summarizeMemory(record: MemoryRecord): MemorySummary {
@@ -87,5 +84,5 @@ export function memoryEventPayload(
 }
 
 export function safeMemoryFingerprint(value: string): string {
-  return createHash("sha256").update(value).digest("hex").slice(0, 12);
+  return stablePreviewHash(value).slice(0, 12);
 }

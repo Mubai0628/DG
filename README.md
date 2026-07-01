@@ -358,12 +358,13 @@ v0.15 MVP Hardening / Recovery references:
 Recommended tag:
 `v0.16.0-production-memory-project-knowledge-rc.1`.
 
-P0T is now the active roadmap after the v0.15 release. It will move project
-knowledge from preview memory concepts into a workspace-local persistent store
-for human-reviewed `policy`, `project_fact`, and `pitfall` summaries. The phase
-preserves no automatic memory commit, no model-direct policy write, no raw
-prompt/source/diff/API key memory, no memory-triggered apply/rollback, no
-arbitrary Git/shell, no native bridge, and no desktop action.
+P0T is complete for the v0.16 RC with a workspace-local Project Knowledge MVP:
+human-reviewed `policy`, `project_fact`, and `pitfall` summaries, fixed App /
+Tauri commit/revoke/expire/refresh commands, summary-only recall into Context
+Assembly, replayable project knowledge events, redaction audit, and E2E smoke
+coverage. The phase preserves no automatic memory commit, no model-direct
+policy write, no raw prompt/source/diff/API key memory, no memory-triggered
+apply/rollback, no arbitrary Git/shell, no native bridge, and no desktop action.
 
 v0.16 Production Memory / Project Knowledge references:
 
@@ -371,6 +372,9 @@ v0.16 Production Memory / Project Knowledge references:
 - [v0.15 MVP Hardening / Recovery post-release review](docs/v0.15-mvp-hardening-recovery-postrelease-review.md)
 - [P0T Production Memory / Project Knowledge roadmap](docs/p0t-production-memory-project-knowledge-roadmap.md)
 - [P0T-001 Production Memory / Project Knowledge plan](docs/p0t-001-production-memory-project-knowledge-plan.md)
+- [v0.16.0 Production Memory / Project Knowledge RC release notes](docs/release-notes-v0.16.0-production-memory-project-knowledge-rc.1.md)
+- [Project Knowledge manual QA](docs/project-knowledge-manual-qa.md)
+- [Project Knowledge RC checklist](docs/project-knowledge-rc-checklist.md)
 
 ## Current roadmap
 
@@ -402,13 +406,15 @@ failure/redaction hardening. P0R is complete for the v0.14 RC with an
 end-to-end coding task MVP that connects live proposal, approved apply,
 verification safe lane, rollback, event, and replay surfaces without expanding
 execution authority. P0S is complete for the v0.15 RC with MVP hardening,
-recovery, regression, replay, QA, smoke, and low-risk boundary cleanup. App
-evaluation runs, model-driven auto-apply, approval/rejection execution outside
-the approved apply/rollback gates, run execution, arbitrary Git execution,
-arbitrary shell execution, Git write commands, install/network/destructive shell
-commands, broad capability invocation, production PermissionLease issuing,
-memory persistence UI, MCP/plugin/skills runtime, native bridge, and desktop
-action remain deferred.
+recovery, regression, replay, QA, smoke, and low-risk boundary cleanup. P0T is
+complete for the v0.16 RC with human-reviewed workspace-local project knowledge
+storage, recall, replay, redaction audit, and E2E smoke coverage. App
+evaluation runs, model-driven auto-apply, automatic memory commit,
+model-direct policy write, approval/rejection execution outside the approved
+apply/rollback gates, run execution, arbitrary Git execution, arbitrary shell
+execution, Git write commands, install/network/destructive shell commands,
+broad capability invocation, production PermissionLease issuing,
+MCP/plugin/skills runtime, native bridge, and desktop action remain deferred.
 
 - [v0.2 App Shell RC post-release review](docs/v0.2-app-shell-rc-postrelease-review.md)
 - [P0G Coding Workflow roadmap](docs/p0g-coding-workflow-roadmap.md)

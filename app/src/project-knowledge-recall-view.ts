@@ -84,7 +84,9 @@ export function buildProjectKnowledgeRecallView(
   const policyRecallEnabled = input.policyRecallEnabled === true;
   const humanReviewedPolicyEntryIds = policyRecallEnabled
     ? snapshot?.entries
-        .filter((entry) => entry.type === "policy" && entry.entryId !== undefined)
+        .filter(
+          (entry) => entry.type === "policy" && entry.entryId !== undefined
+        )
         .map((entry) => entry.entryId!)
     : [];
   const recallInput: ProjectKnowledgeRecallInput = {

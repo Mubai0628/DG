@@ -206,10 +206,7 @@ const unsafePatterns = [
 export function buildProjectKnowledgeRecall(
   input: ProjectKnowledgeRecallInput = {}
 ): ProjectKnowledgeRecallResult {
-  const findings = [
-    ...findForbiddenFields(input),
-    ...findUnsafeMarkers(input)
-  ];
+  const findings = [...findForbiddenFields(input), ...findUnsafeMarkers(input)];
   const snapshot = input.snapshot;
   const maxEntries = clampPositive(input.maxEntries, defaultMaxEntries, 25);
   const trustThreshold = clampThreshold(input.trustThreshold);
@@ -234,10 +231,9 @@ export function buildProjectKnowledgeRecall(
       policyRecallEnabled,
       matches: [],
       findings,
-      statusOverride:
-        findings.some((finding) => finding.severity === "blocker")
-          ? "blocked"
-          : "empty",
+      statusOverride: findings.some((finding) => finding.severity === "blocker")
+        ? "blocked"
+        : "empty",
       nextAction: "Commit project knowledge before recall can produce refs."
     });
   }
@@ -258,7 +254,8 @@ export function buildProjectKnowledgeRecall(
       matches: [],
       findings,
       statusOverride: "blocked",
-      nextAction: "Remove unsafe project knowledge recall input before context assembly."
+      nextAction:
+        "Remove unsafe project knowledge recall input before context assembly."
     });
   }
 
@@ -275,8 +272,9 @@ export function buildProjectKnowledgeRecall(
         findings
       })
     )
-    .filter((entry): entry is ProjectKnowledgeRecallMatchedEntry =>
-      entry !== undefined
+    .filter(
+      (entry): entry is ProjectKnowledgeRecallMatchedEntry =>
+        entry !== undefined
     )
     .sort(compareMatches)
     .slice(0, maxEntries);
@@ -302,13 +300,15 @@ export function summarizeProjectKnowledgeRecall(
     status: result.status,
     recallId: result.recallId,
     matchedEntryCount: result.matchedEntries.length,
-    policyCount: result.matchedEntries.filter((entry) => entry.type === "policy")
-      .length,
+    policyCount: result.matchedEntries.filter(
+      (entry) => entry.type === "policy"
+    ).length,
     projectFactCount: result.matchedEntries.filter(
       (entry) => entry.type === "project_fact"
     ).length,
-    pitfallCount: result.matchedEntries.filter((entry) => entry.type === "pitfall")
-      .length,
+    pitfallCount: result.matchedEntries.filter(
+      (entry) => entry.type === "pitfall"
+    ).length,
     volatileTailCount: result.contextSegmentRefs.filter(
       (ref) => ref.placement === "volatile_tail"
     ).length,
@@ -342,7 +342,10 @@ function matchEntry(input: {
     return undefined;
   }
   const trustScore = input.entry.trustScore ?? 0;
-  if (trustScore < input.trustThreshold && !input.includeEntryIds.has(entryId)) {
+  if (
+    trustScore < input.trustThreshold &&
+    !input.includeEntryIds.has(entryId)
+  ) {
     return undefined;
   }
   const type = input.entry.type;
@@ -392,8 +395,7 @@ function matchEntry(input: {
     reasonCodes: included
       ? ["explicit_include", ...overlap.map((token) => `matched:${token}`)]
       : overlap.map((token) => `matched:${token}`),
-    placement:
-      type === "policy" ? "workspace_rules_summary" : "volatile_tail",
+    placement: type === "policy" ? "workspace_rules_summary" : "volatile_tail",
     evidenceRefCount: input.entry.evidenceRefCount,
     tagCount: input.entry.tagCount,
     warningCodes: [...input.entry.warningCodes],
@@ -553,7 +555,10 @@ function toSafeScanValue(value: unknown): unknown {
   return value;
 }
 
-function visit(value: unknown, callback: (key: string, item: unknown) => void): void {
+function visit(
+  value: unknown,
+  callback: (key: string, item: unknown) => void
+): void {
   if (Array.isArray(value)) {
     for (const item of value) {
       visit(item, callback);

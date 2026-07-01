@@ -2266,8 +2266,7 @@ describe("desktop command wrapper", () => {
             ts: "2026-06-30T00:00:00.000Z",
             type: "project_knowledge.candidate_committed",
             taskId: "project-knowledge",
-            summary:
-              "project knowledge candidate committed: pk-1 · committed",
+            summary: "project knowledge candidate committed: pk-1 · committed",
             safePayloadKeys: [
               "entryId",
               "entryStatus",
@@ -16608,7 +16607,8 @@ describe("desktop source boundaries", () => {
 
   it("feeds Project Knowledge Recall refs into Context Assembly summaries", () => {
     const runDraft = buildRunDraftView({
-      objectiveDraft: "Use project knowledge recall for Tauri command wrappers.",
+      objectiveDraft:
+        "Use project knowledge recall for Tauri command wrappers.",
       selectedIntent: "code_change",
       acceptanceCriteriaDraft: "Summary refs only",
       workspaceRoot: "D:\\workspace"
@@ -16631,8 +16631,7 @@ describe("desktop source boundaries", () => {
           entryId: "pk-context-1",
           type: "project_fact" as const,
           namespace: "deepseek-gui",
-          summary:
-            "Project knowledge recall supports Tauri command wrappers.",
+          summary: "Project knowledge recall supports Tauri command wrappers.",
           status: "committed",
           evidenceRefCount: 1,
           tagCount: 1,
@@ -16867,17 +16866,19 @@ describe("desktop source boundaries", () => {
 
     expect(recallPreview.status).toBe("recall_ready");
     expect(recallPreview.pitfallCount).toBe(1);
-    expect(contextPreview.segments.some(
-      (segment) => segment.sourceKind === "project_knowledge_recall"
-    )).toBe(true);
+    expect(
+      contextPreview.segments.some(
+        (segment) => segment.sourceKind === "project_knowledge_recall"
+      )
+    ).toBe(true);
     expect(
       creationPreview?.pathSummaries.some((summary) =>
         summary.includes("docs/README.md")
       )
     ).toBe(true);
-    expect(revokedRecall.matchedEntries.map((entry) => entry.entryId)).not.toContain(
-      "pk-pitfall-docs-index"
-    );
+    expect(
+      revokedRecall.matchedEntries.map((entry) => entry.entryId)
+    ).not.toContain("pk-pitfall-docs-index");
     expect(eventPanel?.projectKnowledgeEventCount).toBe(3);
     expect(eventPanel?.latestProjectKnowledgeRecallSummary).toContain(
       "project knowledge recall used"
@@ -16917,7 +16918,9 @@ describe("desktop source boundaries", () => {
     );
     expect(contextSource).toContain("project_knowledge_recall");
     expect(contextSource).toContain("Project knowledge volatile recall refs");
-    expect(contextSource).toContain("Project knowledge workspace rules summary");
+    expect(contextSource).toContain(
+      "Project knowledge workspace rules summary"
+    );
     expect(combined).not.toContain("projectKnowledgeRecallGenericInvoke");
     expect(combined).not.toContain("handleProjectKnowledgeRecallApply");
     expect(combined).not.toContain("projectKnowledgeRecallEventStoreWrite");
@@ -16947,7 +16950,9 @@ describe("desktop source boundaries", () => {
     expect(combined).toContain("No EventStore write");
     expect(combined).toContain("No Git/shell execution");
     expect(combined).toContain("No native bridge");
-    expect(docsIndex).toContain("project-knowledge-recall-integration-v0.15.md");
+    expect(docsIndex).toContain(
+      "project-knowledge-recall-integration-v0.15.md"
+    );
   });
 
   it("documents the P0T-006 project knowledge events replay audit", async () => {
@@ -17002,7 +17007,9 @@ describe("desktop source boundaries", () => {
     expect(combined).toContain("Project Knowledge E2E Smoke v0.15");
     expect(combined).toContain("commit project_fact");
     expect(combined).toContain("commit pitfall");
-    expect(combined).toContain("Context Assembly includes project knowledge recall refs");
+    expect(combined).toContain(
+      "Context Assembly includes project knowledge recall refs"
+    );
     expect(combined).toContain("revoked pitfall no longer recalls");
     expect(combined).toContain("Convert still works");
     expect(combined).toContain("no raw prompt");
@@ -17011,6 +17018,96 @@ describe("desktop source boundaries", () => {
     expect(combined).toContain("no Git or shell execution");
     expect(combined).toContain("no native bridge");
     expect(docsIndex).toContain("project-knowledge-e2e-smoke-v0.15.md");
+  });
+
+  it("documents the v0.16 production memory project knowledge RC", async () => {
+    const releaseNotes = await readFile(
+      path.join(
+        repoRoot,
+        "docs",
+        "release-notes-v0.16.0-production-memory-project-knowledge-rc.1.md"
+      ),
+      "utf8"
+    );
+    const manualQa = await readFile(
+      path.join(repoRoot, "docs", "project-knowledge-manual-qa.md"),
+      "utf8"
+    );
+    const rcChecklist = await readFile(
+      path.join(repoRoot, "docs", "project-knowledge-rc-checklist.md"),
+      "utf8"
+    );
+    const docsIndex = await readFile(
+      path.join(repoRoot, "docs", "README.md"),
+      "utf8"
+    );
+    const rootReadme = await readFile(path.join(repoRoot, "README.md"), "utf8");
+    const appReadme = await readFile(path.join(appRoot, "README.md"), "utf8");
+    const appSource = await readFile(
+      path.join(appRoot, "src", "App.tsx"),
+      "utf8"
+    );
+    const combined = `${releaseNotes}\n${manualQa}\n${rcChecklist}\n${docsIndex}\n${rootReadme}\n${appReadme}\n${appSource}`;
+
+    expect(combined).toContain(
+      "v0.16.0-production-memory-project-knowledge-rc.1"
+    );
+    expect(combined).toContain("Production Memory / Project Knowledge MVP");
+    expect(combined).toContain("web_table_to_csv");
+    expect(combined).toContain(
+      "App-side approved execution remains human-approved and rollbackable"
+    );
+    expect(combined).toContain(
+      "Git/shell verification safe lanes remain fixed and summary-only"
+    );
+    expect(combined).toContain(
+      "App live proposal generation remains explicit opt-in"
+    );
+    expect(combined).toContain("policy");
+    expect(combined).toContain("project_fact");
+    expect(combined).toContain("pitfall");
+    expect(combined).toContain("human review");
+    expect(combined).toContain("typed confirmation");
+    expect(combined).toContain("evidence refs");
+    expect(combined).toContain("trigger and mitigation");
+    expect(combined).toContain("revoke");
+    expect(combined).toContain("expire");
+    expect(combined).toContain("recall");
+    expect(combined).toContain("replay");
+    expect(combined).toContain("redaction audit");
+    expect(combined).toContain("commit project_fact");
+    expect(combined).toContain("commit pitfall");
+    expect(combined).toContain("commit policy");
+    expect(combined).toContain("reject fake API key");
+    expect(combined).toContain("E2E task sees recall");
+    expect(combined).toContain("memory events show in replay");
+    expect(combined).toContain("approved apply and rollback");
+    expect(combined).toContain("No automatic memory commit");
+    expect(combined).toContain("No model-direct policy write");
+    expect(combined).toContain("No raw prompt");
+    expect(combined).toContain("No broad PermissionLease");
+    expect(combined).toContain("No MCP/plugin/skills runtime");
+    expect(combined).toContain("No native bridge");
+    expect(combined).toContain("No desktop action");
+    expect(rcChecklist).toContain("Local Scoped Command Gate");
+    expect(rcChecklist).toContain("Full Stage-end Command Gate");
+    expect(rcChecklist).toContain("GitHub Actions Gate");
+    expect(rcChecklist).toContain("Generated Artifacts");
+    expect(rcChecklist).toContain("Release / Tag Suggestion");
+    expect(rcChecklist).toContain("Rollback Guidance");
+    expect(rcChecklist).toContain("Known Limitations");
+    expect(docsIndex).toContain(
+      "release-notes-v0.16.0-production-memory-project-knowledge-rc.1.md"
+    );
+    expect(docsIndex).toContain("project-knowledge-manual-qa.md");
+    expect(docsIndex).toContain("project-knowledge-rc-checklist.md");
+    expect(appSource).toContain("Human reviewed / summary-only");
+    expect(appSource).toContain("auto-commit model or tool output");
+    expect(appSource).toContain("write model-direct policy entries");
+    expect(appSource).toContain("store raw prompt/source/diff/API key memory");
+    expect(appSource).toContain(
+      "memory-driven apply, native bridge, or desktop action"
+    );
   });
 
   it("documents the P0S-001 MVP hardening recovery design gate", async () => {

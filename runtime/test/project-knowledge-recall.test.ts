@@ -16,7 +16,8 @@ function evidence(overrides: Record<string, unknown> = {}) {
   return {
     refId: "evidence-1",
     kind: "repo_doc",
-    summary: "Repository docs describe the summary-only project knowledge fact.",
+    summary:
+      "Repository docs describe the summary-only project knowledge fact.",
     hashPrefix: "abc12345",
     warningCodes: [],
     ...overrides
@@ -86,7 +87,9 @@ function recordFrom(entryValue: ProjectKnowledgeEntry, recordId: string) {
   };
 }
 
-function snapshot(entries: ProjectKnowledgeEntry[]): ProjectKnowledgeStoreSnapshot {
+function snapshot(
+  entries: ProjectKnowledgeEntry[]
+): ProjectKnowledgeStoreSnapshot {
   return buildProjectKnowledgeStoreSnapshot(
     entries.map((item, index) => recordFrom(item, `record-${index + 1}`)),
     { now }
@@ -172,13 +175,15 @@ describe("project knowledge recall integration", () => {
     ]);
     const missingReview = buildProjectKnowledgeRecall({
       snapshot: storeSnapshot,
-      taskObjective: "Apply project knowledge recall policy in context assembly.",
+      taskObjective:
+        "Apply project knowledge recall policy in context assembly.",
       intent: "code_change",
       policyRecallEnabled: true
     });
     const reviewed = buildProjectKnowledgeRecall({
       snapshot: storeSnapshot,
-      taskObjective: "Apply project knowledge recall policy in context assembly.",
+      taskObjective:
+        "Apply project knowledge recall policy in context assembly.",
       intent: "code_change",
       policyRecallEnabled: true,
       humanReviewedPolicyEntryIds: ["pk-policy-1"]

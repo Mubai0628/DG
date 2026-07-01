@@ -126,6 +126,11 @@ Current scope:
 - smoke a knowledge-informed docs-index task where committed pitfall recall
   enters Context Assembly and revoked memory stops recalling, while Convert
   remains the real flow and memory still cannot execute actions
+- prepare the v0.16 Production Memory / Project Knowledge RC with release
+  notes, manual QA, RC checklist, full gates, GitHub Actions verification, tag,
+  and prerelease flow while project knowledge remains human-reviewed,
+  summary-only, replayable, revocable, expirable, and unable to trigger App
+  execution
 - lock the P0R E2E coding task regression smoke with safe docs-task,
   verification-failure, rollback, and expected event summary fixtures while no
   new App execution path is added
