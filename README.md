@@ -334,13 +334,13 @@ v0.14 End-to-End Coding Task MVP RC references:
 Recommended tag:
 `v0.15.0-mvp-hardening-recovery-rc.1`.
 
-P0S is planned as a hardening and recovery phase for the v0.14 end-to-end
-coding task MVP. It focuses on golden regression, stale snapshot and conflict
-handling, apply/rollback failure recovery, replay/audit timeline hardening,
-manual QA and release smoke hardening, and low-risk package/boundary cleanup. It
-must preserve no auto-apply, no autonomous coding loop, no arbitrary Git/shell,
-no broad PermissionLease, no MCP/plugin/skills runtime, no native bridge, no
-desktop action, and no raw content in events.
+P0S is complete for the v0.15 RC as a hardening and recovery phase for the
+v0.14 end-to-end coding task MVP. It adds golden regression, stale snapshot and
+conflict fail-closed coverage, apply/rollback failure recovery, replay/audit
+timeline hardening, manual QA and release smoke hardening, and low-risk
+package/boundary cleanup. It preserves no auto-apply, no autonomous coding
+loop, no arbitrary Git/shell, no broad PermissionLease, no MCP/plugin/skills
+runtime, no native bridge, no desktop action, and no raw content in events.
 
 v0.15 MVP Hardening / Recovery references:
 
@@ -348,6 +348,9 @@ v0.15 MVP Hardening / Recovery references:
 - [v0.14 End-to-End Coding Task post-release review](docs/v0.14-end-to-end-coding-task-postrelease-review.md)
 - [P0S MVP Hardening / Recovery roadmap](docs/p0s-mvp-hardening-recovery-roadmap.md)
 - [P0S-001 MVP Hardening / Recovery plan](docs/p0s-001-mvp-hardening-recovery-plan.md)
+- [v0.15.0 MVP Hardening / Recovery RC release notes](docs/release-notes-v0.15.0-mvp-hardening-recovery-rc.1.md)
+- [MVP Hardening / Recovery manual QA](docs/mvp-hardening-recovery-manual-qa.md)
+- [MVP Hardening / Recovery RC checklist](docs/mvp-hardening-recovery-rc-checklist.md)
 
 ## Current roadmap
 
@@ -378,7 +381,7 @@ summary-only live proposal events, approved execution integration smoke, and
 failure/redaction hardening. P0R is complete for the v0.14 RC with an
 end-to-end coding task MVP that connects live proposal, approved apply,
 verification safe lane, rollback, event, and replay surfaces without expanding
-execution authority. P0S is planned for the v0.15 RC as MVP hardening,
+execution authority. P0S is complete for the v0.15 RC with MVP hardening,
 recovery, regression, replay, QA, smoke, and low-risk boundary cleanup. App
 evaluation runs, model-driven auto-apply, approval/rejection execution outside
 the approved apply/rollback gates, run execution, arbitrary Git execution,

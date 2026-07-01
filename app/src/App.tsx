@@ -9605,7 +9605,7 @@ export function DesktopShell(): JSX.Element {
               </span>
             </div>
             <p className="fieldHelp">
-              Summarizes approved apply or rollback recovery after safe
+              Summarizes v0.15 approved apply or rollback recovery after safe
               failures. The App Shell does not auto-retry, rollback from this
               panel, write files, write events, run Git or shell, issue leases,
               expose raw content, or use native bridge or desktop actions.
@@ -9762,11 +9762,11 @@ export function DesktopShell(): JSX.Element {
               </span>
             </div>
             <p className="fieldHelp">
-              Reconstructs the approved proposal, validation, audit, receipt,
-              apply, checkpoint, verification, rollback, and final task status
-              chain from safe summaries. The App Shell does not write events,
-              apply patches, rollback, run Git or shell, expose raw output, or
-              execute recovery actions from this timeline.
+              Reconstructs the v0.15 approved proposal, validation, audit,
+              receipt, apply, checkpoint, verification, rollback, and final task
+              status chain from safe summaries. The App Shell does not write
+              events, apply patches, rollback, run Git or shell, expose raw
+              output, or execute recovery actions from this timeline.
             </p>
             <div className="buttonRow">
               <button

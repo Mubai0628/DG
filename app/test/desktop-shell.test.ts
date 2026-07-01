@@ -11362,6 +11362,103 @@ describe("app approved execution receipt preview", () => {
       "mvp-hardening-package-boundary-notes-v0.15.md"
     );
   });
+
+  it("documents the v0.15 MVP hardening recovery RC release boundary", async () => {
+    const releaseNotes = await readFile(
+      path.join(
+        repoRoot,
+        "docs",
+        "release-notes-v0.15.0-mvp-hardening-recovery-rc.1.md"
+      ),
+      "utf8"
+    );
+    const manualQa = await readFile(
+      path.join(repoRoot, "docs", "mvp-hardening-recovery-manual-qa.md"),
+      "utf8"
+    );
+    const rcChecklist = await readFile(
+      path.join(repoRoot, "docs", "mvp-hardening-recovery-rc-checklist.md"),
+      "utf8"
+    );
+    const docsIndex = await readFile(
+      path.join(repoRoot, "docs", "README.md"),
+      "utf8"
+    );
+    const rootReadme = await readFile(path.join(repoRoot, "README.md"), "utf8");
+    const appReadme = await readFile(path.join(appRoot, "README.md"), "utf8");
+    const appSource = await readFile(
+      path.join(appRoot, "src", "App.tsx"),
+      "utf8"
+    );
+    const combined = `${releaseNotes}\n${manualQa}\n${rcChecklist}\n${docsIndex}\n${rootReadme}\n${appReadme}\n${appSource}`;
+
+    expect(combined).toContain("v0.15.0-mvp-hardening-recovery-rc.1");
+    expect(combined).toContain("MVP hardening, recovery, and E2E regression");
+    expect(combined).toContain(
+      "web_table_to_csv Convert remains the real baseline flow"
+    );
+    expect(combined).toContain(
+      "App live proposal generation remains explicit opt-in"
+    );
+    expect(combined).toContain(
+      "Approved apply remains human-approved and typed-confirmation gated"
+    );
+    expect(combined).toContain(
+      "Verification safe lanes remain fixed and summary-only"
+    );
+    expect(combined).toContain("Rollback remains checkpoint-based");
+    expect(combined).toContain("Replay/audit timeline shows the E2E chain");
+    expect(combined).toContain(
+      "Failure recovery and conflict handling have been hardened"
+    );
+    expect(combined).toContain("no auto-apply");
+    expect(combined).toContain("no autonomous coding loop");
+    expect(combined).toContain("no arbitrary Git/shell");
+    expect(combined).toContain("no broad PermissionLease");
+    expect(combined).toContain("no MCP/plugin/skills runtime");
+    expect(combined).toContain("no native bridge");
+    expect(combined).toContain("no desktop action");
+    expect(combined).toContain("no raw content in events");
+    expect(combined).toContain("golden regression");
+    expect(combined).toContain("stale snapshot detection");
+    expect(combined).toContain("conflict fail-closed");
+    expect(combined).toContain("checkpoint verification");
+    expect(combined).toContain("summary-only events");
+    expect(combined).toContain("rollback guidance");
+    expect(combined).toContain("raw output blocking");
+    expect(combined).toContain("boundary checks");
+    expect(manualQa).toContain("Convert Smoke");
+    expect(manualQa).toContain("live proposal generation");
+    expect(manualQa).toContain("Approved Apply");
+    expect(manualQa).toContain("Verification Lane");
+    expect(manualQa).toContain("Event Log / Replay");
+    expect(manualQa).toContain("Rollback");
+    expect(manualQa).toContain("Stale Conflict");
+    expect(manualQa).toContain("Failure Recovery UX");
+    expect(manualQa).toContain("Raw Content Absence");
+    expect(rcChecklist).toContain("Local Scoped Command Gate");
+    expect(rcChecklist).toContain("Full Gates");
+    expect(rcChecklist).toContain("Visual Smoke");
+    expect(rcChecklist).toContain("GitHub Actions");
+    expect(rcChecklist).toContain("Ignored Artifacts");
+    expect(rcChecklist).toContain("Tag Command");
+    expect(rcChecklist).toContain("Release Command");
+    expect(rcChecklist).toContain("Rollback Guidance");
+    expect(rcChecklist).toContain("Known Limitations");
+    expect(rcChecklist).toContain("Full Docs Path Links");
+    expect(releaseNotes).toContain(
+      "https://github.com/Mubai0628/DG/blob/v0.15.0-mvp-hardening-recovery-rc.1/docs/mvp-hardening-recovery-manual-qa.md"
+    );
+    expect(docsIndex).toContain(
+      "release-notes-v0.15.0-mvp-hardening-recovery-rc.1.md"
+    );
+    expect(docsIndex).toContain("mvp-hardening-recovery-manual-qa.md");
+    expect(docsIndex).toContain("mvp-hardening-recovery-rc-checklist.md");
+    expect(appSource).toContain("Summarizes v0.15 approved apply");
+    expect(appSource).toContain("Reconstructs the v0.15 approved proposal");
+    expect(appSource).toContain("Replay Write Event (disabled)");
+    expect(appSource).toContain("Execute From Timeline (disabled)");
+  });
 });
 
 describe("app disposable patch apply prototype", () => {
@@ -15757,7 +15854,7 @@ describe("desktop source boundaries", () => {
     expect(docsIndex).toContain("p0s-001-mvp-hardening-recovery-plan.md");
     expect(rootReadme).toContain("v0.15 MVP Hardening / Recovery status");
     expect(rootReadme).toContain(
-      "P0S is planned as a hardening and recovery phase"
+      "P0S is complete for the v0.15 RC as a hardening and recovery phase"
     );
   });
 

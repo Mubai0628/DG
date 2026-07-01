@@ -103,6 +103,10 @@ Current scope:
   execute apply, execute rollback, write events, mutate the workspace, call
   DeepSeek, read API keys, fetch network, run Git/shell, invoke Tauri, or expose
   raw prompt/response/source/diff content
+- prepare the v0.15 MVP Hardening / Recovery RC with release notes, manual QA,
+  RC checklist, full gates, GitHub Actions verification, tag, and prerelease
+  flow while preserving no auto-apply, summary-only events, no arbitrary
+  Git/shell, no native bridge, and no desktop action
 - lock the P0R E2E coding task regression smoke with safe docs-task,
   verification-failure, rollback, and expected event summary fixtures while no
   new App execution path is added
