@@ -411,6 +411,10 @@ v0.17 Capability Host MVP references:
 - [v0.18.0 MCP Read-only Connection MVP RC release notes](docs/release-notes-v0.18.0-mcp-readonly-connection-mvp-rc.1.md)
 - [MCP Read-only Connection manual QA](docs/mcp-readonly-connection-manual-qa.md)
 - [MCP Read-only Connection RC checklist](docs/mcp-readonly-connection-rc-checklist.md)
+- [v0.19 MCP Tool Invocation Proposal prompts](docs/v0.19-mcp-tool-invocation-proposal-prompts.md)
+- [v0.18 MCP Read-only Connection post-release review](docs/v0.18-mcp-readonly-connection-postrelease-review.md)
+- [P0W MCP Tool Invocation Proposal roadmap](docs/p0w-mcp-tool-invocation-proposal-roadmap.md)
+- [P0W-001 MCP Tool Invocation Proposal gate plan](docs/p0w-001-mcp-tool-invocation-proposal-gate-plan.md)
 
 ## Current roadmap
 
@@ -458,7 +462,10 @@ read-only connection discovery, broker descriptor integration, App read-only
 connection and redaction-audit surfaces, and smoke/QA coverage while preserving
 no MCP tool invocation, no mutating MCP operation, no resource content read by
 default, no arbitrary process spawn, no hidden App connection, and no external
-mutation.
+mutation. P0W is the active v0.19 roadmap for MCP tool invocation proposal and
+approval design, with no real MCP tool invocation, no mutating MCP tools, no raw
+tool args/output, no App hidden invocation, no broad PermissionLease, no native
+bridge, and no desktop action.
 
 - [v0.2 App Shell RC post-release review](docs/v0.2-app-shell-rc-postrelease-review.md)
 - [P0G Coding Workflow roadmap](docs/p0g-coding-workflow-roadmap.md)

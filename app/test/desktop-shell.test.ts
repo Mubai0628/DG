@@ -18390,6 +18390,97 @@ describe("desktop source boundaries", () => {
     expect(appSource).not.toMatch(/>\s*Read Resource Content\s*</);
   });
 
+  it("documents the v0.18 post-release review and P0W MCP tool proposal roadmap", async () => {
+    const prompt = await readFile(
+      path.join(
+        repoRoot,
+        "docs",
+        "v0.19-mcp-tool-invocation-proposal-prompts.md"
+      ),
+      "utf8"
+    );
+    const review = await readFile(
+      path.join(
+        repoRoot,
+        "docs",
+        "v0.18-mcp-readonly-connection-postrelease-review.md"
+      ),
+      "utf8"
+    );
+    const roadmap = await readFile(
+      path.join(
+        repoRoot,
+        "docs",
+        "p0w-mcp-tool-invocation-proposal-roadmap.md"
+      ),
+      "utf8"
+    );
+    const gatePlan = await readFile(
+      path.join(
+        repoRoot,
+        "docs",
+        "p0w-001-mcp-tool-invocation-proposal-gate-plan.md"
+      ),
+      "utf8"
+    );
+    const docsIndex = await readFile(
+      path.join(repoRoot, "docs", "README.md"),
+      "utf8"
+    );
+    const rootReadme = await readFile(path.join(repoRoot, "README.md"), "utf8");
+    const combined = `${prompt}\n${review}\n${roadmap}\n${gatePlan}`;
+
+    expect(review).toContain(
+      "v0.18 MCP Read-only Connection Post-Release Review"
+    );
+    expect(review).toContain("v0.18.0-mcp-readonly-connection-mvp-rc.1");
+    expect(review).toContain("Convert: `web_table_to_csv`");
+    expect(review).toContain("Event Log / Replay");
+    expect(review).toContain("App approved apply / rollback");
+    expect(review).toContain("Git/shell safe verification lanes");
+    expect(review).toContain("Project Knowledge");
+    expect(review).toContain("Capability Host descriptors");
+    expect(review).toContain("MCP read-only connection / discovery metadata");
+    expect(review).toContain("MCP `tools/call`");
+    expect(review).toContain("MCP mutating tools");
+    expect(review).toContain("plugin code execution");
+    expect(review).toContain("skill runtime execution");
+    expect(review).toContain("native bridge");
+    expect(review).toContain("desktop action");
+    expect(review).toContain("broad PermissionLease");
+    expect(roadmap).toContain("P0W MCP Tool Invocation Proposal Roadmap");
+    expect(roadmap).toContain("MCP tool invocation proposal / approval design");
+    expect(roadmap).toContain("no real MCP tool invocation");
+    expect(roadmap).toContain("no mutating MCP tools");
+    expect(roadmap).toContain("proposal-first");
+    expect(roadmap).toContain("tool input schema validation");
+    expect(roadmap).toContain("risk classification");
+    expect(roadmap).toContain("approval draft");
+    expect(roadmap).toContain("simulated result only");
+    expect(roadmap).toContain("Capability Broker planning integration");
+    expect(roadmap).toContain("App read-only proposal surface");
+    expect(roadmap).toContain("redaction / boundary audit");
+    expect(gatePlan).toContain(
+      "P0W-001 MCP Tool Invocation Proposal Gate Plan"
+    );
+    expect(gatePlan).toContain("no live MCP tool invocation in P0W-001");
+    expect(gatePlan).toContain("no MCP `tools/call`");
+    expect(gatePlan).toContain("App cannot execute MCP tools");
+    expect(combined).toContain("no native bridge");
+    expect(combined).toContain("no desktop action");
+    expect(docsIndex).toContain(
+      "v0.19-mcp-tool-invocation-proposal-prompts.md"
+    );
+    expect(docsIndex).toContain(
+      "v0.18-mcp-readonly-connection-postrelease-review.md"
+    );
+    expect(docsIndex).toContain("p0w-mcp-tool-invocation-proposal-roadmap.md");
+    expect(docsIndex).toContain(
+      "p0w-001-mcp-tool-invocation-proposal-gate-plan.md"
+    );
+    expect(rootReadme).toContain("P0W is the active v0.19 roadmap");
+  });
+
   it("documents the P0S-001 MVP hardening recovery design gate", async () => {
     const adr = await readFile(
       path.join(repoRoot, "docs", "adr", "0011-mvp-hardening-recovery.md"),
