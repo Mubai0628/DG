@@ -1,0 +1,56 @@
+{
+  "schemaVersion": "e2e_coding_task_fixture.v1",
+  "taskId": "e2e-blocked-raw-content-marker",
+  "title": "Block raw content marker",
+  "objectiveSummary": "Reject a task whose proposal summary indicates a raw content marker.",
+  "intent": "docs_update",
+  "workspaceRootRef": "workspace:demo-summary",
+  "allowedPathRefs": ["docs/raw-content-safety.md"],
+  "forbiddenPathPolicy": [
+    "no raw prompt",
+    "no raw response",
+    "no raw source",
+    "no raw diff",
+    "summary-only reports"
+  ],
+  "expectedProposalSummary": {
+    "refId": "proposal:raw-content-marker",
+    "summary": "Raw content marker must be blocked before approved execution.",
+    "pathRefs": ["docs/raw-content-safety.md"],
+    "eventKinds": [],
+    "warningCodes": ["RAW_CONTENT_MARKER"]
+  },
+  "expectedApplySummary": {
+    "refId": "apply:raw-content-marker",
+    "summary": "No apply is allowed when raw content markers are detected.",
+    "pathRefs": ["docs/raw-content-safety.md"],
+    "eventKinds": [],
+    "warningCodes": ["RAW_CONTENT_MARKER"]
+  },
+  "expectedVerificationSummary": {
+    "refId": "verify:raw-content-marker",
+    "summary": "No verification runs because the proposal is blocked.",
+    "pathRefs": ["docs/raw-content-safety.md"],
+    "eventKinds": [],
+    "warningCodes": ["RAW_CONTENT_MARKER"]
+  },
+  "expectedEvents": [
+    {
+      "refId": "event:raw-content-marker",
+      "summary": "Blocked raw content marker summary exists without raw content.",
+      "eventKinds": ["proposal_blocked_summary"],
+      "pathRefs": ["docs/raw-content-safety.md"],
+      "warningCodes": ["RAW_CONTENT_MARKER"]
+    }
+  ],
+  "expectedReplaySummary": {
+    "refId": "replay:raw-content-marker",
+    "summary": "Replay shows blocked raw content marker without leaking content.",
+    "expectedStatus": "blocked",
+    "eventKinds": ["proposal_blocked_summary"],
+    "pathRefs": ["docs/raw-content-safety.md"],
+    "warningCodes": ["RAW_CONTENT_MARKER"]
+  },
+  "expectedFailureCategories": ["raw_content_leak"],
+  "tags": ["blocked", "raw-content", "summary-only"]
+}

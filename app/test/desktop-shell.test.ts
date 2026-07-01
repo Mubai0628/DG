@@ -15349,6 +15349,47 @@ describe("desktop source boundaries", () => {
     expect(docsIndex).toContain("p0s-002-e2e-golden-regression-suite-plan.md");
   });
 
+  it("documents the P0S-002 E2E golden regression suite", async () => {
+    const regressionDoc = await readFile(
+      path.join(
+        repoRoot,
+        "docs",
+        "runtime-e2e-golden-regression-suite-v0.15.md"
+      ),
+      "utf8"
+    );
+    const docsIndex = await readFile(
+      path.join(repoRoot, "docs", "README.md"),
+      "utf8"
+    );
+
+    expect(regressionDoc).toContain(
+      "Runtime E2E Golden Regression Suite v0.15"
+    );
+    expect(regressionDoc).toContain("deterministic golden regression suite");
+    expect(regressionDoc).toContain("Docs-only create");
+    expect(regressionDoc).toContain("Docs-only update");
+    expect(regressionDoc).toContain("Conflict after approval");
+    expect(regressionDoc).toContain("Failed verification");
+    expect(regressionDoc).toContain("Rollback after apply");
+    expect(regressionDoc).toContain("Blocked unsafe path");
+    expect(regressionDoc).toContain("Blocked raw content marker");
+    expect(regressionDoc).toContain("No live DeepSeek call");
+    expect(regressionDoc).toContain("No API key read");
+    expect(regressionDoc).toContain("No fetch/network");
+    expect(regressionDoc).toContain("No actual user workspace mutation");
+    expect(regressionDoc).toContain("No new App execution feature");
+    expect(regressionDoc).toContain("No auto-apply");
+    expect(regressionDoc).toContain("No arbitrary Git/shell");
+    expect(regressionDoc).toContain("No Tauri command");
+    expect(regressionDoc).toContain("No EventStore writer");
+    expect(regressionDoc).toContain("No raw source");
+    expect(regressionDoc).toContain("raw response");
+    expect(regressionDoc).toContain("reasoning_content");
+    expect(regressionDoc).toContain("API key");
+    expect(docsIndex).toContain("runtime-e2e-golden-regression-suite-v0.15.md");
+  });
+
   it("documents the v0.13 post-release review and P0R end-to-end coding task roadmap", async () => {
     const review = await readFile(
       path.join(
