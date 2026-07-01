@@ -15175,6 +15175,88 @@ describe("desktop source boundaries", () => {
     expect(appSource).not.toContain("Run Git Write");
   });
 
+  it("documents the v0.14 post-release review and P0S hardening roadmap", async () => {
+    const review = await readFile(
+      path.join(
+        repoRoot,
+        "docs",
+        "v0.14-end-to-end-coding-task-postrelease-review.md"
+      ),
+      "utf8"
+    );
+    const roadmap = await readFile(
+      path.join(repoRoot, "docs", "p0s-mvp-hardening-recovery-roadmap.md"),
+      "utf8"
+    );
+    const plan = await readFile(
+      path.join(repoRoot, "docs", "p0s-001-mvp-hardening-recovery-plan.md"),
+      "utf8"
+    );
+    const prompts = await readFile(
+      path.join(repoRoot, "docs", "v0.15-mvp-hardening-recovery-prompts.md"),
+      "utf8"
+    );
+    const docsIndex = await readFile(
+      path.join(repoRoot, "docs", "README.md"),
+      "utf8"
+    );
+    const rootReadme = await readFile(path.join(repoRoot, "README.md"), "utf8");
+    const combined = `${review}\n${roadmap}\n${plan}\n${prompts}\n${docsIndex}\n${rootReadme}`;
+
+    expect(combined).toContain("v0.14.0-end-to-end-coding-task-mvp-rc.1");
+    expect(combined).toContain("End-to-end DeepSeek coding task MVP");
+    expect(combined).toContain("P0S MVP Hardening / Recovery");
+    expect(combined).toContain("harden the v0.14 MVP flow");
+    expect(combined).toContain("E2E golden regression");
+    expect(combined).toContain("stale snapshot");
+    expect(combined).toContain("conflict handling");
+    expect(combined).toContain("apply/rollback failure recovery");
+    expect(combined).toContain("Event replay and audit timeline hardening");
+    expect(combined).toContain("manual QA and release smoke");
+    expect(combined).toContain("Build/package warnings");
+    expect(combined).toContain("Convert");
+    expect(combined).toContain("Event Log / Replay");
+    expect(combined).toContain("Record Draft Event");
+    expect(combined).toContain("App live proposal generation");
+    expect(combined).toContain("repair/schema/import/chain preview");
+    expect(combined).toContain("approval receipt");
+    expect(combined).toContain("typed confirmation");
+    expect(combined).toContain("approved apply");
+    expect(combined).toContain("Git/shell safe verification lanes");
+    expect(combined).toContain("rollback from checkpoint");
+    expect(combined).toContain("summary-only events/replay");
+    expect(combined).toContain("No live DeepSeek call in P0S-001");
+    expect(combined).toContain("No API key read in P0S-001");
+    expect(combined).toContain("No fetch/network in P0S-001");
+    expect(combined).toContain("No apply");
+    expect(combined).toContain("No rollback");
+    expect(combined).toContain("No EventStore writer");
+    expect(combined).toContain("No App execution");
+    expect(combined).toContain("No arbitrary Git execution");
+    expect(combined).toContain("No arbitrary shell execution");
+    expect(combined).toContain("No broad PermissionLease");
+    expect(combined).toContain("No MCP/plugin/skills runtime");
+    expect(combined).toContain("No native bridge");
+    expect(combined).toContain("No desktop action");
+    expect(combined).toContain("raw prompt");
+    expect(combined).toContain("raw response");
+    expect(combined).toContain("reasoning_content");
+    expect(combined).toContain("API key");
+    expect(combined).toContain("raw source");
+    expect(combined).toContain("raw diff");
+    expect(combined).toContain("raw preimage");
+    expect(docsIndex).toContain("v0.15-mvp-hardening-recovery-prompts.md");
+    expect(docsIndex).toContain(
+      "v0.14-end-to-end-coding-task-postrelease-review.md"
+    );
+    expect(docsIndex).toContain("p0s-mvp-hardening-recovery-roadmap.md");
+    expect(docsIndex).toContain("p0s-001-mvp-hardening-recovery-plan.md");
+    expect(rootReadme).toContain("v0.15 MVP Hardening / Recovery status");
+    expect(rootReadme).toContain(
+      "P0S is planned as a hardening and recovery phase"
+    );
+  });
+
   it("documents the v0.13 post-release review and P0R end-to-end coding task roadmap", async () => {
     const review = await readFile(
       path.join(

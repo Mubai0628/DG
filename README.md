@@ -265,6 +265,10 @@ v0.10 Live Proposal Evaluation RC references:
 - [v0.14.0 End-to-End Coding Task MVP RC release notes](docs/release-notes-v0.14.0-end-to-end-coding-task-mvp-rc.1.md)
 - [E2E Coding Task manual QA](docs/e2e-coding-task-manual-qa.md)
 - [E2E Coding Task RC checklist](docs/e2e-coding-task-rc-checklist.md)
+- [v0.15 MVP Hardening / Recovery prompts](docs/v0.15-mvp-hardening-recovery-prompts.md)
+- [v0.14 End-to-End Coding Task post-release review](docs/v0.14-end-to-end-coding-task-postrelease-review.md)
+- [P0S MVP Hardening / Recovery roadmap](docs/p0s-mvp-hardening-recovery-roadmap.md)
+- [P0S-001 MVP Hardening / Recovery plan](docs/p0s-001-mvp-hardening-recovery-plan.md)
 
 ## v0.11 App-side Approved Execution MVP RC status
 
@@ -325,6 +329,26 @@ v0.14 End-to-End Coding Task MVP RC references:
 - [E2E Coding Task manual QA](docs/e2e-coding-task-manual-qa.md)
 - [E2E Coding Task RC checklist](docs/e2e-coding-task-rc-checklist.md)
 
+## v0.15 MVP Hardening / Recovery status
+
+Recommended tag:
+`v0.15.0-mvp-hardening-recovery-rc.1`.
+
+P0S is planned as a hardening and recovery phase for the v0.14 end-to-end
+coding task MVP. It focuses on golden regression, stale snapshot and conflict
+handling, apply/rollback failure recovery, replay/audit timeline hardening,
+manual QA and release smoke hardening, and low-risk package/boundary cleanup. It
+must preserve no auto-apply, no autonomous coding loop, no arbitrary Git/shell,
+no broad PermissionLease, no MCP/plugin/skills runtime, no native bridge, no
+desktop action, and no raw content in events.
+
+v0.15 MVP Hardening / Recovery references:
+
+- [v0.15 MVP Hardening / Recovery prompts](docs/v0.15-mvp-hardening-recovery-prompts.md)
+- [v0.14 End-to-End Coding Task post-release review](docs/v0.14-end-to-end-coding-task-postrelease-review.md)
+- [P0S MVP Hardening / Recovery roadmap](docs/p0s-mvp-hardening-recovery-roadmap.md)
+- [P0S-001 MVP Hardening / Recovery plan](docs/p0s-001-mvp-hardening-recovery-plan.md)
+
 ## Current roadmap
 
 P0F is complete after `v0.2.0-app-shell-rc.1`, P0G is complete after
@@ -351,15 +375,17 @@ projection, and approved execution plus verification smoke coverage. P0Q is
 complete for the v0.13 RC with explicit App live proposal generation, fixed
 Tauri command wiring, repair/schema/import/chain preview integration,
 summary-only live proposal events, approved execution integration smoke, and
-failure/redaction hardening. P0R is planned for the v0.14 RC as an end-to-end
-coding task MVP that connects the existing live proposal, approved apply,
+failure/redaction hardening. P0R is complete for the v0.14 RC with an
+end-to-end coding task MVP that connects live proposal, approved apply,
 verification safe lane, rollback, event, and replay surfaces without expanding
-execution authority. App evaluation runs, model-driven auto-apply,
-approval/rejection execution outside the approved apply/rollback gates, run
-execution, arbitrary Git execution, arbitrary shell execution, Git write
-commands, install/network/destructive shell commands, broad capability
-invocation, production PermissionLease issuing, memory persistence UI,
-MCP/plugin/skills runtime, native bridge, and desktop action remain deferred.
+execution authority. P0S is planned for the v0.15 RC as MVP hardening,
+recovery, regression, replay, QA, smoke, and low-risk boundary cleanup. App
+evaluation runs, model-driven auto-apply, approval/rejection execution outside
+the approved apply/rollback gates, run execution, arbitrary Git execution,
+arbitrary shell execution, Git write commands, install/network/destructive shell
+commands, broad capability invocation, production PermissionLease issuing,
+memory persistence UI, MCP/plugin/skills runtime, native bridge, and desktop
+action remain deferred.
 
 - [v0.2 App Shell RC post-release review](docs/v0.2-app-shell-rc-postrelease-review.md)
 - [P0G Coding Workflow roadmap](docs/p0g-coding-workflow-roadmap.md)
@@ -412,6 +438,10 @@ MCP/plugin/skills runtime, native bridge, and desktop action remain deferred.
 - [v0.14.0 End-to-End Coding Task MVP RC release notes](docs/release-notes-v0.14.0-end-to-end-coding-task-mvp-rc.1.md)
 - [E2E Coding Task manual QA](docs/e2e-coding-task-manual-qa.md)
 - [E2E Coding Task RC checklist](docs/e2e-coding-task-rc-checklist.md)
+- [v0.15 MVP Hardening / Recovery prompts](docs/v0.15-mvp-hardening-recovery-prompts.md)
+- [v0.14 End-to-End Coding Task post-release review](docs/v0.14-end-to-end-coding-task-postrelease-review.md)
+- [P0S MVP Hardening / Recovery roadmap](docs/p0s-mvp-hardening-recovery-roadmap.md)
+- [P0S-001 MVP Hardening / Recovery plan](docs/p0s-001-mvp-hardening-recovery-plan.md)
 
 ## What v0.1.0 does not support
 
