@@ -1,6 +1,7 @@
 export * from "./broker-v2.js";
 export * from "./descriptor.js";
 export * from "./errors.js";
+export * from "./external-capability-broker-integration.js";
 export * from "./external-capability-manifest.js";
 export * from "./invocation-policy.js";
 export * from "./mcp-readonly-discovery.js";

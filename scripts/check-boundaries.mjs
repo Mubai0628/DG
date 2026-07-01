@@ -293,6 +293,14 @@ function isAllowedBoundaryHit(file, line, ruleId) {
   if (file.startsWith("runtime/src/web/")) {
     return true;
   }
+  if (
+    file ===
+      "runtime/src/capabilities/external-capability-broker-integration.ts" &&
+    ruleId === "raw_prompt_reference" &&
+    line.includes("RAW_PROMPT_FIELD_REJECTED")
+  ) {
+    return true;
+  }
   if (file === "browser-extension/src/payload.ts") {
     return true;
   }
