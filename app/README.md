@@ -123,6 +123,9 @@ Current scope:
 - replay Project Knowledge commit, revoke, expire, recall, and redaction audit
   summaries in Event Log / Replay while raw memory content, EventStore writes,
   apply/rollback, Git/shell, native bridge, and desktop action remain disabled
+- smoke a knowledge-informed docs-index task where committed pitfall recall
+  enters Context Assembly and revoked memory stops recalling, while Convert
+  remains the real flow and memory still cannot execute actions
 - lock the P0R E2E coding task regression smoke with safe docs-task,
   verification-failure, rollback, and expected event summary fixtures while no
   new App execution path is added

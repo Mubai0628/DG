@@ -16675,6 +16675,221 @@ describe("desktop source boundaries", () => {
     expect(serialized).not.toContain("rawPrompt");
   });
 
+  it("smokes a knowledge-informed docs-index task without unsafe memory writes", () => {
+    const workspaceRoot = "D:\\workspace";
+    const committedSnapshot = {
+      ok: true as const,
+      status: "ready" as const,
+      storePath: "workspace/.deepseek-workbench/project-knowledge",
+      entriesPath:
+        "workspace/.deepseek-workbench/project-knowledge/entries.jsonl",
+      eventsPath:
+        "workspace/.deepseek-workbench/project-knowledge/events.jsonl",
+      indexPath: "workspace/.deepseek-workbench/project-knowledge/index.json",
+      entryCount: 2,
+      activeEntryCount: 2,
+      revokedEntryCount: 0,
+      expiredEntryCount: 0,
+      entries: [
+        {
+          entryId: "pk-fact-convert",
+          type: "project_fact" as const,
+          namespace: "deepseek-gui",
+          summary:
+            "Convert remains the real web_table_to_csv flow during memory smoke.",
+          status: "committed",
+          evidenceRefCount: 1,
+          tagCount: 1,
+          entryHash: "facthashp0t",
+          warningCodes: [],
+          summaryOnly: true as const
+        },
+        {
+          entryId: "pk-pitfall-docs-index",
+          type: "pitfall" as const,
+          namespace: "deepseek-gui",
+          summary:
+            "When verification fails because docs index is missing, update docs/README.md with the new docs file.",
+          status: "committed",
+          evidenceRefCount: 1,
+          tagCount: 1,
+          entryHash: "pitfallhashp0t",
+          warningCodes: [],
+          summaryOnly: true as const
+        }
+      ],
+      warnings: [],
+      snapshotHash: "snapshotp0t007",
+      summaryOnly: true as const,
+      rawContentIncluded: false as const,
+      safeMessage: "Project knowledge snapshot loaded."
+    };
+    const projectKnowledgeReview = buildProjectKnowledgeReviewView({
+      workspaceRoot,
+      snapshot: committedSnapshot
+    });
+    const runDraft = buildRunDraftView({
+      objectiveDraft:
+        "Add a project knowledge E2E smoke doc and update docs index.",
+      selectedIntent: "documentation",
+      acceptanceCriteriaDraft:
+        "Recall the docs index pitfall and keep memory summary-only.",
+      workspaceRoot
+    });
+    const recallPreview = buildProjectKnowledgeRecallView({
+      projectKnowledgeReview,
+      taskObjective:
+        "Add a project knowledge E2E smoke doc and update docs index.",
+      intent: runDraft.intent,
+      tagsText: "docs,index,p0t",
+      includeEntryIdsText: "pk-pitfall-docs-index"
+    });
+    const contextPreview = buildContextAssemblyPreviewView({
+      runDraft,
+      projectKnowledgeRecallPreview: recallPreview
+    });
+    const importView = buildModelPatchProposalImportView({
+      draftText: JSON.stringify({
+        schemaVersion: "model_patch_proposal.v1",
+        proposalId: "proposal-p0t-knowledge-smoke",
+        title: "Project knowledge E2E smoke docs update",
+        intent: "docs_update",
+        operations: [
+          {
+            operationId: "op-doc",
+            path: "docs/project-knowledge-e2e-smoke-v0.15.md",
+            changeKind: "documentation",
+            summary: "Add the project knowledge smoke doc.",
+            rationale: "P0T-007 needs summary-only smoke documentation.",
+            estimatedLinesAdded: 12,
+            estimatedLinesRemoved: 0,
+            warningCodes: []
+          },
+          {
+            operationId: "op-index",
+            path: "docs/README.md",
+            changeKind: "documentation",
+            summary: "Update docs index for the project knowledge smoke.",
+            rationale: "Recalled pitfall requires docs index updates.",
+            estimatedLinesAdded: 1,
+            estimatedLinesRemoved: 0,
+            warningCodes: []
+          }
+        ],
+        pathSummaries: [
+          {
+            path: "docs/project-knowledge-e2e-smoke-v0.15.md",
+            changeKind: "documentation",
+            summary: "Project knowledge smoke documentation."
+          },
+          {
+            path: "docs/README.md",
+            changeKind: "documentation",
+            summary: "Docs index entry for the smoke."
+          }
+        ],
+        evidenceRefs: [
+          {
+            refId: "project-knowledge-recall",
+            kind: "memory_summary",
+            summary: "Project knowledge recall summary only.",
+            hashPrefix: recallPreview.hashPrefix
+          }
+        ],
+        riskNotes: [
+          {
+            code: "DOCS_ONLY",
+            severity: "info",
+            summary: "Docs-only smoke; no execution is enabled."
+          }
+        ],
+        validationHints: ["Run app:test scoped smoke."],
+        source: "deepseek_model_patch_proposal"
+      }),
+      sourceKind: "fixture"
+    });
+    const creationPreview =
+      buildPatchProposalCreationPreviewFromModelImport(importView);
+    const revokedReview = buildProjectKnowledgeReviewView({
+      workspaceRoot,
+      snapshot: {
+        ...committedSnapshot,
+        activeEntryCount: 1,
+        revokedEntryCount: 1,
+        entries: committedSnapshot.entries.map((entry) =>
+          entry.entryId === "pk-pitfall-docs-index"
+            ? { ...entry, status: "revoked" as const }
+            : entry
+        )
+      }
+    });
+    const revokedRecall = buildProjectKnowledgeRecallView({
+      projectKnowledgeReview: revokedReview,
+      taskObjective:
+        "Add a project knowledge E2E smoke doc and update docs index.",
+      intent: runDraft.intent,
+      tagsText: "docs,index,p0t"
+    });
+    const eventPanel = buildEventLogPanelModel(
+      fixedEventSummary({
+        eventCount: 4,
+        displayedEventCount: 4,
+        projectKnowledgeEventCount: 3,
+        projectKnowledgeEntryCount: 2,
+        latestProjectKnowledgeRecallSummary:
+          "project knowledge recall used: docs index pitfall · 1 matches",
+        typeCounts: {
+          "project_knowledge.candidate_committed": 2,
+          "project_knowledge.entry_revoked": 1,
+          "project_knowledge.recall_used": 1
+        },
+        timeline: [
+          {
+            id: "pk-event-1",
+            ts: "2026-06-30T00:00:00.000Z",
+            type: "project_knowledge.candidate_committed",
+            taskId: "project-knowledge",
+            summary:
+              "project knowledge candidate committed: pk-pitfall-docs-index",
+            safePayloadKeys: ["entryId", "entryStatus", "summaryOnly"]
+          }
+        ]
+      })
+    );
+    const convertPanel = buildResultPanelModel(fixedResult(workspaceRoot));
+    const serialized = JSON.stringify({
+      contextPreview,
+      creationPreview,
+      eventPanel,
+      revokedRecall,
+      convertPanel
+    });
+
+    expect(recallPreview.status).toBe("recall_ready");
+    expect(recallPreview.pitfallCount).toBe(1);
+    expect(contextPreview.segments.some(
+      (segment) => segment.sourceKind === "project_knowledge_recall"
+    )).toBe(true);
+    expect(
+      creationPreview?.pathSummaries.some((summary) =>
+        summary.includes("docs/README.md")
+      )
+    ).toBe(true);
+    expect(revokedRecall.matchedEntries.map((entry) => entry.entryId)).not.toContain(
+      "pk-pitfall-docs-index"
+    );
+    expect(eventPanel?.projectKnowledgeEventCount).toBe(3);
+    expect(eventPanel?.latestProjectKnowledgeRecallSummary).toContain(
+      "project knowledge recall used"
+    );
+    expect(convertPanel.rows).toBe(4);
+    expect(serialized).not.toContain("rawPrompt");
+    expect(serialized).not.toContain("rawSource");
+    expect(serialized).not.toContain("rawResponse");
+    expect(serialized).not.toContain("sk-");
+    expect(serialized).not.toContain('"canApplyPatch":true');
+  });
+
   it("keeps the Project Knowledge Recall App surface read-only and summary-only", async () => {
     const appSource = await readFile(
       path.join(appRoot, "src", "App.tsx"),
@@ -16770,6 +16985,32 @@ describe("desktop source boundaries", () => {
     expect(docsIndex).toContain(
       "project-knowledge-events-replay-audit-v0.15.md"
     );
+  });
+
+  it("documents the P0T-007 project knowledge E2E smoke", async () => {
+    const smokeDoc = await readFile(
+      path.join(repoRoot, "docs", "project-knowledge-e2e-smoke-v0.15.md"),
+      "utf8"
+    );
+    const docsIndex = await readFile(
+      path.join(repoRoot, "docs", "README.md"),
+      "utf8"
+    );
+    const appReadme = await readFile(path.join(appRoot, "README.md"), "utf8");
+    const combined = `${smokeDoc}\n${docsIndex}\n${appReadme}`;
+
+    expect(combined).toContain("Project Knowledge E2E Smoke v0.15");
+    expect(combined).toContain("commit project_fact");
+    expect(combined).toContain("commit pitfall");
+    expect(combined).toContain("Context Assembly includes project knowledge recall refs");
+    expect(combined).toContain("revoked pitfall no longer recalls");
+    expect(combined).toContain("Convert still works");
+    expect(combined).toContain("no raw prompt");
+    expect(combined).toContain("no automatic memory commit");
+    expect(combined).toContain("no App-side apply or rollback");
+    expect(combined).toContain("no Git or shell execution");
+    expect(combined).toContain("no native bridge");
+    expect(docsIndex).toContain("project-knowledge-e2e-smoke-v0.15.md");
   });
 
   it("documents the P0S-001 MVP hardening recovery design gate", async () => {

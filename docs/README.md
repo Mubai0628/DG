@@ -231,6 +231,7 @@ foundation.
 - [App Shell Project Knowledge Review v0.15](app-shell-project-knowledge-review-v0.15.md)
 - [Project Knowledge Recall Integration v0.15](project-knowledge-recall-integration-v0.15.md)
 - [Project Knowledge Events / Replay / Redaction Audit v0.15](project-knowledge-events-replay-audit-v0.15.md)
+- [Project Knowledge E2E Smoke v0.15](project-knowledge-e2e-smoke-v0.15.md)
 - [Runtime Memory Recall Preview v0.3](runtime-memory-recall-preview-v0.3.md)
 - [v0.4.0 Controlled Creation Preview RC release notes](release-notes-v0.4.0-controlled-creation-preview-rc.1.md)
 - [App Shell Controlled Creation manual QA](app-shell-controlled-creation-manual-qa.md)

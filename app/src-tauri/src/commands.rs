@@ -8141,6 +8141,98 @@ mod tests {
     }
 
     #[test]
+    fn project_knowledge_informed_e2e_smoke_commits_revokes_and_replays() {
+        let workspace = temp_workspace("project-knowledge-e2e-smoke");
+        let verification_preview = serde_json::json!({
+            "type": "shell.verification_lane.executed",
+            "templateId": "pnpm.test.scoped",
+            "workspaceRootRef": "workspace-ref-p0t",
+            "commandHash": "shell-command-hash-p0t",
+            "resultHash": "shell-result-hash-p0t",
+            "exitCode": 1,
+            "stdoutBytes": 96,
+            "stderrBytes": 0,
+            "warningCodes": ["DOCS_INDEX_MISSING"],
+            "durationMs": 33,
+            "truncated": false,
+            "summaryOnly": true,
+            "notWritten": true
+        });
+        record_verification_lane_event(
+            workspace.to_string_lossy().to_string(),
+            verification_preview,
+        )
+        .expect("record safe verification summary");
+
+        let mut fact = safe_project_knowledge_candidate("project_fact");
+        fact.summary = "Convert remains the real web_table_to_csv flow during memory smoke."
+            .to_string();
+        fact.fact_kind = Some("conversion_boundary".to_string());
+        let mut pitfall = safe_project_knowledge_candidate("pitfall");
+        pitfall.summary =
+            "When verification fails because docs index is missing, update docs/README.md."
+                .to_string();
+        pitfall.trigger_summary =
+            Some("Verification failed because the docs index was missing.".to_string());
+        pitfall.mitigation_summary =
+            Some("Update docs/README.md when adding a docs file.".to_string());
+
+        let fact_commit = project_knowledge_commit_candidate(
+            workspace.to_string_lossy().to_string(),
+            fact,
+        )
+        .expect("commit project fact");
+        let pitfall_commit = project_knowledge_commit_candidate(
+            workspace.to_string_lossy().to_string(),
+            pitfall,
+        )
+        .expect("commit pitfall");
+        let snapshot = project_knowledge_list(workspace.to_string_lossy().to_string())
+            .expect("project knowledge snapshot");
+
+        assert_eq!(snapshot.active_entry_count, 2);
+        assert!(snapshot
+            .entries
+            .iter()
+            .any(|entry| entry.entry_id == fact_commit.entry.entry_id));
+        assert!(snapshot
+            .entries
+            .iter()
+            .any(|entry| entry.entry_id == pitfall_commit.entry.entry_id));
+
+        project_knowledge_revoke(
+            workspace.to_string_lossy().to_string(),
+            pitfall_commit.entry.entry_id.clone(),
+            PROJECT_KNOWLEDGE_REVOKE_CONFIRMATION.to_string(),
+        )
+        .expect("revoke recalled pitfall");
+        let after_revoke = project_knowledge_list(workspace.to_string_lossy().to_string())
+            .expect("project knowledge after revoke");
+        let replay_summary = load_event_summary(workspace.to_string_lossy().as_ref(), Some(20));
+        let serialized = serde_json::to_string(&replay_summary).expect("summary");
+
+        assert_eq!(after_revoke.active_entry_count, 1);
+        assert_eq!(after_revoke.revoked_entry_count, 1);
+        assert_eq!(replay_summary.verification_event_count, 1);
+        assert_eq!(replay_summary.project_knowledge_event_count, 3);
+        assert_eq!(replay_summary.project_knowledge_entry_count, 2);
+        assert!(replay_summary
+            .latest_project_knowledge_summary
+            .as_deref()
+            .unwrap_or_default()
+            .contains("project knowledge entry revoked"));
+        assert!(replay_summary
+            .type_counts
+            .contains_key(PROJECT_KNOWLEDGE_CANDIDATE_COMMITTED_TYPE));
+        assert!(!serialized.contains(&format!("{}{}", "raw", "Prompt")));
+        assert!(!serialized.contains(&format!("{}{}", "raw", "Source")));
+        assert!(!serialized.contains("reasoning_content"));
+        assert!(!serialized.contains("sk-"));
+
+        let _ = fs::remove_dir_all(workspace);
+    }
+
+    #[test]
     fn records_control_run_draft_event_to_fixed_workspace_log() {
         let workspace = temp_workspace("run-draft-event");
         let result = record_control_run_draft_event(
