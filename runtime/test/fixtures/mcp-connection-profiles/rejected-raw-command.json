@@ -1,0 +1,21 @@
+{
+  "profileId": "mcp.docs.rejected-raw-command",
+  "displayName": "Rejected raw command profile",
+  "serverKind": "mcp",
+  "transportKind": "stdio_fixed",
+  "serverRef": "mcp.docs.server",
+  "command": "node server.js",
+  "readOnlyPolicy": {
+    "allowInitialize": true,
+    "allowListResources": true,
+    "allowListPrompts": true,
+    "allowListTools": true,
+    "allowReadResource": false,
+    "allowCallTool": false,
+    "allowPromptExecution": false,
+    "allowMutation": false
+  },
+  "timeoutMs": 5000,
+  "maxMetadataBytes": 64000,
+  "maxItems": 50
+}

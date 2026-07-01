@@ -1,0 +1,20 @@
+{
+  "profileId": "mcp.docs.rejected-call-tool",
+  "displayName": "Rejected call tool profile",
+  "serverKind": "mcp",
+  "transportKind": "injected_test_transport",
+  "serverRef": "mcp.docs.server",
+  "readOnlyPolicy": {
+    "allowInitialize": true,
+    "allowListResources": true,
+    "allowListPrompts": true,
+    "allowListTools": true,
+    "allowReadResource": false,
+    "allowCallTool": true,
+    "allowPromptExecution": false,
+    "allowMutation": false
+  },
+  "timeoutMs": 5000,
+  "maxMetadataBytes": 64000,
+  "maxItems": 50
+}

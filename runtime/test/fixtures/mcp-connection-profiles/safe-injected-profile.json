@@ -1,0 +1,21 @@
+{
+  "profileId": "mcp.docs.injected",
+  "displayName": "Docs MCP injected test profile",
+  "serverKind": "mcp",
+  "transportKind": "injected_test_transport",
+  "serverRef": "mcp.docs.server",
+  "readOnlyPolicy": {
+    "allowInitialize": true,
+    "allowListResources": true,
+    "allowListPrompts": true,
+    "allowListTools": true,
+    "allowReadResource": false,
+    "allowCallTool": false,
+    "allowPromptExecution": false,
+    "allowMutation": false
+  },
+  "timeoutMs": 5000,
+  "maxMetadataBytes": 64000,
+  "maxItems": 50,
+  "createdAt": "2026-06-30T00:00:00.000Z"
+}

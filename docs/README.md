@@ -261,6 +261,7 @@ foundation.
 - [MCP Read-only Connection threat model v0.17](mcp-readonly-connection-threat-model-v0.17.md)
 - [MCP Read-only Connection implementation gate v0.17](mcp-readonly-connection-implementation-gate-v0.17.md)
 - [P0V-002 MCP Connection Profile Schema plan](p0v-002-mcp-connection-profile-schema-plan.md)
+- [Runtime MCP Connection Profile v0.17](runtime-mcp-connection-profile-v0.17.md)
 - [Runtime Memory Recall Preview v0.3](runtime-memory-recall-preview-v0.3.md)
 - [v0.4.0 Controlled Creation Preview RC release notes](release-notes-v0.4.0-controlled-creation-preview-rc.1.md)
 - [App Shell Controlled Creation manual QA](app-shell-controlled-creation-manual-qa.md)

@@ -1,0 +1,25 @@
+{
+  "profileId": "mcp.docs.stdio-fixed",
+  "displayName": "Docs MCP fixed stdio profile",
+  "serverKind": "mcp",
+  "transportKind": "stdio_fixed",
+  "serverRef": "mcp.docs.server",
+  "commandRef": "command-ref.docs-mcp",
+  "argvTemplateId": "argv-template.docs-mcp.readonly",
+  "workingDirectoryRef": "workspace-ref.docs",
+  "allowedRootRef": "root-ref.docs",
+  "readOnlyPolicy": {
+    "allowInitialize": true,
+    "allowListResources": true,
+    "allowListPrompts": true,
+    "allowListTools": true,
+    "allowReadResource": false,
+    "allowCallTool": false,
+    "allowPromptExecution": false,
+    "allowMutation": false
+  },
+  "timeoutMs": 10000,
+  "maxMetadataBytes": 128000,
+  "maxItems": 100,
+  "createdAt": "2026-06-30T00:00:00.000Z"
+}
