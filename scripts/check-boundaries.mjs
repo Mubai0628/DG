@@ -155,7 +155,8 @@ export async function runBoundaryCheck(options = {}) {
         text,
         boundaryPatterns,
         isAllowedBoundaryHit
-      )
+      ),
+      ...checkMvpHardeningBoundaries(root, file, text)
     );
   }
 
@@ -344,6 +345,85 @@ function isAllowedSecretHit(file, line, ruleId) {
     return true;
   }
   return false;
+}
+
+function checkMvpHardeningBoundaries(root, file, text) {
+  const rel = toPosix(path.relative(root, file));
+  if (
+    rel === "scripts/check-boundaries.mjs" ||
+    isBoundaryDoc(rel) ||
+    isTestFile(rel)
+  ) {
+    return [];
+  }
+
+  const findings = [];
+  const lines = text.split(/\r?\n/);
+  const controlledApprovedCommandFiles = new Set([
+    "app/src/desktop-flow.ts",
+    "app/src-tauri/src/commands.rs",
+    "app/src-tauri/src/main.rs"
+  ]);
+  const approvedExecutionCommands = [
+    "apply_approved_user_workspace_patch",
+    "rollback_approved_user_workspace_patch",
+    "record_approved_user_workspace_execution_event"
+  ];
+  const sourceCanUseReadinessFlags =
+    rel.startsWith("app/src/") || rel.startsWith("runtime/src/");
+
+  for (let index = 0; index < lines.length; index += 1) {
+    const line = lines[index];
+
+    if (
+      approvedExecutionCommands.some((command) => line.includes(command)) &&
+      !controlledApprovedCommandFiles.has(rel)
+    ) {
+      findings.push({
+        file: rel,
+        line: index + 1,
+        ruleId: "approved_execution_command_outside_controlled_lane"
+      });
+    }
+
+    if (
+      rel.startsWith("app/src/") &&
+      rel !== "app/src/desktop-flow.ts" &&
+      /\bsafeInvoke\s*\(|\binvoke\s*\(/.test(line)
+    ) {
+      findings.push({
+        file: rel,
+        line: index + 1,
+        ruleId: "app_tauri_invoke_outside_desktop_flow"
+      });
+    }
+
+    if (
+      sourceCanUseReadinessFlags &&
+      /\b(nativeBridge|desktopAction)\s*:\s*true\b/.test(line)
+    ) {
+      findings.push({
+        file: rel,
+        line: index + 1,
+        ruleId: "native_bridge_or_desktop_action_enabled"
+      });
+    }
+
+    if (
+      sourceCanUseReadinessFlags &&
+      /\b(canApplyPatch|canRollback|canWriteEventStore|canExecuteGit|canExecuteShell|appCanExecute|canCallDeepSeekFromApp|canReadApiKeyFromApp|canFetchNetworkFromApp|canSendLiveRequest|canApprove|canReject|canIssuePermissionLease)\s*:\s*true\b/.test(
+        line
+      )
+    ) {
+      findings.push({
+        file: rel,
+        line: index + 1,
+        ruleId: "execution_readiness_enabled_in_preview_source"
+      });
+    }
+  }
+
+  return findings;
 }
 
 function isLiveProposalOptInPolicyDisplayRef(file, line, ruleId) {

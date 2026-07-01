@@ -11325,6 +11325,43 @@ describe("app approved execution receipt preview", () => {
     expect(docsIndex).toContain("e2e-coding-task-hardening-manual-qa.md");
     expect(docsIndex).toContain("e2e-coding-task-hardening-smoke-plan.md");
   });
+
+  it("documents the P0S-007 package warnings and boundary tightening", async () => {
+    const docs = await readFile(
+      path.join(
+        repoRoot,
+        "docs",
+        "mvp-hardening-package-boundary-notes-v0.15.md"
+      ),
+      "utf8"
+    );
+    const docsIndex = await readFile(
+      path.join(repoRoot, "docs", "README.md"),
+      "utf8"
+    );
+    const boundaryChecker = await readFile(
+      path.join(repoRoot, "scripts", "check-boundaries.mjs"),
+      "utf8"
+    );
+    const combined = `${docs}\n${docsIndex}\n${boundaryChecker}`;
+
+    expect(combined).toContain("Tauri Bundle Identifier");
+    expect(combined).toContain("Vite Chunk Size");
+    expect(combined).toContain("GitHub Actions Node 20 Annotation");
+    expect(combined).toContain("non-blocking warning");
+    expect(combined).toContain(
+      "approved_execution_command_outside_controlled_lane"
+    );
+    expect(combined).toContain("app_tauri_invoke_outside_desktop_flow");
+    expect(combined).toContain("execution_readiness_enabled_in_preview_source");
+    expect(combined).toContain("native_bridge_or_desktop_action_enabled");
+    expect(combined).toContain("no App-side live DeepSeek call");
+    expect(combined).toContain("no arbitrary Git/shell execution");
+    expect(combined).toContain("no raw content in approved execution events");
+    expect(docsIndex).toContain(
+      "mvp-hardening-package-boundary-notes-v0.15.md"
+    );
+  });
 });
 
 describe("app disposable patch apply prototype", () => {
