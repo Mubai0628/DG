@@ -189,6 +189,12 @@ Current scope:
   no MCP tools/call, mutating MCP tools, resource content reads, plugin/skill
   runtime, arbitrary process/shell, broad PermissionLease, native bridge, or
   desktop action are enabled
+- prepare the v0.20 MCP Read-only Tool Execution RC with fixed read-only tool
+  contracts, exact typed confirmation, approval receipts, bounded output,
+  summary-only events, replay summaries, redaction audit, and App smoke
+  coverage while mutating MCP tools, arbitrary MCP calls, plugin/skill runtime,
+  arbitrary process/shell, broad PermissionLease, native bridge, desktop
+  action, and raw tool output events remain absent
 
 Current limitations:
 

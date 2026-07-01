@@ -1561,6 +1561,8 @@ describe("desktop command wrapper", () => {
     );
     expect(appSource).toContain("raw output");
     expect(appSource).toContain("raw arguments");
+    expect(appSource).toContain("Redaction counts");
+    expect(appSource).toContain("replay summaries");
     expect(appSource).not.toContain("mcpGenericInvoke");
     expect(appSource).not.toContain("callTool(");
     expect(appSource).not.toContain("tools/call");
@@ -19436,7 +19438,7 @@ describe("desktop source boundaries", () => {
     expect(docsIndex).toContain("p0x-mcp-readonly-tool-execution-roadmap.md");
     expect(docsIndex).toContain("p0x-001-mcp-readonly-tool-execution-plan.md");
     expect(rootReadme).toContain("P0W is complete after the v0.19 RC");
-    expect(rootReadme).toContain("P0X is the active v0.20 roadmap");
+    expect(rootReadme).toContain("P0X is complete for the v0.20 RC");
   });
 
   it("documents the P0X-001 MCP readonly tool execution design gate", async () => {
@@ -19744,6 +19746,96 @@ describe("desktop source boundaries", () => {
     expect(runtimeSource).toContain("canExecuteShell: false");
     expect(combined).not.toContain("fetch(");
     expect(combined).not.toContain("process.env");
+  });
+
+  it("documents the v0.20 MCP readonly tool execution RC", async () => {
+    const releaseNotes = await readFile(
+      path.join(
+        repoRoot,
+        "docs",
+        "release-notes-v0.20.0-mcp-readonly-tool-execution-rc.1.md"
+      ),
+      "utf8"
+    );
+    const manualQa = await readFile(
+      path.join(repoRoot, "docs", "mcp-readonly-tool-execution-manual-qa.md"),
+      "utf8"
+    );
+    const rcChecklist = await readFile(
+      path.join(
+        repoRoot,
+        "docs",
+        "mcp-readonly-tool-execution-rc-checklist.md"
+      ),
+      "utf8"
+    );
+    const docsIndex = await readFile(
+      path.join(repoRoot, "docs", "README.md"),
+      "utf8"
+    );
+    const readme = await readFile(path.join(repoRoot, "README.md"), "utf8");
+    const appReadme = await readFile(
+      path.join(repoRoot, "app", "README.md"),
+      "utf8"
+    );
+    const appSource = await readFile(
+      path.join(repoRoot, "app", "src", "App.tsx"),
+      "utf8"
+    );
+    const combinedDocs = `${releaseNotes}\n${manualQa}\n${rcChecklist}\n${docsIndex}\n${readme}\n${appReadme}`;
+
+    expect(releaseNotes).toContain("v0.20.0-mcp-readonly-tool-execution-rc.1");
+    expect(releaseNotes).toContain(
+      "Controlled MCP read-only tool execution MVP"
+    );
+    expect(releaseNotes).toContain(
+      "MCP read-only tools can be called only with explicit approval"
+    );
+    expect(releaseNotes).toContain("No mutating MCP tools are enabled");
+    expect(releaseNotes).toContain("no arbitrary MCP tool call");
+    expect(releaseNotes).toContain("no plugin code execution");
+    expect(releaseNotes).toContain("no skill runtime execution");
+    expect(releaseNotes).toContain("no native bridge");
+    expect(releaseNotes).toContain("no desktop action");
+    expect(releaseNotes).toContain("no raw tool output in events");
+    expect(releaseNotes).toContain("redaction audit");
+    expect(releaseNotes).toContain("summary-only events");
+    expect(releaseNotes).toContain("https://github.com/Mubai0628/DG/blob/");
+    expect(manualQa).toContain("Convert Smoke");
+    expect(manualQa).toContain("MCP Read-only Connection Discovery");
+    expect(manualQa).toContain("Read-only Tool Call");
+    expect(manualQa).toContain("Event / Replay");
+    expect(manualQa).toContain("raw MCP tool output");
+    expect(manualQa).toContain("Mutating tool controls remain disabled");
+    expect(manualQa).toContain("Git/shell/native bridge");
+    expect(rcChecklist).toContain("pnpm verify:ci");
+    expect(rcChecklist).toContain("pnpm release:smoke");
+    expect(rcChecklist).toContain("pnpm app:qa:check");
+    expect(rcChecklist).toContain(
+      "git tag v0.20.0-mcp-readonly-tool-execution-rc.1"
+    );
+    expect(rcChecklist).toContain("gh release create");
+    expect(rcChecklist).toContain("GitHub Actions");
+    expect(docsIndex).toContain(
+      "release-notes-v0.20.0-mcp-readonly-tool-execution-rc.1.md"
+    );
+    expect(docsIndex).toContain("mcp-readonly-tool-execution-manual-qa.md");
+    expect(docsIndex).toContain("mcp-readonly-tool-execution-rc-checklist.md");
+    expect(readme).toContain("P0X is complete for the v0.20 RC");
+    expect(appReadme).toContain(
+      "prepare the v0.20 MCP Read-only Tool Execution RC"
+    );
+    expect(appSource).toContain("MCP Read-only Tool Execution");
+    expect(appSource).toContain("Call Read-only MCP Tool");
+    expect(appSource).toContain("Invoke Mutating MCP Tool (disabled)");
+    expect(appSource).toContain("Write MCP Result Event (disabled)");
+    expect(appSource).toContain("Redaction counts");
+    expect(appSource).toContain("replay summaries");
+    expect(appSource).not.toContain("mcpGenericInvoke");
+    expect(appSource).not.toContain("handleRunMcpTool");
+    expect(combinedDocs).toContain("no mutating MCP tools");
+    expect(combinedDocs).toContain("no arbitrary MCP tool call");
+    expect(combinedDocs).toContain("no broad PermissionLease");
   });
 
   it("documents the P0S-001 MVP hardening recovery design gate", async () => {

@@ -7958,7 +7958,8 @@ export function DesktopShell(): JSX.Element {
               Calls only the fixed MCP read-only Tauri wrapper after exact typed
               confirmation. The App Shell does not expose raw arguments, raw
               output, generic MCP invocation, mutating tools, EventStore writes,
-              Git, shell, native bridge, or desktop actions.
+              Git, shell, native bridge, or desktop actions. Redaction counts
+              and replay summaries are shown without persisting raw tool output.
             </p>
 
             <div className="formGrid">

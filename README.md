@@ -422,6 +422,9 @@ v0.17 Capability Host MVP references:
 - [v0.19 MCP Tool Invocation Proposal post-release review](docs/v0.19-mcp-tool-invocation-proposal-postrelease-review.md)
 - [P0X MCP Read-only Tool Execution roadmap](docs/p0x-mcp-readonly-tool-execution-roadmap.md)
 - [P0X-001 MCP Read-only Tool Execution plan](docs/p0x-001-mcp-readonly-tool-execution-plan.md)
+- [v0.20.0 MCP Read-only Tool Execution RC release notes](docs/release-notes-v0.20.0-mcp-readonly-tool-execution-rc.1.md)
+- [MCP Read-only Tool Execution manual QA](docs/mcp-readonly-tool-execution-manual-qa.md)
+- [MCP Read-only Tool Execution RC checklist](docs/mcp-readonly-tool-execution-rc-checklist.md)
 
 ## Current roadmap
 
@@ -474,11 +477,12 @@ proposals, input risk classification, simulated result summaries, broker
 planning, read-only App proposal surfaces, redaction audit, and smoke coverage
 while preserving no real MCP `tools/call`, no mutating MCP tools, no raw tool
 args/output, no App hidden invocation, no broad PermissionLease, no native
-bridge, and no desktop action. P0X is the active v0.20 roadmap for controlled
-MCP read-only tool execution with fixed profiles, allowlisted contracts,
-explicit approval receipts, typed confirmation, bounded output, redaction,
-summary-only events, replay, no mutating tools, no generic MCP invocation, no
-plugin/skill runtime, no native bridge, and no desktop action.
+bridge, and no desktop action. P0X is complete for the v0.20 RC with
+controlled MCP read-only tool execution through fixed profiles, allowlisted
+contracts, explicit approval receipts, typed confirmation, bounded output,
+redaction audit, summary-only events, replay, App smoke coverage, no mutating
+tools, no generic MCP invocation, no plugin/skill runtime, no native bridge,
+and no desktop action.
 
 - [v0.2 App Shell RC post-release review](docs/v0.2-app-shell-rc-postrelease-review.md)
 - [P0G Coding Workflow roadmap](docs/p0g-coding-workflow-roadmap.md)
