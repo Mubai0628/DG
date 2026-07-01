@@ -26,6 +26,7 @@ import {
   rollbackApprovedUserWorkspacePatch,
   runDesktopWebTableToCsvFlow,
   runGitReadLane,
+  runMcpReadonlyDiscovery,
   runShellVerificationLane,
   type ApprovedUserWorkspaceApplyResult,
   type ApprovedUserWorkspaceRollbackResult,
@@ -36,6 +37,7 @@ import {
   type LiveDeepSeekPatchProposalCommandResult,
   type LiveProposalSummaryEventPreview,
   type LiveProposalSummaryEventRecordResult,
+  type McpReadonlyDiscoverResult,
   type ProjectKnowledgeCommitResult,
   type ProjectKnowledgeLifecycleResult,
   type ProjectKnowledgeSnapshotResult,
@@ -169,6 +171,11 @@ import {
   summarizeLiveProposalEvaluationTelemetryAuditView,
   type LiveProposalEvaluationTelemetryAuditView
 } from "./live-proposal-evaluation-telemetry-audit-view.js";
+import {
+  buildMcpReadonlyConnectionView,
+  summarizeMcpReadonlyConnectionView,
+  type McpReadonlyConnectionView
+} from "./mcp-readonly-connection-view.js";
 import {
   buildProjectKnowledgeReviewView,
   summarizeProjectKnowledgeReviewView,
@@ -346,6 +353,31 @@ type EventStatus = "idle" | "loading" | "loaded" | "error";
 type DraftEventStatus = "idle" | "recording" | "recorded" | "error";
 type GitReadLaneStatus = "idle" | "running" | "done" | "error";
 type ShellVerificationLaneStatus = "idle" | "running" | "done" | "error";
+type McpReadonlyConnectionRunStatus = "idle" | "running" | "done" | "error";
+
+const defaultMcpReadonlyProfileJson = JSON.stringify(
+  {
+    profileId: "mcp.docs.injected",
+    displayName: "Docs MCP injected metadata profile",
+    serverKind: "mcp",
+    transportKind: "injected_test_transport",
+    serverRef: "mcp.docs.server",
+    readOnlyPolicy: {
+      allowInitialize: true,
+      allowListResources: true,
+      allowListPrompts: true,
+      allowListTools: true,
+      allowReadResource: false,
+      allowCallTool: false,
+      allowPromptExecution: false,
+      allowMutation: false
+    },
+    timeoutMs: 5000,
+    maxItems: 10
+  },
+  null,
+  2
+);
 
 type ErrorBoundaryState = {
   error?: unknown;
@@ -633,6 +665,23 @@ export function DesktopShell(): JSX.Element {
     liveProposalEvaluationTelemetryAuditPreview,
     setLiveProposalEvaluationTelemetryAuditPreview
   ] = useState<LiveProposalEvaluationTelemetryAuditView | undefined>();
+  const [mcpReadonlyProfileText, setMcpReadonlyProfileText] = useState(
+    defaultMcpReadonlyProfileJson
+  );
+  const [
+    mcpReadonlyTypedConfirmation,
+    setMcpReadonlyTypedConfirmation
+  ] = useState("");
+  const [mcpReadonlyConnectionStatus, setMcpReadonlyConnectionStatus] =
+    useState<McpReadonlyConnectionRunStatus>("idle");
+  const [mcpReadonlyDiscoverResult, setMcpReadonlyDiscoverResult] = useState<
+    McpReadonlyDiscoverResult | undefined
+  >();
+  const [mcpReadonlyDiscoverError, setMcpReadonlyDiscoverError] = useState<
+    string | undefined
+  >();
+  const [mcpReadonlyConnectionPreview, setMcpReadonlyConnectionPreview] =
+    useState<McpReadonlyConnectionView | undefined>();
   const [capabilityHostManifestText, setCapabilityHostManifestText] =
     useState("");
   const [capabilityHostSourceType, setCapabilityHostSourceType] =
@@ -1991,6 +2040,25 @@ export function DesktopShell(): JSX.Element {
   const displayedLiveProposalEvaluationTelemetryAudit =
     liveProposalEvaluationTelemetryAuditPreview ??
     buildLiveProposalEvaluationTelemetryAuditView();
+  const mcpReadonlyConnectionCandidate = useMemo<McpReadonlyConnectionView>(
+    () =>
+      buildMcpReadonlyConnectionView({
+        profileJsonText: mcpReadonlyProfileText,
+        typedConfirmation: mcpReadonlyTypedConfirmation,
+        discoveryResult: mcpReadonlyDiscoverResult,
+        discoveryError: mcpReadonlyDiscoverError,
+        inFlight: mcpReadonlyConnectionStatus === "running"
+      }),
+    [
+      mcpReadonlyConnectionStatus,
+      mcpReadonlyDiscoverError,
+      mcpReadonlyDiscoverResult,
+      mcpReadonlyProfileText,
+      mcpReadonlyTypedConfirmation
+    ]
+  );
+  const displayedMcpReadonlyConnection =
+    mcpReadonlyConnectionPreview ?? mcpReadonlyConnectionCandidate;
   const projectKnowledgeReviewCandidate = useMemo<ProjectKnowledgeReviewView>(
     () =>
       buildProjectKnowledgeReviewView({
@@ -2129,6 +2197,12 @@ export function DesktopShell(): JSX.Element {
     liveProposalEvaluationSummaryText,
     liveProposalEvaluationTelemetryAuditText
   ]);
+  useEffect(() => {
+    setMcpReadonlyConnectionPreview(undefined);
+    setMcpReadonlyDiscoverResult(undefined);
+    setMcpReadonlyDiscoverError(undefined);
+    setMcpReadonlyConnectionStatus("idle");
+  }, [mcpReadonlyProfileText, mcpReadonlyTypedConfirmation]);
   useEffect(() => {
     setProjectKnowledgeReviewPreview(undefined);
   }, [
@@ -2924,6 +2998,52 @@ export function DesktopShell(): JSX.Element {
   function handleClearLiveProposalEvaluationTelemetryAudit(): void {
     setLiveProposalEvaluationTelemetryAuditText("");
     setLiveProposalEvaluationTelemetryAuditPreview(undefined);
+  }
+
+  async function handleDiscoverMcpReadonlyMetadata(): Promise<void> {
+    const candidate = mcpReadonlyConnectionCandidate;
+    setMcpReadonlyConnectionPreview(candidate);
+    if (candidate.safeDiscoveryRequest === undefined) {
+      setMcpReadonlyConnectionStatus("error");
+      setMcpReadonlyDiscoverError(candidate.nextAction);
+      return;
+    }
+
+    setMcpReadonlyConnectionStatus("running");
+    setMcpReadonlyDiscoverError(undefined);
+    try {
+      const discoveryResult = await runMcpReadonlyDiscovery(
+        candidate.safeDiscoveryRequest
+      );
+      setMcpReadonlyDiscoverResult(discoveryResult);
+      setMcpReadonlyConnectionStatus("done");
+      setMcpReadonlyConnectionPreview(
+        buildMcpReadonlyConnectionView({
+          profileJsonText: mcpReadonlyProfileText,
+          typedConfirmation: mcpReadonlyTypedConfirmation,
+          discoveryResult
+        })
+      );
+    } catch (caught) {
+      const safeMessage = safeErrorMessage(caught);
+      setMcpReadonlyDiscoverError(safeMessage);
+      setMcpReadonlyConnectionStatus("error");
+      setMcpReadonlyConnectionPreview(
+        buildMcpReadonlyConnectionView({
+          profileJsonText: mcpReadonlyProfileText,
+          typedConfirmation: mcpReadonlyTypedConfirmation,
+          discoveryError: safeMessage
+        })
+      );
+    }
+  }
+
+  function handleClearMcpReadonlyConnection(): void {
+    setMcpReadonlyTypedConfirmation("");
+    setMcpReadonlyDiscoverResult(undefined);
+    setMcpReadonlyDiscoverError(undefined);
+    setMcpReadonlyConnectionStatus("idle");
+    setMcpReadonlyConnectionPreview(undefined);
   }
 
   function handlePreviewCapabilityHostSurface(): void {
@@ -7221,6 +7341,238 @@ export function DesktopShell(): JSX.Element {
                 ).source
               }{" "}
               · {displayedLiveProposalEvaluationTelemetryAudit.nextAction}
+            </p>
+          </section>
+
+          <section
+            className="eventPanel"
+            aria-label="MCP Read-only Connection"
+          >
+            <div className="panelHeader">
+              <h2>MCP Read-only Connection</h2>
+              <span className="muted">
+                Read-only discovery / no tool invocation
+              </span>
+            </div>
+            <p className="fieldHelp">
+              Discovers MCP resources, prompts, and tool metadata through the
+              fixed App/Tauri read-only command. The App Shell does not invoke
+              MCP tools, read resource content, execute prompts, write events,
+              apply patches, rollback, or issue leases.
+            </p>
+
+            <label>
+              <span>MCP connection profile JSON</span>
+              <textarea
+                className="compactTextarea"
+                value={mcpReadonlyProfileText}
+                onChange={(event) => {
+                  setMcpReadonlyProfileText(event.target.value);
+                }}
+                placeholder="Paste summary-only MCP connection profile JSON"
+                spellCheck={false}
+              />
+              <p className="fieldHelp">
+                The App accepts fixed injected read-only metadata profiles only.
+                Resource content, tool arguments, raw metadata, secrets, and
+                execution flags are rejected before discovery.
+              </p>
+            </label>
+
+            <label>
+              <span>Typed confirmation</span>
+              <input
+                value={mcpReadonlyTypedConfirmation}
+                onChange={(event) => {
+                  setMcpReadonlyTypedConfirmation(event.target.value);
+                }}
+                placeholder="DISCOVER MCP METADATA"
+              />
+            </label>
+
+            <div className="buttonRow">
+              <button
+                type="button"
+                className="secondary"
+                disabled={
+                  !displayedMcpReadonlyConnection.readiness
+                    .canDiscoverMetadata ||
+                  mcpReadonlyConnectionStatus === "running"
+                }
+                onClick={(event) => {
+                  event.preventDefault();
+                  event.stopPropagation();
+                  void handleDiscoverMcpReadonlyMetadata();
+                }}
+              >
+                Discover MCP Metadata
+              </button>
+              <button
+                type="button"
+                className="secondary"
+                onClick={(event) => {
+                  event.preventDefault();
+                  event.stopPropagation();
+                  handleClearMcpReadonlyConnection();
+                }}
+              >
+                Clear MCP Metadata
+              </button>
+              <button type="button" className="secondary" disabled>
+                Invoke MCP Tool (disabled)
+              </button>
+              <button type="button" className="secondary" disabled>
+                Read MCP Resource Content (disabled)
+              </button>
+            </div>
+
+            {displayedMcpReadonlyConnection.status === "empty" ? (
+              <p className="empty">
+                No MCP profile loaded. Paste a summary-only profile and type
+                the fixed confirmation to preview metadata discovery.
+              </p>
+            ) : null}
+
+            {displayedMcpReadonlyConnection.status === "blocked" ? (
+              <div className="errorBox">
+                <strong>MCP metadata discovery blocked</strong>
+                <p>{displayedMcpReadonlyConnection.nextAction}</p>
+              </div>
+            ) : null}
+
+            <dl className="summaryGrid compact">
+              <div>
+                <dt>Status</dt>
+                <dd>{displayedMcpReadonlyConnection.status}</dd>
+              </div>
+              <div>
+                <dt>Profile</dt>
+                <dd>{displayedMcpReadonlyConnection.profileId ?? "n/a"}</dd>
+              </div>
+              <div>
+                <dt>Server</dt>
+                <dd>
+                  {displayedMcpReadonlyConnection.serverDisplayName ??
+                    displayedMcpReadonlyConnection.displayName ??
+                    "n/a"}
+                </dd>
+              </div>
+              <div>
+                <dt>Transport</dt>
+                <dd>
+                  {displayedMcpReadonlyConnection.transportKind ?? "n/a"}
+                </dd>
+              </div>
+              <div>
+                <dt>Resources / prompts / tools</dt>
+                <dd>
+                  {displayedMcpReadonlyConnection.resourceCount} /{" "}
+                  {displayedMcpReadonlyConnection.promptCount} /{" "}
+                  {displayedMcpReadonlyConnection.toolCount}
+                </dd>
+              </div>
+              <div>
+                <dt>Descriptors</dt>
+                <dd>{displayedMcpReadonlyConnection.descriptorCount}</dd>
+              </div>
+              <div>
+                <dt>Blockers / warnings</dt>
+                <dd>
+                  {displayedMcpReadonlyConnection.blockerCount} /{" "}
+                  {displayedMcpReadonlyConnection.warningCount}
+                </dd>
+              </div>
+              <div>
+                <dt>Hash</dt>
+                <dd>
+                  {displayedMcpReadonlyConnection.resultHashPrefix ?? "n/a"}
+                </dd>
+              </div>
+              <div>
+                <dt>Discover / invoke tool</dt>
+                <dd>
+                  {displayedMcpReadonlyConnection.readiness.canDiscoverMetadata
+                    ? "yes"
+                    : "no"}{" "}
+                  /{" "}
+                  {displayedMcpReadonlyConnection.readiness.canInvokeMcpTool
+                    ? "yes"
+                    : "no"}
+                </dd>
+              </div>
+              <div>
+                <dt>Read content / execute prompt</dt>
+                <dd>
+                  {displayedMcpReadonlyConnection.readiness
+                    .canReadMcpResourceContent
+                    ? "yes"
+                    : "no"}{" "}
+                  /{" "}
+                  {displayedMcpReadonlyConnection.readiness.canExecuteMcpPrompt
+                    ? "yes"
+                    : "no"}
+                </dd>
+              </div>
+              <div>
+                <dt>Event write / lease</dt>
+                <dd>
+                  {displayedMcpReadonlyConnection.readiness.canWriteEventStore
+                    ? "yes"
+                    : "no"}{" "}
+                  /{" "}
+                  {displayedMcpReadonlyConnection.readiness
+                    .canIssuePermissionLease
+                    ? "yes"
+                    : "no"}
+                </dd>
+              </div>
+              <div>
+                <dt>App execute</dt>
+                <dd>
+                  {displayedMcpReadonlyConnection.readiness.appCanExecute
+                    ? "yes"
+                    : "no"}
+                </dd>
+              </div>
+            </dl>
+
+            {displayedMcpReadonlyConnection.descriptorPreview.length > 0 ? (
+              <ol className="timeline">
+                {displayedMcpReadonlyConnection.descriptorPreview.map(
+                  (descriptor) => (
+                    <li key={`${descriptor.kind}-${descriptor.descriptorId}`}>
+                      <span className="timelineMeta">
+                        {descriptor.kind} · {descriptor.invokePolicy} ·{" "}
+                        {descriptor.riskLevel}
+                      </span>
+                      <span>{descriptor.displayName}</span>
+                      {descriptor.warningCodes.length > 0 ? (
+                        <span className="timelineMeta">
+                          Warnings: {descriptor.warningCodes.join(", ")}
+                        </span>
+                      ) : null}
+                    </li>
+                  )
+                )}
+              </ol>
+            ) : null}
+
+            {displayedMcpReadonlyConnection.findings.length > 0 ? (
+              <p className="muted">
+                findings{" "}
+                {displayedMcpReadonlyConnection.findings
+                  .map((finding) => finding.code)
+                  .join(", ")}
+              </p>
+            ) : null}
+
+            <p className="fieldHelp">
+              {
+                summarizeMcpReadonlyConnectionView(
+                  displayedMcpReadonlyConnection
+                ).source
+              }{" "}
+              · {displayedMcpReadonlyConnection.nextAction}
             </p>
           </section>
 

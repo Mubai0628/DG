@@ -143,6 +143,9 @@ Current scope:
   launch, MCP tool calls, resource reads, prompt execution, mutation,
   EventStore writes, native bridge, desktop action, and arbitrary Git/shell
   remain disabled
+- preview the v0.18 App MCP Read-only Connection surface with fixed metadata
+  discovery only, disabled tool invocation, disabled resource content reads,
+  no EventStore write, no App execution, and no native bridge or desktop action
 - lock the P0R E2E coding task regression smoke with safe docs-task,
   verification-failure, rollback, and expected event summary fixtures while no
   new App execution path is added

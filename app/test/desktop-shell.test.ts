@@ -98,6 +98,7 @@ import {
   parseLiveProposalEvaluationSummaryJson
 } from "../src/live-proposal-evaluation-summary-view.js";
 import { buildLiveProposalEvaluationTelemetryAuditView } from "../src/live-proposal-evaluation-telemetry-audit-view.js";
+import { buildMcpReadonlyConnectionView } from "../src/mcp-readonly-connection-view.js";
 import { buildProjectKnowledgeReviewView } from "../src/project-knowledge-view.js";
 import { buildProjectKnowledgeRecallView } from "../src/project-knowledge-recall-view.js";
 import { buildE2ECodingTaskWizardView } from "../src/e2e-coding-task-wizard-view.js";
@@ -1061,6 +1062,143 @@ describe("desktop command wrapper", () => {
     expect(appSource).not.toContain("resourceRead(");
     expect(appSource).not.toContain("tools/call");
     expect(appSource).not.toContain("resources/read");
+  });
+
+  it("renders MCP read-only connection surface with disabled execution controls", async () => {
+    const appSource = await readFile(
+      path.join(appRoot, "src", "App.tsx"),
+      "utf8"
+    );
+
+    expect(appSource).toContain("MCP Read-only Connection");
+    expect(appSource).toContain("Read-only discovery / no tool invocation");
+    expect(appSource).toContain("Discover MCP Metadata");
+    expect(appSource).toContain("Invoke MCP Tool (disabled)");
+    expect(appSource).toContain("Read MCP Resource Content (disabled)");
+    expect(appSource).toContain("runMcpReadonlyDiscovery");
+    expect(appSource).not.toContain("mcpGenericInvoke");
+    expect(appSource).not.toContain("tools/call");
+    expect(appSource).not.toContain("resources/read");
+  });
+
+  it("blocks raw MCP metadata in the App connection view model", () => {
+    const view = buildMcpReadonlyConnectionView({
+      profileJsonText: JSON.stringify({
+        profileId: "mcp.docs.injected",
+        displayName: "Docs MCP",
+        transportKind: "injected_test_transport",
+        serverRef: "mcp.docs.server",
+        readOnlyPolicy: {
+          allowInitialize: true,
+          allowListResources: true,
+          allowListPrompts: true,
+          allowListTools: true,
+          allowReadResource: false,
+          allowCallTool: false,
+          allowPromptExecution: false,
+          allowMutation: false
+        },
+        rawMetadata: "raw metadata should not be accepted"
+      }),
+      typedConfirmation: "DISCOVER MCP METADATA"
+    });
+
+    expect(view.status).toBe("blocked");
+    expect(view.safeDiscoveryRequest).toBeUndefined();
+    expect(view.readiness.canInvokeMcpTool).toBe(false);
+    expect(view.readiness.canReadMcpResourceContent).toBe(false);
+    expect(JSON.stringify(view)).not.toContain("raw metadata should not");
+  });
+
+  it("shows summary-only MCP descriptor previews after fixed discovery", () => {
+    const view = buildMcpReadonlyConnectionView({
+      profileJsonText: JSON.stringify({
+        profileId: "mcp.docs.injected",
+        displayName: "Docs MCP",
+        transportKind: "injected_test_transport",
+        serverRef: "mcp.docs.server",
+        readOnlyPolicy: {
+          allowInitialize: true,
+          allowListResources: true,
+          allowListPrompts: true,
+          allowListTools: true,
+          allowReadResource: false,
+          allowCallTool: false,
+          allowPromptExecution: false,
+          allowMutation: false
+        }
+      }),
+      typedConfirmation: "DISCOVER MCP METADATA",
+      discoveryResult: {
+        ok: true,
+        discoveryId: "mcp-readonly-discovery-1",
+        profileId: "mcp.docs.injected",
+        serverInfo: {
+          serverId: "mcp.docs.server",
+          displayName: "Docs MCP",
+          serverVersion: "fake-injected-0.1",
+          metadataHash: "metadata-hash"
+        },
+        resourceCount: 1,
+        promptCount: 1,
+        toolCount: 1,
+        resourceSummaries: [
+          {
+            resourceId: "mcp.docs.resource",
+            displayName: "Docs resource",
+            kind: "summary_index",
+            descriptionSummary: "Resource metadata only.",
+            warningCodes: []
+          }
+        ],
+        promptSummaries: [
+          {
+            promptId: "mcp.docs.prompt",
+            displayName: "Docs prompt",
+            descriptionSummary: "Prompt metadata only.",
+            templateDeclared: true,
+            rawPromptIncluded: false,
+            warningCodes: []
+          }
+        ],
+        toolSummaries: [
+          {
+            toolId: "mcp.docs.tool",
+            displayName: "Docs tool",
+            descriptionSummary: "Tool metadata only.",
+            riskLevel: "A3",
+            defaultInvocationPolicy: "DISABLED",
+            warningCodes: ["TOOL_INVOCATION_DISABLED"]
+          }
+        ],
+        warningCodes: [],
+        summaryOnly: true,
+        rawMetadataIncluded: false,
+        rawStdoutIncluded: false,
+        rawStderrIncluded: false,
+        canCallTool: false,
+        canReadResource: false,
+        canExecutePrompt: false,
+        canMutate: false,
+        canWriteEventStore: false,
+        resultHash: "result-hash",
+        safeMessage: "MCP read-only metadata discovered."
+      }
+    });
+
+    expect(view.status).toBe("warning");
+    expect(view.resourceCount).toBe(1);
+    expect(view.promptCount).toBe(1);
+    expect(view.toolCount).toBe(1);
+    expect(view.descriptorPreview).toContainEqual(
+      expect.objectContaining({
+        kind: "tool_metadata",
+        invokePolicy: "DISABLED"
+      })
+    );
+    expect(view.readiness.canInvokeMcpTool).toBe(false);
+    expect(view.readiness.canReadMcpResourceContent).toBe(false);
+    expect(JSON.stringify(view)).not.toContain("resource content");
   });
 
   it("uses fixed project knowledge commands and normalizes summary-only responses", async () => {
@@ -17911,6 +18049,36 @@ describe("desktop source boundaries", () => {
     expect(docsIndex).toContain(
       "p0v-002-mcp-connection-profile-schema-plan.md"
     );
+  });
+
+  it("documents the App MCP read-only connection surface", async () => {
+    const doc = await readFile(
+      path.join(
+        repoRoot,
+        "docs",
+        "app-shell-mcp-readonly-connection-v0.17.md"
+      ),
+      "utf8"
+    );
+    const docsIndex = await readFile(
+      path.join(repoRoot, "docs", "README.md"),
+      "utf8"
+    );
+    const appReadme = await readFile(path.join(appRoot, "README.md"), "utf8");
+
+    expect(doc).toContain("App Shell MCP Read-only Connection v0.17");
+    expect(doc).toContain("read-only discovery only");
+    expect(doc).toContain("DISCOVER MCP METADATA");
+    expect(doc).toContain("no tool invocation");
+    expect(doc).toContain("No MCP tool invocation");
+    expect(doc).toContain("No MCP resource content read");
+    expect(doc).toContain("No EventStore write");
+    expect(doc).toContain("No App execution");
+    expect(doc).toContain("No Git or shell");
+    expect(doc).toContain("No native bridge");
+    expect(doc).toContain("No desktop action");
+    expect(docsIndex).toContain("app-shell-mcp-readonly-connection-v0.17.md");
+    expect(appReadme).toContain("App MCP Read-only Connection surface");
   });
 
   it("documents the P0S-001 MVP hardening recovery design gate", async () => {
