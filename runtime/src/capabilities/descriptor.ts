@@ -149,8 +149,7 @@ export function validateCapabilityDescriptor(
   if (
     descriptor.sourceType !== "native" &&
     descriptor.invokePolicy !== "DISABLED" &&
-    (descriptor.invokePolicy !== "MANUAL_ONLY" ||
-      descriptor.executionMode !== "SIMULATE")
+    !isAllowedExternalDescriptor(descriptor)
   ) {
     errors.push(
       error(
@@ -259,6 +258,36 @@ function isSafeCapabilityId(value: string): boolean {
     /^[a-z0-9][a-z0-9._:-]*$/.test(value) &&
     !value.includes("..") &&
     !/[\\/\s;&|`$<>]/.test(value)
+  );
+}
+
+function isAllowedExternalDescriptor(
+  descriptor: CapabilityDescriptor
+): boolean {
+  if (
+    descriptor.invokePolicy === "MANUAL_ONLY" &&
+    descriptor.executionMode === "SIMULATE"
+  ) {
+    return true;
+  }
+  return isMcpReadonlyToolDescriptor(descriptor);
+}
+
+function isMcpReadonlyToolDescriptor(
+  descriptor: CapabilityDescriptor
+): boolean {
+  return (
+    descriptor.sourceType === "mcp" &&
+    descriptor.id.startsWith("mcp.readonly_tool.") &&
+    (descriptor.invokePolicy === "ASK_FIRST" ||
+      descriptor.invokePolicy === "MANUAL_ONLY") &&
+    descriptor.executionMode === "READ_ONLY" &&
+    (descriptor.riskLevel === "A0_observe" ||
+      descriptor.riskLevel === "A1_read") &&
+    descriptor.supportsDryRun &&
+    descriptor.requiresElicitation &&
+    descriptor.eventTypes.includes("mcp.readonly_tool.proposed") &&
+    descriptor.eventTypes.includes("mcp.readonly_tool.result")
   );
 }
 

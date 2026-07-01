@@ -1,7 +1,11 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  InMemoryEventStore,
+  appendMcpReadonlyToolSummaryEvents,
   callMcpReadonlyTool,
+  projectMcpReadonlyToolReplay,
+  replay,
   summarizeMcpReadonlyToolCallResult,
   validateMcpReadonlyToolContract,
   type McpReadonlyToolApprovalReceipt,
@@ -162,6 +166,107 @@ describe("mcp readonly tool call wrapper", () => {
     expect(serialized).not.toContain("docs-result-summary");
     expect(serialized).not.toContain("documentation search summary");
     expectNoExecution(result);
+  });
+
+  it("records summary-only MCP tool events and replay projection", async () => {
+    const eventStore = new InMemoryEventStore({
+      clock: () => new Date("2026-07-02T00:00:00.000Z"),
+      idFactory: (() => {
+        let id = 0;
+        return () => {
+          id += 1;
+          return `mcp-event-${id}`;
+        };
+      })()
+    });
+    const result = await callMcpReadonlyTool(
+      safeInput({
+        transport: {
+          async send() {
+            return {
+              status: "ok",
+              output: { matchCount: 2, resultRef: "docs-result-summary" }
+            };
+          }
+        }
+      })
+    );
+
+    const integration = appendMcpReadonlyToolSummaryEvents(eventStore, {
+      callResult: result,
+      receiptId: safeReceipt().receiptId
+    });
+    const events = eventStore.listEvents();
+    const replayState = replay(events);
+    const projection = projectMcpReadonlyToolReplay(events);
+    const serialized = JSON.stringify({ integration, events, projection });
+
+    expect(integration.eventTypes).toEqual([
+      "mcp.readonly_tool.proposed",
+      "mcp.readonly_tool.approved",
+      "mcp.readonly_tool.executed",
+      "mcp.readonly_tool.result"
+    ]);
+    expect(projection).toMatchObject({
+      status: "ready",
+      eventCount: 4,
+      proposedCount: 1,
+      approvedCount: 1,
+      executedCount: 1,
+      resultCount: 1,
+      rawArgsIncluded: false,
+      rawOutputIncluded: false
+    });
+    expect(replayState.timeline.map((item) => item.summary)).toContain(
+      "mcp.readonly_tool.result: MCP read-only tool result: docs.search"
+    );
+    expect(serialized).not.toContain("docs-result-summary");
+    expect(serialized).not.toContain("documentation search summary");
+    expect(serialized).not.toContain("raw output body");
+    expect(integration.canWriteEventStore).toBe(false);
+    expect(integration.canInvokeMutatingTool).toBe(false);
+    expect(integration.canExecuteGit).toBe(false);
+    expect(integration.canExecuteShell).toBe(false);
+  });
+
+  it("records rejected summary events for blocked MCP tool calls", async () => {
+    const eventStore = new InMemoryEventStore({
+      clock: () => new Date("2026-07-02T00:00:00.000Z"),
+      idFactory: (() => {
+        let id = 0;
+        return () => {
+          id += 1;
+          return `mcp-rejected-event-${id}`;
+        };
+      })()
+    });
+    const result = await callMcpReadonlyTool(
+      safeInput({
+        transport: {
+          async send() {
+            return { output: "Bearer fake-secret-token-1234567890" };
+          }
+        }
+      })
+    );
+
+    const integration = appendMcpReadonlyToolSummaryEvents(eventStore, {
+      callResult: result,
+      receiptId: safeReceipt().receiptId
+    });
+    const serialized = JSON.stringify({
+      integration,
+      events: eventStore.listEvents()
+    });
+
+    expect(result.status).toBe("blocked");
+    expect(integration.status).toBe("rejected");
+    expect(integration.eventTypes).toEqual([
+      "mcp.readonly_tool.proposed",
+      "mcp.readonly_tool.rejected"
+    ]);
+    expect(integration.replaySummary.rejectedCount).toBe(1);
+    expect(serialized).not.toContain("fake-secret-token");
   });
 
   it("blocks wrong approval confirmation", async () => {

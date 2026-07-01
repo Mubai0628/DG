@@ -19276,6 +19276,63 @@ describe("desktop source boundaries", () => {
     expect(combined).not.toContain("process.env");
   });
 
+  it("documents the P0X-005 MCP readonly tool events and replay integration", async () => {
+    const eventsDoc = await readFile(
+      path.join(repoRoot, "docs", "mcp-readonly-tool-events-replay-v0.19.md"),
+      "utf8"
+    );
+    const docsIndex = await readFile(
+      path.join(repoRoot, "docs", "README.md"),
+      "utf8"
+    );
+    const runtimeSource = await readFile(
+      path.join(
+        repoRoot,
+        "runtime",
+        "src",
+        "capabilities",
+        "mcp-readonly-tool-events.ts"
+      ),
+      "utf8"
+    );
+    const appSource = await readFile(
+      path.join(repoRoot, "app", "src", "App.tsx"),
+      "utf8"
+    );
+    const combined = `${eventsDoc}\n${docsIndex}\n${runtimeSource}`;
+
+    expect(eventsDoc).toContain("MCP Read-only Tool Events and Replay v0.19");
+    expect(eventsDoc).toContain("summary-only events");
+    expect(eventsDoc).toContain("Capability Broker descriptor");
+    expect(eventsDoc).toContain("mcp.readonly_tool.proposed");
+    expect(eventsDoc).toContain("mcp.readonly_tool.approved");
+    expect(eventsDoc).toContain("mcp.readonly_tool.executed");
+    expect(eventsDoc).toContain("mcp.readonly_tool.result");
+    expect(eventsDoc).toContain("mcp.readonly_tool.rejected");
+    expect(eventsDoc).toContain("rawArgsIncluded: false");
+    expect(eventsDoc).toContain("rawOutputIncluded: false");
+    expect(eventsDoc).toContain("No new Tauri command");
+    expect(eventsDoc).toContain("No App hidden invocation");
+    expect(eventsDoc).toContain("No App UI execution surface");
+    expect(eventsDoc).toContain("No Git/shell/native bridge/desktop action");
+    expect(docsIndex).toContain("mcp-readonly-tool-events-replay-v0.19.md");
+    expect(runtimeSource).toContain("appendMcpReadonlyToolSummaryEvents");
+    expect(runtimeSource).toContain("projectMcpReadonlyToolReplay");
+    expect(runtimeSource).toContain(
+      "createMcpReadonlyToolCapabilityDescriptor"
+    );
+    expect(runtimeSource).toContain("canInvokeMutatingTool: false");
+    expect(runtimeSource).toContain("canExecuteGit: false");
+    expect(runtimeSource).toContain("canExecuteShell: false");
+    expect(runtimeSource).not.toContain("fetch(");
+    expect(runtimeSource).not.toContain("process.env");
+    expect(combined).toContain("ASK_FIRST");
+    expect(combined).toContain("READ_ONLY");
+    expect(combined).toContain("raw MCP tool output");
+    expect(appSource).not.toContain("MCP Read-only Tool Execution");
+    expect(appSource).not.toContain("Call Read-only MCP Tool");
+  });
+
   it("documents the P0S-001 MVP hardening recovery design gate", async () => {
     const adr = await readFile(
       path.join(repoRoot, "docs", "adr", "0011-mvp-hardening-recovery.md"),

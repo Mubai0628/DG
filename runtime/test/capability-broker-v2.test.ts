@@ -4,6 +4,7 @@ import {
   CapabilityBrokerException,
   CapabilityBrokerV2,
   InMemoryEventStore,
+  createMcpReadonlyToolCapabilityDescriptor,
   createCapabilityRegistry,
   createNativeFsWriteDraftDescriptor,
   expirePermissionLease,
@@ -52,6 +53,31 @@ function createEventStore(): InMemoryEventStore {
       return `event-${id}`;
     }
   });
+}
+
+function mcpReadonlyToolContractSummary() {
+  return {
+    contractId: "mcp-readonly-tool-contract-test",
+    profileRefHash: "profilehash",
+    serverIdentityHash: "serverhash",
+    toolId: "docs.search",
+    toolName: "docs.search",
+    toolDescriptionSummaryHash: "descriptionhash",
+    toolInputSchemaSummaryHash: "schemahash",
+    declaredReadOnly: true,
+    riskLevel: "safe_readonly" as const,
+    allowedArgumentKeys: ["querySummary", "maxResults"],
+    deniedArgumentKeyCount: 0,
+    maxInputBytes: 2048,
+    maxOutputBytes: 8192,
+    timeoutMs: 5000,
+    approvalRequired: true,
+    typedConfirmationRequired: true,
+    allowedWorkspaceCount: 1,
+    warningCodes: [],
+    contractHash: "contracthash",
+    source: "runtime_mcp_readonly_tool_contract_summary" as const
+  };
 }
 
 describe("CapabilityDescriptor validation and registry", () => {
@@ -171,6 +197,42 @@ describe("CapabilityDescriptor validation and registry", () => {
       ])
     );
     expect(valid.ok).toBe(true);
+  });
+
+  it("allows fixed MCP read-only tool descriptors with ask-first policy", () => {
+    const descriptor = createMcpReadonlyToolCapabilityDescriptor({
+      contractSummary: mcpReadonlyToolContractSummary()
+    });
+    const validation = validateCapabilityDescriptor(descriptor);
+    const registry = createCapabilityRegistry();
+    registry.register(descriptor);
+    const eventStore = createEventStore();
+    const broker = new CapabilityBrokerV2({ registry, eventStore });
+
+    const plan = broker.planCapabilityInvocation({
+      id: "request-mcp-readonly-tool",
+      capabilityId: descriptor.id,
+      taskId: "task-mcp",
+      agentId: "agent-mcp",
+      input: {
+        querySummary: "summary-ref",
+        maxResults: 3
+      }
+    });
+    const serializedEvents = JSON.stringify(eventStore.listEvents());
+
+    expect(validation.ok).toBe(true);
+    expect(plan).toMatchObject({
+      status: "approval_required",
+      decision: "approval_required",
+      sourceType: "mcp",
+      riskLevel: "A1_read",
+      invokePolicy: "ASK_FIRST",
+      executionMode: "READ_ONLY"
+    });
+    expect(serializedEvents).toContain("mcp");
+    expect(serializedEvents).toContain("ASK_FIRST");
+    expect(serializedEvents).not.toContain("summary-ref");
   });
 
   it("allows shell and desktop descriptors only when disabled", () => {
