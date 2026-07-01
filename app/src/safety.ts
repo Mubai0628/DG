@@ -86,9 +86,14 @@ export type WorkspaceEventSummary = {
   approvedRollbackCount: number;
   verificationEventCount: number;
   liveProposalEventCount: number;
+  projectKnowledgeEventCount: number;
+  projectKnowledgeEntryCount: number;
   latestApprovedExecutionSummary?: string;
   latestVerificationSummary?: string;
   latestLiveProposalSummary?: string;
+  latestProjectKnowledgeSummary?: string;
+  latestProjectKnowledgeRecallSummary?: string;
+  projectKnowledgeRedactionAuditStatus?: string;
   lastEventAt?: string;
   typeCounts: Record<string, number>;
   timeline: unknown[];
@@ -141,9 +146,14 @@ export type EventLogPanelModel = {
   approvedRollbackCount: number;
   verificationEventCount: number;
   liveProposalEventCount: number;
+  projectKnowledgeEventCount: number;
+  projectKnowledgeEntryCount: number;
   latestApprovedExecutionSummary?: string;
   latestVerificationSummary?: string;
   latestLiveProposalSummary?: string;
+  latestProjectKnowledgeSummary?: string;
+  latestProjectKnowledgeRecallSummary?: string;
+  projectKnowledgeRedactionAuditStatus?: string;
   lastEventAt?: string;
   safetyOk: boolean;
   safetyFindingCount: number;
@@ -473,6 +483,21 @@ export function normalizeWorkspaceEventSummary(
     "latestLiveProposalSummary",
     "latest_live_proposal_summary"
   );
+  const latestProjectKnowledgeSummary = readString(
+    value,
+    "latestProjectKnowledgeSummary",
+    "latest_project_knowledge_summary"
+  );
+  const latestProjectKnowledgeRecallSummary = readString(
+    value,
+    "latestProjectKnowledgeRecallSummary",
+    "latest_project_knowledge_recall_summary"
+  );
+  const projectKnowledgeRedactionAuditStatus = readString(
+    value,
+    "projectKnowledgeRedactionAuditStatus",
+    "project_knowledge_redaction_audit_status"
+  );
   const safeMessage = readString(value, "safeMessage", "safe_message");
   const warnings = Array.isArray(value.warnings)
     ? readStringArray(value, "warnings")
@@ -503,6 +528,20 @@ export function normalizeWorkspaceEventSummary(
     liveProposalEventCount: finiteNumber(
       readValue(value, "liveProposalEventCount", "live_proposal_event_count")
     ),
+    projectKnowledgeEventCount: finiteNumber(
+      readValue(
+        value,
+        "projectKnowledgeEventCount",
+        "project_knowledge_event_count"
+      )
+    ),
+    projectKnowledgeEntryCount: finiteNumber(
+      readValue(
+        value,
+        "projectKnowledgeEntryCount",
+        "project_knowledge_entry_count"
+      )
+    ),
     ...(latestApprovedExecutionSummary !== undefined
       ? { latestApprovedExecutionSummary }
       : {}),
@@ -511,6 +550,15 @@ export function normalizeWorkspaceEventSummary(
       : {}),
     ...(latestLiveProposalSummary !== undefined
       ? { latestLiveProposalSummary }
+      : {}),
+    ...(latestProjectKnowledgeSummary !== undefined
+      ? { latestProjectKnowledgeSummary }
+      : {}),
+    ...(latestProjectKnowledgeRecallSummary !== undefined
+      ? { latestProjectKnowledgeRecallSummary }
+      : {}),
+    ...(projectKnowledgeRedactionAuditStatus !== undefined
+      ? { projectKnowledgeRedactionAuditStatus }
       : {}),
     ...(lastEventAt !== undefined ? { lastEventAt } : {}),
     typeCounts: isRecord(readValue(value, "typeCounts", "type_counts"))
@@ -630,6 +678,8 @@ export function buildEventLogPanelModel(
     approvedRollbackCount: finiteNumber(summary.approvedRollbackCount),
     verificationEventCount: finiteNumber(summary.verificationEventCount),
     liveProposalEventCount: finiteNumber(summary.liveProposalEventCount),
+    projectKnowledgeEventCount: finiteNumber(summary.projectKnowledgeEventCount),
+    projectKnowledgeEntryCount: finiteNumber(summary.projectKnowledgeEntryCount),
     ...(typeof summary.latestApprovedExecutionSummary === "string"
       ? {
           latestApprovedExecutionSummary: safeErrorMessage(
@@ -648,6 +698,27 @@ export function buildEventLogPanelModel(
       ? {
           latestLiveProposalSummary: safeErrorMessage(
             summary.latestLiveProposalSummary
+          )
+        }
+      : {}),
+    ...(typeof summary.latestProjectKnowledgeSummary === "string"
+      ? {
+          latestProjectKnowledgeSummary: safeErrorMessage(
+            summary.latestProjectKnowledgeSummary
+          )
+        }
+      : {}),
+    ...(typeof summary.latestProjectKnowledgeRecallSummary === "string"
+      ? {
+          latestProjectKnowledgeRecallSummary: safeErrorMessage(
+            summary.latestProjectKnowledgeRecallSummary
+          )
+        }
+      : {}),
+    ...(typeof summary.projectKnowledgeRedactionAuditStatus === "string"
+      ? {
+          projectKnowledgeRedactionAuditStatus: safeErrorMessage(
+            summary.projectKnowledgeRedactionAuditStatus
           )
         }
       : {}),
@@ -1133,6 +1204,8 @@ function invalidWorkspaceEventSummary(message: string): WorkspaceEventSummary {
     approvedRollbackCount: 0,
     verificationEventCount: 0,
     liveProposalEventCount: 0,
+    projectKnowledgeEventCount: 0,
+    projectKnowledgeEntryCount: 0,
     typeCounts: {},
     timeline: [],
     safetyScan: {

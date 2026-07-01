@@ -5,6 +5,7 @@ export * from "./errors.js";
 export * from "./integration.js";
 export * from "./project-knowledge-recall.js";
 export * from "./project-knowledge-store.js";
+export * from "./project-knowledge-events-replay.js";
 export * from "./recall-preview.js";
 export { isExpired, tokenize } from "./recall.js";
 export * from "./store.js";

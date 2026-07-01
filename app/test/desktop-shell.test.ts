@@ -415,6 +415,8 @@ function fixedEventSummary(
     approvedRollbackCount: 0,
     verificationEventCount: 0,
     liveProposalEventCount: 0,
+    projectKnowledgeEventCount: 0,
+    projectKnowledgeEntryCount: 0,
     lastEventAt: "2026-06-16T00:00:01.000Z",
     typeCounts: {
       "task.completed": 1,
@@ -2239,6 +2241,73 @@ describe("desktop command wrapper", () => {
     expect(serialized).not.toContain("reasoning_content");
     expect(serialized).not.toContain("sk-");
     expect(serialized).not.toContain('canApplyPatch":true');
+  });
+
+  it("projects project knowledge lifecycle events into Event Log / Replay", () => {
+    const summary = normalizeWorkspaceEventSummary(
+      fixedEventSummary({
+        eventCount: 4,
+        displayedEventCount: 4,
+        projectKnowledgeEventCount: 3,
+        projectKnowledgeEntryCount: 1,
+        latestProjectKnowledgeSummary:
+          "project knowledge entry revoked: pk-1 · revoked · Superseded by reviewed summary.",
+        latestProjectKnowledgeRecallSummary:
+          "project knowledge recall used: 1 reviewed summary entered volatile tail. · 1 matches",
+        projectKnowledgeRedactionAuditStatus: "ok",
+        typeCounts: {
+          "project_knowledge.candidate_committed": 1,
+          "project_knowledge.entry_revoked": 1,
+          "project_knowledge.recall_used": 1
+        },
+        timeline: [
+          {
+            id: "project-knowledge-event-1",
+            ts: "2026-06-30T00:00:00.000Z",
+            type: "project_knowledge.candidate_committed",
+            taskId: "project-knowledge",
+            summary:
+              "project knowledge candidate committed: pk-1 · committed",
+            safePayloadKeys: [
+              "entryId",
+              "entryStatus",
+              "eventHash",
+              "summaryOnly",
+              "noRawContent"
+            ]
+          },
+          {
+            id: "project-knowledge-event-2",
+            ts: "2026-06-30T00:00:01.000Z",
+            type: "project_knowledge.recall_used",
+            taskId: "project-knowledge",
+            summary:
+              "project knowledge recall used: 1 reviewed summary entered volatile tail. · 1 matches",
+            safePayloadKeys: [
+              "recallSummary",
+              "matchedEntryCount",
+              "summaryOnly"
+            ]
+          }
+        ]
+      })
+    );
+    const model = buildEventLogPanelModel(summary);
+    const serialized = JSON.stringify(model);
+
+    expect(model?.projectKnowledgeEventCount).toBe(3);
+    expect(model?.projectKnowledgeEntryCount).toBe(1);
+    expect(model?.latestProjectKnowledgeRecallSummary).toContain(
+      "project knowledge recall used"
+    );
+    expect(model?.projectKnowledgeRedactionAuditStatus).toBe("ok");
+    expect(model?.timeline[0]?.type).toBe(
+      "project_knowledge.candidate_committed"
+    );
+    expect(serialized).not.toContain("rawPrompt");
+    expect(serialized).not.toContain("rawSource");
+    expect(serialized).not.toContain("rawResponse");
+    expect(serialized).not.toContain("sk-");
   });
 
   it("models refresh and convert event summaries with null taskId without ErrorBoundary fallback", async () => {
@@ -8525,6 +8594,8 @@ describe("app controlled creation replay projection", () => {
       approvedRollbackCount: 0,
       verificationEventCount: 0,
       liveProposalEventCount: 0,
+      projectKnowledgeEventCount: 0,
+      projectKnowledgeEntryCount: 0,
       lastEventAt: "2026-06-25T00:00:00.000Z",
       typeCounts: {
         "control.run.draft_recorded": 1
@@ -16662,6 +16733,43 @@ describe("desktop source boundaries", () => {
     expect(combined).toContain("No Git/shell execution");
     expect(combined).toContain("No native bridge");
     expect(docsIndex).toContain("project-knowledge-recall-integration-v0.15.md");
+  });
+
+  it("documents the P0T-006 project knowledge events replay audit", async () => {
+    const replayDoc = await readFile(
+      path.join(
+        repoRoot,
+        "docs",
+        "project-knowledge-events-replay-audit-v0.15.md"
+      ),
+      "utf8"
+    );
+    const docsIndex = await readFile(
+      path.join(repoRoot, "docs", "README.md"),
+      "utf8"
+    );
+    const appReadme = await readFile(path.join(appRoot, "README.md"), "utf8");
+    const appSource = await readFile(
+      path.join(appRoot, "src", "App.tsx"),
+      "utf8"
+    );
+    const combined = `${replayDoc}\n${docsIndex}\n${appReadme}\n${appSource}`;
+
+    expect(combined).toContain(
+      "Project Knowledge Events / Replay / Redaction Audit v0.15"
+    );
+    expect(combined).toContain("project_knowledge.candidate_committed");
+    expect(combined).toContain("project_knowledge.recall_used");
+    expect(combined).toContain("No EventStore write");
+    expect(combined).toContain("no raw content");
+    expect(combined).toContain("no App execution");
+    expect(combined).toContain("no Git or shell execution");
+    expect(appSource).toContain("Project knowledge events");
+    expect(appSource).toContain("Latest project knowledge recall");
+    expect(appSource).toContain("Knowledge redaction audit");
+    expect(docsIndex).toContain(
+      "project-knowledge-events-replay-audit-v0.15.md"
+    );
   });
 
   it("documents the P0S-001 MVP hardening recovery design gate", async () => {

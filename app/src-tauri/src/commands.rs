@@ -41,8 +41,12 @@ const LIVE_PROPOSAL_MAX_TIMEOUT_MS: u64 = 120_000;
 const PROJECT_KNOWLEDGE_REVOKE_CONFIRMATION: &str = "REVOKE PROJECT KNOWLEDGE";
 const PROJECT_KNOWLEDGE_MAX_SUMMARY_CHARS: usize = 500;
 const PROJECT_KNOWLEDGE_ENTRY_COMMITTED_TYPE: &str = "project_knowledge.entry_committed";
+const PROJECT_KNOWLEDGE_CANDIDATE_COMMITTED_TYPE: &str =
+    "project_knowledge.candidate_committed";
 const PROJECT_KNOWLEDGE_ENTRY_REVOKED_TYPE: &str = "project_knowledge.entry_revoked";
 const PROJECT_KNOWLEDGE_ENTRY_EXPIRED_TYPE: &str = "project_knowledge.entry_expired";
+const PROJECT_KNOWLEDGE_RECALL_USED_TYPE: &str = "project_knowledge.recall_used";
+const PROJECT_KNOWLEDGE_AUDIT_WARNING_TYPE: &str = "project_knowledge.audit_warning";
 
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -244,9 +248,14 @@ pub struct WorkspaceEventSummary {
     approved_rollback_count: usize,
     verification_event_count: usize,
     live_proposal_event_count: usize,
+    project_knowledge_event_count: usize,
+    project_knowledge_entry_count: usize,
     latest_approved_execution_summary: Option<String>,
     latest_verification_summary: Option<String>,
     latest_live_proposal_summary: Option<String>,
+    latest_project_knowledge_summary: Option<String>,
+    latest_project_knowledge_recall_summary: Option<String>,
+    project_knowledge_redaction_audit_status: Option<String>,
     last_event_at: Option<String>,
     type_counts: BTreeMap<String, usize>,
     timeline: Vec<EventTimelineItem>,
@@ -884,6 +893,11 @@ pub struct EventSafetyScan {
     ok: bool,
     findings: usize,
     warning_codes: Vec<String>,
+}
+
+struct ProjectKnowledgeEventSummaryProjection {
+    events: Vec<Value>,
+    warnings: Vec<String>,
 }
 
 #[tauri::command]
@@ -4038,9 +4052,28 @@ fn load_event_summary(workspace_root: &str, max_events: Option<usize>) -> Worksp
         .join(".deepseek-workbench")
         .join("events.jsonl");
     let event_log_path_text = event_log_path.to_string_lossy().to_string();
+    let project_knowledge_projection =
+        load_project_knowledge_event_summary_projection(&workspace_root);
 
     if !event_log_path.exists() {
-        return empty_event_summary(Some(event_log_path_text), Vec::new(), None);
+        if project_knowledge_projection.events.is_empty() {
+            return empty_event_summary(Some(event_log_path_text), Vec::new(), None);
+        }
+        let mut warnings = project_knowledge_projection.warnings.clone();
+        warnings.sort();
+        warnings.dedup();
+        return summarize_workspace_events(
+            Some(event_log_path_text),
+            project_knowledge_projection.events,
+            display_limit,
+            EventSafetyScan {
+                ok: true,
+                findings: 0,
+                warning_codes: Vec::new(),
+            },
+            warnings,
+            None,
+        );
     }
 
     let canonical_event_log = match event_log_path.canonicalize() {
@@ -4095,10 +4128,30 @@ fn load_event_summary(workspace_root: &str, max_events: Option<usize>) -> Worksp
             Err(_) => warnings.push("PARSE_ERROR_LINE_SKIPPED".to_string()),
         }
     }
+    events.extend(project_knowledge_projection.events);
+    warnings.extend(project_knowledge_projection.warnings);
     warnings.extend(safety_scan.warning_codes.clone());
     warnings.sort();
     warnings.dedup();
 
+    summarize_workspace_events(
+        Some(event_log_path_text),
+        events,
+        display_limit,
+        safety_scan,
+        warnings,
+        None,
+    )
+}
+
+fn summarize_workspace_events(
+    event_log_path: Option<String>,
+    events: Vec<Value>,
+    display_limit: usize,
+    safety_scan: EventSafetyScan,
+    warnings: Vec<String>,
+    safe_message: Option<String>,
+) -> WorkspaceEventSummary {
     let mut task_status: BTreeMap<String, String> = BTreeMap::new();
     let mut type_counts: BTreeMap<String, usize> = BTreeMap::new();
     let mut draft_count = 0usize;
@@ -4106,9 +4159,14 @@ fn load_event_summary(workspace_root: &str, max_events: Option<usize>) -> Worksp
     let mut approved_rollback_count = 0usize;
     let mut verification_event_count = 0usize;
     let mut live_proposal_event_count = 0usize;
+    let mut project_knowledge_event_count = 0usize;
+    let mut project_knowledge_entry_ids: BTreeSet<String> = BTreeSet::new();
     let mut latest_approved_execution_summary: Option<String> = None;
     let mut latest_verification_summary: Option<String> = None;
     let mut latest_live_proposal_summary: Option<String> = None;
+    let mut latest_project_knowledge_summary: Option<String> = None;
+    let mut latest_project_knowledge_recall_summary: Option<String> = None;
+    let mut project_knowledge_redaction_audit_status: Option<String> = None;
     let mut last_event_at: Option<String> = None;
 
     for event in &events {
@@ -4147,6 +4205,25 @@ fn load_event_summary(workspace_root: &str, max_events: Option<usize>) -> Worksp
             live_proposal_event_count += 1;
             latest_live_proposal_summary = Some(summarize_safe_event(event));
         }
+        if event_type.starts_with("project_knowledge.") {
+            project_knowledge_event_count += 1;
+            if let Some(entry_id) = nested_string(event.get("payload"), "entryId") {
+                project_knowledge_entry_ids.insert(entry_id);
+            }
+            latest_project_knowledge_summary = Some(summarize_safe_event(event));
+            if event_type == PROJECT_KNOWLEDGE_RECALL_USED_TYPE {
+                latest_project_knowledge_recall_summary = Some(summarize_safe_event(event));
+            }
+            if event_type == PROJECT_KNOWLEDGE_AUDIT_WARNING_TYPE {
+                project_knowledge_redaction_audit_status = Some(
+                    nested_string(event.get("payload"), "redactionAuditStatus")
+                        .unwrap_or_else(|| "warning".to_string()),
+                );
+            }
+        }
+    }
+    if project_knowledge_event_count > 0 && project_knowledge_redaction_audit_status.is_none() {
+        project_knowledge_redaction_audit_status = Some("ok".to_string());
     }
 
     let mut timeline = events
@@ -4159,7 +4236,7 @@ fn load_event_summary(workspace_root: &str, max_events: Option<usize>) -> Worksp
 
     WorkspaceEventSummary {
         ok: true,
-        event_log_path: Some(event_log_path_text),
+        event_log_path,
         event_count: events.len(),
         displayed_event_count: timeline.len(),
         task_count: task_status.len(),
@@ -4172,16 +4249,74 @@ fn load_event_summary(workspace_root: &str, max_events: Option<usize>) -> Worksp
         approved_rollback_count,
         verification_event_count,
         live_proposal_event_count,
+        project_knowledge_event_count,
+        project_knowledge_entry_count: project_knowledge_entry_ids.len(),
         latest_approved_execution_summary,
         latest_verification_summary,
         latest_live_proposal_summary,
+        latest_project_knowledge_summary,
+        latest_project_knowledge_recall_summary,
+        project_knowledge_redaction_audit_status,
         last_event_at,
         type_counts,
         timeline,
         safety_scan,
         warnings,
-        safe_message: None,
+        safe_message,
     }
+}
+
+fn load_project_knowledge_event_summary_projection(
+    workspace_root: &Path,
+) -> ProjectKnowledgeEventSummaryProjection {
+    let mut warnings = Vec::new();
+    let store = match resolve_project_knowledge_store(workspace_root, false) {
+        Ok(store) => store,
+        Err(_) => {
+            return ProjectKnowledgeEventSummaryProjection {
+                events: Vec::new(),
+                warnings: vec!["PROJECT_KNOWLEDGE_EVENT_READ_WARNING".to_string()],
+            };
+        }
+    };
+    let lifecycle_events = match read_project_knowledge_events(&store.events_path, &mut warnings) {
+        Ok(events) => events,
+        Err(_) => {
+            warnings.push("PROJECT_KNOWLEDGE_EVENT_READ_WARNING".to_string());
+            Vec::new()
+        }
+    };
+    let events = lifecycle_events
+        .iter()
+        .map(project_knowledge_event_timeline_value)
+        .collect::<Vec<_>>();
+    warnings.sort();
+    warnings.dedup();
+    ProjectKnowledgeEventSummaryProjection { events, warnings }
+}
+
+fn project_knowledge_event_timeline_value(event: &ProjectKnowledgeLifecycleEvent) -> Value {
+    let event_type = if event.event_type == PROJECT_KNOWLEDGE_ENTRY_COMMITTED_TYPE {
+        PROJECT_KNOWLEDGE_CANDIDATE_COMMITTED_TYPE
+    } else {
+        event.event_type.as_str()
+    };
+    serde_json::json!({
+        "id": event.event_id,
+        "ts": event.created_at,
+        "type": event_type,
+        "taskId": "project-knowledge",
+        "payload": {
+            "entryId": event.entry_id,
+            "entryStatus": event.status,
+            "reasonSummary": event.reason_summary,
+            "eventHash": event.event_hash,
+            "warningCodes": [],
+            "summaryOnly": true,
+            "rawContentIncluded": false,
+            "noRawContent": true
+        }
+    })
 }
 
 fn empty_event_summary(
@@ -4201,9 +4336,14 @@ fn empty_event_summary(
         approved_rollback_count: 0,
         verification_event_count: 0,
         live_proposal_event_count: 0,
+        project_knowledge_event_count: 0,
+        project_knowledge_entry_count: 0,
         latest_approved_execution_summary: None,
         latest_verification_summary: None,
         latest_live_proposal_summary: None,
+        latest_project_knowledge_summary: None,
+        latest_project_knowledge_recall_summary: None,
+        project_knowledge_redaction_audit_status: None,
         last_event_at: None,
         type_counts: BTreeMap::new(),
         timeline: Vec::new(),
@@ -4230,9 +4370,14 @@ fn event_summary_error(code: &str, message: String) -> WorkspaceEventSummary {
         approved_rollback_count: 0,
         verification_event_count: 0,
         live_proposal_event_count: 0,
+        project_knowledge_event_count: 0,
+        project_knowledge_entry_count: 0,
         latest_approved_execution_summary: None,
         latest_verification_summary: None,
         latest_live_proposal_summary: None,
+        latest_project_knowledge_summary: None,
+        latest_project_knowledge_recall_summary: None,
+        project_knowledge_redaction_audit_status: None,
         last_event_at: None,
         type_counts: BTreeMap::new(),
         timeline: Vec::new(),
@@ -4300,6 +4445,9 @@ fn safe_payload_keys(payload: &serde_json::Map<String, Value>) -> BTreeSet<Strin
         "lane",
         "localOnly",
         "localTaskId",
+        "entryId",
+        "entryStatus",
+        "eventHash",
         "memoryRecallSummary",
         "metadataSummary",
         "modelProfileId",
@@ -4315,8 +4463,15 @@ fn safe_payload_keys(payload: &serde_json::Map<String, Value>) -> BTreeSet<Strin
         "pathSummaries",
         "pathSummaryCount",
         "previewOnly",
+        "projectKnowledgeCount",
         "proposalHash",
         "proposalId",
+        "rawContentIncluded",
+        "reasonSummary",
+        "recallSummary",
+        "matchedEntryCount",
+        "redactionAuditStatus",
+        "auditStatus",
         "redactedTextCount",
         "redaction",
         "relativePath",
@@ -4502,6 +4657,51 @@ fn summarize_safe_event(event: &Value) -> String {
                     .map(|value| format!("validation {value}")),
                 nested_display(payload, "warningCount", "warnings"),
                 nested_display(payload, "blockerCount", "blockers"),
+            ],
+        ),
+        PROJECT_KNOWLEDGE_CANDIDATE_COMMITTED_TYPE | PROJECT_KNOWLEDGE_ENTRY_COMMITTED_TYPE => {
+            format_parts(
+                "project knowledge candidate committed",
+                [
+                    nested_string(payload, "entryId"),
+                    nested_string(payload, "entryStatus"),
+                    nested_display(payload, "projectKnowledgeCount", "entries"),
+                    nested_array_display(payload, "warningCodes", "warning codes"),
+                ],
+            )
+        }
+        PROJECT_KNOWLEDGE_ENTRY_REVOKED_TYPE => format_parts(
+            "project knowledge entry revoked",
+            [
+                nested_string(payload, "entryId"),
+                nested_string(payload, "entryStatus"),
+                nested_string(payload, "reasonSummary"),
+                nested_array_display(payload, "warningCodes", "warning codes"),
+            ],
+        ),
+        PROJECT_KNOWLEDGE_ENTRY_EXPIRED_TYPE => format_parts(
+            "project knowledge entry expired",
+            [
+                nested_string(payload, "entryId"),
+                nested_string(payload, "entryStatus"),
+                nested_string(payload, "reasonSummary"),
+                nested_array_display(payload, "warningCodes", "warning codes"),
+            ],
+        ),
+        PROJECT_KNOWLEDGE_RECALL_USED_TYPE => format_parts(
+            "project knowledge recall used",
+            [
+                nested_string(payload, "recallSummary"),
+                nested_display(payload, "matchedEntryCount", "matches"),
+                nested_array_display(payload, "warningCodes", "warning codes"),
+            ],
+        ),
+        PROJECT_KNOWLEDGE_AUDIT_WARNING_TYPE => format_parts(
+            "project knowledge audit warning",
+            [
+                nested_string(payload, "redactionAuditStatus"),
+                nested_string(payload, "auditStatus"),
+                nested_array_display(payload, "warningCodes", "warning codes"),
             ],
         ),
         _ => format_parts(
@@ -7888,6 +8088,54 @@ mod tests {
         assert!(summary.timeline[1]
             .safe_payload_keys
             .contains(&"relativePath".to_string()));
+
+        let _ = fs::remove_dir_all(workspace);
+    }
+
+    #[test]
+    fn event_summary_projects_project_knowledge_lifecycle_events() {
+        let workspace = temp_workspace("project-knowledge-event-summary");
+        let committed = project_knowledge_commit_candidate(
+            workspace.to_string_lossy().to_string(),
+            safe_project_knowledge_candidate("project_fact"),
+        )
+        .expect("commit project knowledge");
+        project_knowledge_revoke(
+            workspace.to_string_lossy().to_string(),
+            committed.entry.entry_id.clone(),
+            PROJECT_KNOWLEDGE_REVOKE_CONFIRMATION.to_string(),
+        )
+        .expect("revoke project knowledge");
+
+        let summary = load_event_summary(workspace.to_string_lossy().as_ref(), Some(10));
+        let serialized = serde_json::to_string(&summary).expect("summary");
+
+        assert!(summary.ok);
+        assert_eq!(summary.event_count, 2);
+        assert_eq!(summary.project_knowledge_event_count, 2);
+        assert_eq!(summary.project_knowledge_entry_count, 1);
+        assert_eq!(
+            summary
+                .type_counts
+                .get(PROJECT_KNOWLEDGE_CANDIDATE_COMMITTED_TYPE)
+                .copied(),
+            Some(1)
+        );
+        assert_eq!(
+            summary.project_knowledge_redaction_audit_status.as_deref(),
+            Some("ok")
+        );
+        assert!(summary
+            .latest_project_knowledge_summary
+            .as_deref()
+            .unwrap_or_default()
+            .contains("project knowledge entry revoked"));
+        assert!(summary.timeline[0]
+            .safe_payload_keys
+            .contains(&"entryId".to_string()));
+        assert!(!serialized.contains(&format!("{}{}", "raw", "Prompt")));
+        assert!(!serialized.contains(&format!("{}{}", "raw", "Source")));
+        assert!(!serialized.contains("sk-"));
 
         let _ = fs::remove_dir_all(workspace);
     }

@@ -12409,6 +12409,14 @@ export function DesktopShell(): JSX.Element {
                     <dd>{eventPanel.liveProposalEventCount}</dd>
                   </div>
                   <div>
+                    <dt>Project knowledge events</dt>
+                    <dd>{eventPanel.projectKnowledgeEventCount}</dd>
+                  </div>
+                  <div>
+                    <dt>Project knowledge entries</dt>
+                    <dd>{eventPanel.projectKnowledgeEntryCount}</dd>
+                  </div>
+                  <div>
                     <dt>Latest approved execution</dt>
                     <dd>
                       {eventPanel.latestApprovedExecutionSummary ?? "n/a"}
@@ -12421,6 +12429,24 @@ export function DesktopShell(): JSX.Element {
                   <div>
                     <dt>Latest live proposal</dt>
                     <dd>{eventPanel.latestLiveProposalSummary ?? "n/a"}</dd>
+                  </div>
+                  <div>
+                    <dt>Latest project knowledge</dt>
+                    <dd>
+                      {eventPanel.latestProjectKnowledgeSummary ?? "n/a"}
+                    </dd>
+                  </div>
+                  <div>
+                    <dt>Latest project knowledge recall</dt>
+                    <dd>
+                      {eventPanel.latestProjectKnowledgeRecallSummary ?? "n/a"}
+                    </dd>
+                  </div>
+                  <div>
+                    <dt>Knowledge redaction audit</dt>
+                    <dd>
+                      {eventPanel.projectKnowledgeRedactionAuditStatus ?? "n/a"}
+                    </dd>
                   </div>
                   <div>
                     <dt>Tasks completed</dt>
