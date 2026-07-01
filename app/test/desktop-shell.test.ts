@@ -8,6 +8,7 @@ import { afterEach, describe, expect, it } from "vitest";
 import {
   checkDesktopRunnerPreflight,
   applyApprovedUserWorkspacePatch,
+  callMcpReadonlyTool,
   commitProjectKnowledgeCandidate,
   expireProjectKnowledgeEntry,
   generateLiveDeepSeekPatchProposal,
@@ -35,6 +36,7 @@ import {
   type LiveProposalSummaryEventPreview,
   type LiveProposalSummaryEventRecordResult,
   type McpReadonlyDiscoverResult,
+  type McpReadonlyToolCallCommandResult,
   type VerificationLaneEventRecordResult,
   type ShellVerificationLaneResult,
   type TauriInvoke
@@ -934,6 +936,7 @@ describe("desktop command wrapper", () => {
       true
     );
     expect(isAllowedDesktopCommand("mcp_readonly_discover")).toBe(true);
+    expect(isAllowedDesktopCommand("call_mcp_readonly_tool")).toBe(true);
     expect(isAllowedDesktopCommand("project_knowledge_list")).toBe(true);
     expect(isAllowedDesktopCommand("project_knowledge_commit_candidate")).toBe(
       true
@@ -1068,6 +1071,140 @@ describe("desktop command wrapper", () => {
     expect(appSource).not.toContain("resourceRead(");
     expect(appSource).not.toContain("tools/call");
     expect(appSource).not.toContain("resources/read");
+  });
+
+  it("calls MCP readonly tools only through the fixed wrapper", async () => {
+    const invoke: TauriInvoke = async <T>(
+      command: string,
+      args?: Record<string, unknown>
+    ): Promise<T> => {
+      expect(command).toBe("call_mcp_readonly_tool");
+      expect(args).toMatchObject({
+        request: {
+          connectionProfileRef: "mcp.docs.injected",
+          argumentSummary: "querySummaryHash=abc123",
+          maxOutputBytes: 8192,
+          timeoutMs: 5000
+        }
+      });
+      const result = {
+        ok: true,
+        status: "called",
+        callId: "mcp-readonly-tool-call-1",
+        toolId: "docs.search",
+        connectionProfileRef: "mcp.docs.injected",
+        outputSummary: {
+          outputHash: "output-hash",
+          outputBytes: 42,
+          outputLineCount: 1,
+          warningCodes: ["MCP_READONLY_FIXED_TRANSPORT"],
+          rawOutputIncluded: false
+        },
+        outputHash: "output-hash",
+        outputBytes: 42,
+        redactionCounts: {
+          secretMarkerCount: 0,
+          rawMarkerCount: 0,
+          mutatingMarkerCount: 0,
+          truncatedByteCount: 0
+        },
+        warningCodes: ["MCP_READONLY_FIXED_TRANSPORT"],
+        eventPreview: {
+          type: "mcp.readonly_tool.result",
+          callId: "mcp-readonly-tool-call-1",
+          toolId: "docs.search",
+          connectionProfileRefHash: "profile-hash",
+          outputHash: "output-hash",
+          outputBytes: 42,
+          warningCodes: ["MCP_READONLY_FIXED_TRANSPORT"],
+          summaryOnly: true,
+          rawOutputIncluded: false,
+          notWritten: true
+        },
+        summaryOnly: true,
+        calledReadonlyTool: true,
+        rawOutputIncluded: false,
+        rawArgsIncluded: false,
+        canCallMcpTool: false,
+        canInvokeMutatingTool: false,
+        canWriteEventStore: false,
+        canExecuteGit: false,
+        canExecuteShell: false,
+        canIssuePermissionLease: false,
+        appCanExecute: false,
+        resultHash: "result-hash",
+        safeMessage: "MCP read-only tool call completed."
+      } satisfies McpReadonlyToolCallCommandResult;
+      return result as T;
+    };
+
+    const result = await callMcpReadonlyTool(
+      {
+        connectionProfileRef: "mcp.docs.injected",
+        serverProfile: {
+          profileId: "mcp.docs.injected",
+          serverKind: "mcp",
+          transportKind: "injected_test_transport"
+        },
+        toolContractSummary: {
+          toolId: "docs.search",
+          toolName: "docs.search",
+          declaredReadOnly: true,
+          riskLevel: "low",
+          allowedArgumentKeys: ["querySummary", "maxResults"],
+          deniedArgumentKeyCount: 0,
+          maxOutputBytes: 8192,
+          timeoutMs: 5000,
+          approvalRequired: true,
+          typedConfirmationRequired: true
+        },
+        approvalReceipt: {
+          receiptId: "mcp-readonly-tool-receipt-1",
+          toolId: "docs.search",
+          connectionProfileRef: "mcp.docs.injected",
+          typedConfirmation: "CALL READONLY MCP TOOL",
+          allowedArgumentKeys: ["querySummary", "maxResults"],
+          maxOutputBytes: 8192,
+          expiresAt: "2026-07-02T01:00:00.000Z",
+          receiptHash: "abcdef1234567890"
+        },
+        argumentSummary: "querySummaryHash=abc123",
+        argumentValues: {
+          querySummary: "docs summary query",
+          maxResults: 3
+        },
+        maxOutputBytes: 8192,
+        timeoutMs: 5000
+      },
+      invoke
+    );
+
+    expect(result.summaryOnly).toBe(true);
+    expect(result.calledReadonlyTool).toBe(true);
+    expect(result.rawOutputIncluded).toBe(false);
+    expect(result.rawArgsIncluded).toBe(false);
+    expect(result.canCallMcpTool).toBe(false);
+    expect(result.canWriteEventStore).toBe(false);
+    expect(result.eventPreview.notWritten).toBe(true);
+  });
+
+  it("keeps MCP readonly tool command fixed without App hidden invocation", async () => {
+    const appSource = await readFile(
+      path.join(appRoot, "src", "App.tsx"),
+      "utf8"
+    );
+    const flowSource = await readFile(
+      path.join(appRoot, "src", "desktop-flow.ts"),
+      "utf8"
+    );
+
+    expect(flowSource).toContain("call_mcp_readonly_tool");
+    expect(flowSource).toContain("callMcpReadonlyTool");
+    expect(flowSource).not.toContain("mcpGenericInvoke");
+    expect(flowSource).not.toContain("callTool(");
+    expect(appSource).not.toContain("callMcpReadonlyTool(");
+    expect(appSource).not.toContain("call_mcp_readonly_tool");
+    expect(appSource).not.toContain("Run MCP Tool");
   });
 
   it("renders MCP read-only connection surface with disabled execution controls", async () => {

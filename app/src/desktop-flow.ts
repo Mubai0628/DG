@@ -396,6 +396,66 @@ export type McpReadonlyDiscoverResult = {
   safeMessage: string;
 };
 
+export type McpReadonlyToolCallCommandRequest = {
+  connectionProfileRef: string;
+  serverProfile: Record<string, unknown>;
+  toolContractSummary: Record<string, unknown>;
+  approvalReceipt: Record<string, unknown>;
+  argumentSummary: string;
+  argumentValues: Record<string, unknown>;
+  maxOutputBytes: number;
+  timeoutMs: number;
+};
+
+export type McpReadonlyToolCallCommandResult = {
+  ok: true;
+  status: "called";
+  callId: string;
+  toolId: string;
+  connectionProfileRef: string;
+  outputSummary: {
+    outputHash: string;
+    outputBytes: number;
+    outputLineCount: number;
+    warningCodes: string[];
+    rawOutputIncluded: false;
+  };
+  outputHash: string;
+  outputBytes: number;
+  redactionCounts: {
+    secretMarkerCount: number;
+    rawMarkerCount: number;
+    mutatingMarkerCount: number;
+    truncatedByteCount: number;
+  };
+  warningCodes: string[];
+  eventPreview: {
+    type: "mcp.readonly_tool.result";
+    callId: string;
+    toolId: string;
+    connectionProfileRefHash: string;
+    outputHash: string;
+    outputBytes: number;
+    warningCodes: string[];
+    summaryOnly: true;
+    rawOutputIncluded: false;
+    notWritten: true;
+  };
+  summaryOnly: true;
+  calledReadonlyTool: true;
+  rawOutputIncluded: false;
+  rawArgsIncluded: false;
+  canCallMcpTool: false;
+  canInvokeMutatingTool: false;
+  canWriteEventStore: false;
+  canExecuteGit: false;
+  canExecuteShell: false;
+  canIssuePermissionLease: false;
+  appCanExecute: false;
+  resultHash: string;
+  safeMessage: string;
+};
+
 export type ProjectKnowledgeEvidenceRef = {
   refId: string;
   kind: string;
@@ -508,6 +568,7 @@ export const allowedDesktopCommands = [
   "record_verification_lane_event",
   "record_live_proposal_summary_event",
   "mcp_readonly_discover",
+  "call_mcp_readonly_tool",
   "generate_live_deepseek_patch_proposal",
   "project_knowledge_list",
   "project_knowledge_commit_candidate",
@@ -717,6 +778,18 @@ export async function runMcpReadonlyDiscovery(
   );
 }
 
+export async function callMcpReadonlyTool(
+  request: McpReadonlyToolCallCommandRequest,
+  invokeImpl?: TauriInvoke
+): Promise<McpReadonlyToolCallCommandResult> {
+  validateMcpReadonlyToolCallRequest(request);
+  return invokeAllowedCommand<McpReadonlyToolCallCommandResult>(
+    "call_mcp_readonly_tool",
+    { request },
+    invokeImpl
+  );
+}
+
 export async function generateLiveDeepSeekPatchProposal(
   request: LiveDeepSeekPatchProposalCommandRequest,
   invokeImpl?: TauriInvoke
@@ -866,6 +939,8 @@ function normalizeAllowedCommandResponse(
       return normalizeLiveProposalSummaryEventRecordResult(raw);
     case "mcp_readonly_discover":
       return normalizeMcpReadonlyDiscoverResult(raw);
+    case "call_mcp_readonly_tool":
+      return normalizeMcpReadonlyToolCallResult(raw);
     case "run_git_read_lane":
       return normalizeGitReadLaneResult(raw);
     case "run_shell_verification_lane":
@@ -907,6 +982,50 @@ function validateMcpReadonlyDiscoverRequest(
   }
   if (containsForbiddenLiveProposalValue(request)) {
     throw new Error("MCP readonly discovery request contains unsafe fields");
+  }
+}
+
+function validateMcpReadonlyToolCallRequest(
+  request: McpReadonlyToolCallCommandRequest
+): void {
+  if (request.connectionProfileRef.trim().length === 0) {
+    throw new Error("MCP readonly tool connectionProfileRef is required");
+  }
+  if (!isRecord(request.serverProfile)) {
+    throw new Error("MCP readonly tool serverProfile is required");
+  }
+  if (!isRecord(request.toolContractSummary)) {
+    throw new Error("MCP readonly tool contract summary is required");
+  }
+  if (!isRecord(request.approvalReceipt)) {
+    throw new Error("MCP readonly tool approval receipt is required");
+  }
+  if (!isRecord(request.argumentValues)) {
+    throw new Error("MCP readonly tool argument values are required");
+  }
+  if (request.argumentSummary.trim().length === 0) {
+    throw new Error("MCP readonly tool argument summary is required");
+  }
+  if (!Number.isFinite(request.maxOutputBytes) || request.maxOutputBytes <= 0) {
+    throw new Error("MCP readonly tool maxOutputBytes must be positive");
+  }
+  if (!Number.isFinite(request.timeoutMs) || request.timeoutMs <= 0) {
+    throw new Error("MCP readonly tool timeoutMs must be positive");
+  }
+  if (
+    request.serverProfile.serverKind !== "mcp" ||
+    request.serverProfile.transportKind !== "injected_test_transport"
+  ) {
+    throw new Error("MCP readonly tool requires fixed injected MCP profile");
+  }
+  if (request.toolContractSummary.declaredReadOnly !== true) {
+    throw new Error("MCP readonly tool contract must be read-only");
+  }
+  if (request.approvalReceipt.typedConfirmation !== "CALL READONLY MCP TOOL") {
+    throw new Error("MCP readonly tool typed confirmation is required");
+  }
+  if (containsForbiddenLiveProposalValue(request)) {
+    throw new Error("MCP readonly tool request contains unsafe fields");
   }
 }
 
@@ -1557,6 +1676,133 @@ function normalizeMcpReadonlyDiscoverResult(
     canExecutePrompt: false,
     canMutate: false,
     canWriteEventStore: false,
+    resultHash: safeErrorMessage(record.resultHash),
+    safeMessage: safeErrorMessage(record.safeMessage)
+  };
+}
+
+function normalizeMcpReadonlyToolCallResult(
+  raw: unknown
+): McpReadonlyToolCallCommandResult {
+  const record = isRecord(raw) ? raw : {};
+  const outputSummary = isRecord(record.outputSummary)
+    ? record.outputSummary
+    : {};
+  const redactionCounts = isRecord(record.redactionCounts)
+    ? record.redactionCounts
+    : {};
+  const eventPreview = isRecord(record.eventPreview) ? record.eventPreview : {};
+  if (
+    record.ok !== true ||
+    record.status !== "called" ||
+    typeof record.callId !== "string" ||
+    typeof record.toolId !== "string" ||
+    typeof record.connectionProfileRef !== "string" ||
+    typeof outputSummary.outputHash !== "string" ||
+    typeof outputSummary.outputBytes !== "number" ||
+    typeof outputSummary.outputLineCount !== "number" ||
+    !Array.isArray(outputSummary.warningCodes) ||
+    outputSummary.rawOutputIncluded !== false ||
+    typeof record.outputHash !== "string" ||
+    typeof record.outputBytes !== "number" ||
+    typeof redactionCounts.secretMarkerCount !== "number" ||
+    typeof redactionCounts.rawMarkerCount !== "number" ||
+    typeof redactionCounts.mutatingMarkerCount !== "number" ||
+    typeof redactionCounts.truncatedByteCount !== "number" ||
+    !Array.isArray(record.warningCodes) ||
+    eventPreview.type !== "mcp.readonly_tool.result" ||
+    typeof eventPreview.callId !== "string" ||
+    typeof eventPreview.toolId !== "string" ||
+    typeof eventPreview.connectionProfileRefHash !== "string" ||
+    typeof eventPreview.outputHash !== "string" ||
+    typeof eventPreview.outputBytes !== "number" ||
+    !Array.isArray(eventPreview.warningCodes) ||
+    eventPreview.summaryOnly !== true ||
+    eventPreview.rawOutputIncluded !== false ||
+    eventPreview.notWritten !== true ||
+    record.summaryOnly !== true ||
+    record.calledReadonlyTool !== true ||
+    record.rawOutputIncluded !== false ||
+    record.rawArgsIncluded !== false ||
+    record.canCallMcpTool !== false ||
+    record.canInvokeMutatingTool !== false ||
+    record.canWriteEventStore !== false ||
+    record.canExecuteGit !== false ||
+    record.canExecuteShell !== false ||
+    record.canIssuePermissionLease !== false ||
+    record.appCanExecute !== false ||
+    typeof record.resultHash !== "string" ||
+    typeof record.safeMessage !== "string"
+  ) {
+    throw normalizeDesktopCommandError({
+      errorCode: "INVALID_RESPONSE",
+      safeMessage: "MCP readonly tool call response was invalid",
+      stage: "normalize_response"
+    });
+  }
+  if (containsForbiddenLiveProposalValue(record)) {
+    throw normalizeDesktopCommandError({
+      errorCode: "INVALID_RESPONSE",
+      safeMessage: "MCP readonly tool call response contained unsafe fields",
+      stage: "normalize_response"
+    });
+  }
+  const warningCodes = record.warningCodes.filter(
+    (value): value is string => typeof value === "string"
+  );
+  const outputWarningCodes = outputSummary.warningCodes.filter(
+    (value): value is string => typeof value === "string"
+  );
+  const eventWarningCodes = eventPreview.warningCodes.filter(
+    (value): value is string => typeof value === "string"
+  );
+  return {
+    ok: true,
+    status: "called",
+    callId: safeErrorMessage(record.callId),
+    toolId: safeErrorMessage(record.toolId),
+    connectionProfileRef: safeErrorMessage(record.connectionProfileRef),
+    outputSummary: {
+      outputHash: safeErrorMessage(outputSummary.outputHash),
+      outputBytes: outputSummary.outputBytes,
+      outputLineCount: outputSummary.outputLineCount,
+      warningCodes: outputWarningCodes,
+      rawOutputIncluded: false
+    },
+    outputHash: safeErrorMessage(record.outputHash),
+    outputBytes: record.outputBytes,
+    redactionCounts: {
+      secretMarkerCount: redactionCounts.secretMarkerCount,
+      rawMarkerCount: redactionCounts.rawMarkerCount,
+      mutatingMarkerCount: redactionCounts.mutatingMarkerCount,
+      truncatedByteCount: redactionCounts.truncatedByteCount
+    },
+    warningCodes,
+    eventPreview: {
+      type: "mcp.readonly_tool.result",
+      callId: safeErrorMessage(eventPreview.callId),
+      toolId: safeErrorMessage(eventPreview.toolId),
+      connectionProfileRefHash: safeErrorMessage(
+        eventPreview.connectionProfileRefHash
+      ),
+      outputHash: safeErrorMessage(eventPreview.outputHash),
+      outputBytes: eventPreview.outputBytes,
+      warningCodes: eventWarningCodes,
+      summaryOnly: true,
+      rawOutputIncluded: false,
+      notWritten: true
+    },
+    summaryOnly: true,
+    calledReadonlyTool: true,
+    rawOutputIncluded: false,
+    rawArgsIncluded: false,
+    canCallMcpTool: false,
+    canInvokeMutatingTool: false,
+    canWriteEventStore: false,
+    canExecuteGit: false,
+    canExecuteShell: false,
+    canIssuePermissionLease: false,
+    appCanExecute: false,
     resultHash: safeErrorMessage(record.resultHash),
     safeMessage: safeErrorMessage(record.safeMessage)
   };

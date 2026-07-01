@@ -41,6 +41,9 @@ const LIVE_PROPOSAL_MAX_TIMEOUT_MS: u64 = 120_000;
 const MCP_READONLY_DISCOVERY_CONFIRMATION: &str = "DISCOVER MCP METADATA";
 const MCP_READONLY_DISCOVERY_MAX_TIMEOUT_MS: u64 = 30_000;
 const MCP_READONLY_DISCOVERY_MAX_ITEMS: usize = 100;
+const MCP_READONLY_TOOL_CONFIRMATION: &str = "CALL READONLY MCP TOOL";
+const MCP_READONLY_TOOL_MAX_TIMEOUT_MS: u64 = 30_000;
+const MCP_READONLY_TOOL_MAX_OUTPUT_BYTES: usize = 65_536;
 const PROJECT_KNOWLEDGE_REVOKE_CONFIRMATION: &str = "REVOKE PROJECT KNOWLEDGE";
 const PROJECT_KNOWLEDGE_MAX_SUMMARY_CHARS: usize = 500;
 const PROJECT_KNOWLEDGE_ENTRY_COMMITTED_TYPE: &str = "project_knowledge.entry_committed";
@@ -443,6 +446,83 @@ pub struct McpReadonlyDiscoverResult {
     can_execute_prompt: bool,
     can_mutate: bool,
     can_write_event_store: bool,
+    result_hash: String,
+    safe_message: String,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct McpReadonlyToolCallRequest {
+    connection_profile_ref: String,
+    server_profile: Value,
+    tool_contract_summary: Value,
+    approval_receipt: Value,
+    argument_summary: String,
+    argument_values: Value,
+    max_output_bytes: usize,
+    timeout_ms: u64,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct McpReadonlyToolOutputSummary {
+    output_hash: String,
+    output_bytes: usize,
+    output_line_count: usize,
+    warning_codes: Vec<String>,
+    raw_output_included: bool,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct McpReadonlyToolRedactionCounts {
+    secret_marker_count: usize,
+    raw_marker_count: usize,
+    mutating_marker_count: usize,
+    truncated_byte_count: usize,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct McpReadonlyToolEventPreview {
+    #[serde(rename = "type")]
+    event_type: String,
+    call_id: String,
+    tool_id: String,
+    connection_profile_ref_hash: String,
+    output_hash: String,
+    output_bytes: usize,
+    warning_codes: Vec<String>,
+    summary_only: bool,
+    raw_output_included: bool,
+    not_written: bool,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct McpReadonlyToolCallResult {
+    ok: bool,
+    status: String,
+    call_id: String,
+    tool_id: String,
+    connection_profile_ref: String,
+    output_summary: McpReadonlyToolOutputSummary,
+    output_hash: String,
+    output_bytes: usize,
+    redaction_counts: McpReadonlyToolRedactionCounts,
+    warning_codes: Vec<String>,
+    event_preview: McpReadonlyToolEventPreview,
+    summary_only: bool,
+    called_readonly_tool: bool,
+    raw_output_included: bool,
+    raw_args_included: bool,
+    can_call_mcp_tool: bool,
+    can_invoke_mutating_tool: bool,
+    can_write_event_store: bool,
+    can_execute_git: bool,
+    can_execute_shell: bool,
+    can_issue_permission_lease: bool,
+    app_can_execute: bool,
     result_hash: String,
     safe_message: String,
 }
@@ -1478,6 +1558,13 @@ pub fn mcp_readonly_discover(
     run_mcp_readonly_discover_fake(request)
 }
 
+#[tauri::command(rename_all = "camelCase")]
+pub fn call_mcp_readonly_tool(
+    request: McpReadonlyToolCallRequest,
+) -> Result<McpReadonlyToolCallResult, DesktopFlowError> {
+    run_mcp_readonly_tool_call_fixed(request)
+}
+
 fn run_mcp_readonly_discover_fake(
     request: McpReadonlyDiscoverRequest,
 ) -> Result<McpReadonlyDiscoverResult, DesktopFlowError> {
@@ -1653,6 +1740,389 @@ fn mcp_readonly_invalid(message: String) -> DesktopFlowError {
         "MCP_READONLY_DISCOVERY_INVALID",
         sanitize_safe_message(&message),
         "mcp_readonly_discover",
+    )
+}
+
+struct ValidatedMcpReadonlyToolCall {
+    profile_id: String,
+    tool_id: String,
+    fixed_result_summary: String,
+}
+
+fn run_mcp_readonly_tool_call_fixed(
+    request: McpReadonlyToolCallRequest,
+) -> Result<McpReadonlyToolCallResult, DesktopFlowError> {
+    let validated =
+        validate_mcp_readonly_tool_call_request(&request).map_err(mcp_readonly_tool_invalid)?;
+    let call_id = format!(
+        "mcp-readonly-tool-call-{}",
+        short_hash(&format!(
+            "{}:{}:{}:{}",
+            validated.profile_id,
+            validated.tool_id,
+            request.argument_summary,
+            request.timeout_ms
+        ))
+    );
+    let output_hash = short_hash(&validated.fixed_result_summary);
+    let output_bytes = validated.fixed_result_summary.as_bytes().len();
+    let output_line_count = validated.fixed_result_summary.lines().count().max(1);
+    let warning_codes = vec!["MCP_READONLY_FIXED_TRANSPORT".to_string()];
+    let result_hash = short_hash(&format!(
+        "{}:{}:{}:{}",
+        call_id, validated.tool_id, output_hash, output_bytes
+    ));
+    let redaction_counts = McpReadonlyToolRedactionCounts {
+        secret_marker_count: 0,
+        raw_marker_count: 0,
+        mutating_marker_count: 0,
+        truncated_byte_count: 0,
+    };
+    let output_summary = McpReadonlyToolOutputSummary {
+        output_hash: output_hash.clone(),
+        output_bytes,
+        output_line_count,
+        warning_codes: warning_codes.clone(),
+        raw_output_included: false,
+    };
+    let event_preview = McpReadonlyToolEventPreview {
+        event_type: "mcp.readonly_tool.result".to_string(),
+        call_id: call_id.clone(),
+        tool_id: validated.tool_id.clone(),
+        connection_profile_ref_hash: short_hash(&request.connection_profile_ref),
+        output_hash: output_hash.clone(),
+        output_bytes,
+        warning_codes: warning_codes.clone(),
+        summary_only: true,
+        raw_output_included: false,
+        not_written: true,
+    };
+    Ok(McpReadonlyToolCallResult {
+        ok: true,
+        status: "called".to_string(),
+        call_id,
+        tool_id: validated.tool_id,
+        connection_profile_ref: sanitize_safe_message(&request.connection_profile_ref),
+        output_summary,
+        output_hash,
+        output_bytes,
+        redaction_counts,
+        warning_codes,
+        event_preview,
+        summary_only: true,
+        called_readonly_tool: true,
+        raw_output_included: false,
+        raw_args_included: false,
+        can_call_mcp_tool: false,
+        can_invoke_mutating_tool: false,
+        can_write_event_store: false,
+        can_execute_git: false,
+        can_execute_shell: false,
+        can_issue_permission_lease: false,
+        app_can_execute: false,
+        result_hash,
+        safe_message:
+            "MCP read-only tool call completed through fixed injected summary transport."
+                .to_string(),
+    })
+}
+
+fn validate_mcp_readonly_tool_call_request(
+    request: &McpReadonlyToolCallRequest,
+) -> Result<ValidatedMcpReadonlyToolCall, String> {
+    validate_mcp_safe_ref(Some(&request.connection_profile_ref), "tool call profile")?;
+    if request.max_output_bytes == 0 || request.max_output_bytes > MCP_READONLY_TOOL_MAX_OUTPUT_BYTES
+    {
+        return Err("MCP readonly tool output byte limit is outside the allowed range".to_string());
+    }
+    if request.timeout_ms == 0 || request.timeout_ms > MCP_READONLY_TOOL_MAX_TIMEOUT_MS {
+        return Err("MCP readonly tool timeout is outside the allowed range".to_string());
+    }
+    if request.argument_summary.trim().is_empty()
+        || request.argument_summary.len() > 1500
+        || contains_approved_apply_sensitive_marker(&request.argument_summary)
+    {
+        return Err("MCP readonly tool argument summary is unsafe".to_string());
+    }
+    validate_live_value_forbidden_keys(&request.server_profile)?;
+    validate_live_value_forbidden_keys(&request.tool_contract_summary)?;
+    validate_live_value_forbidden_keys(&request.approval_receipt)?;
+    validate_live_value_forbidden_keys(&request.argument_values)?;
+    validate_live_value_string_safety(&request.server_profile)?;
+    validate_live_value_string_safety(&request.tool_contract_summary)?;
+    validate_live_value_string_safety(&request.approval_receipt)?;
+    validate_live_value_string_safety(&request.argument_values)?;
+
+    let profile = request
+        .server_profile
+        .as_object()
+        .ok_or_else(|| "MCP readonly tool server profile must be an object".to_string())?;
+    if profile.get("serverKind").and_then(Value::as_str) != Some("mcp") {
+        return Err("MCP readonly tool server kind is invalid".to_string());
+    }
+    if profile.get("transportKind").and_then(Value::as_str) != Some("injected_test_transport") {
+        return Err("MCP readonly tool transport must be fixed injected transport".to_string());
+    }
+    let profile_id = profile
+        .get("profileId")
+        .and_then(Value::as_str)
+        .ok_or_else(|| "MCP readonly tool profile id is required".to_string())?;
+    validate_mcp_safe_ref(Some(profile_id), "tool call profile id")?;
+    if profile_id != request.connection_profile_ref {
+        return Err("MCP readonly tool profile mismatch".to_string());
+    }
+
+    let contract = request
+        .tool_contract_summary
+        .as_object()
+        .ok_or_else(|| "MCP readonly tool contract summary must be an object".to_string())?;
+    if contract.get("declaredReadOnly").and_then(Value::as_bool) != Some(true) {
+        return Err("MCP readonly tool contract must be read-only".to_string());
+    }
+    let tool_id = contract
+        .get("toolId")
+        .and_then(Value::as_str)
+        .ok_or_else(|| "MCP readonly tool id is required".to_string())?;
+    validate_mcp_safe_ref(Some(tool_id), "tool id")?;
+    if mcp_readonly_tool_name_is_mutating(tool_id) {
+        return Err("MCP readonly tool id implies mutation".to_string());
+    }
+    if let Some(tool_name) = contract.get("toolName").and_then(Value::as_str) {
+        validate_mcp_safe_ref(Some(tool_name), "tool name")?;
+        if mcp_readonly_tool_name_is_mutating(tool_name) {
+            return Err("MCP readonly tool name implies mutation".to_string());
+        }
+    }
+    let risk_level = contract
+        .get("riskLevel")
+        .and_then(Value::as_str)
+        .ok_or_else(|| "MCP readonly tool risk level is required".to_string())?;
+    if !matches!(risk_level, "low" | "read_only" | "safe_readonly") {
+        return Err("MCP readonly tool risk level is not allowed".to_string());
+    }
+    if contract
+        .get("deniedArgumentKeyCount")
+        .and_then(Value::as_u64)
+        .unwrap_or(0)
+        > 0
+    {
+        return Err("MCP readonly tool denied argument keys block execution".to_string());
+    }
+    if contract.get("approvalRequired").and_then(Value::as_bool) != Some(true)
+        || contract
+            .get("typedConfirmationRequired")
+            .and_then(Value::as_bool)
+            != Some(true)
+    {
+        return Err("MCP readonly tool approval requirement is missing".to_string());
+    }
+    let contract_max_output = contract
+        .get("maxOutputBytes")
+        .and_then(Value::as_u64)
+        .ok_or_else(|| "MCP readonly tool contract output limit is required".to_string())?
+        as usize;
+    if request.max_output_bytes > contract_max_output {
+        return Err("MCP readonly tool request exceeds contract output limit".to_string());
+    }
+    let contract_timeout = contract
+        .get("timeoutMs")
+        .and_then(Value::as_u64)
+        .ok_or_else(|| "MCP readonly tool contract timeout is required".to_string())?;
+    if request.timeout_ms > contract_timeout {
+        return Err("MCP readonly tool request exceeds contract timeout".to_string());
+    }
+    let allowed_argument_keys =
+        mcp_readonly_string_set(contract.get("allowedArgumentKeys"), "contract argument keys")?;
+    if allowed_argument_keys.is_empty() {
+        return Err("MCP readonly tool allowed argument keys are required".to_string());
+    }
+
+    let receipt = request
+        .approval_receipt
+        .as_object()
+        .ok_or_else(|| "MCP readonly tool approval receipt must be an object".to_string())?;
+    validate_mcp_safe_ref(
+        receipt.get("receiptId").and_then(Value::as_str),
+        "approval receipt id",
+    )?;
+    let receipt_tool_id = receipt
+        .get("toolId")
+        .and_then(Value::as_str)
+        .ok_or_else(|| "MCP readonly tool approval tool id is required".to_string())?;
+    if receipt_tool_id != tool_id {
+        return Err("MCP readonly tool approval tool mismatch".to_string());
+    }
+    let receipt_profile = receipt
+        .get("connectionProfileRef")
+        .and_then(Value::as_str)
+        .ok_or_else(|| "MCP readonly tool approval profile is required".to_string())?;
+    if receipt_profile != request.connection_profile_ref {
+        return Err("MCP readonly tool approval profile mismatch".to_string());
+    }
+    if receipt.get("typedConfirmation").and_then(Value::as_str)
+        != Some(MCP_READONLY_TOOL_CONFIRMATION)
+    {
+        return Err("MCP readonly tool typed confirmation is required".to_string());
+    }
+    let receipt_max_output = receipt
+        .get("maxOutputBytes")
+        .and_then(Value::as_u64)
+        .ok_or_else(|| "MCP readonly tool approval output limit is required".to_string())?
+        as usize;
+    if request.max_output_bytes > receipt_max_output {
+        return Err("MCP readonly tool request exceeds approval output limit".to_string());
+    }
+    validate_mcp_safe_ref(
+        receipt.get("receiptHash").and_then(Value::as_str),
+        "approval receipt hash",
+    )?;
+    let expires_at = receipt
+        .get("expiresAt")
+        .and_then(Value::as_str)
+        .ok_or_else(|| "MCP readonly tool approval expiry is required".to_string())?;
+    if expires_at.starts_with("1970-") || expires_at.starts_with("2020-") {
+        return Err("MCP readonly tool approval receipt is expired".to_string());
+    }
+    let receipt_argument_keys =
+        mcp_readonly_string_set(receipt.get("allowedArgumentKeys"), "receipt argument keys")?;
+
+    let argument_values = request
+        .argument_values
+        .as_object()
+        .ok_or_else(|| "MCP readonly tool argument values must be an object".to_string())?;
+    if argument_values.is_empty() {
+        return Err("MCP readonly tool argument values are required".to_string());
+    }
+    for key in argument_values.keys() {
+        validate_mcp_safe_ref(Some(key), "argument key")?;
+        if mcp_readonly_argument_key_is_forbidden(key) {
+            return Err("MCP readonly tool argument key is forbidden".to_string());
+        }
+        if !allowed_argument_keys.contains(key) || !receipt_argument_keys.contains(key) {
+            return Err("MCP readonly tool argument key is not allowlisted".to_string());
+        }
+    }
+
+    let fixed_result_summary = profile
+        .get("fixedResultSummary")
+        .and_then(Value::as_str)
+        .unwrap_or("Fixed MCP read-only tool summary result.");
+    validate_mcp_readonly_fixed_result_summary(fixed_result_summary, request.max_output_bytes)?;
+
+    Ok(ValidatedMcpReadonlyToolCall {
+        profile_id: profile_id.to_string(),
+        tool_id: tool_id.to_string(),
+        fixed_result_summary: fixed_result_summary.to_string(),
+    })
+}
+
+fn validate_mcp_readonly_fixed_result_summary(
+    value: &str,
+    max_output_bytes: usize,
+) -> Result<(), String> {
+    let trimmed = value.trim();
+    if trimmed.is_empty() {
+        return Err("MCP readonly tool fixed result summary is required".to_string());
+    }
+    if contains_approved_apply_sensitive_marker(trimmed) {
+        return Err("MCP readonly tool fixed result summary contains unsafe marker".to_string());
+    }
+    if mcp_readonly_raw_output_marker(trimmed) {
+        return Err("MCP readonly tool fixed result summary contains raw marker".to_string());
+    }
+    if mcp_readonly_mutating_result_marker(trimmed) {
+        return Err("MCP readonly tool fixed result summary implies mutation".to_string());
+    }
+    if trimmed.as_bytes().len() > max_output_bytes {
+        return Err("MCP readonly tool fixed result summary exceeds output limit".to_string());
+    }
+    Ok(())
+}
+
+fn mcp_readonly_string_set(value: Option<&Value>, label: &str) -> Result<BTreeSet<String>, String> {
+    let items = value
+        .and_then(Value::as_array)
+        .ok_or_else(|| format!("MCP readonly tool {label} must be an array"))?;
+    let mut set = BTreeSet::new();
+    for item in items {
+        let text = item
+            .as_str()
+            .ok_or_else(|| format!("MCP readonly tool {label} must contain strings"))?;
+        validate_mcp_safe_ref(Some(text), label)?;
+        if mcp_readonly_argument_key_is_forbidden(text) {
+            return Err(format!("MCP readonly tool {label} contains forbidden key"));
+        }
+        set.insert(text.to_string());
+    }
+    Ok(set)
+}
+
+fn mcp_readonly_argument_key_is_forbidden(value: &str) -> bool {
+    matches!(
+        value.to_ascii_lowercase().as_str(),
+        "rawprompt"
+            | "rawsource"
+            | "rawdiff"
+            | "rawcsv"
+            | "rawoutput"
+            | "apikey"
+            | "authorization"
+            | "bearer"
+            | "token"
+            | "secret"
+            | "command"
+            | "shellcommand"
+            | "gitcommand"
+            | "tauricommand"
+    )
+}
+
+fn mcp_readonly_tool_name_is_mutating(value: &str) -> bool {
+    value
+        .split(['.', '_', ':', '-'])
+        .any(|part| matches!(
+            part.to_ascii_lowercase().as_str(),
+            "write"
+                | "update"
+                | "delete"
+                | "remove"
+                | "create"
+                | "patch"
+                | "apply"
+                | "execute"
+                | "shell"
+                | "command"
+                | "git"
+                | "commit"
+                | "push"
+        ))
+}
+
+fn mcp_readonly_raw_output_marker(value: &str) -> bool {
+    let lower = value.to_ascii_lowercase();
+    lower.contains("raw output")
+        || lower.contains("raw response")
+        || lower.contains("raw source")
+        || lower.contains("raw diff")
+        || lower.contains("resource content")
+}
+
+fn mcp_readonly_mutating_result_marker(value: &str) -> bool {
+    let lower = value.to_ascii_lowercase();
+    lower.contains("wrote file")
+        || lower.contains("updated file")
+        || lower.contains("deleted file")
+        || lower.contains("created file")
+        || lower.contains("applied patch")
+        || lower.contains("rolled back")
+        || lower.contains("executed command")
+}
+
+fn mcp_readonly_tool_invalid(message: String) -> DesktopFlowError {
+    DesktopFlowError::new(
+        "MCP_READONLY_TOOL_CALL_INVALID",
+        sanitize_safe_message(&message),
+        "call_mcp_readonly_tool",
     )
 }
 
@@ -10447,6 +10917,51 @@ mod tests {
         }
     }
 
+    fn safe_mcp_readonly_tool_call_request() -> McpReadonlyToolCallRequest {
+        McpReadonlyToolCallRequest {
+            connection_profile_ref: "mcp.docs.injected".to_string(),
+            server_profile: serde_json::json!({
+                "profileId": "mcp.docs.injected",
+                "displayName": "Docs MCP injected profile",
+                "serverKind": "mcp",
+                "transportKind": "injected_test_transport",
+                "serverRef": "mcp.docs.server",
+                "fixedResultSummary": "Fixed docs search summary result."
+            }),
+            tool_contract_summary: serde_json::json!({
+                "contractId": "mcp-readonly-tool-contract-1",
+                "toolId": "docs.search",
+                "toolName": "docs.search",
+                "declaredReadOnly": true,
+                "riskLevel": "low",
+                "allowedArgumentKeys": ["querySummary", "maxResults"],
+                "deniedArgumentKeyCount": 0,
+                "maxOutputBytes": 8192,
+                "timeoutMs": 5000,
+                "approvalRequired": true,
+                "typedConfirmationRequired": true,
+                "contractHash": "abcdef1234567890"
+            }),
+            approval_receipt: serde_json::json!({
+                "receiptId": "mcp-readonly-tool-receipt-1",
+                "toolId": "docs.search",
+                "connectionProfileRef": "mcp.docs.injected",
+                "typedConfirmation": MCP_READONLY_TOOL_CONFIRMATION,
+                "allowedArgumentKeys": ["querySummary", "maxResults"],
+                "maxOutputBytes": 8192,
+                "expiresAt": "2099-01-01T00:00:00.000Z",
+                "receiptHash": "abcdef1234567890"
+            }),
+            argument_summary: "querySummaryHash=abc123; maxResults=3".to_string(),
+            argument_values: serde_json::json!({
+                "querySummary": "docs summary query",
+                "maxResults": 3
+            }),
+            max_output_bytes: 8192,
+            timeout_ms: 5000,
+        }
+    }
+
     #[test]
     fn mcp_readonly_discovery_safe_fake_server_summary() {
         let result = mcp_readonly_discover(safe_mcp_readonly_request()).expect("mcp discovery");
@@ -10530,6 +11045,82 @@ mod tests {
 
         assert!(!serialized.contains("synthetic raw stderr"));
         assert!(!serialized.contains("sk-fake-mcp-secret"));
+    }
+
+    #[test]
+    fn mcp_readonly_tool_call_safe_fake_summary() {
+        let result = call_mcp_readonly_tool(safe_mcp_readonly_tool_call_request())
+            .expect("readonly tool call");
+        let serialized = serde_json::to_string(&result).expect("serialize result");
+
+        assert!(result.ok);
+        assert_eq!(result.status, "called");
+        assert_eq!(result.tool_id, "docs.search");
+        assert!(result.summary_only);
+        assert!(result.called_readonly_tool);
+        assert!(!result.raw_output_included);
+        assert!(!result.raw_args_included);
+        assert!(!result.can_call_mcp_tool);
+        assert!(!result.can_invoke_mutating_tool);
+        assert!(!result.can_write_event_store);
+        assert!(!result.can_execute_git);
+        assert!(!result.can_execute_shell);
+        assert!(!result.can_issue_permission_lease);
+        assert!(!result.app_can_execute);
+        assert!(result.event_preview.not_written);
+        assert!(result.event_preview.summary_only);
+        assert!(!serialized.contains("Fixed docs search summary result."));
+    }
+
+    #[test]
+    fn mcp_readonly_tool_call_blocks_wrong_confirmation() {
+        let mut request = safe_mcp_readonly_tool_call_request();
+        request.approval_receipt["typedConfirmation"] = Value::String("CALL MCP TOOL".to_string());
+        let error = call_mcp_readonly_tool(request).expect_err("confirmation should block");
+
+        assert_eq!(error.error_code, "MCP_READONLY_TOOL_CALL_INVALID");
+        assert_eq!(error.stage, "call_mcp_readonly_tool");
+    }
+
+    #[test]
+    fn mcp_readonly_tool_call_blocks_mutating_tool() {
+        let mut request = safe_mcp_readonly_tool_call_request();
+        request.tool_contract_summary["toolId"] = Value::String("docs.write".to_string());
+        let error = call_mcp_readonly_tool(request).expect_err("mutating tool should block");
+
+        assert_eq!(error.error_code, "MCP_READONLY_TOOL_CALL_INVALID");
+    }
+
+    #[test]
+    fn mcp_readonly_tool_call_blocks_denied_args() {
+        let mut request = safe_mcp_readonly_tool_call_request();
+        let denied_arg_key = format!("raw{}", "Prompt");
+        request.argument_values[denied_arg_key] = Value::String("unsafe".to_string());
+        let error = call_mcp_readonly_tool(request).expect_err("raw argument should block");
+
+        assert_eq!(error.error_code, "MCP_READONLY_TOOL_CALL_INVALID");
+    }
+
+    #[test]
+    fn mcp_readonly_tool_call_blocks_secret_output_without_echoing_it() {
+        let mut request = safe_mcp_readonly_tool_call_request();
+        request.server_profile["fixedResultSummary"] =
+            Value::String("Bearer fake-secret-token-1234567890".to_string());
+        let error = call_mcp_readonly_tool(request).expect_err("secret output should block");
+        let serialized = serde_json::to_string(&error).expect("error");
+
+        assert_eq!(error.error_code, "MCP_READONLY_TOOL_CALL_INVALID");
+        assert!(!serialized.contains("fake-secret-token-1234567890"));
+    }
+
+    #[test]
+    fn mcp_readonly_tool_call_blocks_oversized_output() {
+        let mut request = safe_mcp_readonly_tool_call_request();
+        request.server_profile["fixedResultSummary"] = Value::String("x".repeat(128));
+        request.max_output_bytes = 8;
+        let error = call_mcp_readonly_tool(request).expect_err("oversized output should block");
+
+        assert_eq!(error.error_code, "MCP_READONLY_TOOL_CALL_INVALID");
     }
 
     #[test]
