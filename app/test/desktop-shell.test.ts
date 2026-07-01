@@ -169,6 +169,7 @@ import {
   buildApprovedApplyRequestFromExecutionFlow,
   buildApprovedRollbackRequestFromExecutionFlow
 } from "../src/app-approved-execution-flow-view.js";
+import { buildApprovedExecutionRecoveryView } from "../src/approved-execution-recovery-view.js";
 import { buildDisposablePatchApplyView } from "../src/disposable-patch-apply-view.js";
 import { buildApprovalGatedDisposableApplyView } from "../src/approval-gated-disposable-apply-view.js";
 import { buildDisposablePatchRollbackView } from "../src/disposable-patch-rollback-view.js";
@@ -10701,6 +10702,93 @@ describe("app approved execution receipt preview", () => {
     expect(serialized).not.toContain("preimage");
   });
 
+  it("classifies approved execution recovery states without unsafe actions", () => {
+    const applyFlow = buildAppApprovedExecutionFlowView({
+      workspaceRoot: "D:\\workspace",
+      receiptView: safeReceiptView("apply"),
+      patchProposalPreview: {
+        proposalId: "proposal-1",
+        items: [{ path: "src/safe-file.ts", changeKind: "create" }]
+      },
+      patchValidationPreview: { validationId: "validation-1" },
+      patchDiffAuditPreview: { auditId: "audit-1" },
+      patchApprovalDraft: { approvalDraftId: "approval-1" },
+      contentDraft: "summary safe content"
+    });
+    const rollbackFlow = buildAppApprovedExecutionFlowView({
+      workspaceRoot: "D:\\workspace",
+      receiptView: safeReceiptView("rollback"),
+      applyResult: safeApplyResult()
+    });
+    const noWrite = buildApprovedExecutionRecoveryView({
+      approvedExecutionFlowView: applyFlow,
+      latestFailureSummary: "Approved apply failed before writing."
+    });
+    const partialWithCheckpoint = buildApprovedExecutionRecoveryView({
+      approvedExecutionFlowView: applyFlow,
+      applyResult: safeApplyResult(),
+      eventRecordError: "Summary event write failed safely."
+    });
+    const rollbackAvailable = buildApprovedExecutionRecoveryView({
+      approvedExecutionFlowView: rollbackFlow,
+      applyResult: safeApplyResult()
+    });
+    const rollbackFailed = buildApprovedExecutionRecoveryView({
+      approvedExecutionFlowView: rollbackFlow,
+      applyResult: safeApplyResult(),
+      latestFailureSummary: "Approved rollback failed safely."
+    });
+    const checkpointMissing = buildApprovedExecutionRecoveryView({
+      approvedExecutionFlowView: applyFlow,
+      latestFailureSummary: "Checkpoint missing after partial apply."
+    });
+    const revalidate = buildApprovedExecutionRecoveryView({
+      approvedExecutionFlowView: applyFlow,
+      latestFailureSummary:
+        "Expected before hash mismatch. Snapshot changed before apply."
+    });
+    const completed = buildApprovedExecutionRecoveryView({
+      approvedExecutionFlowView: rollbackFlow,
+      applyResult: safeApplyResult(),
+      rollbackResult: safeRollbackResult()
+    });
+    const rawBlocked = buildApprovedExecutionRecoveryView({
+      latestFailureSummary:
+        "unsafe raw prompt contained sk-fake-not-a-real-key"
+    });
+
+    expect(noWrite.state).toBe("apply_failed_no_write");
+    expect(noWrite.checkpointStatus).toBe("not_required");
+    expect(partialWithCheckpoint.state).toBe(
+      "apply_partial_checkpoint_available"
+    );
+    expect(partialWithCheckpoint.checkpointStatus).toBe("verified");
+    expect(partialWithCheckpoint.eventSummaryStatus).toBe("write_failed");
+    expect(rollbackAvailable.state).toBe("rollback_available");
+    expect(rollbackAvailable.rollbackAvailability).toBe("available");
+    expect(rollbackFailed.state).toBe("rollback_failed");
+    expect(checkpointMissing.state).toBe("apply_partial_checkpoint_missing");
+    expect(checkpointMissing.checkpointStatus).toBe("missing");
+    expect(revalidate.state).toBe("revalidate_required");
+    expect(revalidate.nextAction).toContain("Revalidate required");
+    expect(completed.state).toBe("rollback_completed");
+    expect(completed.status).toBe("completed");
+    expect(rawBlocked.status).toBe("blocked");
+    expect(rawBlocked.findings.map((finding) => finding.code)).toEqual(
+      expect.arrayContaining(["API_KEY_MARKER", "RAW_CONTENT_MARKER"])
+    );
+    expect(rawBlocked.readiness.canRetryApplyFromRecovery).toBe(false);
+    expect(rawBlocked.readiness.canRollbackFromRecovery).toBe(false);
+    expect(rawBlocked.readiness.canRunManualRecovery).toBe(false);
+    expect(rawBlocked.readiness.canWriteFilesystem).toBe(false);
+    expect(rawBlocked.readiness.canWriteEventStore).toBe(false);
+    expect(rawBlocked.readiness.canExecuteGit).toBe(false);
+    expect(rawBlocked.readiness.canExecuteShell).toBe(false);
+    expect(rawBlocked.readiness.canIssuePermissionLease).toBe(false);
+    expect(JSON.stringify(rawBlocked)).not.toContain("sk-fake");
+    expect(JSON.stringify(rawBlocked)).not.toContain("not-a-real-key");
+  });
+
   it("builds the P0O-007 approved execution smoke request from fixtures", async () => {
     const fixture = JSON.parse(
       await readFile(
@@ -10817,11 +10905,15 @@ describe("app approved execution receipt preview", () => {
       path.join(appRoot, "src", "app-approved-execution-flow-view.ts"),
       "utf8"
     );
+    const recoverySource = await readFile(
+      path.join(appRoot, "src", "approved-execution-recovery-view.ts"),
+      "utf8"
+    );
     const desktopFlowSource = await readFile(
       path.join(appRoot, "src", "desktop-flow.ts"),
       "utf8"
     );
-    const combined = `${appSource}\n${viewSource}\n${flowSource}`;
+    const combined = `${appSource}\n${viewSource}\n${flowSource}\n${recoverySource}`;
 
     expect(appSource).toContain("App Approved Execution Receipt");
     expect(appSource).toContain("Receipt preview / no execution");
@@ -10835,6 +10927,15 @@ describe("app approved execution receipt preview", () => {
     expect(appSource).toContain("Apply Approved Patch");
     expect(appSource).toContain("Rollback Approved Patch");
     expect(appSource).toContain("No generic command UI");
+    expect(appSource).toContain("Approved Execution Recovery");
+    expect(appSource).toContain("Recovery preview / no auto execution");
+    expect(appSource).toContain("Preview Approved Recovery");
+    expect(appSource).toContain("Retry Apply (disabled)");
+    expect(appSource).toContain("Rollback From Recovery (disabled)");
+    expect(appSource).toContain("Write Recovery Event (disabled)");
+    expect(appSource).toContain("Checkpoint status");
+    expect(appSource).toContain("Rollback guidance");
+    expect(appSource).toContain("Manual recovery guidance");
     expect(appSource).toContain("Latest approved execution");
     expect(appSource).toMatch(
       /The App\s+Shell does not invoke Tauri,\s+write files,\s+apply patches,\s+rollback,\s+write events,\s+issue leases,\s+or execute Git or shell commands/
@@ -10846,6 +10947,9 @@ describe("app approved execution receipt preview", () => {
     expect(flowSource).not.toContain("safeInvoke");
     expect(flowSource).not.toContain("writeFile");
     expect(flowSource).not.toContain("readFile(");
+    expect(recoverySource).not.toContain("safeInvoke");
+    expect(recoverySource).not.toContain("writeFile");
+    expect(recoverySource).not.toContain("readFile(");
     expect(combined).not.toContain("handleIssuePermissionLease");
     expect(combined).not.toContain("appendEventStore");
     expect(desktopFlowSource).toContain("apply_approved_user_workspace_patch");
@@ -10857,6 +10961,40 @@ describe("app approved execution receipt preview", () => {
     );
     expect(desktopFlowSource).not.toContain("gitCommand");
     expect(desktopFlowSource).not.toContain("shellCommand");
+  });
+
+  it("documents the P0S-004 approved execution recovery surface", async () => {
+    const docs = await readFile(
+      path.join(
+        repoRoot,
+        "docs",
+        "app-shell-approved-execution-recovery-v0.15.md"
+      ),
+      "utf8"
+    );
+    const docsIndex = await readFile(
+      path.join(repoRoot, "docs", "README.md"),
+      "utf8"
+    );
+    const appReadme = await readFile(path.join(appRoot, "README.md"), "utf8");
+    const combined = `${docs}\n${docsIndex}\n${appReadme}`;
+
+    expect(combined).toContain("App Shell Approved Execution Recovery v0.15");
+    expect(combined).toContain("apply_failed_no_write");
+    expect(combined).toContain("apply_partial_checkpoint_available");
+    expect(combined).toContain("apply_partial_checkpoint_missing");
+    expect(combined).toContain("rollback_available");
+    expect(combined).toContain("rollback_failed");
+    expect(combined).toContain("manual_recovery_required");
+    expect(combined).toContain("revalidate_required");
+    expect(combined).toContain("no automatic retry");
+    expect(combined).toContain("no rollback from the recovery panel");
+    expect(combined).toContain("no EventStore write");
+    expect(combined).toContain("no Git or shell execution");
+    expect(combined).toContain("no raw content display");
+    expect(docsIndex).toContain(
+      "app-shell-approved-execution-recovery-v0.15.md"
+    );
   });
 });
 

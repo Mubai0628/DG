@@ -269,6 +269,11 @@ import {
   type AppApprovedExecutionFlowView
 } from "./app-approved-execution-flow-view.js";
 import {
+  buildApprovedExecutionRecoveryView,
+  summarizeApprovedExecutionRecoveryView,
+  type ApprovedExecutionRecoveryView
+} from "./approved-execution-recovery-view.js";
+import {
   buildDisposablePatchApplyView,
   type AppDisposablePatchApplyView
 } from "./disposable-patch-apply-view.js";
@@ -662,6 +667,10 @@ export function DesktopShell(): JSX.Element {
   const [appApprovedExecutionError, setAppApprovedExecutionError] = useState<
     string | undefined
   >();
+  const [
+    appApprovedExecutionRecoveryPreview,
+    setAppApprovedExecutionRecoveryPreview
+  ] = useState<ApprovedExecutionRecoveryView | undefined>();
   const [gitReadLane, setGitReadLane] = useState<GitReadLane>("status_summary");
   const [gitReadPathspecs, setGitReadPathspecs] = useState("");
   const [gitReadLaneStatus, setGitReadLaneStatus] =
@@ -1404,6 +1413,32 @@ export function DesktopShell(): JSX.Element {
     () => buildAppApprovedExecutionFlowView(appApprovedExecutionFlowInput),
     [appApprovedExecutionFlowInput]
   );
+  const appApprovedExecutionRecoveryCandidate =
+    useMemo<ApprovedExecutionRecoveryView>(
+      () =>
+        buildApprovedExecutionRecoveryView({
+          approvedExecutionFlowView: appApprovedExecutionFlowView,
+          applyResult: appApprovedApplyResult,
+          rollbackResult: appApprovedRollbackResult,
+          eventRecordResult: appApprovedExecutionEventResult,
+          eventRecordError:
+            (appApprovedApplyResult !== undefined ||
+              appApprovedRollbackResult !== undefined) &&
+            appApprovedExecutionEventResult === undefined
+              ? appApprovedExecutionError
+              : undefined,
+          latestFailureSummary: appApprovedExecutionError
+        }),
+      [
+        appApprovedApplyResult,
+        appApprovedExecutionError,
+        appApprovedExecutionEventResult,
+        appApprovedExecutionFlowView,
+        appApprovedRollbackResult
+      ]
+    );
+  const displayedApprovedExecutionRecovery =
+    appApprovedExecutionRecoveryPreview ?? buildApprovedExecutionRecoveryView();
   const modelProposalChainIntegrationCandidate =
     useMemo<ModelProposalChainIntegrationView>(
       () =>
@@ -1842,6 +1877,15 @@ export function DesktopShell(): JSX.Element {
     shellVerificationError,
     shellVerificationResult
   ]);
+  useEffect(() => {
+    setAppApprovedExecutionRecoveryPreview(undefined);
+  }, [
+    appApprovedApplyResult,
+    appApprovedExecutionError,
+    appApprovedExecutionEventResult,
+    appApprovedExecutionFlowView,
+    appApprovedRollbackResult
+  ]);
   const contextAssemblyCandidate = useMemo<AppContextAssemblyPreviewView>(
     () =>
       buildContextAssemblyPreviewView({
@@ -2232,6 +2276,10 @@ export function DesktopShell(): JSX.Element {
 
   function handlePreviewE2ETaskRecovery(): void {
     setE2ETaskRecoveryPreview(e2eTaskRecoveryCandidate);
+  }
+
+  function handlePreviewApprovedExecutionRecovery(): void {
+    setAppApprovedExecutionRecoveryPreview(appApprovedExecutionRecoveryCandidate);
   }
 
   function handleImportE2EProposalToChain(): void {
@@ -9475,6 +9523,165 @@ export function DesktopShell(): JSX.Element {
             ) : null}
             <p className="fieldHelp">
               {appApprovedExecutionFlowView.nextAction}
+            </p>
+          </section>
+
+          <section
+            className="eventPanel"
+            aria-label="Approved Execution Recovery"
+          >
+            <div className="panelHeader">
+              <h2>Approved Execution Recovery</h2>
+              <span className="muted">
+                Recovery preview / no auto execution
+              </span>
+            </div>
+            <p className="fieldHelp">
+              Summarizes approved apply or rollback recovery after safe
+              failures. The App Shell does not auto-retry, rollback from this
+              panel, write files, write events, run Git or shell, issue leases,
+              expose raw content, or use native bridge or desktop actions.
+            </p>
+            <div className="buttonRow">
+              <button
+                type="button"
+                className="secondary"
+                onClick={(event) => {
+                  event.preventDefault();
+                  event.stopPropagation();
+                  handlePreviewApprovedExecutionRecovery();
+                }}
+              >
+                Preview Approved Recovery
+              </button>
+              <button
+                type="button"
+                className="secondary"
+                disabled
+                aria-disabled="true"
+              >
+                Retry Apply (disabled)
+              </button>
+              <button
+                type="button"
+                className="secondary"
+                disabled
+                aria-disabled="true"
+              >
+                Rollback From Recovery (disabled)
+              </button>
+              <button
+                type="button"
+                className="secondary"
+                disabled
+                aria-disabled="true"
+              >
+                Write Recovery Event (disabled)
+              </button>
+            </div>
+
+            {displayedApprovedExecutionRecovery.status === "idle" ? (
+              <p className="empty">
+                No approved execution recovery preview yet. Run or preview an
+                approved apply, rollback, event write, or conflict failure to
+                inspect the recovery guidance.
+              </p>
+            ) : null}
+
+            {displayedApprovedExecutionRecovery.status === "blocked" ? (
+              <div className="errorBox">
+                <strong>Approved execution recovery blocked</strong>
+                <p>{displayedApprovedExecutionRecovery.nextAction}</p>
+              </div>
+            ) : null}
+
+            <dl className="summaryGrid compact">
+              <div>
+                <dt>Status</dt>
+                <dd>{displayedApprovedExecutionRecovery.status}</dd>
+              </div>
+              <div>
+                <dt>Recovery state</dt>
+                <dd>{displayedApprovedExecutionRecovery.state}</dd>
+              </div>
+              <div>
+                <dt>Failure code</dt>
+                <dd>{displayedApprovedExecutionRecovery.failureCode}</dd>
+              </div>
+              <div>
+                <dt>Affected paths</dt>
+                <dd>{displayedApprovedExecutionRecovery.affectedPathCount}</dd>
+              </div>
+              <div>
+                <dt>Checkpoint status</dt>
+                <dd>
+                  {displayedApprovedExecutionRecovery.checkpointStatus} /{" "}
+                  {displayedApprovedExecutionRecovery.checkpointId ?? "n/a"}
+                </dd>
+              </div>
+              <div>
+                <dt>Rollback availability</dt>
+                <dd>
+                  {displayedApprovedExecutionRecovery.rollbackAvailability}
+                </dd>
+              </div>
+              <div>
+                <dt>Event summary status</dt>
+                <dd>{displayedApprovedExecutionRecovery.eventSummaryStatus}</dd>
+              </div>
+              <div>
+                <dt>Unsafe buttons</dt>
+                <dd>
+                  retry no / rollback no / event write no
+                </dd>
+              </div>
+              <div>
+                <dt>Blockers / warnings</dt>
+                <dd>
+                  {displayedApprovedExecutionRecovery.blockerCount} /{" "}
+                  {displayedApprovedExecutionRecovery.warningCount}
+                </dd>
+              </div>
+              <div>
+                <dt>Hash</dt>
+                <dd>
+                  {displayedApprovedExecutionRecovery.recoveryHash.substring(
+                    0,
+                    12
+                  )}
+                </dd>
+              </div>
+            </dl>
+
+            <div className="statusBox">
+              <strong>Latest failure summary</strong>
+              <p>{displayedApprovedExecutionRecovery.failureSummary}</p>
+            </div>
+            <div className="statusBox">
+              <strong>Rollback guidance</strong>
+              <p>{displayedApprovedExecutionRecovery.rollbackGuidance}</p>
+            </div>
+            <div className="statusBox">
+              <strong>Manual recovery guidance</strong>
+              <p>{displayedApprovedExecutionRecovery.manualRecoveryGuidance}</p>
+            </div>
+
+            {displayedApprovedExecutionRecovery.findings.length > 0 ? (
+              <p className="muted">
+                findings{" "}
+                {displayedApprovedExecutionRecovery.findings
+                  .map((finding) => finding.code)
+                  .join(", ")}
+              </p>
+            ) : null}
+
+            <p className="fieldHelp">
+              {
+                summarizeApprovedExecutionRecoveryView(
+                  displayedApprovedExecutionRecovery
+                ).source
+              }{" "}
+              · {displayedApprovedExecutionRecovery.nextAction}
             </p>
           </section>
 

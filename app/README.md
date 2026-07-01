@@ -89,6 +89,11 @@ Current scope:
   validation, approval, stale snapshot, apply conflict, verification, rollback,
   EventStore, and Convert FILE_EXISTS failures while auto-retry execution and
   raw content display remain absent
+- preview the P0S Approved Execution Recovery surface for approved apply and
+  rollback failures with safe failure codes, checkpoint status, rollback
+  guidance, manual recovery guidance, and disabled unsafe recovery buttons while
+  no retry, rollback, file write, EventStore write, Git/shell, native bridge,
+  or desktop action is triggered from that panel
 - lock the P0R E2E coding task regression smoke with safe docs-task,
   verification-failure, rollback, and expected event summary fixtures while no
   new App execution path is added
