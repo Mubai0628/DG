@@ -673,10 +673,8 @@ export function DesktopShell(): JSX.Element {
   const [mcpReadonlyProfileText, setMcpReadonlyProfileText] = useState(
     defaultMcpReadonlyProfileJson
   );
-  const [
-    mcpReadonlyTypedConfirmation,
-    setMcpReadonlyTypedConfirmation
-  ] = useState("");
+  const [mcpReadonlyTypedConfirmation, setMcpReadonlyTypedConfirmation] =
+    useState("");
   const [mcpReadonlyConnectionStatus, setMcpReadonlyConnectionStatus] =
     useState<McpReadonlyConnectionRunStatus>("idle");
   const [mcpReadonlyDiscoverResult, setMcpReadonlyDiscoverResult] = useState<
@@ -7376,10 +7374,7 @@ export function DesktopShell(): JSX.Element {
             </p>
           </section>
 
-          <section
-            className="eventPanel"
-            aria-label="MCP Read-only Connection"
-          >
+          <section className="eventPanel" aria-label="MCP Read-only Connection">
             <div className="panelHeader">
               <h2>MCP Read-only Connection</h2>
               <span className="muted">
@@ -7460,8 +7455,8 @@ export function DesktopShell(): JSX.Element {
 
             {displayedMcpReadonlyConnection.status === "empty" ? (
               <p className="empty">
-                No MCP profile loaded. Paste a summary-only profile and type
-                the fixed confirmation to preview metadata discovery.
+                No MCP profile loaded. Paste a summary-only profile and type the
+                fixed confirmation to preview metadata discovery.
               </p>
             ) : null}
 
@@ -7491,9 +7486,7 @@ export function DesktopShell(): JSX.Element {
               </div>
               <div>
                 <dt>Transport</dt>
-                <dd>
-                  {displayedMcpReadonlyConnection.transportKind ?? "n/a"}
-                </dd>
+                <dd>{displayedMcpReadonlyConnection.transportKind ?? "n/a"}</dd>
               </div>
               <div>
                 <dt>Resources / prompts / tools</dt>

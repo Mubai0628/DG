@@ -178,7 +178,9 @@ describe("mcp metadata redaction audit", () => {
 
     const summary = summarizeMcpMetadataRedactionAudit(audit);
     expect(summary.source).toBe("runtime_mcp_metadata_redaction_audit");
-    expect(JSON.stringify(summary)).not.toContain("Documentation index metadata");
+    expect(JSON.stringify(summary)).not.toContain(
+      "Documentation index metadata"
+    );
   });
 
   it("blocks raw prompt metadata", () => {

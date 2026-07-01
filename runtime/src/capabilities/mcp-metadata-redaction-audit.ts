@@ -118,10 +118,7 @@ const forbiddenFieldCodes = new Map<
     rawPrefix + "source",
     { kind: "raw_field", code: "RAW_SOURCE_FIELD_REJECTED" }
   ],
-  [
-    rawPrefix + "diff",
-    { kind: "raw_field", code: "RAW_DIFF_FIELD_REJECTED" }
-  ],
+  [rawPrefix + "diff", { kind: "raw_field", code: "RAW_DIFF_FIELD_REJECTED" }],
   [
     rawPrefix + "metadata",
     { kind: "raw_field", code: "RAW_METADATA_FIELD_REJECTED" }
@@ -212,7 +209,11 @@ const unsafeStringPatterns: Array<{
   code: string;
   pattern: RegExp;
 }> = [
-  { kind: "secret", code: "API_KEY_MARKER_REJECTED", pattern: /sk-[A-Za-z0-9_-]{8,}/i },
+  {
+    kind: "secret",
+    code: "API_KEY_MARKER_REJECTED",
+    pattern: /sk-[A-Za-z0-9_-]{8,}/i
+  },
   {
     kind: "secret",
     code: "AUTHORIZATION_MARKER_REJECTED",
@@ -231,7 +232,8 @@ const unsafeStringPatterns: Array<{
   {
     kind: "command_injection",
     code: "COMMAND_INJECTION_MARKER_REJECTED",
-    pattern: /(?:cmd\.exe|powershell|bash\s+-c|rm\s+-rf|&&|\|\||;\s*(?:rm|del|curl|wget|powershell|cmd))/i
+    pattern:
+      /(?:cmd\.exe|powershell|bash\s+-c|rm\s+-rf|&&|\|\||;\s*(?:rm|del|curl|wget|powershell|cmd))/i
   },
   {
     kind: "tool_invocation",
@@ -255,9 +257,17 @@ export function buildMcpMetadataRedactionAudit(
     input.brokerDescriptorPreviews !== undefined ||
     input.appSurfaceSummary !== undefined;
 
-  scanValue(input.connectionProfileSummary, "connectionProfileSummary", findings);
+  scanValue(
+    input.connectionProfileSummary,
+    "connectionProfileSummary",
+    findings
+  );
   scanValue(input.discoveryResult, "discoveryResult", findings);
-  scanValue(input.brokerDescriptorPreviews, "brokerDescriptorPreviews", findings);
+  scanValue(
+    input.brokerDescriptorPreviews,
+    "brokerDescriptorPreviews",
+    findings
+  );
   scanValue(input.appSurfaceSummary, "appSurfaceSummary", findings);
   validateDiscoveryResult(input.discoveryResult, findings);
   validateDescriptorPreviews(input.brokerDescriptorPreviews, findings);
@@ -303,7 +313,9 @@ export function buildMcpMetadataRedactionAudit(
 
   return {
     status,
-    auditId: input.idGenerator?.() ?? `mcp-metadata-redaction-audit-${auditHash.slice(0, 12)}`,
+    auditId:
+      input.idGenerator?.() ??
+      `mcp-metadata-redaction-audit-${auditHash.slice(0, 12)}`,
     recordCounts,
     redactedFieldCount,
     rawFieldDetectedCount,
@@ -390,7 +402,11 @@ function validateDiscoveryResult(
     return;
   }
   const record = discoveryResult as Record<string, unknown>;
-  for (const key of ["rawMetadataIncluded", "rawStdoutIncluded", "rawStderrIncluded"]) {
+  for (const key of [
+    "rawMetadataIncluded",
+    "rawStdoutIncluded",
+    "rawStderrIncluded"
+  ]) {
     if (record[key] === true) {
       addFinding(
         findings,
@@ -442,7 +458,7 @@ function validateDescriptorPreviews(
 ): void {
   const descriptors = Array.isArray(descriptorInput)
     ? descriptorInput
-    : descriptorInput?.descriptorPreviews ?? [];
+    : (descriptorInput?.descriptorPreviews ?? []);
   descriptors.forEach((descriptor, index) => {
     if (
       descriptor.category === "mcp_tool_metadata" &&
@@ -484,7 +500,9 @@ function scanValue(
     return;
   }
   if (Array.isArray(value)) {
-    value.forEach((item, index) => scanValue(item, `${path}[${index}]`, findings));
+    value.forEach((item, index) =>
+      scanValue(item, `${path}[${index}]`, findings)
+    );
     return;
   }
   if (isRecord(value)) {
@@ -559,8 +577,9 @@ function buildRecordCounts(
 function buildRiskCounts(
   findings: McpMetadataRedactionAuditFinding[]
 ): McpMetadataRedactionAuditRiskCounts {
-  const count = (predicate: (finding: McpMetadataRedactionAuditFinding) => boolean) =>
-    findings.filter(predicate).length;
+  const count = (
+    predicate: (finding: McpMetadataRedactionAuditFinding) => boolean
+  ) => findings.filter(predicate).length;
   return {
     rawPromptRiskCount: count((finding) => finding.code.includes("PROMPT")),
     rawSourceRiskCount: count((finding) => finding.code.includes("SOURCE")),

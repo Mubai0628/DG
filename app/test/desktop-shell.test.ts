@@ -18139,7 +18139,7 @@ describe("desktop source boundaries", () => {
     expect(docsIndex).toContain("v0.17-capability-host-postrelease-review.md");
     expect(docsIndex).toContain("p0v-mcp-readonly-connection-roadmap.md");
     expect(docsIndex).toContain("p0v-001-mcp-readonly-connection-gate-plan.md");
-    expect(rootReadme).toContain("active v0.18 roadmap");
+    expect(rootReadme).toContain("P0V is complete for the v0.18 RC");
   });
 
   it("documents the P0V-001 MCP read-only connection gate", async () => {
@@ -18222,11 +18222,7 @@ describe("desktop source boundaries", () => {
 
   it("documents the App MCP read-only connection surface", async () => {
     const doc = await readFile(
-      path.join(
-        repoRoot,
-        "docs",
-        "app-shell-mcp-readonly-connection-v0.17.md"
-      ),
+      path.join(repoRoot, "docs", "app-shell-mcp-readonly-connection-v0.17.md"),
       "utf8"
     );
     const docsIndex = await readFile(
@@ -18283,7 +18279,9 @@ describe("desktop source boundaries", () => {
     expect(combined).toContain("No Git or shell");
     expect(combined).toContain("No native bridge");
     expect(combined).toContain("No desktop action");
-    expect(docsIndex).toContain("runtime-mcp-metadata-redaction-audit-v0.17.md");
+    expect(docsIndex).toContain(
+      "runtime-mcp-metadata-redaction-audit-v0.17.md"
+    );
     expect(docsIndex).toContain(
       "app-shell-mcp-metadata-redaction-audit-v0.17.md"
     );
@@ -18312,6 +18310,84 @@ describe("desktop source boundaries", () => {
     expect(doc).toContain("no EventStore raw write");
     expect(doc).toContain("no broad PermissionLease");
     expect(docsIndex).toContain("mcp-readonly-connection-smoke-v0.17.md");
+  });
+
+  it("documents the v0.18 MCP read-only connection RC release package", async () => {
+    const releaseNotes = await readFile(
+      path.join(
+        repoRoot,
+        "docs",
+        "release-notes-v0.18.0-mcp-readonly-connection-mvp-rc.1.md"
+      ),
+      "utf8"
+    );
+    const manualQa = await readFile(
+      path.join(repoRoot, "docs", "mcp-readonly-connection-manual-qa.md"),
+      "utf8"
+    );
+    const rcChecklist = await readFile(
+      path.join(repoRoot, "docs", "mcp-readonly-connection-rc-checklist.md"),
+      "utf8"
+    );
+    const docsIndex = await readFile(
+      path.join(repoRoot, "docs", "README.md"),
+      "utf8"
+    );
+    const rootReadme = await readFile(path.join(repoRoot, "README.md"), "utf8");
+    const appReadme = await readFile(path.join(appRoot, "README.md"), "utf8");
+    const appSource = await readFile(
+      path.join(appRoot, "src", "App.tsx"),
+      "utf8"
+    );
+    const combinedDocs = `${releaseNotes}\n${manualQa}\n${rcChecklist}`;
+
+    expect(releaseNotes).toContain("v0.18.0-mcp-readonly-connection-mvp-rc.1");
+    expect(releaseNotes).toContain(
+      "MCP read-only connection MVP, no tool invocation"
+    );
+    expect(releaseNotes).toContain(
+      "Capability Host can now perform read-only MCP discovery"
+    );
+    expect(releaseNotes).toContain(
+      "MCP metadata enters Capability Broker as disabled/read-only descriptors"
+    );
+    expect(releaseNotes).toContain("no MCP tool invocation");
+    expect(releaseNotes).toContain("no MCP resource content read by default");
+    expect(manualQa).toContain("MCP Safe Profile Discovery");
+    expect(manualQa).toContain("metadata summary display");
+    expect(manualQa).toContain("descriptor preview");
+    expect(manualQa).toContain("MCP Redaction Audit");
+    expect(manualQa).toContain("Malicious Metadata Block");
+    expect(manualQa).toContain("Invoke MCP Tool (disabled)");
+    expect(manualQa).toContain("Read MCP Resource Content (disabled)");
+    expect(manualQa).toContain("approved apply still requires");
+    expect(manualQa).toContain("Git lanes remain fixed read-only summaries");
+    expect(manualQa).toContain("no raw metadata");
+    expect(rcChecklist).toContain("pnpm verify:ci");
+    expect(rcChecklist).toContain("pnpm release:smoke");
+    expect(rcChecklist).toContain("pnpm app:qa:check");
+    expect(rcChecklist).toContain(
+      "git tag v0.18.0-mcp-readonly-connection-mvp-rc.1"
+    );
+    expect(rcChecklist).toContain("gh release create");
+    expect(combinedDocs).toContain("full docs path links");
+    expect(docsIndex).toContain(
+      "release-notes-v0.18.0-mcp-readonly-connection-mvp-rc.1.md"
+    );
+    expect(docsIndex).toContain("mcp-readonly-connection-manual-qa.md");
+    expect(docsIndex).toContain("mcp-readonly-connection-rc-checklist.md");
+    expect(rootReadme).toContain("P0V is complete for the v0.18 RC");
+    expect(appReadme).toContain(
+      "prepare the v0.18 MCP Read-only Connection MVP RC"
+    );
+    expect(appSource).toContain("Read-only discovery / no tool invocation");
+    expect(appSource).toContain("Summary only / no raw metadata");
+    expect(appSource).toContain("Invoke MCP Tool (disabled)");
+    expect(appSource).toContain("Read MCP Resource Content (disabled)");
+    expect(appSource).not.toMatch(/>\s*Invoke MCP Tool\s*</);
+    expect(appSource).not.toMatch(/>\s*Read MCP Resource Content\s*</);
+    expect(appSource).not.toMatch(/>\s*Run MCP Tool\s*</);
+    expect(appSource).not.toMatch(/>\s*Read Resource Content\s*</);
   });
 
   it("documents the P0S-001 MVP hardening recovery design gate", async () => {

@@ -22,9 +22,7 @@ function findingCodes(result: McpConnectionProfileValidationResult): string[] {
   return result.findings.map((finding) => finding.code);
 }
 
-function expectNoExecution(
-  result: McpConnectionProfileValidationResult
-): void {
+function expectNoExecution(result: McpConnectionProfileValidationResult): void {
   expect(result.readiness).toMatchObject({
     canConnectServer: false,
     canSpawnProcess: false,

@@ -408,6 +408,9 @@ v0.17 Capability Host MVP references:
 - [v0.17 Capability Host post-release review](docs/v0.17-capability-host-postrelease-review.md)
 - [P0V MCP Read-only Connection roadmap](docs/p0v-mcp-readonly-connection-roadmap.md)
 - [P0V-001 MCP Read-only Connection gate plan](docs/p0v-001-mcp-readonly-connection-gate-plan.md)
+- [v0.18.0 MCP Read-only Connection MVP RC release notes](docs/release-notes-v0.18.0-mcp-readonly-connection-mvp-rc.1.md)
+- [MCP Read-only Connection manual QA](docs/mcp-readonly-connection-manual-qa.md)
+- [MCP Read-only Connection RC checklist](docs/mcp-readonly-connection-rc-checklist.md)
 
 ## Current roadmap
 
@@ -449,8 +452,10 @@ execution, Git write commands, install/network/destructive shell commands,
 broad capability invocation, production PermissionLease issuing,
 MCP/plugin/skills runtime, external capability execution, native bridge, and
 desktop action remain deferred. P0U is complete for the v0.17 RC with
-descriptor-first, read-only Capability Host metadata previews. P0V is the
-active v0.18 roadmap for MCP read-only connection / discovery metadata, with
+descriptor-first, read-only Capability Host metadata previews.
+P0V is complete for the v0.18 RC with fixed-profile, typed-confirmation MCP
+read-only connection discovery, broker descriptor integration, App read-only
+connection and redaction-audit surfaces, and smoke/QA coverage while preserving
 no MCP tool invocation, no mutating MCP operation, no resource content read by
 default, no arbitrary process spawn, no hidden App connection, and no external
 mutation.

@@ -85,21 +85,23 @@ export type McpReadonlyConnectionInput = {
   idGenerator?: (() => string) | undefined;
 };
 
-type ParsedProfile = {
-  ok: true;
-  profile: Record<string, unknown>;
-  profileId: string;
-  displayName: string;
-  serverRef: string;
-  transportKind: string;
-  maxItems: number;
-  timeoutMs: number;
-  findings: McpReadonlyConnectionFinding[];
-} | {
-  ok: false;
-  status: "empty" | "blocked";
-  findings: McpReadonlyConnectionFinding[];
-};
+type ParsedProfile =
+  | {
+      ok: true;
+      profile: Record<string, unknown>;
+      profileId: string;
+      displayName: string;
+      serverRef: string;
+      transportKind: string;
+      maxItems: number;
+      timeoutMs: number;
+      findings: McpReadonlyConnectionFinding[];
+    }
+  | {
+      ok: false;
+      status: "empty" | "blocked";
+      findings: McpReadonlyConnectionFinding[];
+    };
 
 const typedConfirmationValue = "DISCOVER MCP METADATA";
 
@@ -189,7 +191,10 @@ export function buildMcpReadonlyConnectionView(
   const parsedProfile = parseProfile(input.profileJsonText);
   findings.push(...parsedProfile.findings);
 
-  if (input.discoveryError !== undefined && input.discoveryError.trim() !== "") {
+  if (
+    input.discoveryError !== undefined &&
+    input.discoveryError.trim() !== ""
+  ) {
     findings.push({
       code: "DISCOVERY_ERROR_SUMMARY",
       severity: "blocker",
@@ -224,7 +229,9 @@ export function buildMcpReadonlyConnectionView(
   ).length;
   const discoveryResult = input.discoveryResult;
   const descriptorPreview =
-    discoveryResult === undefined ? [] : buildDescriptorPreview(discoveryResult);
+    discoveryResult === undefined
+      ? []
+      : buildDescriptorPreview(discoveryResult);
   const status = statusFor({
     hasProfile: parsedProfile.ok,
     emptyProfile: !parsedProfile.ok && parsedProfile.status === "empty",
@@ -515,15 +522,21 @@ function validateDiscoveryResult(
 function buildDescriptorPreview(
   result: McpReadonlyDiscoverResult
 ): McpReadonlyDescriptorPreview[] {
-  const resources = result.resourceSummaries.slice(0, 5).map((summary, index) =>
-    descriptorFromSummary(summary, index, "resource_metadata")
-  );
-  const prompts = result.promptSummaries.slice(0, 5).map((summary, index) =>
-    descriptorFromSummary(summary, index, "prompt_metadata")
-  );
-  const tools = result.toolSummaries.slice(0, 5).map((summary, index) =>
-    descriptorFromSummary(summary, index, "tool_metadata")
-  );
+  const resources = result.resourceSummaries
+    .slice(0, 5)
+    .map((summary, index) =>
+      descriptorFromSummary(summary, index, "resource_metadata")
+    );
+  const prompts = result.promptSummaries
+    .slice(0, 5)
+    .map((summary, index) =>
+      descriptorFromSummary(summary, index, "prompt_metadata")
+    );
+  const tools = result.toolSummaries
+    .slice(0, 5)
+    .map((summary, index) =>
+      descriptorFromSummary(summary, index, "tool_metadata")
+    );
   return [...resources, ...prompts, ...tools];
 }
 
@@ -539,14 +552,15 @@ function descriptorFromSummary(
         ? "promptId"
         : "toolId";
   const warningCodes = Array.isArray(summary.warningCodes)
-    ? summary.warningCodes.filter((code): code is string => typeof code === "string")
+    ? summary.warningCodes.filter(
+        (code): code is string => typeof code === "string"
+      )
     : [];
   return {
     descriptorId: safeText(summary[idKey], `${kind}-${index + 1}`),
     kind,
     displayName: safeText(summary.displayName, `${kind} ${index + 1}`),
-    invokePolicy:
-      kind === "tool_metadata" ? "DISABLED" : "READ_ONLY_METADATA",
+    invokePolicy: kind === "tool_metadata" ? "DISABLED" : "READ_ONLY_METADATA",
     riskLevel:
       kind === "tool_metadata" ? "A3_tool_metadata" : "A1_metadata_only",
     warningCodes:

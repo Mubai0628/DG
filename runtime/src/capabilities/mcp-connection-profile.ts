@@ -204,7 +204,9 @@ export function summarizeMcpConnectionProfile(
     transportKind: profile.transportKind,
     serverRefHash: hashRef(profile.serverRef),
     commandRefHash:
-      profile.commandRef !== undefined ? hashRef(profile.commandRef) : undefined,
+      profile.commandRef !== undefined
+        ? hashRef(profile.commandRef)
+        : undefined,
     argvTemplateIdHash:
       profile.argvTemplateId !== undefined
         ? hashRef(profile.argvTemplateId)
@@ -358,7 +360,9 @@ function validateTransport(
 ): void {
   if (
     typeof record.transportKind !== "string" ||
-    !allowedTransportKinds.has(record.transportKind as McpConnectionTransportKind)
+    !allowedTransportKinds.has(
+      record.transportKind as McpConnectionTransportKind
+    )
   ) {
     addFinding(
       findings,
@@ -516,7 +520,10 @@ function normalizeProfile(
   const readOnlyPolicy = normalizePolicy(record.readOnlyPolicy);
   const base = {
     profileId: safeString(record.profileId, "mcp-profile"),
-    displayName: safeString(record.displayName, safeString(record.profileId, "")),
+    displayName: safeString(
+      record.displayName,
+      safeString(record.profileId, "")
+    ),
     serverKind: "mcp" as const,
     transportKind: safeTransportKind(record.transportKind),
     serverRef: safeString(record.serverRef, "mcp-server"),
@@ -541,10 +548,7 @@ function normalizeProfile(
   };
   const profileHash = stablePreviewHash(stableStringify(base));
 
-  if (
-    base.transportKind === "stdio_fixed" &&
-    base.commandRef === undefined
-  ) {
+  if (base.transportKind === "stdio_fixed" && base.commandRef === undefined) {
     addFinding(
       findings,
       "launch_policy",

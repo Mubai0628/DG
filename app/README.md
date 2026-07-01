@@ -149,6 +149,10 @@ Current scope:
 - preview the v0.18 MCP Metadata Redaction Audit as summary-only risk counts
   with no raw metadata, no EventStore write, no MCP execution, and no App
   execution
+- prepare the v0.18 MCP Read-only Connection MVP RC with release notes, manual
+  QA, RC checklist, full gates, GitHub Actions verification, tag, and
+  prerelease flow while MCP discovery stays fixed-profile, metadata-only, and
+  unable to invoke tools or read resource content
 - lock the P0R E2E coding task regression smoke with safe docs-task,
   verification-failure, rollback, and expected event summary fixtures while no
   new App execution path is added
