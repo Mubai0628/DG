@@ -16074,6 +16074,50 @@ describe("desktop source boundaries", () => {
     );
   });
 
+  it("documents the P0T-002 project knowledge store contract", async () => {
+    const runtimeDoc = await readFile(
+      path.join(repoRoot, "docs", "runtime-project-knowledge-store-v0.15.md"),
+      "utf8"
+    );
+    const docsIndex = await readFile(
+      path.join(repoRoot, "docs", "README.md"),
+      "utf8"
+    );
+    const combined = `${runtimeDoc}\n${docsIndex}`;
+
+    expect(combined).toContain(
+      "Runtime Project Knowledge Store Contract v0.15"
+    );
+    expect(combined).toContain("summary-only project knowledge entries");
+    expect(combined).toContain("policy");
+    expect(combined).toContain("project_fact");
+    expect(combined).toContain("pitfall");
+    expect(combined).toContain("entries.jsonl");
+    expect(combined).toContain("events.jsonl");
+    expect(combined).toContain("index.json");
+    expect(combined).toContain("append-only");
+    expect(combined).toContain("workspace-local");
+    expect(combined).toContain(
+      "policy from model, tool, or external unreviewed source"
+    );
+    expect(combined).toContain("project fact without evidence refs");
+    expect(combined).toContain("pitfall without trigger or mitigation");
+    expect(combined).toContain("duplicate entry id in a snapshot");
+    expect(combined).toContain("canWriteStore: false");
+    expect(combined).toContain("canWriteEventStore: false");
+    expect(combined).toContain("No Tauri command");
+    expect(combined).toContain("No App UI");
+    expect(combined).toContain("No file write implementation");
+    expect(combined).toContain("No EventStore write");
+    expect(combined).toContain("No API key read");
+    expect(combined).toContain("No fetch/network");
+    expect(combined).toContain("No apply/rollback");
+    expect(combined).toContain("No Git/shell execution");
+    expect(combined).toContain("No native bridge");
+    expect(combined).toContain("No desktop action");
+    expect(docsIndex).toContain("runtime-project-knowledge-store-v0.15.md");
+  });
+
   it("documents the P0S-001 MVP hardening recovery design gate", async () => {
     const adr = await readFile(
       path.join(repoRoot, "docs", "adr", "0011-mvp-hardening-recovery.md"),
