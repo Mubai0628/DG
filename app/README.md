@@ -107,6 +107,10 @@ Current scope:
   RC checklist, full gates, GitHub Actions verification, tag, and prerelease
   flow while preserving no auto-apply, summary-only events, no arbitrary
   Git/shell, no native bridge, and no desktop action
+- lock the P0T Production Memory / Project Knowledge roadmap after the v0.15
+  release while production memory persistence, automatic memory commit,
+  model-direct policy write, MCP/plugin/skills runtime, native bridge, desktop
+  action, autonomous coding loop, and arbitrary Git/shell remain disabled
 - lock the P0R E2E coding task regression smoke with safe docs-task,
   verification-failure, rollback, and expected event summary fixtures while no
   new App execution path is added

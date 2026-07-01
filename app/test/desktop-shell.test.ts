@@ -15858,6 +15858,106 @@ describe("desktop source boundaries", () => {
     );
   });
 
+  it("documents the v0.15 post-release review and P0T production memory roadmap", async () => {
+    const review = await readFile(
+      path.join(
+        repoRoot,
+        "docs",
+        "v0.15-mvp-hardening-recovery-postrelease-review.md"
+      ),
+      "utf8"
+    );
+    const roadmap = await readFile(
+      path.join(
+        repoRoot,
+        "docs",
+        "p0t-production-memory-project-knowledge-roadmap.md"
+      ),
+      "utf8"
+    );
+    const plan = await readFile(
+      path.join(
+        repoRoot,
+        "docs",
+        "p0t-001-production-memory-project-knowledge-plan.md"
+      ),
+      "utf8"
+    );
+    const prompts = await readFile(
+      path.join(
+        repoRoot,
+        "docs",
+        "v0.16-production-memory-project-knowledge-prompts.md"
+      ),
+      "utf8"
+    );
+    const docsIndex = await readFile(
+      path.join(repoRoot, "docs", "README.md"),
+      "utf8"
+    );
+    const rootReadme = await readFile(path.join(repoRoot, "README.md"), "utf8");
+    const appReadme = await readFile(
+      path.join(repoRoot, "app", "README.md"),
+      "utf8"
+    );
+    const combined = `${review}\n${roadmap}\n${plan}\n${prompts}\n${docsIndex}\n${rootReadme}\n${appReadme}`;
+
+    expect(combined).toContain("v0.15.0-mvp-hardening-recovery-rc.1");
+    expect(combined).toContain("MVP hardening, recovery, and E2E regression");
+    expect(combined).toContain("P0T Production Memory / Project Knowledge");
+    expect(combined).toContain("Production Memory / Project Knowledge MVP");
+    expect(combined).toContain("policy");
+    expect(combined).toContain("project_fact");
+    expect(combined).toContain("pitfall");
+    expect(combined).toContain("candidate");
+    expect(combined).toContain("human review");
+    expect(combined).toContain("commit");
+    expect(combined).toContain("recall");
+    expect(combined).toContain("revoke");
+    expect(combined).toContain("expire");
+    expect(combined).toContain("replay");
+    expect(combined).toContain("summary-only");
+    expect(combined).toContain("workspace-local");
+    expect(combined).toContain("persistent");
+    expect(combined).toContain("No runtime feature implementation in P0T-001");
+    expect(combined).toContain("No App UI implementation in P0T-001");
+    expect(combined).toContain("No Tauri command in P0T-001");
+    expect(combined).toContain("No memory store write in P0T-001");
+    expect(combined).toContain("No API key read in P0T-001");
+    expect(combined).toContain("No fetch/network in P0T-001");
+    expect(combined).toContain("No apply");
+    expect(combined).toContain("No rollback");
+    expect(combined).toContain("No arbitrary Git execution");
+    expect(combined).toContain("No arbitrary shell execution");
+    expect(combined).toContain("No MCP/plugin/skills runtime");
+    expect(combined).toContain("No native bridge");
+    expect(combined).toContain("No desktop action");
+    expect(combined).toContain("raw prompt");
+    expect(combined).toContain("raw source");
+    expect(combined).toContain("raw diff");
+    expect(combined).toContain("API key");
+    expect(combined).toContain("model-direct policy write");
+    expect(combined).toContain("automatic memory commit");
+    expect(docsIndex).toContain(
+      "v0.16-production-memory-project-knowledge-prompts.md"
+    );
+    expect(docsIndex).toContain(
+      "v0.15-mvp-hardening-recovery-postrelease-review.md"
+    );
+    expect(docsIndex).toContain(
+      "p0t-production-memory-project-knowledge-roadmap.md"
+    );
+    expect(docsIndex).toContain(
+      "p0t-001-production-memory-project-knowledge-plan.md"
+    );
+    expect(rootReadme).toContain(
+      "v0.16 Production Memory / Project Knowledge status"
+    );
+    expect(appReadme).toContain(
+      "lock the P0T Production Memory / Project Knowledge roadmap"
+    );
+  });
+
   it("documents the P0S-001 MVP hardening recovery design gate", async () => {
     const adr = await readFile(
       path.join(repoRoot, "docs", "adr", "0011-mvp-hardening-recovery.md"),

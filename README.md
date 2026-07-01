@@ -345,12 +345,32 @@ runtime, no native bridge, no desktop action, and no raw content in events.
 v0.15 MVP Hardening / Recovery references:
 
 - [v0.15 MVP Hardening / Recovery prompts](docs/v0.15-mvp-hardening-recovery-prompts.md)
+- [v0.16 Production Memory / Project Knowledge prompts](docs/v0.16-production-memory-project-knowledge-prompts.md)
 - [v0.14 End-to-End Coding Task post-release review](docs/v0.14-end-to-end-coding-task-postrelease-review.md)
 - [P0S MVP Hardening / Recovery roadmap](docs/p0s-mvp-hardening-recovery-roadmap.md)
 - [P0S-001 MVP Hardening / Recovery plan](docs/p0s-001-mvp-hardening-recovery-plan.md)
 - [v0.15.0 MVP Hardening / Recovery RC release notes](docs/release-notes-v0.15.0-mvp-hardening-recovery-rc.1.md)
 - [MVP Hardening / Recovery manual QA](docs/mvp-hardening-recovery-manual-qa.md)
 - [MVP Hardening / Recovery RC checklist](docs/mvp-hardening-recovery-rc-checklist.md)
+
+## v0.16 Production Memory / Project Knowledge status
+
+Recommended tag:
+`v0.16.0-production-memory-project-knowledge-rc.1`.
+
+P0T is now the active roadmap after the v0.15 release. It will move project
+knowledge from preview memory concepts into a workspace-local persistent store
+for human-reviewed `policy`, `project_fact`, and `pitfall` summaries. The phase
+preserves no automatic memory commit, no model-direct policy write, no raw
+prompt/source/diff/API key memory, no memory-triggered apply/rollback, no
+arbitrary Git/shell, no native bridge, and no desktop action.
+
+v0.16 Production Memory / Project Knowledge references:
+
+- [v0.16 Production Memory / Project Knowledge prompts](docs/v0.16-production-memory-project-knowledge-prompts.md)
+- [v0.15 MVP Hardening / Recovery post-release review](docs/v0.15-mvp-hardening-recovery-postrelease-review.md)
+- [P0T Production Memory / Project Knowledge roadmap](docs/p0t-production-memory-project-knowledge-roadmap.md)
+- [P0T-001 Production Memory / Project Knowledge plan](docs/p0t-001-production-memory-project-knowledge-plan.md)
 
 ## Current roadmap
 
