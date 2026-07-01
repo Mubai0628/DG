@@ -375,6 +375,30 @@ v0.16 Production Memory / Project Knowledge references:
 - [v0.16.0 Production Memory / Project Knowledge RC release notes](docs/release-notes-v0.16.0-production-memory-project-knowledge-rc.1.md)
 - [Project Knowledge manual QA](docs/project-knowledge-manual-qa.md)
 - [Project Knowledge RC checklist](docs/project-knowledge-rc-checklist.md)
+- [v0.16 Production Memory / Project Knowledge post-release review](docs/v0.16-production-memory-project-knowledge-postrelease-review.md)
+- [P0U Capability Host roadmap](docs/p0u-capability-host-roadmap.md)
+- [P0U-001 Capability Host ADR plan](docs/p0u-001-capability-host-adr-plan.md)
+
+## v0.17 Capability Host MVP status
+
+Recommended tag:
+`v0.17.0-capability-host-mvp-rc.1`.
+
+P0U is the next roadmap after the v0.16 release. It introduces a
+descriptor-first Capability Host MVP for MCP, plugin, and skill metadata:
+schema validation, read-only discovery/listing, package and skill metadata
+scan, Capability Broker descriptor mapping, risk / approval / lease preview,
+App read-only surface, and redaction / boundary audit. It does not enable MCP
+tool invocation, plugin execution, skill runtime execution, external process
+launch, network connection to MCP servers, native bridge, desktop action,
+arbitrary Git/shell, broad PermissionLease, or model-driven external tool
+execution.
+
+v0.17 Capability Host MVP references:
+
+- [v0.17 Capability Host MVP prompts](docs/v0.17-capability-host-mvp-prompts.md)
+- [P0U Capability Host roadmap](docs/p0u-capability-host-roadmap.md)
+- [P0U-001 Capability Host ADR plan](docs/p0u-001-capability-host-adr-plan.md)
 
 ## Current roadmap
 
@@ -414,7 +438,9 @@ model-direct policy write, approval/rejection execution outside the approved
 apply/rollback gates, run execution, arbitrary Git execution, arbitrary shell
 execution, Git write commands, install/network/destructive shell commands,
 broad capability invocation, production PermissionLease issuing,
-MCP/plugin/skills runtime, native bridge, and desktop action remain deferred.
+MCP/plugin/skills runtime, external capability execution, native bridge, and
+desktop action remain deferred. P0U is now the active v0.17 roadmap for
+descriptor-first, read-only Capability Host metadata previews.
 
 - [v0.2 App Shell RC post-release review](docs/v0.2-app-shell-rc-postrelease-review.md)
 - [P0G Coding Workflow roadmap](docs/p0g-coding-workflow-roadmap.md)

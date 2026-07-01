@@ -17110,6 +17110,66 @@ describe("desktop source boundaries", () => {
     );
   });
 
+  it("documents the v0.16 post-release review and P0U capability host roadmap", async () => {
+    const review = await readFile(
+      path.join(
+        repoRoot,
+        "docs",
+        "v0.16-production-memory-project-knowledge-postrelease-review.md"
+      ),
+      "utf8"
+    );
+    const roadmap = await readFile(
+      path.join(repoRoot, "docs", "p0u-capability-host-roadmap.md"),
+      "utf8"
+    );
+    const plan = await readFile(
+      path.join(repoRoot, "docs", "p0u-001-capability-host-adr-plan.md"),
+      "utf8"
+    );
+    const prompts = await readFile(
+      path.join(repoRoot, "docs", "v0.17-capability-host-mvp-prompts.md"),
+      "utf8"
+    );
+    const docsIndex = await readFile(
+      path.join(repoRoot, "docs", "README.md"),
+      "utf8"
+    );
+    const rootReadme = await readFile(path.join(repoRoot, "README.md"), "utf8");
+    const combined = `${review}\n${roadmap}\n${plan}\n${prompts}\n${docsIndex}\n${rootReadme}`;
+
+    expect(combined).toContain(
+      "v0.16.0-production-memory-project-knowledge-rc.1"
+    );
+    expect(combined).toContain("Production Memory / Project Knowledge MVP");
+    expect(combined).toContain("P0U Capability Host Roadmap");
+    expect(combined).toContain("descriptor-first Capability Host MVP");
+    expect(combined).toContain("MCP / plugin / skill metadata only");
+    expect(combined).toContain("read-only discovery");
+    expect(combined).toContain("Capability Broker");
+    expect(combined).toContain("risk / approval / lease preview");
+    expect(combined).toContain("App read-only surface");
+    expect(combined).toContain("redaction / boundary audit");
+    expect(combined).toContain("No external capability execution");
+    expect(combined).toContain("No MCP tool invocation");
+    expect(combined).toContain("No MCP stdio process launch");
+    expect(combined).toContain("No MCP HTTP/SSE/WebSocket connection");
+    expect(combined).toContain("No plugin code loading");
+    expect(combined).toContain("No skill runtime execution");
+    expect(combined).toContain("No native bridge");
+    expect(combined).toContain("No desktop action");
+    expect(combined).toContain("No broad PermissionLease");
+    expect(combined).toContain("No arbitrary Git/shell");
+    expect(combined).toContain("Do not implement MCP/plugin/skill execution");
+    expect(docsIndex).toContain("v0.17-capability-host-mvp-prompts.md");
+    expect(docsIndex).toContain(
+      "v0.16-production-memory-project-knowledge-postrelease-review.md"
+    );
+    expect(docsIndex).toContain("p0u-capability-host-roadmap.md");
+    expect(docsIndex).toContain("p0u-001-capability-host-adr-plan.md");
+    expect(rootReadme).toContain("v0.17 Capability Host MVP status");
+  });
+
   it("documents the P0S-001 MVP hardening recovery design gate", async () => {
     const adr = await readFile(
       path.join(repoRoot, "docs", "adr", "0011-mvp-hardening-recovery.md"),
