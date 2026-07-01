@@ -17646,6 +17646,65 @@ describe("desktop source boundaries", () => {
     expect(appSource).not.toMatch(/>\s*Run External Capability Audit\s*</);
   });
 
+  it("documents the v0.17 post-release review and P0V MCP read-only roadmap", async () => {
+    const review = await readFile(
+      path.join(
+        repoRoot,
+        "docs",
+        "v0.17-capability-host-postrelease-review.md"
+      ),
+      "utf8"
+    );
+    const roadmap = await readFile(
+      path.join(repoRoot, "docs", "p0v-mcp-readonly-connection-roadmap.md"),
+      "utf8"
+    );
+    const gatePlan = await readFile(
+      path.join(
+        repoRoot,
+        "docs",
+        "p0v-001-mcp-readonly-connection-gate-plan.md"
+      ),
+      "utf8"
+    );
+    const docsIndex = await readFile(
+      path.join(repoRoot, "docs", "README.md"),
+      "utf8"
+    );
+    const rootReadme = await readFile(path.join(repoRoot, "README.md"), "utf8");
+    const combined = `${review}\n${roadmap}\n${gatePlan}`;
+
+    expect(review).toContain("v0.17 Capability Host Post-Release Review");
+    expect(review).toContain("v0.17.0-capability-host-mvp-rc.1");
+    expect(review).toContain(
+      "Capability Host MVP, read-only descriptors and no external execution"
+    );
+    expect(review).toContain("App Capability Host read-only surface");
+    expect(review).toContain(
+      "External capability metadata redaction / boundary audit"
+    );
+    expect(roadmap).toContain("P0V MCP Read-only Connection Roadmap");
+    expect(roadmap).toContain("metadata-only resources/prompts/tools listing");
+    expect(roadmap).toContain("Capability Broker integration");
+    expect(roadmap).toContain("App read-only connection surface");
+    expect(gatePlan).toContain("P0V-001 MCP Read-only Connection Gate Plan");
+    expect(gatePlan).toContain("no MCP connection implementation in P0V-001");
+    expect(combined).toContain("no MCP tool invocation");
+    expect(combined).toContain("no mutating MCP operation");
+    expect(combined).toContain("no resource content read by default");
+    expect(combined).toContain("no arbitrary process spawn");
+    expect(combined).toContain("no App hidden connection");
+    expect(combined).toContain("no external mutation");
+    expect(combined).toContain("no native bridge");
+    expect(combined).toContain("no desktop action");
+    expect(combined).toContain("broad PermissionLease");
+    expect(docsIndex).toContain("v0.18-mcp-readonly-connection-mvp-prompts.md");
+    expect(docsIndex).toContain("v0.17-capability-host-postrelease-review.md");
+    expect(docsIndex).toContain("p0v-mcp-readonly-connection-roadmap.md");
+    expect(docsIndex).toContain("p0v-001-mcp-readonly-connection-gate-plan.md");
+    expect(rootReadme).toContain("active v0.18 roadmap");
+  });
+
   it("documents the P0S-001 MVP hardening recovery design gate", async () => {
     const adr = await readFile(
       path.join(repoRoot, "docs", "adr", "0011-mvp-hardening-recovery.md"),
