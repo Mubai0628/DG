@@ -64,6 +64,7 @@ import {
   capabilityHostSurfaceWarningCodes,
   summarizeCapabilityHostSurfaceView
 } from "../src/capability-host-surface-view.js";
+import { buildCapabilityHostAuditView } from "../src/capability-host-audit-view.js";
 import {
   buildPatchProposalCreationPreviewView,
   parsePatchProposalPathRefsInput,
@@ -17449,6 +17450,114 @@ describe("desktop source boundaries", () => {
     expect(doc).toContain("No external tool run");
     expect(doc).toContain("Broker output is a preview");
     expect(docsIndex).toContain("app-shell-capability-host-surface-v0.16.md");
+  });
+
+  it("previews Capability Host audit summaries without execution", async () => {
+    const safeManifest = await readFile(
+      path.join(
+        repoRoot,
+        "runtime",
+        "test",
+        "fixtures",
+        "external-capabilities",
+        "safe-mcp-readonly.json"
+      ),
+      "utf8"
+    );
+    const capabilityHost = buildCapabilityHostSurfaceView({
+      manifestJsonText: safeManifest,
+      sourceType: "mcp_server"
+    });
+    const safeAudit = buildCapabilityHostAuditView({
+      capabilityHostSurface: capabilityHost
+    });
+    const rawAudit = buildCapabilityHostAuditView({
+      summaryJsonText: JSON.stringify({
+        rawArgs: "RAW_ARG_SENTINEL_VALUE",
+        canInvokeCapability: true,
+        leaseIssued: true
+      })
+    });
+
+    expect(safeAudit.status).toBe("audit_ready");
+    expect(safeAudit.descriptorCounts.appSurfaceDescriptorCount).toBe(1);
+    expect(safeAudit.readiness.canPreviewAudit).toBe(true);
+    expect(safeAudit.readiness.canRunExternalCapabilityAudit).toBe(false);
+    expect(safeAudit.readiness.canInvokeCapability).toBe(false);
+    expect(safeAudit.readiness.canIssueLease).toBe(false);
+    expect(safeAudit.readiness.canFetchNetwork).toBe(false);
+    expect(safeAudit.readiness.canWriteEventStore).toBe(false);
+    expect(safeAudit.readiness.appCanExecute).toBe(false);
+
+    expect(rawAudit.status).toBe("blocked");
+    expect(rawAudit.findings.map((finding) => finding.code)).toContain(
+      "RAW_ARGS_FIELD_REJECTED"
+    );
+    expect(rawAudit.findings.map((finding) => finding.code)).toContain(
+      "EXECUTION_READINESS_REJECTED"
+    );
+    expect(rawAudit.findings.map((finding) => finding.code)).toContain(
+      "LEASE_ISSUED_REJECTED"
+    );
+    expect(JSON.stringify(rawAudit)).not.toContain("RAW_ARG_SENTINEL_VALUE");
+  });
+
+  it("renders the Capability Host audit panel as read-only App surface", async () => {
+    const appSource = await readFile(path.join(appRoot, "src", "App.tsx"), "utf8");
+    const viewSource = await readFile(
+      path.join(appRoot, "src", "capability-host-audit-view.ts"),
+      "utf8"
+    );
+
+    expect(appSource).toContain("Capability Host Redaction / Boundary Audit");
+    expect(appSource).toContain("Read-only / no execution");
+    expect(appSource).toContain("Preview Capability Host Audit");
+    expect(appSource).toContain("Run External Capability Audit (disabled)");
+    expect(appSource).not.toMatch(/>\s*Run External Capability Audit\s*</);
+    expect(viewSource).not.toContain("safeInvoke");
+    expect(viewSource).not.toMatch(/\binvoke\s*\(/);
+    expect(viewSource).not.toMatch(/\bfetch\s*\(/);
+    expect(viewSource).not.toContain("localStorage");
+    expect(viewSource).not.toContain("sessionStorage");
+    expect(viewSource).toContain("canWriteEventStore: false");
+  });
+
+  it("documents the Capability Host redaction audit surfaces", async () => {
+    const runtimeDoc = await readFile(
+      path.join(
+        repoRoot,
+        "docs",
+        "runtime-external-capability-redaction-audit-v0.16.md"
+      ),
+      "utf8"
+    );
+    const appDoc = await readFile(
+      path.join(repoRoot, "docs", "app-shell-capability-host-audit-v0.16.md"),
+      "utf8"
+    );
+    const docsIndex = await readFile(
+      path.join(repoRoot, "docs", "README.md"),
+      "utf8"
+    );
+    const combined = `${runtimeDoc}\n${appDoc}`;
+
+    expect(combined).toContain("External Capability Redaction Audit");
+    expect(combined).toContain("raw args");
+    expect(combined).toContain("raw prompt/source/diff/response");
+    expect(combined).toContain("No MCP server connection");
+    expect(combined).toContain("No plugin install");
+    expect(combined).toContain("No skill execution");
+    expect(combined).toContain("No capability invocation");
+    expect(combined).toContain("No PermissionLease issuance");
+    expect(combined).toContain("No fetch/network");
+    expect(combined).toContain("No EventStore write");
+    expect(combined).toContain("No Git/shell");
+    expect(combined).toContain("No native bridge");
+    expect(combined).toContain("No desktop action");
+    expect(docsIndex).toContain(
+      "runtime-external-capability-redaction-audit-v0.16.md"
+    );
+    expect(docsIndex).toContain("app-shell-capability-host-audit-v0.16.md");
   });
 
   it("documents the P0S-001 MVP hardening recovery design gate", async () => {

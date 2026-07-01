@@ -248,6 +248,8 @@ foundation.
 - [Runtime Plugin / Skill Metadata Scanner v0.16](runtime-plugin-skill-metadata-scanner-v0.16.md)
 - [Runtime External Capability Broker Integration v0.16](runtime-external-capability-broker-integration-v0.16.md)
 - [App Shell Capability Host Surface v0.16](app-shell-capability-host-surface-v0.16.md)
+- [Runtime External Capability Redaction Audit v0.16](runtime-external-capability-redaction-audit-v0.16.md)
+- [App Shell Capability Host Audit v0.16](app-shell-capability-host-audit-v0.16.md)
 - [Runtime Memory Recall Preview v0.3](runtime-memory-recall-preview-v0.3.md)
 - [v0.4.0 Controlled Creation Preview RC release notes](release-notes-v0.4.0-controlled-creation-preview-rc.1.md)
 - [App Shell Controlled Creation manual QA](app-shell-controlled-creation-manual-qa.md)

@@ -103,6 +103,11 @@ import {
   type CapabilityHostSurfaceInput
 } from "./capability-host-surface-view.js";
 import {
+  buildCapabilityHostAuditView,
+  summarizeCapabilityHostAuditView,
+  type CapabilityHostAuditView
+} from "./capability-host-audit-view.js";
+import {
   buildPatchProposalCreationPreviewView,
   type AppPatchProposalCreationPreviewView,
   patchProposalCreationApprovalRefs,
@@ -636,6 +641,9 @@ export function DesktopShell(): JSX.Element {
     );
   const [capabilityHostSurfacePreview, setCapabilityHostSurfacePreview] =
     useState<CapabilityHostSurfaceView | undefined>();
+  const [capabilityHostAuditText, setCapabilityHostAuditText] = useState("");
+  const [capabilityHostAuditPreview, setCapabilityHostAuditPreview] =
+    useState<CapabilityHostAuditView | undefined>();
   const [projectKnowledgeEntryType, setProjectKnowledgeEntryType] =
     useState<ProjectKnowledgeEntryType>("project_fact");
   const [projectKnowledgeNamespace, setProjectKnowledgeNamespace] =
@@ -950,6 +958,19 @@ export function DesktopShell(): JSX.Element {
   );
   const displayedCapabilityHostSurface =
     capabilityHostSurfacePreview ?? buildCapabilityHostSurfaceView();
+  const capabilityHostAuditCandidate = useMemo<CapabilityHostAuditView>(
+    () =>
+      buildCapabilityHostAuditView({
+        capabilityHostSurface:
+          displayedCapabilityHostSurface.status === "empty"
+            ? undefined
+            : displayedCapabilityHostSurface,
+        summaryJsonText: capabilityHostAuditText
+      }),
+    [capabilityHostAuditText, displayedCapabilityHostSurface]
+  );
+  const displayedCapabilityHostAudit =
+    capabilityHostAuditPreview ?? buildCapabilityHostAuditView();
   const displayedPatchProposalCreation =
     patchProposalCreationPreview ??
     modelImportedPatchProposalCreationPreview ??
@@ -2912,7 +2933,17 @@ export function DesktopShell(): JSX.Element {
   function handleClearCapabilityHostSurface(): void {
     setCapabilityHostManifestText("");
     setCapabilityHostSurfacePreview(undefined);
+    setCapabilityHostAuditPreview(undefined);
     setContextAssemblyPreview(undefined);
+  }
+
+  function handlePreviewCapabilityHostAudit(): void {
+    setCapabilityHostAuditPreview(capabilityHostAuditCandidate);
+  }
+
+  function handleClearCapabilityHostAudit(): void {
+    setCapabilityHostAuditText("");
+    setCapabilityHostAuditPreview(undefined);
   }
 
   async function handleRefreshProjectKnowledge(): Promise<void> {
@@ -11467,6 +11498,237 @@ export function DesktopShell(): JSX.Element {
                 ).source
               }{" "}
               · {displayedCapabilityHostSurface.nextAction}
+            </p>
+          </section>
+
+          <section
+            className="eventPanel"
+            aria-label="Capability Host Redaction / Boundary Audit"
+          >
+            <div className="panelHeader">
+              <h2>Capability Host Redaction / Boundary Audit</h2>
+              <span className="muted">Read-only / no execution</span>
+            </div>
+            <p className="fieldHelp">
+              Audits external capability metadata summaries for raw secrets,
+              command fields, install scripts, raw args, raw prompt/source/diff
+              /response fields, execution readiness, and issued leases. The App
+              Shell does not connect, install, invoke, fetch network, write
+              events, issue leases, or run external tools.
+            </p>
+
+            <label>
+              <span>Optional summary JSON</span>
+              <textarea
+                className="compactTextarea"
+                value={capabilityHostAuditText}
+                onChange={(event) => {
+                  setCapabilityHostAuditText(event.target.value);
+                }}
+                placeholder="Paste capability host summary JSON"
+                spellCheck={false}
+              />
+              <p className="fieldHelp">
+                Empty input audits the current Capability Host preview summary.
+                Pasted JSON is treated as summary metadata only.
+              </p>
+            </label>
+
+            <div className="buttonRow">
+              <button
+                type="button"
+                className="secondary"
+                onClick={(event) => {
+                  event.preventDefault();
+                  event.stopPropagation();
+                  handlePreviewCapabilityHostAudit();
+                }}
+              >
+                Preview Capability Host Audit
+              </button>
+              <button
+                type="button"
+                className="secondary"
+                onClick={(event) => {
+                  event.preventDefault();
+                  event.stopPropagation();
+                  handleClearCapabilityHostAudit();
+                }}
+              >
+                Clear Capability Host Audit
+              </button>
+              <button type="button" className="secondary" disabled>
+                Run External Capability Audit (disabled)
+              </button>
+            </div>
+
+            {displayedCapabilityHostAudit.status === "empty" ? (
+              <p className="empty">
+                No capability host audit loaded. Preview a Capability Host
+                manifest or paste summary JSON to inspect redaction boundaries.
+              </p>
+            ) : null}
+
+            {displayedCapabilityHostAudit.status === "blocked" ? (
+              <div className="errorBox">
+                <strong>Capability host audit blocked</strong>
+                <p>{displayedCapabilityHostAudit.nextAction}</p>
+              </div>
+            ) : null}
+
+            <dl className="summaryGrid compact">
+              <div>
+                <dt>Status</dt>
+                <dd>{displayedCapabilityHostAudit.status}</dd>
+              </div>
+              <div>
+                <dt>Audit</dt>
+                <dd>{displayedCapabilityHostAudit.auditId}</dd>
+              </div>
+              <div>
+                <dt>Sources</dt>
+                <dd>
+                  {
+                    displayedCapabilityHostAudit.sourceCounts
+                      .manifestResultCount
+                  }{" "}
+                  /{" "}
+                  {
+                    displayedCapabilityHostAudit.sourceCounts
+                      .mcpDiscoveryResultCount
+                  }{" "}
+                  /{" "}
+                  {
+                    displayedCapabilityHostAudit.sourceCounts
+                      .pluginSkillScanResultCount
+                  }{" "}
+                  /{" "}
+                  {
+                    displayedCapabilityHostAudit.sourceCounts
+                      .brokerIntegrationResultCount
+                  }{" "}
+                  /{" "}
+                  {
+                    displayedCapabilityHostAudit.sourceCounts
+                      .appSurfaceSummaryCount
+                  }
+                </dd>
+              </div>
+              <div>
+                <dt>Descriptors</dt>
+                <dd>
+                  {
+                    displayedCapabilityHostAudit.descriptorCounts
+                      .totalDescriptorCount
+                  }
+                </dd>
+              </div>
+              <div>
+                <dt>Redacted / raw fields</dt>
+                <dd>
+                  {displayedCapabilityHostAudit.redactedFieldCount} /{" "}
+                  {displayedCapabilityHostAudit.rawFieldDetectedCount}
+                </dd>
+              </div>
+              <div>
+                <dt>Raw prompt / response</dt>
+                <dd>
+                  {displayedCapabilityHostAudit.rawLeakBooleans.rawPromptDetected
+                    ? "yes"
+                    : "no"}{" "}
+                  /{" "}
+                  {displayedCapabilityHostAudit.rawLeakBooleans
+                    .rawResponseDetected
+                    ? "yes"
+                    : "no"}
+                </dd>
+              </div>
+              <div>
+                <dt>Secret / lease issued</dt>
+                <dd>
+                  {displayedCapabilityHostAudit.rawLeakBooleans.secretDetected
+                    ? "yes"
+                    : "no"}{" "}
+                  /{" "}
+                  {displayedCapabilityHostAudit.rawLeakBooleans
+                    .leaseIssuedDetected
+                    ? "yes"
+                    : "no"}
+                </dd>
+              </div>
+              <div>
+                <dt>Risk summary</dt>
+                <dd>
+                  {Object.entries(displayedCapabilityHostAudit.riskSummary)
+                    .map(([risk, count]) => `${risk}:${count}`)
+                    .join(", ") || "none"}
+                </dd>
+              </div>
+              <div>
+                <dt>Blockers / warnings</dt>
+                <dd>
+                  {displayedCapabilityHostAudit.blockerCount} /{" "}
+                  {displayedCapabilityHostAudit.warningCount}
+                </dd>
+              </div>
+              <div>
+                <dt>Hash</dt>
+                <dd>
+                  {displayedCapabilityHostAudit.auditHash.substring(0, 12)}
+                </dd>
+              </div>
+              <div>
+                <dt>Preview / run audit</dt>
+                <dd>
+                  {displayedCapabilityHostAudit.readiness.canPreviewAudit
+                    ? "yes"
+                    : "no"}{" "}
+                  /{" "}
+                  {displayedCapabilityHostAudit.readiness
+                    .canRunExternalCapabilityAudit
+                    ? "yes"
+                    : "no"}
+                </dd>
+              </div>
+              <div>
+                <dt>Invoke / lease</dt>
+                <dd>
+                  {displayedCapabilityHostAudit.readiness.canInvokeCapability
+                    ? "yes"
+                    : "no"}{" "}
+                  /{" "}
+                  {displayedCapabilityHostAudit.readiness.canIssueLease
+                    ? "yes"
+                    : "no"}
+                </dd>
+              </div>
+              <div>
+                <dt>Fetch / event write</dt>
+                <dd>
+                  {displayedCapabilityHostAudit.readiness.canFetchNetwork
+                    ? "yes"
+                    : "no"}{" "}
+                  /{" "}
+                  {displayedCapabilityHostAudit.readiness.canWriteEventStore
+                    ? "yes"
+                    : "no"}
+                </dd>
+              </div>
+            </dl>
+
+            {displayedCapabilityHostAudit.findings.length > 0 ? (
+              <p className="muted">
+                findings{" "}
+                {displayedCapabilityHostAudit.findings
+                  .map((finding) => finding.code)
+                  .join(", ")}
+              </p>
+            ) : null}
+
+            <p className="fieldHelp">
+              {summarizeCapabilityHostAuditView(displayedCapabilityHostAudit)
+                .appSource}{" "}
+              · {displayedCapabilityHostAudit.nextAction}
             </p>
           </section>
 
