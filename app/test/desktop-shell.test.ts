@@ -18481,6 +18481,106 @@ describe("desktop source boundaries", () => {
     expect(rootReadme).toContain("P0W is the active v0.19 roadmap");
   });
 
+  it("documents the P0W-001 MCP tool invocation proposal gate", async () => {
+    const adr = await readFile(
+      path.join(
+        repoRoot,
+        "docs",
+        "adr",
+        "0011-mcp-tool-invocation-proposal-gate.md"
+      ),
+      "utf8"
+    );
+    const threatModel = await readFile(
+      path.join(
+        repoRoot,
+        "docs",
+        "mcp-tool-invocation-proposal-threat-model-v0.18.md"
+      ),
+      "utf8"
+    );
+    const implementationGate = await readFile(
+      path.join(
+        repoRoot,
+        "docs",
+        "mcp-tool-invocation-proposal-implementation-gate-v0.18.md"
+      ),
+      "utf8"
+    );
+    const nextPlan = await readFile(
+      path.join(
+        repoRoot,
+        "docs",
+        "p0w-002-mcp-tool-invocation-proposal-schema-plan.md"
+      ),
+      "utf8"
+    );
+    const docsIndex = await readFile(
+      path.join(repoRoot, "docs", "README.md"),
+      "utf8"
+    );
+    const combined = `${adr}\n${threatModel}\n${implementationGate}\n${nextPlan}`;
+
+    expect(adr).toContain("ADR 0011: MCP Tool Invocation Proposal Gate");
+    expect(adr).toContain(
+      "MCP tools may enter the system only as invocation proposals"
+    );
+    expect(adr).toContain("P0W does not execute MCP `tools/call`");
+    expect(adr).toContain(
+      "Tool args must be schema-validated and summary-only"
+    );
+    expect(adr).toContain("Mutating tools are disabled");
+    expect(adr).toContain(
+      "Read-only tools still require proposal, risk, and approval draft"
+    );
+    expect(adr).toContain(
+      "Capability Broker owns risk classification and invoke policy"
+    );
+    expect(adr).toContain("Approval draft is not a production PermissionLease");
+    expect(adr).toContain("Simulated result is not real tool output");
+    expect(adr).toContain("App must not execute MCP tool");
+    expect(threatModel).toContain("malicious tool metadata");
+    expect(threatModel).toContain("Prompt Injection Through Tool Descriptions");
+    expect(threatModel).toContain("Unsafe Input Schema");
+    expect(threatModel).toContain("Tool Args Containing Secrets");
+    expect(threatModel).toContain("Raw Output Leakage");
+    expect(threatModel).toContain("Mutating Tool Disguised as Read-Only");
+    expect(threatModel).toContain("Server Capability Drift");
+    expect(threatModel).toContain("Approval Bypass");
+    expect(threatModel).toContain("Broker Risk Mismatch");
+    expect(threatModel).toContain("Replay Confusion");
+    expect(threatModel).toContain("App Hidden Invocation");
+    expect(threatModel).toContain("Native Bridge / Desktop Action Bypass");
+    expect(implementationGate).toContain("Metadata Safety");
+    expect(implementationGate).toContain("Input Schema Safety");
+    expect(implementationGate).toContain("Argument Redaction");
+    expect(implementationGate).toContain("Risk Classification");
+    expect(implementationGate).toContain("Approval Draft");
+    expect(implementationGate).toContain("Simulation Boundary");
+    expect(implementationGate).toContain("Broker Integration");
+    expect(implementationGate).toContain("App UI Safety");
+    expect(implementationGate).toContain("Boundary / CI Safety");
+    expect(nextPlan).toContain(
+      "P0W-002 MCP Tool Invocation Proposal Schema Plan"
+    );
+    expect(combined).toContain("no real MCP `tools/call`");
+    expect(combined).toContain("no mutating MCP tool execution");
+    expect(combined).toContain("no native bridge");
+    expect(combined).toContain("no desktop action");
+    expect(docsIndex).toContain(
+      "adr/0011-mcp-tool-invocation-proposal-gate.md"
+    );
+    expect(docsIndex).toContain(
+      "mcp-tool-invocation-proposal-threat-model-v0.18.md"
+    );
+    expect(docsIndex).toContain(
+      "mcp-tool-invocation-proposal-implementation-gate-v0.18.md"
+    );
+    expect(docsIndex).toContain(
+      "p0w-002-mcp-tool-invocation-proposal-schema-plan.md"
+    );
+  });
+
   it("documents the P0S-001 MVP hardening recovery design gate", async () => {
     const adr = await readFile(
       path.join(repoRoot, "docs", "adr", "0011-mvp-hardening-recovery.md"),
