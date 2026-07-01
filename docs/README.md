@@ -268,6 +268,7 @@ foundation.
 - [App Shell MCP Read-only Connection v0.17](app-shell-mcp-readonly-connection-v0.17.md)
 - [Runtime MCP Metadata Redaction Audit v0.17](runtime-mcp-metadata-redaction-audit-v0.17.md)
 - [App Shell MCP Metadata Redaction Audit v0.17](app-shell-mcp-metadata-redaction-audit-v0.17.md)
+- [MCP Read-only Connection Smoke v0.17](mcp-readonly-connection-smoke-v0.17.md)
 - [Runtime Memory Recall Preview v0.3](runtime-memory-recall-preview-v0.3.md)
 - [v0.4.0 Controlled Creation Preview RC release notes](release-notes-v0.4.0-controlled-creation-preview-rc.1.md)
 - [App Shell Controlled Creation manual QA](app-shell-controlled-creation-manual-qa.md)
