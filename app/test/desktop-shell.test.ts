@@ -20,6 +20,7 @@ import {
   recordVerificationLaneEvent,
   recordApprovedUserWorkspaceExecutionEvent,
   recordControlRunDraftEvent,
+  runMcpReadonlyDiscovery,
   revokeProjectKnowledgeEntry,
   rollbackApprovedUserWorkspacePatch,
   runDesktopWebTableToCsvFlow,
@@ -33,6 +34,7 @@ import {
   type LiveDeepSeekPatchProposalCommandResult,
   type LiveProposalSummaryEventPreview,
   type LiveProposalSummaryEventRecordResult,
+  type McpReadonlyDiscoverResult,
   type VerificationLaneEventRecordResult,
   type ShellVerificationLaneResult,
   type TauriInvoke
@@ -924,6 +926,7 @@ describe("desktop command wrapper", () => {
     expect(isAllowedDesktopCommand("record_live_proposal_summary_event")).toBe(
       true
     );
+    expect(isAllowedDesktopCommand("mcp_readonly_discover")).toBe(true);
     expect(isAllowedDesktopCommand("project_knowledge_list")).toBe(true);
     expect(isAllowedDesktopCommand("project_knowledge_commit_candidate")).toBe(
       true
@@ -931,6 +934,133 @@ describe("desktop command wrapper", () => {
     expect(isAllowedDesktopCommand("project_knowledge_revoke")).toBe(true);
     expect(isAllowedDesktopCommand("project_knowledge_expire")).toBe(true);
     expect(isAllowedDesktopCommand("run_web_table_to_csv_flow")).toBe(true);
+  });
+
+  it("calls MCP readonly discovery only through the fixed wrapper", async () => {
+    const invoke: TauriInvoke = async <T>(
+      command: string,
+      args?: Record<string, unknown>
+    ): Promise<T> => {
+      expect(command).toBe("mcp_readonly_discover");
+      expect(args).toMatchObject({
+        request: {
+          typedConfirmation: "DISCOVER MCP METADATA",
+          maxItems: 10,
+          timeoutMs: 5000
+        }
+      });
+      const result = {
+        ok: true,
+        discoveryId: "mcp-readonly-discovery-1",
+        profileId: "mcp.docs.injected",
+        serverInfo: {
+          serverId: "mcp.docs.server",
+          displayName: "Docs MCP",
+          serverVersion: "fake-injected-0.1",
+          metadataHash: "metadata-hash"
+        },
+        resourceCount: 1,
+        promptCount: 1,
+        toolCount: 1,
+        resourceSummaries: [
+          {
+            resourceId: "mcp.docs.resource",
+            displayName: "Docs resource",
+            kind: "summary_index",
+            descriptionSummary: "Resource metadata only.",
+            warningCodes: []
+          }
+        ],
+        promptSummaries: [
+          {
+            promptId: "mcp.docs.prompt",
+            displayName: "Docs prompt",
+            descriptionSummary: "Prompt metadata only.",
+            templateDeclared: true,
+            rawPromptIncluded: false,
+            warningCodes: []
+          }
+        ],
+        toolSummaries: [
+          {
+            toolId: "mcp.docs.tool",
+            displayName: "Docs tool",
+            descriptionSummary: "Tool metadata only.",
+            riskLevel: "A3",
+            defaultInvocationPolicy: "DISABLED",
+            inputSchemaKnown: true,
+            outputSchemaKnown: true,
+            warningCodes: ["TOOL_INVOCATION_DISABLED"]
+          }
+        ],
+        warningCodes: ["STDIO_DISCOVERY_DEFERRED"],
+        summaryOnly: true,
+        rawMetadataIncluded: false,
+        rawStdoutIncluded: false,
+        rawStderrIncluded: false,
+        canCallTool: false,
+        canReadResource: false,
+        canExecutePrompt: false,
+        canMutate: false,
+        canWriteEventStore: false,
+        resultHash: "result-hash",
+        safeMessage: "MCP read-only metadata discovered."
+      } satisfies McpReadonlyDiscoverResult;
+      return result as T;
+    };
+
+    const result = await runMcpReadonlyDiscovery(
+      {
+        profile: {
+          profileId: "mcp.docs.injected",
+          displayName: "Docs MCP",
+          serverKind: "mcp",
+          transportKind: "injected_test_transport",
+          serverRef: "mcp.docs.server",
+          readOnlyPolicy: {
+            allowInitialize: true,
+            allowListResources: true,
+            allowListPrompts: true,
+            allowListTools: true,
+            allowReadResource: false,
+            allowCallTool: false,
+            allowPromptExecution: false,
+            allowMutation: false
+          }
+        },
+        typedConfirmation: "DISCOVER MCP METADATA",
+        maxItems: 10,
+        timeoutMs: 5000
+      },
+      invoke
+    );
+
+    expect(result.summaryOnly).toBe(true);
+    expect(result.canCallTool).toBe(false);
+    expect(result.canReadResource).toBe(false);
+    expect(result.canExecutePrompt).toBe(false);
+    expect(result.canMutate).toBe(false);
+  });
+
+  it("keeps MCP readonly discovery wrapper free of generic tool invocation", async () => {
+    const appSource = await readFile(
+      path.join(appRoot, "src", "App.tsx"),
+      "utf8"
+    );
+    const flowSource = await readFile(
+      path.join(appRoot, "src", "desktop-flow.ts"),
+      "utf8"
+    );
+
+    expect(flowSource).toContain("mcp_readonly_discover");
+    expect(flowSource).toContain("runMcpReadonlyDiscovery");
+    expect(flowSource).not.toContain("callTool(");
+    expect(flowSource).not.toContain("resourceRead(");
+    expect(flowSource).not.toContain("mcpGenericInvoke");
+    expect(appSource).not.toContain("callTool(");
+    expect(appSource).not.toContain("resourceRead(");
+    expect(appSource).not.toContain("tools/call");
+    expect(appSource).not.toContain("resources/read");
   });
 
   it("uses fixed project knowledge commands and normalizes summary-only responses", async () => {

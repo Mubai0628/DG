@@ -138,6 +138,11 @@ Current scope:
   capability invocation, broad PermissionLease issuance, fetch/network,
   EventStore external execution writes, native bridge, desktop action, and
   arbitrary Git/shell remain disabled
+- add the v0.18 fixed MCP read-only discovery command boundary with exact
+  typed confirmation and injected fake metadata summaries only, while stdio
+  launch, MCP tool calls, resource reads, prompt execution, mutation,
+  EventStore writes, native bridge, desktop action, and arbitrary Git/shell
+  remain disabled
 - lock the P0R E2E coding task regression smoke with safe docs-task,
   verification-failure, rollback, and expected event summary fixtures while no
   new App execution path is added

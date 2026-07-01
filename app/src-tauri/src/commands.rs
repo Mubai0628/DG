@@ -38,11 +38,13 @@ const LIVE_PROPOSAL_MIN_RESPONSE_BYTES: usize = 256;
 const LIVE_PROPOSAL_MAX_RESPONSE_BYTES: usize = 1_000_000;
 const LIVE_PROPOSAL_MIN_TIMEOUT_MS: u64 = 1_000;
 const LIVE_PROPOSAL_MAX_TIMEOUT_MS: u64 = 120_000;
+const MCP_READONLY_DISCOVERY_CONFIRMATION: &str = "DISCOVER MCP METADATA";
+const MCP_READONLY_DISCOVERY_MAX_TIMEOUT_MS: u64 = 30_000;
+const MCP_READONLY_DISCOVERY_MAX_ITEMS: usize = 100;
 const PROJECT_KNOWLEDGE_REVOKE_CONFIRMATION: &str = "REVOKE PROJECT KNOWLEDGE";
 const PROJECT_KNOWLEDGE_MAX_SUMMARY_CHARS: usize = 500;
 const PROJECT_KNOWLEDGE_ENTRY_COMMITTED_TYPE: &str = "project_knowledge.entry_committed";
-const PROJECT_KNOWLEDGE_CANDIDATE_COMMITTED_TYPE: &str =
-    "project_knowledge.candidate_committed";
+const PROJECT_KNOWLEDGE_CANDIDATE_COMMITTED_TYPE: &str = "project_knowledge.candidate_committed";
 const PROJECT_KNOWLEDGE_ENTRY_REVOKED_TYPE: &str = "project_knowledge.entry_revoked";
 const PROJECT_KNOWLEDGE_ENTRY_EXPIRED_TYPE: &str = "project_knowledge.entry_expired";
 const PROJECT_KNOWLEDGE_RECALL_USED_TYPE: &str = "project_knowledge.recall_used";
@@ -363,6 +365,85 @@ pub struct LiveDeepSeekPatchProposalCommandResult {
     can_write_event_store: bool,
     can_execute_git: bool,
     can_execute_shell: bool,
+    safe_message: String,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct McpReadonlyDiscoverRequest {
+    profile: Value,
+    typed_confirmation: String,
+    max_items: usize,
+    timeout_ms: u64,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct McpReadonlyServerInfoSummary {
+    server_id: String,
+    display_name: String,
+    server_version: String,
+    metadata_hash: String,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct McpReadonlyResourceSummary {
+    resource_id: String,
+    display_name: String,
+    kind: String,
+    description_summary: String,
+    warning_codes: Vec<String>,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct McpReadonlyPromptSummary {
+    prompt_id: String,
+    display_name: String,
+    description_summary: String,
+    template_declared: bool,
+    raw_prompt_included: bool,
+    warning_codes: Vec<String>,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct McpReadonlyToolSummary {
+    tool_id: String,
+    display_name: String,
+    description_summary: String,
+    risk_level: String,
+    default_invocation_policy: String,
+    input_schema_known: bool,
+    output_schema_known: bool,
+    warning_codes: Vec<String>,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct McpReadonlyDiscoverResult {
+    ok: bool,
+    discovery_id: String,
+    profile_id: String,
+    server_info: McpReadonlyServerInfoSummary,
+    resource_count: usize,
+    prompt_count: usize,
+    tool_count: usize,
+    resource_summaries: Vec<McpReadonlyResourceSummary>,
+    prompt_summaries: Vec<McpReadonlyPromptSummary>,
+    tool_summaries: Vec<McpReadonlyToolSummary>,
+    warning_codes: Vec<String>,
+    summary_only: bool,
+    raw_metadata_included: bool,
+    raw_stdout_included: bool,
+    raw_stderr_included: bool,
+    can_call_tool: bool,
+    can_read_resource: bool,
+    can_execute_prompt: bool,
+    can_mutate: bool,
+    can_write_event_store: bool,
+    result_hash: String,
     safe_message: String,
 }
 
@@ -1388,6 +1469,191 @@ pub fn run_shell_verification_lane(
     request: ShellVerificationLaneRequest,
 ) -> Result<ShellVerificationLaneResult, DesktopFlowError> {
     run_shell_verification_lane_summary(request)
+}
+
+#[tauri::command(rename_all = "camelCase")]
+pub fn mcp_readonly_discover(
+    request: McpReadonlyDiscoverRequest,
+) -> Result<McpReadonlyDiscoverResult, DesktopFlowError> {
+    run_mcp_readonly_discover_fake(request)
+}
+
+fn run_mcp_readonly_discover_fake(
+    request: McpReadonlyDiscoverRequest,
+) -> Result<McpReadonlyDiscoverResult, DesktopFlowError> {
+    let profile =
+        validate_mcp_readonly_discovery_request(&request).map_err(mcp_readonly_invalid)?;
+    let profile_id = profile
+        .get("profileId")
+        .and_then(Value::as_str)
+        .unwrap_or("mcp-profile");
+    let server_ref = profile
+        .get("serverRef")
+        .and_then(Value::as_str)
+        .unwrap_or("mcp-server");
+    let display_name = profile
+        .get("displayName")
+        .and_then(Value::as_str)
+        .unwrap_or(profile_id);
+    let discovery_id = format!(
+        "mcp-readonly-discovery-{}",
+        short_hash(&format!(
+            "{profile_id}:{server_ref}:{}:{}",
+            request.max_items, request.timeout_ms
+        ))
+    );
+    let server_info = McpReadonlyServerInfoSummary {
+        server_id: sanitize_safe_message(server_ref),
+        display_name: sanitize_safe_message(display_name),
+        server_version: "fake-injected-0.1".to_string(),
+        metadata_hash: short_hash(&format!("{profile_id}:{server_ref}:metadata")),
+    };
+    let resource_summaries = vec![McpReadonlyResourceSummary {
+        resource_id: format!("{profile_id}.resource.index"),
+        display_name: "MCP resource index metadata".to_string(),
+        kind: "summary_index".to_string(),
+        description_summary: "Read-only MCP resource metadata summary.".to_string(),
+        warning_codes: Vec::new(),
+    }];
+    let prompt_summaries = vec![McpReadonlyPromptSummary {
+        prompt_id: format!("{profile_id}.prompt.summary"),
+        display_name: "MCP prompt metadata".to_string(),
+        description_summary: "Prompt metadata summary; prompt execution is disabled.".to_string(),
+        template_declared: true,
+        raw_prompt_included: false,
+        warning_codes: Vec::new(),
+    }];
+    let tool_summaries = vec![McpReadonlyToolSummary {
+        tool_id: format!("{profile_id}.tool.metadata"),
+        display_name: "MCP tool metadata".to_string(),
+        description_summary: "Tool metadata summary; invocation is disabled.".to_string(),
+        risk_level: "A3".to_string(),
+        default_invocation_policy: "DISABLED".to_string(),
+        input_schema_known: true,
+        output_schema_known: true,
+        warning_codes: vec!["TOOL_INVOCATION_DISABLED".to_string()],
+    }];
+    let result_hash = short_hash(&format!(
+        "{}:{}:{}:{}",
+        discovery_id,
+        resource_summaries.len(),
+        prompt_summaries.len(),
+        tool_summaries.len()
+    ));
+    Ok(McpReadonlyDiscoverResult {
+        ok: true,
+        discovery_id,
+        profile_id: sanitize_safe_message(profile_id),
+        server_info,
+        resource_count: resource_summaries.len(),
+        prompt_count: prompt_summaries.len(),
+        tool_count: tool_summaries.len(),
+        resource_summaries,
+        prompt_summaries,
+        tool_summaries,
+        warning_codes: vec!["STDIO_DISCOVERY_DEFERRED".to_string()],
+        summary_only: true,
+        raw_metadata_included: false,
+        raw_stdout_included: false,
+        raw_stderr_included: false,
+        can_call_tool: false,
+        can_read_resource: false,
+        can_execute_prompt: false,
+        can_mutate: false,
+        can_write_event_store: false,
+        result_hash,
+        safe_message: "MCP read-only metadata discovered through fixed fake injected transport."
+            .to_string(),
+    })
+}
+
+fn validate_mcp_readonly_discovery_request(
+    request: &McpReadonlyDiscoverRequest,
+) -> Result<&serde_json::Map<String, Value>, String> {
+    if request.typed_confirmation != MCP_READONLY_DISCOVERY_CONFIRMATION {
+        return Err("MCP readonly discovery confirmation is required".to_string());
+    }
+    if request.max_items == 0 || request.max_items > MCP_READONLY_DISCOVERY_MAX_ITEMS {
+        return Err("MCP readonly discovery item limit is outside the allowed range".to_string());
+    }
+    if request.timeout_ms == 0 || request.timeout_ms > MCP_READONLY_DISCOVERY_MAX_TIMEOUT_MS {
+        return Err("MCP readonly discovery timeout is outside the allowed range".to_string());
+    }
+    validate_live_value_forbidden_keys(&request.profile)?;
+    validate_live_value_string_safety(&request.profile)?;
+    let profile = request
+        .profile
+        .as_object()
+        .ok_or_else(|| "MCP readonly discovery profile must be an object".to_string())?;
+    if profile.get("serverKind").and_then(Value::as_str) != Some("mcp") {
+        return Err("MCP readonly discovery profile server kind is invalid".to_string());
+    }
+    if profile.get("transportKind").and_then(Value::as_str) != Some("injected_test_transport") {
+        return Err("MCP readonly discovery stdio launch is deferred".to_string());
+    }
+    validate_mcp_safe_ref(
+        profile.get("profileId").and_then(Value::as_str),
+        "profile id",
+    )?;
+    validate_mcp_safe_ref(
+        profile.get("serverRef").and_then(Value::as_str),
+        "server ref",
+    )?;
+    let policy = profile
+        .get("readOnlyPolicy")
+        .and_then(Value::as_object)
+        .ok_or_else(|| "MCP readonly discovery policy is required".to_string())?;
+    if policy.get("allowInitialize").and_then(Value::as_bool) != Some(true) {
+        return Err("MCP readonly discovery initialize must be allowed".to_string());
+    }
+    for key in ["allowListResources", "allowListPrompts", "allowListTools"] {
+        if policy.get(key).and_then(Value::as_bool).is_none() {
+            return Err("MCP readonly discovery list policy must be explicit".to_string());
+        }
+    }
+    for key in [
+        "allowReadResource",
+        "allowCallTool",
+        "allowPromptExecution",
+        "allowMutation",
+    ] {
+        if policy.get(key).and_then(Value::as_bool) != Some(false) {
+            return Err("MCP readonly discovery policy must remain read-only".to_string());
+        }
+    }
+    Ok(profile)
+}
+
+fn validate_mcp_safe_ref(value: Option<&str>, label: &str) -> Result<(), String> {
+    let Some(text) = value else {
+        return Err(format!("MCP readonly discovery {label} is required"));
+    };
+    let trimmed = text.trim();
+    if trimmed.is_empty()
+        || trimmed.len() > 160
+        || contains_approved_apply_sensitive_marker(trimmed)
+        || trimmed.contains(' ')
+        || trimmed.contains('/')
+        || trimmed.contains('\\')
+        || trimmed.contains(';')
+        || trimmed.contains('|')
+        || trimmed.contains('&')
+        || trimmed.contains('`')
+        || trimmed.contains('$')
+        || trimmed.contains('<')
+        || trimmed.contains('>')
+    {
+        return Err(format!("MCP readonly discovery {label} is unsafe"));
+    }
+    Ok(())
+}
+
+fn mcp_readonly_invalid(message: String) -> DesktopFlowError {
+    DesktopFlowError::new(
+        "MCP_READONLY_DISCOVERY_INVALID",
+        sanitize_safe_message(&message),
+        "mcp_readonly_discover",
+    )
 }
 
 #[tauri::command(rename_all = "camelCase")]
@@ -8165,8 +8431,8 @@ mod tests {
         .expect("record safe verification summary");
 
         let mut fact = safe_project_knowledge_candidate("project_fact");
-        fact.summary = "Convert remains the real web_table_to_csv flow during memory smoke."
-            .to_string();
+        fact.summary =
+            "Convert remains the real web_table_to_csv flow during memory smoke.".to_string();
         fact.fact_kind = Some("conversion_boundary".to_string());
         let mut pitfall = safe_project_knowledge_candidate("pitfall");
         pitfall.summary =
@@ -8177,16 +8443,12 @@ mod tests {
         pitfall.mitigation_summary =
             Some("Update docs/README.md when adding a docs file.".to_string());
 
-        let fact_commit = project_knowledge_commit_candidate(
-            workspace.to_string_lossy().to_string(),
-            fact,
-        )
-        .expect("commit project fact");
-        let pitfall_commit = project_knowledge_commit_candidate(
-            workspace.to_string_lossy().to_string(),
-            pitfall,
-        )
-        .expect("commit pitfall");
+        let fact_commit =
+            project_knowledge_commit_candidate(workspace.to_string_lossy().to_string(), fact)
+                .expect("commit project fact");
+        let pitfall_commit =
+            project_knowledge_commit_candidate(workspace.to_string_lossy().to_string(), pitfall)
+                .expect("commit pitfall");
         let snapshot = project_knowledge_list(workspace.to_string_lossy().to_string())
             .expect("project knowledge snapshot");
 
@@ -10154,6 +10416,120 @@ mod tests {
         assert!(!serialized.contains("private-marker"));
 
         let _ = fs::remove_dir_all(workspace);
+    }
+
+    fn safe_mcp_readonly_profile() -> Value {
+        serde_json::json!({
+            "profileId": "mcp.docs.injected",
+            "displayName": "Docs MCP injected profile",
+            "serverKind": "mcp",
+            "transportKind": "injected_test_transport",
+            "serverRef": "mcp.docs.server",
+            "readOnlyPolicy": {
+                "allowInitialize": true,
+                "allowListResources": true,
+                "allowListPrompts": true,
+                "allowListTools": true,
+                "allowReadResource": false,
+                "allowCallTool": false,
+                "allowPromptExecution": false,
+                "allowMutation": false
+            }
+        })
+    }
+
+    fn safe_mcp_readonly_request() -> McpReadonlyDiscoverRequest {
+        McpReadonlyDiscoverRequest {
+            profile: safe_mcp_readonly_profile(),
+            typed_confirmation: MCP_READONLY_DISCOVERY_CONFIRMATION.to_string(),
+            max_items: 10,
+            timeout_ms: 5_000,
+        }
+    }
+
+    #[test]
+    fn mcp_readonly_discovery_safe_fake_server_summary() {
+        let result = mcp_readonly_discover(safe_mcp_readonly_request()).expect("mcp discovery");
+        let serialized = serde_json::to_string(&result).expect("serialize result");
+
+        assert!(result.ok);
+        assert_eq!(result.profile_id, "mcp.docs.injected");
+        assert_eq!(result.resource_count, 1);
+        assert_eq!(result.prompt_count, 1);
+        assert_eq!(result.tool_count, 1);
+        assert!(result.summary_only);
+        assert!(!result.can_call_tool);
+        assert!(!result.can_read_resource);
+        assert!(!result.can_execute_prompt);
+        assert!(!result.can_mutate);
+        assert!(!result.can_write_event_store);
+        assert!(!result.raw_metadata_included);
+        assert!(!result.raw_stdout_included);
+        assert!(!result.raw_stderr_included);
+        assert!(!serialized.contains("tools/call"));
+        assert!(!serialized.contains("resources/read"));
+        assert!(result
+            .prompt_summaries
+            .iter()
+            .all(|prompt| !prompt.raw_prompt_included));
+    }
+
+    #[test]
+    fn mcp_readonly_discovery_requires_typed_confirmation() {
+        let mut request = safe_mcp_readonly_request();
+        request.typed_confirmation = "DISCOVER".to_string();
+        let error = mcp_readonly_discover(request).expect_err("confirmation should block");
+
+        assert_eq!(error.error_code, "MCP_READONLY_DISCOVERY_INVALID");
+        assert_eq!(error.stage, "mcp_readonly_discover");
+    }
+
+    #[test]
+    fn mcp_readonly_discovery_blocks_tool_call_and_resource_read_policy() {
+        let mut call_tool = safe_mcp_readonly_request();
+        call_tool.profile["readOnlyPolicy"]["allowCallTool"] = Value::Bool(true);
+        let mut read_resource = safe_mcp_readonly_request();
+        read_resource.profile["readOnlyPolicy"]["allowReadResource"] = Value::Bool(true);
+
+        let call_error = mcp_readonly_discover(call_tool).expect_err("tool call should block");
+        let read_error =
+            mcp_readonly_discover(read_resource).expect_err("resource read should block");
+
+        assert_eq!(call_error.error_code, "MCP_READONLY_DISCOVERY_INVALID");
+        assert_eq!(read_error.error_code, "MCP_READONLY_DISCOVERY_INVALID");
+    }
+
+    #[test]
+    fn mcp_readonly_discovery_blocks_oversized_limits_and_timeout() {
+        let mut oversized = safe_mcp_readonly_request();
+        oversized.max_items = MCP_READONLY_DISCOVERY_MAX_ITEMS + 1;
+        let mut timeout = safe_mcp_readonly_request();
+        timeout.timeout_ms = MCP_READONLY_DISCOVERY_MAX_TIMEOUT_MS + 1;
+
+        let oversized_error =
+            mcp_readonly_discover(oversized).expect_err("oversized metadata should block");
+        let timeout_error = mcp_readonly_discover(timeout).expect_err("timeout should block");
+
+        assert_eq!(oversized_error.error_code, "MCP_READONLY_DISCOVERY_INVALID");
+        assert_eq!(timeout_error.error_code, "MCP_READONLY_DISCOVERY_INVALID");
+    }
+
+    #[test]
+    fn mcp_readonly_discovery_redacts_stderr_and_secret_markers() {
+        let mut stderr_request = safe_mcp_readonly_request();
+        stderr_request.profile["stderr"] = Value::String("synthetic raw stderr".to_string());
+        let mut secret_request = safe_mcp_readonly_request();
+        secret_request.profile["displayName"] =
+            Value::String(format!("Docs {}", ["s", "k-fake-mcp-secret"].join("")));
+
+        let stderr_error =
+            mcp_readonly_discover(stderr_request).expect_err("stderr field should block");
+        let secret_error =
+            mcp_readonly_discover(secret_request).expect_err("secret marker should block");
+        let serialized = serde_json::to_string(&(stderr_error, secret_error)).expect("errors");
+
+        assert!(!serialized.contains("synthetic raw stderr"));
+        assert!(!serialized.contains("sk-fake-mcp-secret"));
     }
 
     #[test]

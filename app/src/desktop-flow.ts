@@ -359,6 +359,43 @@ export type LiveDeepSeekPatchProposalCommandResult = {
   safeMessage: string;
 };
 
+export type McpReadonlyDiscoverRequest = {
+  profile: Record<string, unknown>;
+  typedConfirmation: "DISCOVER MCP METADATA" | string;
+  maxItems: number;
+  timeoutMs: number;
+};
+
+export type McpReadonlyDiscoverResult = {
+  ok: true;
+  discoveryId: string;
+  profileId: string;
+  serverInfo: {
+    serverId: string;
+    displayName: string;
+    serverVersion: string;
+    metadataHash: string;
+  };
+  resourceCount: number;
+  promptCount: number;
+  toolCount: number;
+  resourceSummaries: Array<Record<string, unknown>>;
+  promptSummaries: Array<Record<string, unknown>>;
+  toolSummaries: Array<Record<string, unknown>>;
+  warningCodes: string[];
+  summaryOnly: true;
+  rawMetadataIncluded: false;
+  rawStdoutIncluded: false;
+  rawStderrIncluded: false;
+  canCallTool: false;
+  canReadResource: false;
+  canExecutePrompt: false;
+  canMutate: false;
+  canWriteEventStore: false;
+  resultHash: string;
+  safeMessage: string;
+};
+
 export type ProjectKnowledgeEvidenceRef = {
   refId: string;
   kind: string;
@@ -470,6 +507,7 @@ export const allowedDesktopCommands = [
   "record_control_run_draft_event",
   "record_verification_lane_event",
   "record_live_proposal_summary_event",
+  "mcp_readonly_discover",
   "generate_live_deepseek_patch_proposal",
   "project_knowledge_list",
   "project_knowledge_commit_candidate",
@@ -667,6 +705,18 @@ export async function runShellVerificationLane(
   );
 }
 
+export async function runMcpReadonlyDiscovery(
+  request: McpReadonlyDiscoverRequest,
+  invokeImpl?: TauriInvoke
+): Promise<McpReadonlyDiscoverResult> {
+  validateMcpReadonlyDiscoverRequest(request);
+  return invokeAllowedCommand<McpReadonlyDiscoverResult>(
+    "mcp_readonly_discover",
+    { request },
+    invokeImpl
+  );
+}
+
 export async function generateLiveDeepSeekPatchProposal(
   request: LiveDeepSeekPatchProposalCommandRequest,
   invokeImpl?: TauriInvoke
@@ -814,6 +864,8 @@ function normalizeAllowedCommandResponse(
       return normalizeVerificationLaneEventRecordResult(raw);
     case "record_live_proposal_summary_event":
       return normalizeLiveProposalSummaryEventRecordResult(raw);
+    case "mcp_readonly_discover":
+      return normalizeMcpReadonlyDiscoverResult(raw);
     case "run_git_read_lane":
       return normalizeGitReadLaneResult(raw);
     case "run_shell_verification_lane":
@@ -835,6 +887,26 @@ function normalizeAllowedCommandResponse(
       return normalizeDesktopFlowResult(raw);
     default:
       throw new Error(safeErrorMessage("Desktop command is not allowed"));
+  }
+}
+
+function validateMcpReadonlyDiscoverRequest(
+  request: McpReadonlyDiscoverRequest
+): void {
+  if (!isRecord(request.profile)) {
+    throw new Error("MCP readonly discovery profile is required");
+  }
+  if (request.typedConfirmation !== "DISCOVER MCP METADATA") {
+    throw new Error("MCP readonly discovery confirmation is required");
+  }
+  if (!Number.isFinite(request.maxItems) || request.maxItems <= 0) {
+    throw new Error("MCP readonly discovery maxItems must be positive");
+  }
+  if (!Number.isFinite(request.timeoutMs) || request.timeoutMs <= 0) {
+    throw new Error("MCP readonly discovery timeoutMs must be positive");
+  }
+  if (containsForbiddenLiveProposalValue(request)) {
+    throw new Error("MCP readonly discovery request contains unsafe fields");
   }
 }
 
@@ -1408,6 +1480,84 @@ function normalizeLiveDeepSeekPatchProposalResult(
     canWriteEventStore: false,
     canExecuteGit: false,
     canExecuteShell: false,
+    safeMessage: safeErrorMessage(record.safeMessage)
+  };
+}
+
+function normalizeMcpReadonlyDiscoverResult(
+  raw: unknown
+): McpReadonlyDiscoverResult {
+  const record = isRecord(raw) ? raw : {};
+  const serverInfo = isRecord(record.serverInfo) ? record.serverInfo : {};
+  if (
+    record.ok !== true ||
+    typeof record.discoveryId !== "string" ||
+    typeof record.profileId !== "string" ||
+    typeof serverInfo.serverId !== "string" ||
+    typeof serverInfo.displayName !== "string" ||
+    typeof serverInfo.serverVersion !== "string" ||
+    typeof serverInfo.metadataHash !== "string" ||
+    typeof record.resourceCount !== "number" ||
+    typeof record.promptCount !== "number" ||
+    typeof record.toolCount !== "number" ||
+    !Array.isArray(record.resourceSummaries) ||
+    !Array.isArray(record.promptSummaries) ||
+    !Array.isArray(record.toolSummaries) ||
+    !Array.isArray(record.warningCodes) ||
+    record.summaryOnly !== true ||
+    record.rawMetadataIncluded !== false ||
+    record.rawStdoutIncluded !== false ||
+    record.rawStderrIncluded !== false ||
+    record.canCallTool !== false ||
+    record.canReadResource !== false ||
+    record.canExecutePrompt !== false ||
+    record.canMutate !== false ||
+    record.canWriteEventStore !== false ||
+    typeof record.resultHash !== "string" ||
+    typeof record.safeMessage !== "string"
+  ) {
+    throw normalizeDesktopCommandError({
+      errorCode: "INVALID_RESPONSE",
+      safeMessage: "MCP readonly discovery response was invalid",
+      stage: "normalize_response"
+    });
+  }
+  if (containsForbiddenLiveProposalValue(record)) {
+    throw normalizeDesktopCommandError({
+      errorCode: "INVALID_RESPONSE",
+      safeMessage: "MCP readonly discovery response contained unsafe fields",
+      stage: "normalize_response"
+    });
+  }
+  return {
+    ok: true,
+    discoveryId: safeErrorMessage(record.discoveryId),
+    profileId: safeErrorMessage(record.profileId),
+    serverInfo: {
+      serverId: safeErrorMessage(serverInfo.serverId),
+      displayName: safeErrorMessage(serverInfo.displayName),
+      serverVersion: safeErrorMessage(serverInfo.serverVersion),
+      metadataHash: safeErrorMessage(serverInfo.metadataHash)
+    },
+    resourceCount: record.resourceCount,
+    promptCount: record.promptCount,
+    toolCount: record.toolCount,
+    resourceSummaries: record.resourceSummaries.filter(isRecord),
+    promptSummaries: record.promptSummaries.filter(isRecord),
+    toolSummaries: record.toolSummaries.filter(isRecord),
+    warningCodes: record.warningCodes.filter(
+      (value): value is string => typeof value === "string"
+    ),
+    summaryOnly: true,
+    rawMetadataIncluded: false,
+    rawStdoutIncluded: false,
+    rawStderrIncluded: false,
+    canCallTool: false,
+    canReadResource: false,
+    canExecutePrompt: false,
+    canMutate: false,
+    canWriteEventStore: false,
+    resultHash: safeErrorMessage(record.resultHash),
     safeMessage: safeErrorMessage(record.safeMessage)
   };
 }

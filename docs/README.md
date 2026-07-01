@@ -263,6 +263,7 @@ foundation.
 - [P0V-002 MCP Connection Profile Schema plan](p0v-002-mcp-connection-profile-schema-plan.md)
 - [Runtime MCP Connection Profile v0.17](runtime-mcp-connection-profile-v0.17.md)
 - [Runtime MCP Read-only Discovery v0.17](runtime-mcp-readonly-discovery-v0.17.md)
+- [App / Tauri MCP Read-only Discovery Command v0.17](app-tauri-mcp-readonly-discovery-command-v0.17.md)
 - [Runtime Memory Recall Preview v0.3](runtime-memory-recall-preview-v0.3.md)
 - [v0.4.0 Controlled Creation Preview RC release notes](release-notes-v0.4.0-controlled-creation-preview-rc.1.md)
 - [App Shell Controlled Creation manual QA](app-shell-controlled-creation-manual-qa.md)
