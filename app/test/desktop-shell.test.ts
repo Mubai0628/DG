@@ -60,6 +60,11 @@ import {
   capabilityPlanApprovalRefs
 } from "../src/capability-plan-preview-view.js";
 import {
+  buildCapabilityHostSurfaceView,
+  capabilityHostSurfaceWarningCodes,
+  summarizeCapabilityHostSurfaceView
+} from "../src/capability-host-surface-view.js";
+import {
   buildPatchProposalCreationPreviewView,
   parsePatchProposalPathRefsInput,
   patchProposalCreationApprovalRefs,
@@ -12458,8 +12463,8 @@ describe("desktop source boundaries", () => {
     expect(appSource).not.toContain("Execute Agent");
     expect(appSource).not.toContain("Spawn Agent");
     expect(appSource).not.toContain("Send Agent");
-    expect(appSource).not.toContain("Invoke Capability");
-    expect(appSource).not.toContain("Issue Lease");
+    expect(appSource).not.toMatch(/>\s*Invoke Capability\s*</);
+    expect(appSource).not.toMatch(/>\s*Issue Lease\s*</);
     expect(appSource).not.toContain("Execute Capability");
     expect(appSource).not.toContain("Apply Patch");
     expect(appSource).not.toMatch(
@@ -17262,6 +17267,188 @@ describe("desktop source boundaries", () => {
       "p0u-002-capability-descriptor-manifest-schema-plan.md"
     );
     expect(rootReadme).toContain("docs/adr/0011-capability-host-mvp.md");
+  });
+
+  it("previews Capability Host manifests without external execution", async () => {
+    const safeManifest = await readFile(
+      path.join(
+        repoRoot,
+        "runtime",
+        "test",
+        "fixtures",
+        "external-capabilities",
+        "safe-mcp-readonly.json"
+      ),
+      "utf8"
+    );
+    const commandManifest = await readFile(
+      path.join(
+        repoRoot,
+        "runtime",
+        "test",
+        "fixtures",
+        "external-capabilities",
+        "rejected-command-field.json"
+      ),
+      "utf8"
+    );
+    const secretManifest = await readFile(
+      path.join(
+        repoRoot,
+        "runtime",
+        "test",
+        "fixtures",
+        "external-capabilities",
+        "rejected-secret-marker.json"
+      ),
+      "utf8"
+    );
+
+    const safeView = buildCapabilityHostSurfaceView({
+      manifestJsonText: safeManifest,
+      sourceType: "mcp_server"
+    });
+    const commandView = buildCapabilityHostSurfaceView({
+      manifestJsonText: commandManifest,
+      sourceType: "plugin_package"
+    });
+    const secretView = buildCapabilityHostSurfaceView({
+      manifestJsonText: secretManifest,
+      sourceType: "skill_bundle"
+    });
+
+    expect(safeView.status).toBe("preview_ready");
+    expect(safeView.descriptorCount).toBe(1);
+    expect(safeView.brokerDescriptorCount).toBe(1);
+    expect(safeView.leasePreviewCount).toBe(1);
+    expect(safeView.brokerPreviewSummary?.descriptorPreviewCount).toBe(1);
+    expect(safeView.readiness.canPreviewDescriptors).toBe(true);
+    expect(safeView.readiness.canConnectMcpServer).toBe(false);
+    expect(safeView.readiness.canInstallPlugin).toBe(false);
+    expect(safeView.readiness.canRunSkill).toBe(false);
+    expect(safeView.readiness.canInvokeCapability).toBe(false);
+    expect(safeView.readiness.canIssueLease).toBe(false);
+    expect(safeView.readiness.appCanExecute).toBe(false);
+    expect(summarizeCapabilityHostSurfaceView(safeView).source).toBe(
+      "app_capability_host_surface"
+    );
+    expect(capabilityHostSurfaceWarningCodes(safeView)).toContain(
+      "CAPABILITY_HOST_SURFACE_READ_ONLY"
+    );
+
+    expect(commandView.status).toBe("blocked");
+    expect(commandView.findings.map((finding) => finding.code)).toContain(
+      "COMMAND_FIELD_REJECTED"
+    );
+    expect(secretView.status).toBe("blocked");
+    expect(secretView.findings.map((finding) => finding.code)).toContain(
+      "SECRET_MARKER_REJECTED"
+    );
+
+    const serialized = JSON.stringify(safeView);
+    expect(serialized).not.toContain("echo blocked");
+    expect(serialized).not.toContain("sk-fake");
+  });
+
+  it("places Capability Host summary refs into audit and context previews", async () => {
+    const safeManifest = await readFile(
+      path.join(
+        repoRoot,
+        "runtime",
+        "test",
+        "fixtures",
+        "external-capabilities",
+        "safe-mcp-readonly.json"
+      ),
+      "utf8"
+    );
+    const capabilityHost = buildCapabilityHostSurfaceView({
+      manifestJsonText: safeManifest,
+      sourceType: "mcp_server"
+    });
+    const runDraft = buildRunDraftView({
+      objectiveDraft: "Preview external capability metadata.",
+      acceptanceCriteriaDraft: "Descriptor summary only.",
+      selectedIntent: "documentation"
+    });
+    const contextPreview = buildContextAssemblyPreviewView({
+      runDraft,
+      capabilityHostSurface: capabilityHost
+    });
+    const workbench = buildWorkbenchSurfacesView({
+      controlProjection: buildControlPlaneProjectionView(undefined),
+      futureAuditWarningCodes: capabilityHostSurfaceWarningCodes(capabilityHost)
+    });
+
+    expect(
+      contextPreview.segments.some(
+        (segment) =>
+          segment.sourceKind === "capability_host_surface" &&
+          segment.placement === "no_compress_zone"
+      )
+    ).toBe(true);
+    expect(workbench.audit.warningCodes).toContain(
+      "CAPABILITY_HOST_SURFACE_READ_ONLY"
+    );
+  });
+
+  it("renders the Capability Host panel as read-only App surface", async () => {
+    const appSource = await readFile(path.join(appRoot, "src", "App.tsx"), "utf8");
+    const viewSource = await readFile(
+      path.join(appRoot, "src", "capability-host-surface-view.ts"),
+      "utf8"
+    );
+
+    expect(appSource).toContain("Capability Host");
+    expect(appSource).toContain("Read-only / no external execution");
+    expect(appSource).toContain(
+      "Preview MCP, plugin, and skill capability descriptors."
+    );
+    expect(appSource).toContain("Preview Capability Host");
+    expect(appSource).toContain("Clear Capability Host");
+    expect(appSource).toContain("Connect MCP Server (disabled)");
+    expect(appSource).toContain("Install Plugin (disabled)");
+    expect(appSource).toContain("Run Skill (disabled)");
+    expect(appSource).toContain("Invoke Capability (disabled)");
+    expect(appSource).toContain("Issue Lease (disabled)");
+    expect(appSource).not.toMatch(/>\s*Connect MCP Server\s*</);
+    expect(appSource).not.toMatch(/>\s*Install Plugin\s*</);
+    expect(appSource).not.toMatch(/>\s*Run Skill\s*</);
+    expect(appSource).not.toMatch(/>\s*Invoke Capability\s*</);
+    expect(appSource).not.toMatch(/>\s*Issue Lease\s*</);
+    expect(viewSource).not.toContain("safeInvoke");
+    expect(viewSource).not.toMatch(/\binvoke\s*\(/);
+    expect(viewSource).not.toMatch(/\bfetch\s*\(/);
+    expect(viewSource).not.toContain("localStorage");
+    expect(viewSource).not.toContain("sessionStorage");
+    expect(viewSource).toContain("canWriteEventStore: false");
+    expect(viewSource).not.toContain("connectNative");
+    expect(viewSource).not.toContain("sendNativeMessage");
+  });
+
+  it("documents the App Shell Capability Host surface", async () => {
+    const doc = await readFile(
+      path.join(repoRoot, "docs", "app-shell-capability-host-surface-v0.16.md"),
+      "utf8"
+    );
+    const docsIndex = await readFile(
+      path.join(repoRoot, "docs", "README.md"),
+      "utf8"
+    );
+
+    expect(doc).toContain("App Shell Capability Host Surface v0.16");
+    expect(doc).toContain("read-only preview panel");
+    expect(doc).toContain("No MCP server connection");
+    expect(doc).toContain("No plugin install");
+    expect(doc).toContain("No skill execution");
+    expect(doc).toContain("No capability invocation");
+    expect(doc).toContain("No PermissionLease issuance");
+    expect(doc).toContain("No Tauri command");
+    expect(doc).toContain("No fetch/network");
+    expect(doc).toContain("No EventStore write");
+    expect(doc).toContain("No external tool run");
+    expect(doc).toContain("Broker output is a preview");
+    expect(docsIndex).toContain("app-shell-capability-host-surface-v0.16.md");
   });
 
   it("documents the P0S-001 MVP hardening recovery design gate", async () => {

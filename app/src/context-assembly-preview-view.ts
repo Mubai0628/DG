@@ -1,5 +1,6 @@
 import type { AppAgentRoutePreviewView } from "./agent-route-preview-view.js";
 import type { AppCapabilityPlanPreviewView } from "./capability-plan-preview-view.js";
+import type { CapabilityHostSurfaceView } from "./capability-host-surface-view.js";
 import type { AppControlPlaneProjectionView } from "./control-plane-view.js";
 import type { AppControlledCreationReplayProjectionView } from "./controlled-creation-replay-projection-view.js";
 import type { AppDisposableWorkspaceSnapshotView } from "./disposable-workspace-snapshot-view.js";
@@ -62,6 +63,7 @@ export type AppContextAssemblySourceRef = {
     | "user_workspace_promotion_readiness"
     | "agent_route"
     | "capability_plan"
+    | "capability_host_surface"
     | "verification_evidence"
     | "event_evidence"
     | "control_projection";
@@ -147,6 +149,7 @@ export type AppContextAssemblyPreviewInput = {
     | undefined;
   agentRoutePreview?: AppAgentRoutePreviewView | undefined;
   capabilityPlanPreview?: AppCapabilityPlanPreviewView | undefined;
+  capabilityHostSurface?: CapabilityHostSurfaceView | undefined;
   controlProjection?: AppControlPlaneProjectionView | undefined;
   verificationLaneProjection?: AppVerificationLaneProjectionView | undefined;
   eventSummary?: WorkspaceEventSummary | undefined;
@@ -293,6 +296,7 @@ export function validateContextAssemblyPreviewInput(
     ...rawKeyWarnings(input.patchSurface),
     ...rawKeyWarnings(input.sandboxApplyRollbackEventProjection),
     ...rawKeyWarnings(input.liveProposalPreviewGate),
+    ...rawKeyWarnings(input.capabilityHostSurface),
     ...rawKeyWarnings(input.verificationLaneProjection),
     ...rawKeyWarnings(input.userWorkspaceSnapshotContract),
     ...rawKeyWarnings(input.userWorkspacePromotionReadiness)
@@ -421,6 +425,35 @@ function buildSegments(
         })
       );
     }
+  }
+
+  if (
+    input.capabilityHostSurface !== undefined &&
+    input.capabilityHostSurface.status !== "empty"
+  ) {
+    segments.push(
+      segment({
+        layer: "no_compress_zone",
+        title: "Capability host descriptor preview summary",
+        sourceKind: "capability_host_surface",
+        sourceRefId: input.capabilityHostSurface.surfaceId,
+        summary: [
+          input.capabilityHostSurface.status,
+          `source:${input.capabilityHostSurface.sourceType}`,
+          `descriptors:${input.capabilityHostSurface.brokerDescriptorCount}`,
+          `leases:${input.capabilityHostSurface.leasePreviewCount}`,
+          `blockers:${input.capabilityHostSurface.blockerCount}`,
+          `warnings:${input.capabilityHostSurface.warningCount}`,
+          `hash:${input.capabilityHostSurface.hashPrefix ?? "n/a"}`
+        ].join(" | "),
+        warningCodes: [
+          "CAPABILITY_HOST_SURFACE_NO_COMPRESS",
+          ...input.capabilityHostSurface.findings.map(
+            (finding) => finding.code
+          )
+        ]
+      })
+    );
   }
 
   if (

@@ -96,6 +96,13 @@ import {
   type AppCapabilityPlanPreviewView
 } from "./capability-plan-preview-view.js";
 import {
+  buildCapabilityHostSurfaceView,
+  capabilityHostSurfaceWarningCodes,
+  summarizeCapabilityHostSurfaceView,
+  type CapabilityHostSurfaceView,
+  type CapabilityHostSurfaceInput
+} from "./capability-host-surface-view.js";
+import {
   buildPatchProposalCreationPreviewView,
   type AppPatchProposalCreationPreviewView,
   patchProposalCreationApprovalRefs,
@@ -621,6 +628,14 @@ export function DesktopShell(): JSX.Element {
     liveProposalEvaluationTelemetryAuditPreview,
     setLiveProposalEvaluationTelemetryAuditPreview
   ] = useState<LiveProposalEvaluationTelemetryAuditView | undefined>();
+  const [capabilityHostManifestText, setCapabilityHostManifestText] =
+    useState("");
+  const [capabilityHostSourceType, setCapabilityHostSourceType] =
+    useState<NonNullable<CapabilityHostSurfaceInput["sourceType"]>>(
+      "mcp_server"
+    );
+  const [capabilityHostSurfacePreview, setCapabilityHostSurfacePreview] =
+    useState<CapabilityHostSurfaceView | undefined>();
   const [projectKnowledgeEntryType, setProjectKnowledgeEntryType] =
     useState<ProjectKnowledgeEntryType>("project_fact");
   const [projectKnowledgeNamespace, setProjectKnowledgeNamespace] =
@@ -925,6 +940,16 @@ export function DesktopShell(): JSX.Element {
       draftText: "",
       sourceKind: "paste"
     });
+  const capabilityHostSurfaceCandidate = useMemo<CapabilityHostSurfaceView>(
+    () =>
+      buildCapabilityHostSurfaceView({
+        manifestJsonText: capabilityHostManifestText,
+        sourceType: capabilityHostSourceType
+      }),
+    [capabilityHostManifestText, capabilityHostSourceType]
+  );
+  const displayedCapabilityHostSurface =
+    capabilityHostSurfacePreview ?? buildCapabilityHostSurfaceView();
   const displayedPatchProposalCreation =
     patchProposalCreationPreview ??
     modelImportedPatchProposalCreationPreview ??
@@ -1016,9 +1041,11 @@ export function DesktopShell(): JSX.Element {
       ),
       ...modelProposalChainIntegrationWarningCodes(
         modelProposalChainIntegrationPreview
-      )
+      ),
+      ...capabilityHostSurfaceWarningCodes(capabilityHostSurfacePreview)
     ],
     [
+      capabilityHostSurfacePreview,
       controlledCreationReplayProjection,
       modelProposalChainIntegrationPreview,
       sandboxApplyRollbackEventProjection,
@@ -1042,6 +1069,7 @@ export function DesktopShell(): JSX.Element {
         futureApprovalRefs: patchProposalApprovalRefs,
         futureAuditWarningCodes: [
           ...patchProposalAuditWarningCodes,
+          ...capabilityHostSurfaceWarningCodes(capabilityHostSurfacePreview),
           ...verificationLaneProjectionWarningCodes(verificationLaneProjection)
         ],
         verificationLaneProjection
@@ -1050,6 +1078,7 @@ export function DesktopShell(): JSX.Element {
       controlPlanePanel,
       error,
       eventSummary,
+      capabilityHostSurfacePreview,
       patchProposalApprovalRefs,
       patchProposalAuditWarningCodes,
       patchProposalSurfaceSummaries,
@@ -2219,6 +2248,7 @@ export function DesktopShell(): JSX.Element {
         modelPatchProposalImport: modelPatchProposalImportPreview,
         modelProposalChainIntegration: modelProposalChainIntegrationPreview,
         liveProposalPreviewGate: liveProposalPreviewGatePreview,
+        capabilityHostSurface: capabilityHostSurfacePreview,
         snapshotContract: displayedDisposableWorkspaceSnapshot,
         userWorkspaceSnapshotContract: displayedUserWorkspaceSnapshotBackup,
         userWorkspacePromotionReadiness:
@@ -2233,6 +2263,7 @@ export function DesktopShell(): JSX.Element {
       controlledCreationReplayProjection,
       displayedProjectKnowledgeRecall,
       displayedDisposableWorkspaceSnapshot,
+      capabilityHostSurfacePreview,
       liveProposalPreviewGatePreview,
       modelProposalChainIntegrationPreview,
       modelPatchProposalImportPreview,
@@ -2320,12 +2351,14 @@ export function DesktopShell(): JSX.Element {
           ...disposableWorkspaceSnapshotAuditWarningCodes,
           ...userWorkspaceSnapshotAuditWarningCodes,
           ...userWorkspacePromotionAuditWarningCodes,
+          ...capabilityHostSurfaceWarningCodes(capabilityHostSurfacePreview),
           ...verificationLaneProjectionWarningCodes(verificationLaneProjection)
         ],
         verificationLaneProjection
       }),
     [
       capabilityPlanPreview,
+      capabilityHostSurfacePreview,
       controlPlanePanel,
       disposableWorkspaceSnapshotAuditWarningCodes,
       error,
@@ -2869,6 +2902,17 @@ export function DesktopShell(): JSX.Element {
   function handleClearLiveProposalEvaluationTelemetryAudit(): void {
     setLiveProposalEvaluationTelemetryAuditText("");
     setLiveProposalEvaluationTelemetryAuditPreview(undefined);
+  }
+
+  function handlePreviewCapabilityHostSurface(): void {
+    setCapabilityHostSurfacePreview(capabilityHostSurfaceCandidate);
+    setContextAssemblyPreview(undefined);
+  }
+
+  function handleClearCapabilityHostSurface(): void {
+    setCapabilityHostManifestText("");
+    setCapabilityHostSurfacePreview(undefined);
+    setContextAssemblyPreview(undefined);
   }
 
   async function handleRefreshProjectKnowledge(): Promise<void> {
@@ -11182,6 +11226,248 @@ export function DesktopShell(): JSX.Element {
             ) : null}
 
             <p className="fieldHelp">{capabilityPlanPreview.nextAction}</p>
+          </section>
+
+          <section className="eventPanel" aria-label="Capability Host">
+            <div className="panelHeader">
+              <h2>Capability Host</h2>
+              <span className="muted">
+                Read-only / no external execution
+              </span>
+            </div>
+            <p className="fieldHelp">
+              Preview MCP, plugin, and skill capability descriptors. The App
+              Shell does not connect to MCP servers, install plugins, execute
+              skills, invoke capabilities, issue leases, or run external tools.
+            </p>
+
+            <div className="formGrid">
+              <label>
+                <span>Source type</span>
+                <select
+                  value={capabilityHostSourceType}
+                  onChange={(event) => {
+                    setCapabilityHostSourceType(
+                      event.target
+                        .value as NonNullable<
+                        CapabilityHostSurfaceInput["sourceType"]
+                      >
+                    );
+                  }}
+                >
+                  <option value="mcp_server">mcp_server</option>
+                  <option value="plugin_package">plugin_package</option>
+                  <option value="skill_bundle">skill_bundle</option>
+                  <option value="local_builtin_descriptor">
+                    local_builtin_descriptor
+                  </option>
+                </select>
+              </label>
+            </div>
+
+            <label>
+              <span>External capability manifest JSON</span>
+              <textarea
+                className="compactTextarea"
+                value={capabilityHostManifestText}
+                onChange={(event) => {
+                  setCapabilityHostManifestText(event.target.value);
+                }}
+                placeholder="Paste external capability manifest JSON"
+                spellCheck={false}
+              />
+              <p className="fieldHelp">
+                Manifest preview accepts descriptor metadata only. Raw args,
+                secrets, command fields, plugin install scripts, and execution
+                fields are rejected before broker preview.
+              </p>
+            </label>
+
+            <div className="buttonRow">
+              <button
+                type="button"
+                className="secondary"
+                onClick={(event) => {
+                  event.preventDefault();
+                  event.stopPropagation();
+                  handlePreviewCapabilityHostSurface();
+                }}
+              >
+                Preview Capability Host
+              </button>
+              <button
+                type="button"
+                className="secondary"
+                onClick={(event) => {
+                  event.preventDefault();
+                  event.stopPropagation();
+                  handleClearCapabilityHostSurface();
+                }}
+              >
+                Clear Capability Host
+              </button>
+              <button type="button" className="secondary" disabled>
+                Connect MCP Server (disabled)
+              </button>
+              <button type="button" className="secondary" disabled>
+                Install Plugin (disabled)
+              </button>
+              <button type="button" className="secondary" disabled>
+                Run Skill (disabled)
+              </button>
+              <button type="button" className="secondary" disabled>
+                Invoke Capability (disabled)
+              </button>
+              <button type="button" className="secondary" disabled>
+                Issue Lease (disabled)
+              </button>
+            </div>
+
+            {displayedCapabilityHostSurface.status === "empty" ? (
+              <p className="empty">
+                No external capability manifest loaded. Paste descriptor
+                metadata to preview risk and invocation policy summaries.
+              </p>
+            ) : null}
+
+            {displayedCapabilityHostSurface.status === "blocked" ? (
+              <div className="errorBox">
+                <strong>Capability host metadata blocked</strong>
+                <p>{displayedCapabilityHostSurface.nextAction}</p>
+              </div>
+            ) : null}
+
+            <dl className="summaryGrid compact">
+              <div>
+                <dt>Status</dt>
+                <dd>{displayedCapabilityHostSurface.status}</dd>
+              </div>
+              <div>
+                <dt>Source type</dt>
+                <dd>{displayedCapabilityHostSurface.sourceType}</dd>
+              </div>
+              <div>
+                <dt>Manifest / broker</dt>
+                <dd>
+                  {displayedCapabilityHostSurface.manifestStatus} /{" "}
+                  {displayedCapabilityHostSurface.brokerStatus}
+                </dd>
+              </div>
+              <div>
+                <dt>Manifest</dt>
+                <dd>
+                  {displayedCapabilityHostSurface.manifestId ?? "n/a"} /{" "}
+                  {displayedCapabilityHostSurface.sourceName ?? "n/a"}
+                </dd>
+              </div>
+              <div>
+                <dt>Descriptors</dt>
+                <dd>
+                  {displayedCapabilityHostSurface.descriptorCount} /{" "}
+                  {displayedCapabilityHostSurface.brokerDescriptorCount}
+                </dd>
+              </div>
+              <div>
+                <dt>Lease previews</dt>
+                <dd>{displayedCapabilityHostSurface.leasePreviewCount}</dd>
+              </div>
+              <div>
+                <dt>Risk summary</dt>
+                <dd>
+                  {Object.entries(displayedCapabilityHostSurface.riskSummary)
+                    .map(([risk, count]) => `${risk}:${count}`)
+                    .join(", ") || "none"}
+                </dd>
+              </div>
+              <div>
+                <dt>Invocation policies</dt>
+                <dd>
+                  {Object.entries(
+                    displayedCapabilityHostSurface.invocationPolicies
+                  )
+                    .map(([policy, count]) => `${policy}:${count}`)
+                    .join(", ") || "none"}
+                </dd>
+              </div>
+              <div>
+                <dt>Blockers / warnings</dt>
+                <dd>
+                  {displayedCapabilityHostSurface.blockerCount} /{" "}
+                  {displayedCapabilityHostSurface.warningCount}
+                </dd>
+              </div>
+              <div>
+                <dt>Hash</dt>
+                <dd>{displayedCapabilityHostSurface.hashPrefix ?? "n/a"}</dd>
+              </div>
+              <div>
+                <dt>Preview / invoke</dt>
+                <dd>
+                  {displayedCapabilityHostSurface.readiness
+                    .canPreviewDescriptors
+                    ? "yes"
+                    : "no"}{" "}
+                  /{" "}
+                  {displayedCapabilityHostSurface.readiness.canInvokeCapability
+                    ? "yes"
+                    : "no"}
+                </dd>
+              </div>
+              <div>
+                <dt>Connect / install</dt>
+                <dd>
+                  {displayedCapabilityHostSurface.readiness.canConnectMcpServer
+                    ? "yes"
+                    : "no"}{" "}
+                  /{" "}
+                  {displayedCapabilityHostSurface.readiness.canInstallPlugin
+                    ? "yes"
+                    : "no"}
+                </dd>
+              </div>
+              <div>
+                <dt>Lease / App execute</dt>
+                <dd>
+                  {displayedCapabilityHostSurface.readiness.canIssueLease
+                    ? "yes"
+                    : "no"}{" "}
+                  /{" "}
+                  {displayedCapabilityHostSurface.readiness.appCanExecute
+                    ? "yes"
+                    : "no"}
+                </dd>
+              </div>
+              <div>
+                <dt>Fetch / Tauri</dt>
+                <dd>
+                  {displayedCapabilityHostSurface.readiness.canFetchNetwork
+                    ? "yes"
+                    : "no"}{" "}
+                  /{" "}
+                  {displayedCapabilityHostSurface.readiness.canUseTauri
+                    ? "yes"
+                    : "no"}
+                </dd>
+              </div>
+            </dl>
+
+            {displayedCapabilityHostSurface.findings.length > 0 ? (
+              <p className="muted">
+                findings{" "}
+                {displayedCapabilityHostSurface.findings
+                  .map((finding) => finding.code)
+                  .join(", ")}
+              </p>
+            ) : null}
+
+            <p className="fieldHelp">
+              {
+                summarizeCapabilityHostSurfaceView(
+                  displayedCapabilityHostSurface
+                ).source
+              }{" "}
+              · {displayedCapabilityHostSurface.nextAction}
+            </p>
           </section>
 
           <section className="eventPanel" aria-label="Project Knowledge">
