@@ -418,6 +418,10 @@ v0.17 Capability Host MVP references:
 - [v0.19.0 MCP Tool Invocation Proposal RC release notes](docs/release-notes-v0.19.0-mcp-tool-invocation-proposal-rc.1.md)
 - [MCP Tool Invocation Proposal manual QA](docs/mcp-tool-invocation-proposal-manual-qa.md)
 - [MCP Tool Invocation Proposal RC checklist](docs/mcp-tool-invocation-proposal-rc-checklist.md)
+- [v0.20 MCP Read-only Tool Execution prompts](docs/v0.20-mcp-readonly-tool-execution-prompts.md)
+- [v0.19 MCP Tool Invocation Proposal post-release review](docs/v0.19-mcp-tool-invocation-proposal-postrelease-review.md)
+- [P0X MCP Read-only Tool Execution roadmap](docs/p0x-mcp-readonly-tool-execution-roadmap.md)
+- [P0X-001 MCP Read-only Tool Execution plan](docs/p0x-001-mcp-readonly-tool-execution-plan.md)
 
 ## Current roadmap
 
@@ -465,12 +469,16 @@ read-only connection discovery, broker descriptor integration, App read-only
 connection and redaction-audit surfaces, and smoke/QA coverage while preserving
 no MCP tool invocation, no mutating MCP operation, no resource content read by
 default, no arbitrary process spawn, no hidden App connection, and no external
-mutation. P0W is prepared for the v0.19 RC with MCP tool invocation proposals,
-input risk classification, simulated result summaries, broker planning,
-read-only App proposal surfaces, redaction audit, and smoke coverage while
-preserving no real MCP `tools/call`, no mutating MCP tools, no raw tool
+mutation. P0W is complete after the v0.19 RC with MCP tool invocation
+proposals, input risk classification, simulated result summaries, broker
+planning, read-only App proposal surfaces, redaction audit, and smoke coverage
+while preserving no real MCP `tools/call`, no mutating MCP tools, no raw tool
 args/output, no App hidden invocation, no broad PermissionLease, no native
-bridge, and no desktop action.
+bridge, and no desktop action. P0X is the active v0.20 roadmap for controlled
+MCP read-only tool execution with fixed profiles, allowlisted contracts,
+explicit approval receipts, typed confirmation, bounded output, redaction,
+summary-only events, replay, no mutating tools, no generic MCP invocation, no
+plugin/skill runtime, no native bridge, and no desktop action.
 
 - [v0.2 App Shell RC post-release review](docs/v0.2-app-shell-rc-postrelease-review.md)
 - [P0G Coding Workflow roadmap](docs/p0g-coding-workflow-roadmap.md)

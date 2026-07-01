@@ -18613,7 +18613,7 @@ describe("desktop source boundaries", () => {
     expect(docsIndex).toContain(
       "p0w-001-mcp-tool-invocation-proposal-gate-plan.md"
     );
-    expect(rootReadme).toContain("P0W is prepared for the v0.19 RC");
+    expect(rootReadme).toContain("P0W is complete after the v0.19 RC");
   });
 
   it("documents the P0W-001 MCP tool invocation proposal gate", async () => {
@@ -18878,7 +18878,7 @@ describe("desktop source boundaries", () => {
     );
     expect(docsIndex).toContain("mcp-tool-invocation-proposal-manual-qa.md");
     expect(docsIndex).toContain("mcp-tool-invocation-proposal-rc-checklist.md");
-    expect(rootReadme).toContain("P0W is prepared for the v0.19 RC");
+    expect(rootReadme).toContain("P0W is complete after the v0.19 RC");
     expect(appReadme).toContain(
       "prepare the v0.19 MCP Tool Invocation Proposal RC"
     );
@@ -18890,6 +18890,93 @@ describe("desktop source boundaries", () => {
     expect(appSource).not.toMatch(/>\s*Approve Tool Invocation\s*</);
     expect(appSource).not.toMatch(/>\s*Run MCP Tool\s*</);
     expect(appSource).not.toMatch(/>\s*Call MCP Tool\s*</);
+  });
+
+  it("documents the v0.19 post-release review and P0X MCP readonly tool execution roadmap", async () => {
+    const prompt = await readFile(
+      path.join(
+        repoRoot,
+        "docs",
+        "v0.20-mcp-readonly-tool-execution-prompts.md"
+      ),
+      "utf8"
+    );
+    const review = await readFile(
+      path.join(
+        repoRoot,
+        "docs",
+        "v0.19-mcp-tool-invocation-proposal-postrelease-review.md"
+      ),
+      "utf8"
+    );
+    const roadmap = await readFile(
+      path.join(repoRoot, "docs", "p0x-mcp-readonly-tool-execution-roadmap.md"),
+      "utf8"
+    );
+    const plan = await readFile(
+      path.join(
+        repoRoot,
+        "docs",
+        "p0x-001-mcp-readonly-tool-execution-plan.md"
+      ),
+      "utf8"
+    );
+    const docsIndex = await readFile(
+      path.join(repoRoot, "docs", "README.md"),
+      "utf8"
+    );
+    const rootReadme = await readFile(path.join(repoRoot, "README.md"), "utf8");
+    const combined = `${prompt}\n${review}\n${roadmap}\n${plan}`;
+
+    expect(review).toContain(
+      "v0.19 MCP Tool Invocation Proposal Post-Release Review"
+    );
+    expect(review).toContain("v0.19.0-mcp-tool-invocation-proposal-rc.1");
+    expect(review).toContain(
+      "MCP tool invocation proposal and approval design, no tool execution"
+    );
+    expect(review).toContain("Convert: `web_table_to_csv`");
+    expect(review).toContain("App-side approved apply / rollback");
+    expect(review).toContain("Git/shell verification safe lanes");
+    expect(review).toContain("Project Knowledge");
+    expect(review).toContain("Capability Host descriptors");
+    expect(review).toContain("MCP read-only discovery");
+    expect(review).toContain("MCP tool invocation proposals");
+    expect(review).toContain("real MCP `tools/call`");
+    expect(review).toContain("mutating MCP tools");
+    expect(review).toContain("plugin code execution");
+    expect(review).toContain("skill runtime execution");
+    expect(review).toContain("native bridge");
+    expect(review).toContain("desktop action");
+    expect(review).toContain("broad PermissionLease");
+    expect(roadmap).toContain("P0X MCP Read-only Tool Execution Roadmap");
+    expect(roadmap).toContain("controlled read-only MCP tool execution");
+    expect(roadmap).toContain("fixed profile / fixed command");
+    expect(roadmap).toContain("allowlist and input schema validation");
+    expect(roadmap).toContain("explicit approval receipt");
+    expect(roadmap).toContain("redacted summary-only result");
+    expect(roadmap).toContain("summary-only events and replay");
+    expect(roadmap).toContain("no mutating tools");
+    expect(roadmap).toContain("no raw output persistence");
+    expect(roadmap).toContain("no App hidden invocation");
+    expect(plan).toContain("P0X-001 MCP Read-only Tool Execution Plan");
+    expect(plan).toContain("no MCP tool execution in P0X-001");
+    expect(plan).toContain("no Tauri command in P0X-001");
+    expect(plan).toContain("no runtime callTool wrapper in P0X-001");
+    expect(combined).toContain("no plugin code execution");
+    expect(combined).toContain("no skill runtime execution");
+    expect(combined).toContain("no native bridge");
+    expect(combined).toContain("no desktop action");
+    expect(combined).toContain("no broad PermissionLease");
+    expect(combined).toContain("no raw MCP tool output persistence");
+    expect(docsIndex).toContain("v0.20-mcp-readonly-tool-execution-prompts.md");
+    expect(docsIndex).toContain(
+      "v0.19-mcp-tool-invocation-proposal-postrelease-review.md"
+    );
+    expect(docsIndex).toContain("p0x-mcp-readonly-tool-execution-roadmap.md");
+    expect(docsIndex).toContain("p0x-001-mcp-readonly-tool-execution-plan.md");
+    expect(rootReadme).toContain("P0W is complete after the v0.19 RC");
+    expect(rootReadme).toContain("P0X is the active v0.20 roadmap");
   });
 
   it("documents the P0S-001 MVP hardening recovery design gate", async () => {
