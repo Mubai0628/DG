@@ -17560,6 +17560,83 @@ describe("desktop source boundaries", () => {
     expect(docsIndex).toContain("app-shell-capability-host-audit-v0.16.md");
   });
 
+  it("documents the v0.17 Capability Host RC without external execution", async () => {
+    const releaseNotes = await readFile(
+      path.join(
+        repoRoot,
+        "docs",
+        "release-notes-v0.17.0-capability-host-mvp-rc.1.md"
+      ),
+      "utf8"
+    );
+    const manualQa = await readFile(
+      path.join(repoRoot, "docs", "capability-host-manual-qa.md"),
+      "utf8"
+    );
+    const rcChecklist = await readFile(
+      path.join(repoRoot, "docs", "capability-host-rc-checklist.md"),
+      "utf8"
+    );
+    const docsIndex = await readFile(
+      path.join(repoRoot, "docs", "README.md"),
+      "utf8"
+    );
+    const rootReadme = await readFile(path.join(repoRoot, "README.md"), "utf8");
+    const appReadme = await readFile(path.join(appRoot, "README.md"), "utf8");
+    const appSource = await readFile(path.join(appRoot, "src", "App.tsx"), "utf8");
+    const combinedDocs = `${releaseNotes}\n${manualQa}\n${rcChecklist}`;
+
+    expect(releaseNotes).toContain(
+      "v0.17.0-capability-host-mvp-rc.1"
+    );
+    expect(releaseNotes).toContain(
+      "Capability Host MVP, read-only descriptors and no external execution"
+    );
+    expect(releaseNotes).toContain(
+      "Capability Host can parse and preview MCP/plugin/skill descriptors."
+    );
+    expect(releaseNotes).toContain("No external capability execution is enabled.");
+    expect(releaseNotes).toContain("no MCP tool invocation");
+    expect(releaseNotes).toContain("no MCP server connection");
+    expect(releaseNotes).toContain("no plugin installation");
+    expect(releaseNotes).toContain("no skill runtime execution");
+    expect(releaseNotes).toContain("redaction audit");
+    expect(manualQa).toContain("Paste a safe MCP manifest");
+    expect(manualQa).toContain("rejected command manifest");
+    expect(manualQa).toContain("install script");
+    expect(manualQa).toContain("Run External Capability Audit (disabled)");
+    expect(manualQa).toContain("no fetch/network");
+    expect(manualQa).toContain("no Tauri external execution");
+    expect(manualQa).toContain("no EventStore external execution event");
+    expect(rcChecklist).toContain("pnpm verify:ci");
+    expect(rcChecklist).toContain("pnpm release:smoke");
+    expect(rcChecklist).toContain("pnpm app:qa:check");
+    expect(rcChecklist).toContain("git tag v0.17.0-capability-host-mvp-rc.1");
+    expect(rcChecklist).toContain("gh release create");
+    expect(combinedDocs).toContain("full docs path links");
+    expect(docsIndex).toContain(
+      "release-notes-v0.17.0-capability-host-mvp-rc.1.md"
+    );
+    expect(docsIndex).toContain("capability-host-manual-qa.md");
+    expect(docsIndex).toContain("capability-host-rc-checklist.md");
+    expect(rootReadme).toContain("P0U is complete for the v0.17 RC");
+    expect(appReadme).toContain("prepare the v0.17 Capability Host MVP RC");
+    expect(appSource).toContain("Read-only / no external execution");
+    expect(appSource).toContain("Read-only / no execution");
+    expect(appSource).toContain("Connect MCP Server (disabled)");
+    expect(appSource).toContain("Install Plugin (disabled)");
+    expect(appSource).toContain("Run Skill (disabled)");
+    expect(appSource).toContain("Invoke Capability (disabled)");
+    expect(appSource).toContain("Issue Lease (disabled)");
+    expect(appSource).toContain("Run External Capability Audit (disabled)");
+    expect(appSource).not.toMatch(/>\s*Connect MCP Server\s*</);
+    expect(appSource).not.toMatch(/>\s*Install Plugin\s*</);
+    expect(appSource).not.toMatch(/>\s*Run Skill\s*</);
+    expect(appSource).not.toMatch(/>\s*Invoke Capability\s*</);
+    expect(appSource).not.toMatch(/>\s*Issue Lease\s*</);
+    expect(appSource).not.toMatch(/>\s*Run External Capability Audit\s*</);
+  });
+
   it("documents the P0S-001 MVP hardening recovery design gate", async () => {
     const adr = await readFile(
       path.join(repoRoot, "docs", "adr", "0011-mvp-hardening-recovery.md"),

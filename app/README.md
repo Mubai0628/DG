@@ -27,7 +27,8 @@ Current scope:
   Prototype status, disabled User Workspace Apply / Rollback Event Writer
   status, disabled App Approval Execution Design, Model Patch Proposal Import,
   Model Proposal Chain Integration, and disabled Bridge Proposal Preview
-  plus the disabled App Live Proposal Preview Gate
+  plus the disabled App Live Proposal Preview Gate, Capability Host descriptor
+  preview, and Capability Host redaction audit
 - show Memory Recall Preview through the runtime Memory Core preview helper
   using in-memory summaries only; no memory persistence, commit, revoke, or
   expire operation is connected
@@ -131,6 +132,12 @@ Current scope:
   and prerelease flow while project knowledge remains human-reviewed,
   summary-only, replayable, revocable, expirable, and unable to trigger App
   execution
+- prepare the v0.17 Capability Host MVP RC with descriptor-first MCP, plugin,
+  and skill metadata previews, broker risk / policy / lease summaries, and
+  redaction audit while MCP connections, plugin installs, skill execution,
+  capability invocation, broad PermissionLease issuance, fetch/network,
+  EventStore external execution writes, native bridge, desktop action, and
+  arbitrary Git/shell remain disabled
 - lock the P0R E2E coding task regression smoke with safe docs-task,
   verification-failure, rollback, and expected event summary fixtures while no
   new App execution path is added
@@ -222,7 +229,12 @@ Current limitations:
   events; Live Proposal Evaluation Telemetry Audit is read-only and accepts
   pasted summary-only audit reports without persisting raw prompt, raw response,
   reasoning_content, API keys, or raw proposal output; none of these App
-  surfaces reads or writes files; End-to-End Coding Task Wizard is a guided
+  surfaces reads or writes files; Capability Host previews descriptor metadata
+  only for MCP, plugin, and skill sources, maps safe descriptors to broker
+  summaries, and audits redaction boundaries without connecting to MCP servers,
+  installing plugins, running skills, invoking capabilities, issuing leases,
+  fetching network, writing external execution events, using a native bridge,
+  or performing desktop actions; End-to-End Coding Task Wizard is a guided
   preview surface only and does not auto-apply, rollback, write events, issue
   approvals, persist raw prompts, or display raw model responses; End-to-End
   Apply / Verify / Rollback Sequencer reuses only existing approved execution,
