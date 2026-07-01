@@ -98,6 +98,11 @@ Current scope:
   validation, audit, approval receipt, apply, checkpoint, verification,
   rollback, and final task status chain while missing/duplicate events remain
   warnings and no replay event write or execution is enabled
+- run the P0S static approved execution smoke hardening checker over required
+  docs, fixtures, disabled controls, and docs-lock coverage while it does not
+  execute apply, execute rollback, write events, mutate the workspace, call
+  DeepSeek, read API keys, fetch network, run Git/shell, invoke Tauri, or expose
+  raw prompt/response/source/diff content
 - lock the P0R E2E coding task regression smoke with safe docs-task,
   verification-failure, rollback, and expected event summary fixtures while no
   new App execution path is added

@@ -2339,7 +2339,9 @@ export function DesktopShell(): JSX.Element {
   }
 
   function handlePreviewApprovedExecutionRecovery(): void {
-    setAppApprovedExecutionRecoveryPreview(appApprovedExecutionRecoveryCandidate);
+    setAppApprovedExecutionRecoveryPreview(
+      appApprovedExecutionRecoveryCandidate
+    );
   }
 
   function handlePreviewApprovedExecutionReplayTimeline(): void {
@@ -9697,9 +9699,7 @@ export function DesktopShell(): JSX.Element {
               </div>
               <div>
                 <dt>Unsafe buttons</dt>
-                <dd>
-                  retry no / rollback no / event write no
-                </dd>
+                <dd>retry no / rollback no / event write no</dd>
               </div>
               <div>
                 <dt>Blockers / warnings</dt>
@@ -9837,19 +9837,24 @@ export function DesktopShell(): JSX.Element {
                 <dt>Persisted / duplicate events</dt>
                 <dd>
                   {displayedApprovedExecutionReplayTimeline.persistedEventCount}{" "}
-                  / {displayedApprovedExecutionReplayTimeline.duplicateEventCount}
+                  /{" "}
+                  {displayedApprovedExecutionReplayTimeline.duplicateEventCount}
                 </dd>
               </div>
               <div>
                 <dt>Apply / rollback / verification events</dt>
                 <dd>
-                  {displayedApprovedExecutionReplayTimeline.approvedApplyEventCount}{" "}
+                  {
+                    displayedApprovedExecutionReplayTimeline.approvedApplyEventCount
+                  }{" "}
                   /{" "}
                   {
                     displayedApprovedExecutionReplayTimeline.approvedRollbackEventCount
                   }{" "}
                   /{" "}
-                  {displayedApprovedExecutionReplayTimeline.verificationEventCount}
+                  {
+                    displayedApprovedExecutionReplayTimeline.verificationEventCount
+                  }
                 </dd>
               </div>
               <div>
@@ -9865,9 +9870,7 @@ export function DesktopShell(): JSX.Element {
               </div>
               <div>
                 <dt>Execution readiness</dt>
-                <dd>
-                  apply no / rollback no / event write no
-                </dd>
+                <dd>apply no / rollback no / event write no</dd>
               </div>
             </dl>
 
@@ -9906,11 +9909,9 @@ export function DesktopShell(): JSX.Element {
             ) : null}
 
             <p className="fieldHelp">
-              {
-                summarizeApprovedExecutionReplayTimelineView(
-                  displayedApprovedExecutionReplayTimeline
-                )
-              }{" "}
+              {summarizeApprovedExecutionReplayTimelineView(
+                displayedApprovedExecutionReplayTimeline
+              )}{" "}
               · {displayedApprovedExecutionReplayTimeline.nextAction}
             </p>
           </section>

@@ -258,7 +258,9 @@ export function buildApprovedExecutionReplayTimelineView(
     blockedStageCount,
     persistedEventCount: uniqueTimeline.length,
     duplicateEventCount,
-    approvedApplyEventCount: finiteNumber(input.eventSummary?.approvedApplyCount),
+    approvedApplyEventCount: finiteNumber(
+      input.eventSummary?.approvedApplyCount
+    ),
     approvedRollbackEventCount: finiteNumber(
       input.eventSummary?.approvedRollbackCount
     ),
@@ -367,7 +369,9 @@ function buildStages(
     stage(
       "apply_attempted",
       "Apply attempted",
-      input.applyResult !== undefined || applyFailure || applyEvent !== undefined
+      input.applyResult !== undefined ||
+        applyFailure ||
+        applyEvent !== undefined
         ? "complete"
         : "missing",
       input.applyResult !== undefined || applyEvent !== undefined
@@ -828,7 +832,9 @@ function safeMessageForCode(code: string): string {
     PRIVATE_KEY_MARKER: "Private key marker detected.",
     RAW_CONTENT_MARKER: "Raw content marker detected."
   };
-  return messages[code] ?? "Approved execution replay timeline safety check failed.";
+  return (
+    messages[code] ?? "Approved execution replay timeline safety check failed."
+  );
 }
 
 function readiness(

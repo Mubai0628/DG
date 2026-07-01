@@ -10754,8 +10754,7 @@ describe("app approved execution receipt preview", () => {
       rollbackResult: safeRollbackResult()
     });
     const rawBlocked = buildApprovedExecutionRecoveryView({
-      latestFailureSummary:
-        "unsafe raw prompt contained sk-fake-not-a-real-key"
+      latestFailureSummary: "unsafe raw prompt contained sk-fake-not-a-real-key"
     });
 
     expect(noWrite.state).toBe("apply_failed_no_write");
@@ -10902,8 +10901,9 @@ describe("app approved execution receipt preview", () => {
         applyResult
       }),
       applyResult,
-      verificationLaneProjection:
-        buildVerificationLaneProjectionView(failedVerificationSummary)
+      verificationLaneProjection: buildVerificationLaneProjectionView(
+        failedVerificationSummary
+      )
     });
     const duplicated = buildApprovedExecutionReplayTimelineView({
       eventSummary: fixedEventSummary({
@@ -11272,6 +11272,58 @@ describe("app approved execution receipt preview", () => {
     expect(docsIndex).toContain(
       "app-shell-approved-execution-replay-timeline-v0.15.md"
     );
+  });
+
+  it("documents the P0S-006 approved execution smoke hardening checklist", async () => {
+    const manualQa = await readFile(
+      path.join(repoRoot, "docs", "e2e-coding-task-hardening-manual-qa.md"),
+      "utf8"
+    );
+    const smokePlan = await readFile(
+      path.join(repoRoot, "docs", "e2e-coding-task-hardening-smoke-plan.md"),
+      "utf8"
+    );
+    const smokeChecker = await readFile(
+      path.join(repoRoot, "scripts", "check-e2e-approved-execution-smoke.mjs"),
+      "utf8"
+    );
+    const packageJson = await readFile(
+      path.join(repoRoot, "package.json"),
+      "utf8"
+    );
+    const docsIndex = await readFile(
+      path.join(repoRoot, "docs", "README.md"),
+      "utf8"
+    );
+    const appReadme = await readFile(path.join(appRoot, "README.md"), "utf8");
+    const combined = `${manualQa}\n${smokePlan}\n${appReadme}`;
+
+    expect(combined).toContain("Convert");
+    expect(combined).toContain("live proposal generation");
+    expect(combined).toContain("proposal chain");
+    expect(combined).toContain("approved apply");
+    expect(combined).toContain("verification lane");
+    expect(combined).toContain("rollback");
+    expect(combined).toContain("replay");
+    expect(combined).toContain("stale conflict");
+    expect(combined).toContain("failure recovery");
+    expect(combined).toContain("raw content absence");
+    expect(combined).toContain("static smoke checker");
+    expect(combined).toContain("does not execute apply");
+    expect(combined).toContain("does not execute rollback");
+    expect(combined).toContain("does not mutate workspace");
+    expect(combined).toContain("summary-only");
+    expect(combined).toContain("no raw prompt");
+    expect(combined).toContain("no raw response");
+    expect(combined).toContain("no API key");
+    expect(smokeChecker).toContain("readFile");
+    expect(smokeChecker).not.toContain("node:child_process");
+    expect(smokeChecker).not.toContain("safeInvoke");
+    expect(smokeChecker).not.toContain("writeFile");
+    expect(smokeChecker).not.toContain("mkdtemp");
+    expect(packageJson).toContain("check:e2e-approved-execution-smoke");
+    expect(docsIndex).toContain("e2e-coding-task-hardening-manual-qa.md");
+    expect(docsIndex).toContain("e2e-coding-task-hardening-smoke-plan.md");
   });
 });
 

@@ -6,7 +6,6 @@ import {
   type EndToEndCodingTaskSummaryRef
 } from "./e2e-task-orchestrator.js";
 import {
-  summarizeEndToEndCodingTaskFixture,
   validateEndToEndCodingTaskFixture,
   type EndToEndCodingTaskExpectedArtifact,
   type EndToEndCodingTaskExpectedStatus,

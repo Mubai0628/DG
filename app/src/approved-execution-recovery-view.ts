@@ -58,11 +58,7 @@ export type ApprovedExecutionRecoveryView = {
     | "missing"
     | "verified"
     | "completed";
-  rollbackAvailability:
-    | "available"
-    | "unavailable"
-    | "completed"
-    | "blocked";
+  rollbackAvailability: "available" | "unavailable" | "completed" | "blocked";
   eventSummaryStatus:
     | "not_started"
     | "pending_summary_event"
@@ -84,7 +80,9 @@ export type ApprovedExecutionRecoveryInput = {
   approvedExecutionFlowView?: AppApprovedExecutionFlowView | undefined;
   applyResult?: ApprovedUserWorkspaceApplyResult | undefined;
   rollbackResult?: ApprovedUserWorkspaceRollbackResult | undefined;
-  eventRecordResult?: ApprovedUserWorkspaceExecutionEventRecordResult | undefined;
+  eventRecordResult?:
+    | ApprovedUserWorkspaceExecutionEventRecordResult
+    | undefined;
   eventRecordError?: string | undefined;
   latestFailureCode?: string | undefined;
   latestFailureSummary?: string | undefined;
@@ -324,7 +322,11 @@ function recoveryStateFrom(
         ? "apply_partial_checkpoint_missing"
         : "apply_partial_checkpoint_available";
     }
-    if (/checkpoint.*missing|missing.*checkpoint|checkpoint.*not found/i.test(failure)) {
+    if (
+      /checkpoint.*missing|missing.*checkpoint|checkpoint.*not found/i.test(
+        failure
+      )
+    ) {
       return "apply_partial_checkpoint_missing";
     }
     if (flow?.receiptKind === "apply" || flow?.receiptKind === "unknown") {
