@@ -8,15 +8,19 @@ import { afterEach, describe, expect, it } from "vitest";
 import {
   checkDesktopRunnerPreflight,
   applyApprovedUserWorkspacePatch,
+  commitProjectKnowledgeCandidate,
+  expireProjectKnowledgeEntry,
   generateLiveDeepSeekPatchProposal,
   invokeAllowedCommand,
   isAllowedDesktopCommand,
+  listProjectKnowledge,
   loadWorkspaceEventSummary,
   liveProposalAllowedKeySourceRef,
   recordLiveProposalSummaryEvent,
   recordVerificationLaneEvent,
   recordApprovedUserWorkspaceExecutionEvent,
   recordControlRunDraftEvent,
+  revokeProjectKnowledgeEntry,
   rollbackApprovedUserWorkspacePatch,
   runDesktopWebTableToCsvFlow,
   runGitReadLane,
@@ -910,7 +914,157 @@ describe("desktop command wrapper", () => {
     expect(isAllowedDesktopCommand("record_live_proposal_summary_event")).toBe(
       true
     );
+    expect(isAllowedDesktopCommand("project_knowledge_list")).toBe(true);
+    expect(isAllowedDesktopCommand("project_knowledge_commit_candidate")).toBe(
+      true
+    );
+    expect(isAllowedDesktopCommand("project_knowledge_revoke")).toBe(true);
+    expect(isAllowedDesktopCommand("project_knowledge_expire")).toBe(true);
     expect(isAllowedDesktopCommand("run_web_table_to_csv_flow")).toBe(true);
+  });
+
+  it("uses fixed project knowledge commands and normalizes summary-only responses", async () => {
+    const calls: Array<{
+      command: string;
+      args: Record<string, unknown> | undefined;
+    }> = [];
+    const invoke: TauriInvoke = async <T>(
+      command: string,
+      args?: Record<string, unknown>
+    ): Promise<T> => {
+      calls.push({ command, args });
+      if (command === "project_knowledge_list") {
+        return {
+          ok: true,
+          status: "empty",
+          storePath: "workspace/.deepseek-workbench/project-knowledge",
+          entriesPath:
+            "workspace/.deepseek-workbench/project-knowledge/entries.jsonl",
+          eventsPath:
+            "workspace/.deepseek-workbench/project-knowledge/events.jsonl",
+          indexPath:
+            "workspace/.deepseek-workbench/project-knowledge/index.json",
+          entryCount: 0,
+          activeEntryCount: 0,
+          revokedEntryCount: 0,
+          expiredEntryCount: 0,
+          entries: [],
+          warnings: [],
+          snapshotHash: "snapshot-hash",
+          summaryOnly: true,
+          rawContentIncluded: false,
+          safeMessage: "Project knowledge snapshot loaded."
+        } as T;
+      }
+      if (command === "project_knowledge_commit_candidate") {
+        return {
+          ok: true,
+          entry: {
+            entryId: "project-knowledge-entry",
+            type: "project_fact",
+            namespace: "deepseek-gui",
+            summary: "Project knowledge summary only.",
+            status: "committed",
+            evidenceRefCount: 1,
+            tagCount: 1,
+            entryHash: "entry-hash",
+            warningCodes: [],
+            summaryOnly: true
+          },
+          eventId: "project-knowledge-event",
+          storePath: "workspace/.deepseek-workbench/project-knowledge",
+          entryCount: 1,
+          indexHash: "index-hash",
+          summaryOnly: true,
+          rawContentIncluded: false,
+          safeMessage: "Project knowledge committed.",
+          warnings: []
+        } as T;
+      }
+      if (
+        command === "project_knowledge_revoke" ||
+        command === "project_knowledge_expire"
+      ) {
+        return {
+          ok: true,
+          entryId: "project-knowledge-entry",
+          status:
+            command === "project_knowledge_revoke" ? "revoked" : "expired",
+          eventId: "project-knowledge-event",
+          storePath: "workspace/.deepseek-workbench/project-knowledge",
+          indexHash: "index-hash",
+          summaryOnly: true,
+          rawContentIncluded: false,
+          safeMessage: "Project knowledge lifecycle event recorded.",
+          warnings: []
+        } as T;
+      }
+      throw new Error(`unexpected command ${command}`);
+    };
+    const candidate = {
+      type: "project_fact" as const,
+      namespace: "deepseek-gui",
+      summary: "Project knowledge store wrappers are fixed commands.",
+      trust: {
+        score: 0.95,
+        level: "trusted" as const,
+        humanReviewed: true
+      },
+      provenance: {
+        sourceKind: "human_reviewed" as const,
+        summary: "Human-reviewed summary-only provenance."
+      },
+      evidenceRefs: [
+        {
+          refId: "evidence-1",
+          kind: "repo_doc",
+          summary: "Repository doc summary.",
+          hashPrefix: "abc12345"
+        }
+      ],
+      factKind: "app_boundary"
+    };
+
+    const snapshot = await listProjectKnowledge("D:/workspace", invoke);
+    const committed = await commitProjectKnowledgeCandidate(
+      { workspaceRoot: "D:/workspace", candidate },
+      invoke
+    );
+    const revoked = await revokeProjectKnowledgeEntry(
+      {
+        workspaceRoot: "D:/workspace",
+        entryId: committed.entry.entryId,
+        typedConfirmation: "REVOKE PROJECT KNOWLEDGE"
+      },
+      invoke
+    );
+    const expired = await expireProjectKnowledgeEntry(
+      {
+        workspaceRoot: "D:/workspace",
+        entryId: committed.entry.entryId,
+        reasonSummary: "Superseded by newer reviewed project knowledge."
+      },
+      invoke
+    );
+    const serialized = JSON.stringify({
+      snapshot,
+      committed,
+      revoked,
+      expired
+    });
+
+    expect(calls.map((call) => call.command)).toEqual([
+      "project_knowledge_list",
+      "project_knowledge_commit_candidate",
+      "project_knowledge_revoke",
+      "project_knowledge_expire"
+    ]);
+    expect(committed.entry.summaryOnly).toBe(true);
+    expect(revoked.status).toBe("revoked");
+    expect(expired.status).toBe("expired");
+    expect(serialized).not.toContain("rawPrompt");
+    expect(serialized).not.toContain("Authorization");
+    expect(serialized).not.toContain("sk-");
   });
 
   function safeLiveProposalCommandRequest(): LiveDeepSeekPatchProposalCommandRequest {
@@ -16116,6 +16270,43 @@ describe("desktop source boundaries", () => {
     expect(combined).toContain("No native bridge");
     expect(combined).toContain("No desktop action");
     expect(docsIndex).toContain("runtime-project-knowledge-store-v0.15.md");
+  });
+
+  it("documents the P0T-003 App Tauri project knowledge store commands", async () => {
+    const appTauriDoc = await readFile(
+      path.join(repoRoot, "docs", "app-tauri-project-knowledge-store-v0.15.md"),
+      "utf8"
+    );
+    const docsIndex = await readFile(
+      path.join(repoRoot, "docs", "README.md"),
+      "utf8"
+    );
+    const combined = `${appTauriDoc}\n${docsIndex}`;
+
+    expect(combined).toContain("App / Tauri Project Knowledge Store v0.15");
+    expect(combined).toContain("project_knowledge_list");
+    expect(combined).toContain("project_knowledge_commit_candidate");
+    expect(combined).toContain("project_knowledge_revoke");
+    expect(combined).toContain("project_knowledge_expire");
+    expect(combined).toContain("No generic filesystem writer");
+    expect(combined).toContain("No generic EventStore writer");
+    expect(combined).toContain("entries.jsonl");
+    expect(combined).toContain("events.jsonl");
+    expect(combined).toContain("index.json");
+    expect(combined).toContain("append-only");
+    expect(combined).toContain("summary-only");
+    expect(combined).toContain("Corrupt JSONL lines are skipped");
+    expect(combined).toContain("REVOKE PROJECT KNOWLEDGE");
+    expect(combined).toContain("No App-side apply");
+    expect(combined).toContain("No App-side rollback");
+    expect(combined).toContain("No PermissionLease issuance");
+    expect(combined).toContain("No Git/shell execution");
+    expect(combined).toContain("No live DeepSeek call");
+    expect(combined).toContain("No API key read");
+    expect(combined).toContain("No fetch/network");
+    expect(combined).toContain("No native bridge");
+    expect(combined).toContain("No desktop action");
+    expect(docsIndex).toContain("app-tauri-project-knowledge-store-v0.15.md");
   });
 
   it("documents the P0S-001 MVP hardening recovery design gate", async () => {

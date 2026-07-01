@@ -38,6 +38,11 @@ const LIVE_PROPOSAL_MIN_RESPONSE_BYTES: usize = 256;
 const LIVE_PROPOSAL_MAX_RESPONSE_BYTES: usize = 1_000_000;
 const LIVE_PROPOSAL_MIN_TIMEOUT_MS: u64 = 1_000;
 const LIVE_PROPOSAL_MAX_TIMEOUT_MS: u64 = 120_000;
+const PROJECT_KNOWLEDGE_REVOKE_CONFIRMATION: &str = "REVOKE PROJECT KNOWLEDGE";
+const PROJECT_KNOWLEDGE_MAX_SUMMARY_CHARS: usize = 500;
+const PROJECT_KNOWLEDGE_ENTRY_COMMITTED_TYPE: &str = "project_knowledge.entry_committed";
+const PROJECT_KNOWLEDGE_ENTRY_REVOKED_TYPE: &str = "project_knowledge.entry_revoked";
+const PROJECT_KNOWLEDGE_ENTRY_EXPIRED_TYPE: &str = "project_knowledge.entry_expired";
 
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -350,6 +355,176 @@ pub struct LiveDeepSeekPatchProposalCommandResult {
     can_execute_git: bool,
     can_execute_shell: bool,
     safe_message: String,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct ProjectKnowledgeEvidenceRef {
+    ref_id: String,
+    kind: String,
+    summary: String,
+    hash_prefix: String,
+    #[serde(default)]
+    warning_codes: Vec<String>,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct ProjectKnowledgeTrust {
+    score: f64,
+    level: String,
+    human_reviewed: bool,
+    reviewed_by: Option<String>,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct ProjectKnowledgeProvenance {
+    source_kind: String,
+    source_id: Option<String>,
+    actor: Option<String>,
+    summary: String,
+    #[serde(default)]
+    ref_hashes: Vec<String>,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct ProjectKnowledgeCandidate {
+    #[serde(rename = "type")]
+    entry_type: String,
+    namespace: String,
+    summary: String,
+    trust: ProjectKnowledgeTrust,
+    provenance: ProjectKnowledgeProvenance,
+    evidence_refs: Vec<ProjectKnowledgeEvidenceRef>,
+    #[serde(default)]
+    tags: Vec<String>,
+    policy_scope: Option<String>,
+    source_kind: Option<String>,
+    fact_kind: Option<String>,
+    trigger_summary: Option<String>,
+    mitigation_summary: Option<String>,
+    severity: Option<String>,
+    expires_at: Option<String>,
+    pinned: Option<bool>,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct ProjectKnowledgeEntry {
+    entry_id: String,
+    #[serde(rename = "type")]
+    entry_type: String,
+    namespace: String,
+    summary: String,
+    status: String,
+    trust: ProjectKnowledgeTrust,
+    provenance: ProjectKnowledgeProvenance,
+    evidence_refs: Vec<ProjectKnowledgeEvidenceRef>,
+    tags: Vec<String>,
+    created_at: String,
+    updated_at: String,
+    expires_at: Option<String>,
+    revoked_at: Option<String>,
+    pinned: bool,
+    entry_hash: String,
+    policy_scope: Option<String>,
+    source_kind: Option<String>,
+    fact_kind: Option<String>,
+    trigger_summary: Option<String>,
+    mitigation_summary: Option<String>,
+    severity: Option<String>,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct ProjectKnowledgeEntrySummary {
+    entry_id: String,
+    #[serde(rename = "type")]
+    entry_type: String,
+    namespace: String,
+    summary: String,
+    status: String,
+    evidence_ref_count: usize,
+    tag_count: usize,
+    entry_hash: String,
+    warning_codes: Vec<String>,
+    summary_only: bool,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+#[serde(rename_all = "camelCase")]
+struct ProjectKnowledgeStoreRecord {
+    record_id: String,
+    record_kind: String,
+    entry: ProjectKnowledgeEntry,
+    created_at: String,
+    record_hash: String,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+#[serde(rename_all = "camelCase")]
+struct ProjectKnowledgeLifecycleEvent {
+    event_id: String,
+    event_type: String,
+    entry_id: String,
+    status: String,
+    reason_summary: Option<String>,
+    created_at: String,
+    event_hash: String,
+    summary_only: bool,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ProjectKnowledgeSnapshotResult {
+    ok: bool,
+    status: String,
+    store_path: String,
+    entries_path: String,
+    events_path: String,
+    index_path: String,
+    entry_count: usize,
+    active_entry_count: usize,
+    revoked_entry_count: usize,
+    expired_entry_count: usize,
+    entries: Vec<ProjectKnowledgeEntrySummary>,
+    warnings: Vec<String>,
+    snapshot_hash: String,
+    summary_only: bool,
+    raw_content_included: bool,
+    safe_message: String,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ProjectKnowledgeCommitResult {
+    ok: bool,
+    entry: ProjectKnowledgeEntrySummary,
+    event_id: String,
+    store_path: String,
+    entry_count: usize,
+    index_hash: String,
+    summary_only: bool,
+    raw_content_included: bool,
+    safe_message: String,
+    warnings: Vec<String>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ProjectKnowledgeLifecycleResult {
+    ok: bool,
+    entry_id: String,
+    status: String,
+    event_id: String,
+    store_path: String,
+    index_hash: String,
+    summary_only: bool,
+    raw_content_included: bool,
+    safe_message: String,
+    warnings: Vec<String>,
 }
 
 #[derive(Debug, Clone)]
@@ -1085,6 +1260,92 @@ pub fn record_live_proposal_summary_event(
         safe_message: "Summary-only live proposal event recorded locally.".to_string(),
         warnings: Vec::new(),
     })
+}
+
+#[tauri::command(rename_all = "camelCase")]
+pub fn project_knowledge_list(
+    workspace_root: String,
+) -> Result<ProjectKnowledgeSnapshotResult, DesktopFlowError> {
+    let workspace_root = validate_project_knowledge_workspace_root(&workspace_root)?;
+    let store = resolve_project_knowledge_store(&workspace_root, false)?;
+    load_project_knowledge_snapshot(&store)
+}
+
+#[tauri::command(rename_all = "camelCase")]
+pub fn project_knowledge_commit_candidate(
+    workspace_root: String,
+    candidate: ProjectKnowledgeCandidate,
+) -> Result<ProjectKnowledgeCommitResult, DesktopFlowError> {
+    let workspace_root = validate_project_knowledge_workspace_root(&workspace_root)?;
+    let store = resolve_project_knowledge_store(&workspace_root, true)?;
+    validate_project_knowledge_candidate(&candidate)?;
+    let entry = project_knowledge_entry_from_candidate(candidate)?;
+    let summary = summarize_project_knowledge_entry(&entry);
+    let record = project_knowledge_store_record(entry.clone());
+    append_project_knowledge_record(&store.entries_path, &record)?;
+    let event = project_knowledge_event(
+        PROJECT_KNOWLEDGE_ENTRY_COMMITTED_TYPE,
+        &entry.entry_id,
+        "committed",
+        None,
+    );
+    append_project_knowledge_event(&store.events_path, &event)?;
+    let snapshot = load_project_knowledge_snapshot(&store)?;
+    let index_hash = write_project_knowledge_index(&store, &snapshot)?;
+
+    Ok(ProjectKnowledgeCommitResult {
+        ok: true,
+        entry: summary,
+        event_id: event.event_id,
+        store_path: store.store_dir.to_string_lossy().to_string(),
+        entry_count: snapshot.entry_count,
+        index_hash,
+        summary_only: true,
+        raw_content_included: false,
+        safe_message: "Project knowledge candidate committed as summary-only local memory."
+            .to_string(),
+        warnings: snapshot.warnings,
+    })
+}
+
+#[tauri::command(rename_all = "camelCase")]
+pub fn project_knowledge_revoke(
+    workspace_root: String,
+    entry_id: String,
+    typed_confirmation: String,
+) -> Result<ProjectKnowledgeLifecycleResult, DesktopFlowError> {
+    if typed_confirmation.trim() != PROJECT_KNOWLEDGE_REVOKE_CONFIRMATION {
+        return Err(project_knowledge_invalid(
+            "Project knowledge revoke confirmation is required",
+        ));
+    }
+    project_knowledge_lifecycle_event(
+        workspace_root,
+        entry_id,
+        "revoked",
+        PROJECT_KNOWLEDGE_ENTRY_REVOKED_TYPE,
+        None,
+    )
+}
+
+#[tauri::command(rename_all = "camelCase")]
+pub fn project_knowledge_expire(
+    workspace_root: String,
+    entry_id: String,
+    reason_summary: String,
+) -> Result<ProjectKnowledgeLifecycleResult, DesktopFlowError> {
+    if reason_summary.trim().is_empty() {
+        return Err(project_knowledge_invalid(
+            "Project knowledge expire reason summary is required",
+        ));
+    }
+    project_knowledge_lifecycle_event(
+        workspace_root,
+        entry_id,
+        "expired",
+        PROJECT_KNOWLEDGE_ENTRY_EXPIRED_TYPE,
+        Some(reason_summary),
+    )
 }
 
 #[tauri::command(rename_all = "camelCase")]
@@ -4599,6 +4860,757 @@ fn short_hash_bytes(bytes: &[u8]) -> String {
     let mut hasher = DefaultHasher::new();
     bytes.hash(&mut hasher);
     format!("{:016x}", hasher.finish())
+}
+
+struct ProjectKnowledgeStorePaths {
+    store_dir: PathBuf,
+    entries_path: PathBuf,
+    events_path: PathBuf,
+    index_path: PathBuf,
+}
+
+fn validate_project_knowledge_workspace_root(
+    workspace_root: &str,
+) -> Result<PathBuf, DesktopFlowError> {
+    validate_approved_apply_workspace_root(workspace_root).map_err(|message| {
+        DesktopFlowError::new(
+            "PROJECT_KNOWLEDGE_WORKSPACE_INVALID",
+            message,
+            "project_knowledge",
+        )
+    })
+}
+
+fn resolve_project_knowledge_store(
+    workspace_root: &Path,
+    create: bool,
+) -> Result<ProjectKnowledgeStorePaths, DesktopFlowError> {
+    let workbench_dir = workspace_root.join(".deepseek-workbench");
+    reject_project_knowledge_symlink(&workbench_dir)?;
+    let store_dir = workbench_dir.join("project-knowledge");
+    reject_project_knowledge_symlink(&store_dir)?;
+    if create {
+        fs::create_dir_all(&store_dir).map_err(|_| {
+            DesktopFlowError::new(
+                "PROJECT_KNOWLEDGE_STORE_WRITE_FAILED",
+                "Project knowledge store directory could not be created",
+                "project_knowledge",
+            )
+        })?;
+    }
+    if store_dir.exists() {
+        let canonical_store = store_dir.canonicalize().map_err(|_| {
+            DesktopFlowError::new(
+                "PROJECT_KNOWLEDGE_STORE_PATH_INVALID",
+                "Project knowledge store path could not be resolved",
+                "project_knowledge",
+            )
+        })?;
+        if !canonical_store.starts_with(workspace_root) || !canonical_store.is_dir() {
+            return Err(DesktopFlowError::new(
+                "PROJECT_KNOWLEDGE_STORE_PATH_ESCAPE",
+                "Project knowledge store path escapes the workspace",
+                "project_knowledge",
+            ));
+        }
+    } else if create {
+        return Err(DesktopFlowError::new(
+            "PROJECT_KNOWLEDGE_STORE_WRITE_FAILED",
+            "Project knowledge store directory is missing",
+            "project_knowledge",
+        ));
+    }
+
+    let paths = ProjectKnowledgeStorePaths {
+        entries_path: store_dir.join("entries.jsonl"),
+        events_path: store_dir.join("events.jsonl"),
+        index_path: store_dir.join("index.json"),
+        store_dir,
+    };
+    validate_project_knowledge_file_path(&paths.entries_path, &paths.store_dir)?;
+    validate_project_knowledge_file_path(&paths.events_path, &paths.store_dir)?;
+    validate_project_knowledge_file_path(&paths.index_path, &paths.store_dir)?;
+    Ok(paths)
+}
+
+fn reject_project_knowledge_symlink(path: &Path) -> Result<(), DesktopFlowError> {
+    if path.exists() {
+        let metadata = fs::symlink_metadata(path).map_err(|_| {
+            DesktopFlowError::new(
+                "PROJECT_KNOWLEDGE_STORE_PATH_INVALID",
+                "Project knowledge store metadata could not be read",
+                "project_knowledge",
+            )
+        })?;
+        if metadata.file_type().is_symlink() {
+            return Err(DesktopFlowError::new(
+                "PROJECT_KNOWLEDGE_STORE_PATH_ESCAPE",
+                "Project knowledge store path cannot be a symlink",
+                "project_knowledge",
+            ));
+        }
+    }
+    Ok(())
+}
+
+fn validate_project_knowledge_file_path(
+    path: &Path,
+    store_dir: &Path,
+) -> Result<(), DesktopFlowError> {
+    reject_project_knowledge_symlink(path)?;
+    if path.exists() {
+        let canonical = path.canonicalize().map_err(|_| {
+            DesktopFlowError::new(
+                "PROJECT_KNOWLEDGE_STORE_PATH_INVALID",
+                "Project knowledge file path could not be resolved",
+                "project_knowledge",
+            )
+        })?;
+        let canonical_store = store_dir.canonicalize().map_err(|_| {
+            DesktopFlowError::new(
+                "PROJECT_KNOWLEDGE_STORE_PATH_INVALID",
+                "Project knowledge store path could not be resolved",
+                "project_knowledge",
+            )
+        })?;
+        if !canonical.starts_with(canonical_store) || !canonical.is_file() {
+            return Err(DesktopFlowError::new(
+                "PROJECT_KNOWLEDGE_STORE_PATH_ESCAPE",
+                "Project knowledge file path escapes the store",
+                "project_knowledge",
+            ));
+        }
+    }
+    Ok(())
+}
+
+fn validate_project_knowledge_candidate(
+    candidate: &ProjectKnowledgeCandidate,
+) -> Result<(), DesktopFlowError> {
+    let value = serde_json::to_value(candidate).map_err(|_| {
+        DesktopFlowError::new(
+            "PROJECT_KNOWLEDGE_INVALID",
+            "Project knowledge candidate could not be summarized",
+            "project_knowledge",
+        )
+    })?;
+    if let Some(_key) = find_forbidden_approved_apply_key(&value) {
+        return Err(project_knowledge_invalid(
+            "Project knowledge candidate contains forbidden fields",
+        ));
+    }
+    let serialized = serde_json::to_string(&value).map_err(|_| {
+        DesktopFlowError::new(
+            "PROJECT_KNOWLEDGE_INVALID",
+            "Project knowledge candidate could not be serialized safely",
+            "project_knowledge",
+        )
+    })?;
+    if contains_approved_apply_sensitive_marker(&serialized) {
+        return Err(project_knowledge_invalid(
+            "Project knowledge candidate contains unsafe markers",
+        ));
+    }
+    if !matches!(
+        candidate.entry_type.as_str(),
+        "policy" | "project_fact" | "pitfall"
+    ) {
+        return Err(project_knowledge_invalid(
+            "Project knowledge type is unsupported",
+        ));
+    }
+    validate_project_knowledge_namespace(&candidate.namespace)?;
+    validate_project_knowledge_summary(&candidate.summary)?;
+    validate_project_knowledge_trust(&candidate.trust)?;
+    validate_project_knowledge_provenance(&candidate.provenance)?;
+    validate_project_knowledge_evidence_refs(&candidate.evidence_refs)?;
+
+    match candidate.entry_type.as_str() {
+        "policy" => {
+            let source_kind = candidate.source_kind.as_deref().unwrap_or_default();
+            if !matches!(
+                source_kind,
+                "human_reviewed" | "repo_doc_summary" | "manual_import_summary"
+            ) {
+                return Err(project_knowledge_invalid(
+                    "Policy project knowledge requires a reviewed source",
+                ));
+            }
+            if matches!(
+                candidate.provenance.source_kind.as_str(),
+                "model_suggested" | "tool_output_summary" | "external_summary"
+            ) {
+                return Err(project_knowledge_invalid(
+                    "Policy project knowledge cannot be committed directly from model, tool, or external sources",
+                ));
+            }
+            if candidate
+                .policy_scope
+                .as_deref()
+                .unwrap_or_default()
+                .trim()
+                .is_empty()
+            {
+                return Err(project_knowledge_invalid(
+                    "Policy project knowledge requires a policy scope",
+                ));
+            }
+        }
+        "project_fact" => {
+            if candidate.evidence_refs.is_empty() {
+                return Err(project_knowledge_invalid(
+                    "Project facts require evidence refs",
+                ));
+            }
+            if candidate
+                .fact_kind
+                .as_deref()
+                .unwrap_or_default()
+                .trim()
+                .is_empty()
+            {
+                return Err(project_knowledge_invalid(
+                    "Project facts require a fact kind",
+                ));
+            }
+        }
+        "pitfall" => {
+            if candidate
+                .trigger_summary
+                .as_deref()
+                .unwrap_or_default()
+                .trim()
+                .is_empty()
+            {
+                return Err(project_knowledge_invalid(
+                    "Pitfalls require a trigger summary",
+                ));
+            }
+            if candidate
+                .mitigation_summary
+                .as_deref()
+                .unwrap_or_default()
+                .trim()
+                .is_empty()
+            {
+                return Err(project_knowledge_invalid(
+                    "Pitfalls require a mitigation summary",
+                ));
+            }
+            if !matches!(
+                candidate.severity.as_deref().unwrap_or_default(),
+                "low" | "medium" | "high"
+            ) {
+                return Err(project_knowledge_invalid("Pitfall severity is unsupported"));
+            }
+        }
+        _ => {}
+    }
+    Ok(())
+}
+
+fn validate_project_knowledge_namespace(namespace: &str) -> Result<(), DesktopFlowError> {
+    let trimmed = namespace.trim();
+    if trimmed.is_empty()
+        || trimmed.len() > 128
+        || !trimmed
+            .chars()
+            .all(|ch| ch.is_ascii_alphanumeric() || matches!(ch, '.' | '_' | ':' | '-'))
+    {
+        return Err(project_knowledge_invalid(
+            "Project knowledge namespace is invalid",
+        ));
+    }
+    Ok(())
+}
+
+fn validate_project_knowledge_summary(summary: &str) -> Result<(), DesktopFlowError> {
+    let trimmed = summary.trim();
+    if trimmed.is_empty() {
+        return Err(project_knowledge_invalid(
+            "Project knowledge summary is required",
+        ));
+    }
+    if trimmed.chars().count() > PROJECT_KNOWLEDGE_MAX_SUMMARY_CHARS {
+        return Err(project_knowledge_invalid(
+            "Project knowledge summary is too large",
+        ));
+    }
+    Ok(())
+}
+
+fn validate_project_knowledge_trust(trust: &ProjectKnowledgeTrust) -> Result<(), DesktopFlowError> {
+    if !(0.0..=1.0).contains(&trust.score) {
+        return Err(project_knowledge_invalid(
+            "Project knowledge trust score is outside the allowed range",
+        ));
+    }
+    if !matches!(trust.level.as_str(), "low" | "medium" | "high" | "trusted") {
+        return Err(project_knowledge_invalid(
+            "Project knowledge trust level is unsupported",
+        ));
+    }
+    Ok(())
+}
+
+fn validate_project_knowledge_provenance(
+    provenance: &ProjectKnowledgeProvenance,
+) -> Result<(), DesktopFlowError> {
+    if !matches!(
+        provenance.source_kind.as_str(),
+        "human_reviewed"
+            | "repo_doc_summary"
+            | "manual_import_summary"
+            | "model_suggested"
+            | "tool_output_summary"
+            | "external_summary"
+    ) {
+        return Err(project_knowledge_invalid(
+            "Project knowledge provenance source is unsupported",
+        ));
+    }
+    validate_project_knowledge_summary(&provenance.summary)?;
+    Ok(())
+}
+
+fn validate_project_knowledge_evidence_refs(
+    refs: &[ProjectKnowledgeEvidenceRef],
+) -> Result<(), DesktopFlowError> {
+    if refs.is_empty() {
+        return Err(project_knowledge_invalid(
+            "Project knowledge evidence refs are required",
+        ));
+    }
+    let mut seen = BTreeSet::new();
+    for evidence in refs {
+        if evidence.ref_id.trim().is_empty() || !seen.insert(evidence.ref_id.clone()) {
+            return Err(project_knowledge_invalid(
+                "Project knowledge evidence refs must have unique ids",
+            ));
+        }
+        if !matches!(
+            evidence.kind.as_str(),
+            "user_request"
+                | "repo_doc"
+                | "test_summary"
+                | "manual_note"
+                | "event_summary"
+                | "memory_summary"
+                | "tool_summary"
+        ) {
+            return Err(project_knowledge_invalid(
+                "Project knowledge evidence kind is unsupported",
+            ));
+        }
+        validate_project_knowledge_summary(&evidence.summary)?;
+        if !is_safe_summary_hash(&evidence.hash_prefix) {
+            return Err(project_knowledge_invalid(
+                "Project knowledge evidence hash is required",
+            ));
+        }
+    }
+    Ok(())
+}
+
+fn is_safe_summary_hash(value: &str) -> bool {
+    let trimmed = value.trim();
+    (6..=80).contains(&trimmed.len())
+        && trimmed
+            .chars()
+            .all(|ch| ch.is_ascii_alphanumeric() || matches!(ch, '.' | '_' | ':' | '-'))
+}
+
+fn project_knowledge_entry_from_candidate(
+    candidate: ProjectKnowledgeCandidate,
+) -> Result<ProjectKnowledgeEntry, DesktopFlowError> {
+    let millis = unix_epoch_millis();
+    let created_at = format!("unix-ms-{millis}");
+    let entry_seed = format!(
+        "{}:{}:{}:{}",
+        candidate.entry_type, candidate.namespace, candidate.summary, millis
+    );
+    let mut entry = ProjectKnowledgeEntry {
+        entry_id: format!("project-knowledge-{}", short_hash(&entry_seed)),
+        entry_type: candidate.entry_type,
+        namespace: candidate.namespace,
+        summary: sanitize_safe_message(&candidate.summary),
+        status: "committed".to_string(),
+        trust: candidate.trust,
+        provenance: candidate.provenance,
+        evidence_refs: candidate.evidence_refs,
+        tags: candidate.tags,
+        created_at: created_at.clone(),
+        updated_at: created_at,
+        expires_at: candidate.expires_at,
+        revoked_at: None,
+        pinned: candidate.pinned.unwrap_or(false),
+        entry_hash: String::new(),
+        policy_scope: candidate.policy_scope,
+        source_kind: candidate.source_kind,
+        fact_kind: candidate.fact_kind,
+        trigger_summary: candidate.trigger_summary,
+        mitigation_summary: candidate.mitigation_summary,
+        severity: candidate.severity,
+    };
+    let entry_value = serde_json::to_value(&entry).map_err(|_| {
+        DesktopFlowError::new(
+            "PROJECT_KNOWLEDGE_INVALID",
+            "Project knowledge entry could not be summarized",
+            "project_knowledge",
+        )
+    })?;
+    let entry_hash = short_hash(&serde_json::to_string(&entry_value).unwrap_or_default());
+    entry.entry_hash = entry_hash;
+    Ok(entry)
+}
+
+fn summarize_project_knowledge_entry(
+    entry: &ProjectKnowledgeEntry,
+) -> ProjectKnowledgeEntrySummary {
+    ProjectKnowledgeEntrySummary {
+        entry_id: entry.entry_id.clone(),
+        entry_type: entry.entry_type.clone(),
+        namespace: sanitize_safe_message(&entry.namespace),
+        summary: sanitize_safe_message(&entry.summary),
+        status: entry.status.clone(),
+        evidence_ref_count: entry.evidence_refs.len(),
+        tag_count: entry.tags.len(),
+        entry_hash: entry.entry_hash.clone(),
+        warning_codes: entry
+            .evidence_refs
+            .iter()
+            .flat_map(|evidence| evidence.warning_codes.clone())
+            .collect(),
+        summary_only: true,
+    }
+}
+
+fn project_knowledge_store_record(entry: ProjectKnowledgeEntry) -> ProjectKnowledgeStoreRecord {
+    let millis = unix_epoch_millis();
+    let created_at = format!("unix-ms-{millis}");
+    let record_id = format!("project-knowledge-record-{}", short_hash(&entry.entry_id));
+    let mut record = ProjectKnowledgeStoreRecord {
+        record_id,
+        record_kind: "entry".to_string(),
+        entry,
+        created_at,
+        record_hash: String::new(),
+    };
+    record.record_hash = short_hash(&serde_json::to_string(&record).unwrap_or_default());
+    record
+}
+
+fn project_knowledge_event(
+    event_type: &str,
+    entry_id: &str,
+    status: &str,
+    reason_summary: Option<String>,
+) -> ProjectKnowledgeLifecycleEvent {
+    let millis = unix_epoch_millis();
+    let created_at = format!("unix-ms-{millis}");
+    let event_id = format!(
+        "project-knowledge-event-{}",
+        short_hash(&format!("{event_type}:{entry_id}:{millis}"))
+    );
+    let mut event = ProjectKnowledgeLifecycleEvent {
+        event_id,
+        event_type: event_type.to_string(),
+        entry_id: entry_id.to_string(),
+        status: status.to_string(),
+        reason_summary: reason_summary.map(|value| sanitize_safe_message(&value)),
+        created_at,
+        event_hash: String::new(),
+        summary_only: true,
+    };
+    event.event_hash = short_hash(&serde_json::to_string(&event).unwrap_or_default());
+    event
+}
+
+fn append_project_knowledge_record(
+    path: &Path,
+    record: &ProjectKnowledgeStoreRecord,
+) -> Result<(), DesktopFlowError> {
+    let line = serde_json::to_string(record).map_err(|_| {
+        DesktopFlowError::new(
+            "PROJECT_KNOWLEDGE_STORE_WRITE_FAILED",
+            "Project knowledge record could not be serialized",
+            "project_knowledge",
+        )
+    })?;
+    append_project_knowledge_line(path, &line)
+}
+
+fn append_project_knowledge_event(
+    path: &Path,
+    event: &ProjectKnowledgeLifecycleEvent,
+) -> Result<(), DesktopFlowError> {
+    let line = serde_json::to_string(event).map_err(|_| {
+        DesktopFlowError::new(
+            "PROJECT_KNOWLEDGE_STORE_WRITE_FAILED",
+            "Project knowledge event could not be serialized",
+            "project_knowledge",
+        )
+    })?;
+    append_project_knowledge_line(path, &line)
+}
+
+fn append_project_knowledge_line(path: &Path, line: &str) -> Result<(), DesktopFlowError> {
+    if contains_approved_apply_sensitive_marker(line) {
+        return Err(project_knowledge_invalid(
+            "Project knowledge summary failed final redaction validation",
+        ));
+    }
+    use std::io::Write;
+    let mut file = fs::OpenOptions::new()
+        .create(true)
+        .append(true)
+        .open(path)
+        .map_err(|_| {
+            DesktopFlowError::new(
+                "PROJECT_KNOWLEDGE_STORE_WRITE_FAILED",
+                "Project knowledge store could not be written",
+                "project_knowledge",
+            )
+        })?;
+    writeln!(file, "{line}").map_err(|_| {
+        DesktopFlowError::new(
+            "PROJECT_KNOWLEDGE_STORE_WRITE_FAILED",
+            "Project knowledge store could not be written",
+            "project_knowledge",
+        )
+    })
+}
+
+fn load_project_knowledge_snapshot(
+    store: &ProjectKnowledgeStorePaths,
+) -> Result<ProjectKnowledgeSnapshotResult, DesktopFlowError> {
+    let mut warnings = Vec::new();
+    let mut entries = read_project_knowledge_entries(&store.entries_path, &mut warnings)?;
+    let events = read_project_knowledge_events(&store.events_path, &mut warnings)?;
+    apply_project_knowledge_events(&mut entries, &events);
+    entries.sort_by(|left, right| left.entry_id.cmp(&right.entry_id));
+    let summaries: Vec<ProjectKnowledgeEntrySummary> = entries
+        .iter()
+        .map(summarize_project_knowledge_entry)
+        .collect();
+    let entry_count = summaries.len();
+    let active_entry_count = summaries
+        .iter()
+        .filter(|entry| entry.status == "committed" || entry.status == "recalled")
+        .count();
+    let revoked_entry_count = summaries
+        .iter()
+        .filter(|entry| entry.status == "revoked")
+        .count();
+    let expired_entry_count = summaries
+        .iter()
+        .filter(|entry| entry.status == "expired")
+        .count();
+    let snapshot_hash = short_hash(&serde_json::to_string(&summaries).unwrap_or_default());
+    let status = if warnings
+        .iter()
+        .any(|warning| warning == "PARSE_ERROR_LINE_SKIPPED")
+    {
+        "warning"
+    } else {
+        "ready"
+    };
+    Ok(ProjectKnowledgeSnapshotResult {
+        ok: true,
+        status: if entry_count == 0 {
+            "empty".to_string()
+        } else {
+            status.to_string()
+        },
+        store_path: store.store_dir.to_string_lossy().to_string(),
+        entries_path: store.entries_path.to_string_lossy().to_string(),
+        events_path: store.events_path.to_string_lossy().to_string(),
+        index_path: store.index_path.to_string_lossy().to_string(),
+        entry_count,
+        active_entry_count,
+        revoked_entry_count,
+        expired_entry_count,
+        entries: summaries,
+        warnings,
+        snapshot_hash,
+        summary_only: true,
+        raw_content_included: false,
+        safe_message: "Project knowledge snapshot loaded as summary-only data.".to_string(),
+    })
+}
+
+fn read_project_knowledge_entries(
+    path: &Path,
+    warnings: &mut Vec<String>,
+) -> Result<Vec<ProjectKnowledgeEntry>, DesktopFlowError> {
+    if !path.exists() {
+        return Ok(Vec::new());
+    }
+    let text = fs::read_to_string(path).map_err(|_| {
+        DesktopFlowError::new(
+            "PROJECT_KNOWLEDGE_STORE_READ_FAILED",
+            "Project knowledge entries could not be read",
+            "project_knowledge",
+        )
+    })?;
+    let mut entries = Vec::new();
+    for line in text.lines() {
+        if line.trim().is_empty() {
+            continue;
+        }
+        match serde_json::from_str::<ProjectKnowledgeStoreRecord>(line) {
+            Ok(record)
+                if record.record_kind == "entry"
+                    && !contains_approved_apply_sensitive_marker(line) =>
+            {
+                entries.push(record.entry);
+            }
+            _ => warnings.push("PARSE_ERROR_LINE_SKIPPED".to_string()),
+        }
+    }
+    Ok(entries)
+}
+
+fn read_project_knowledge_events(
+    path: &Path,
+    warnings: &mut Vec<String>,
+) -> Result<Vec<ProjectKnowledgeLifecycleEvent>, DesktopFlowError> {
+    if !path.exists() {
+        return Ok(Vec::new());
+    }
+    let text = fs::read_to_string(path).map_err(|_| {
+        DesktopFlowError::new(
+            "PROJECT_KNOWLEDGE_STORE_READ_FAILED",
+            "Project knowledge events could not be read",
+            "project_knowledge",
+        )
+    })?;
+    let mut events = Vec::new();
+    for line in text.lines() {
+        if line.trim().is_empty() {
+            continue;
+        }
+        match serde_json::from_str::<ProjectKnowledgeLifecycleEvent>(line) {
+            Ok(event) if event.summary_only && !contains_approved_apply_sensitive_marker(line) => {
+                events.push(event);
+            }
+            _ => warnings.push("PARSE_ERROR_LINE_SKIPPED".to_string()),
+        }
+    }
+    Ok(events)
+}
+
+fn apply_project_knowledge_events(
+    entries: &mut [ProjectKnowledgeEntry],
+    events: &[ProjectKnowledgeLifecycleEvent],
+) {
+    for event in events {
+        for entry in entries
+            .iter_mut()
+            .filter(|entry| entry.entry_id == event.entry_id)
+        {
+            if event.event_type == PROJECT_KNOWLEDGE_ENTRY_REVOKED_TYPE {
+                entry.status = "revoked".to_string();
+                entry.revoked_at = Some(event.created_at.clone());
+                entry.updated_at = event.created_at.clone();
+            } else if event.event_type == PROJECT_KNOWLEDGE_ENTRY_EXPIRED_TYPE {
+                entry.status = "expired".to_string();
+                entry.updated_at = event.created_at.clone();
+            }
+        }
+    }
+}
+
+fn write_project_knowledge_index(
+    store: &ProjectKnowledgeStorePaths,
+    snapshot: &ProjectKnowledgeSnapshotResult,
+) -> Result<String, DesktopFlowError> {
+    let index = serde_json::json!({
+        "schemaVersion": 1,
+        "entryCount": snapshot.entry_count,
+        "activeEntryCount": snapshot.active_entry_count,
+        "revokedEntryCount": snapshot.revoked_entry_count,
+        "expiredEntryCount": snapshot.expired_entry_count,
+        "snapshotHash": snapshot.snapshot_hash,
+        "summaryOnly": true,
+        "rawContentIncluded": false,
+        "warningCodes": snapshot.warnings,
+    });
+    let index_text = serde_json::to_string_pretty(&index).map_err(|_| {
+        DesktopFlowError::new(
+            "PROJECT_KNOWLEDGE_STORE_WRITE_FAILED",
+            "Project knowledge index could not be serialized",
+            "project_knowledge",
+        )
+    })?;
+    if contains_approved_apply_sensitive_marker(&index_text) {
+        return Err(project_knowledge_invalid(
+            "Project knowledge index failed final redaction validation",
+        ));
+    }
+    fs::write(&store.index_path, index_text).map_err(|_| {
+        DesktopFlowError::new(
+            "PROJECT_KNOWLEDGE_STORE_WRITE_FAILED",
+            "Project knowledge index could not be written",
+            "project_knowledge",
+        )
+    })?;
+    Ok(short_hash(
+        &serde_json::to_string(&index).unwrap_or_default(),
+    ))
+}
+
+fn project_knowledge_lifecycle_event(
+    workspace_root: String,
+    entry_id: String,
+    status: &str,
+    event_type: &str,
+    reason_summary: Option<String>,
+) -> Result<ProjectKnowledgeLifecycleResult, DesktopFlowError> {
+    if entry_id.trim().is_empty() || contains_approved_apply_sensitive_marker(&entry_id) {
+        return Err(project_knowledge_invalid(
+            "Project knowledge entry id is required",
+        ));
+    }
+    if let Some(reason) = reason_summary.as_deref() {
+        validate_project_knowledge_summary(reason)?;
+    }
+    let workspace_root = validate_project_knowledge_workspace_root(&workspace_root)?;
+    let store = resolve_project_knowledge_store(&workspace_root, true)?;
+    let snapshot = load_project_knowledge_snapshot(&store)?;
+    if !snapshot
+        .entries
+        .iter()
+        .any(|entry| entry.entry_id == entry_id)
+    {
+        return Err(project_knowledge_invalid(
+            "Project knowledge entry was not found",
+        ));
+    }
+    let event = project_knowledge_event(event_type, &entry_id, status, reason_summary);
+    append_project_knowledge_event(&store.events_path, &event)?;
+    let snapshot = load_project_knowledge_snapshot(&store)?;
+    let index_hash = write_project_knowledge_index(&store, &snapshot)?;
+    Ok(ProjectKnowledgeLifecycleResult {
+        ok: true,
+        entry_id,
+        status: status.to_string(),
+        event_id: event.event_id,
+        store_path: store.store_dir.to_string_lossy().to_string(),
+        index_hash,
+        summary_only: true,
+        raw_content_included: false,
+        safe_message: format!("Project knowledge entry {status} as summary-only event."),
+        warnings: snapshot.warnings,
+    })
+}
+
+fn project_knowledge_invalid(message: impl Into<String>) -> DesktopFlowError {
+    DesktopFlowError::new(
+        "PROJECT_KNOWLEDGE_BLOCKED",
+        message.into(),
+        "project_knowledge",
+    )
 }
 
 fn approved_apply_invalid(message: impl Into<String>) -> DesktopFlowError {
@@ -8563,6 +9575,243 @@ mod tests {
         assert!(!serialized.contains(&csv_content_key));
         assert!(!serialized.contains(&raw_dom_key));
         assert!(!serialized.contains("<table>"));
+
+        let _ = fs::remove_dir_all(workspace);
+    }
+
+    fn safe_project_knowledge_candidate(entry_type: &str) -> ProjectKnowledgeCandidate {
+        ProjectKnowledgeCandidate {
+            entry_type: entry_type.to_string(),
+            namespace: "deepseek-gui".to_string(),
+            summary: match entry_type {
+                "pitfall" => {
+                    "Project knowledge requires explicit review before recall.".to_string()
+                }
+                "project_fact" => {
+                    "Project knowledge store commands are fixed Tauri commands.".to_string()
+                }
+                _ => "Project knowledge policy entries are human reviewed.".to_string(),
+            },
+            trust: ProjectKnowledgeTrust {
+                score: 0.95,
+                level: "trusted".to_string(),
+                human_reviewed: true,
+                reviewed_by: Some("manual_user_preview".to_string()),
+            },
+            provenance: ProjectKnowledgeProvenance {
+                source_kind: "human_reviewed".to_string(),
+                source_id: Some("turn-summary".to_string()),
+                actor: Some("manual_user_preview".to_string()),
+                summary: "Human reviewed summary-only provenance.".to_string(),
+                ref_hashes: vec!["prov12345".to_string()],
+            },
+            evidence_refs: vec![ProjectKnowledgeEvidenceRef {
+                ref_id: "evidence-1".to_string(),
+                kind: "repo_doc".to_string(),
+                summary: "Repository doc summary confirms this project knowledge.".to_string(),
+                hash_prefix: "abc12345".to_string(),
+                warning_codes: Vec::new(),
+            }],
+            tags: vec!["p0t".to_string()],
+            policy_scope: if entry_type == "policy" {
+                Some("workspace".to_string())
+            } else {
+                None
+            },
+            source_kind: if entry_type == "policy" {
+                Some("human_reviewed".to_string())
+            } else {
+                None
+            },
+            fact_kind: if entry_type == "project_fact" {
+                Some("app_boundary".to_string())
+            } else {
+                None
+            },
+            trigger_summary: if entry_type == "pitfall" {
+                Some("A model proposes durable memory without human review.".to_string())
+            } else {
+                None
+            },
+            mitigation_summary: if entry_type == "pitfall" {
+                Some("Keep the candidate pending until explicit review.".to_string())
+            } else {
+                None
+            },
+            severity: if entry_type == "pitfall" {
+                Some("medium".to_string())
+            } else {
+                None
+            },
+            expires_at: None,
+            pinned: Some(false),
+        }
+    }
+
+    #[test]
+    fn project_knowledge_empty_list_is_summary_only() {
+        let workspace = temp_workspace("project-knowledge-empty");
+
+        let snapshot = project_knowledge_list(workspace.to_string_lossy().to_string())
+            .expect("empty project knowledge list");
+
+        assert!(snapshot.ok);
+        assert_eq!(snapshot.status, "empty");
+        assert_eq!(snapshot.entry_count, 0);
+        assert!(snapshot.summary_only);
+        assert!(!snapshot.raw_content_included);
+
+        let _ = fs::remove_dir_all(workspace);
+    }
+
+    #[test]
+    fn project_knowledge_commits_project_fact_pitfall_and_policy() {
+        let workspace = temp_workspace("project-knowledge-commit");
+
+        let fact = project_knowledge_commit_candidate(
+            workspace.to_string_lossy().to_string(),
+            safe_project_knowledge_candidate("project_fact"),
+        )
+        .expect("project fact commit");
+        let pitfall = project_knowledge_commit_candidate(
+            workspace.to_string_lossy().to_string(),
+            safe_project_knowledge_candidate("pitfall"),
+        )
+        .expect("pitfall commit");
+        let policy = project_knowledge_commit_candidate(
+            workspace.to_string_lossy().to_string(),
+            safe_project_knowledge_candidate("policy"),
+        )
+        .expect("policy commit");
+        let snapshot = project_knowledge_list(workspace.to_string_lossy().to_string())
+            .expect("project knowledge list");
+        let entries_log = fs::read_to_string(
+            workspace
+                .join(".deepseek-workbench")
+                .join("project-knowledge")
+                .join("entries.jsonl"),
+        )
+        .expect("entries log");
+
+        assert_eq!(fact.entry.entry_type, "project_fact");
+        assert_eq!(pitfall.entry.entry_type, "pitfall");
+        assert_eq!(policy.entry.entry_type, "policy");
+        assert_eq!(snapshot.entry_count, 3);
+        assert_eq!(snapshot.active_entry_count, 3);
+        assert!(snapshot.entries.iter().all(|entry| entry.summary_only));
+        let raw_prompt_key = ["raw", "Prompt"].concat();
+        assert!(!entries_log.contains(&raw_prompt_key));
+        assert!(!entries_log.contains("Authorization"));
+        assert!(!entries_log.contains("sk-"));
+
+        let _ = fs::remove_dir_all(workspace);
+    }
+
+    #[test]
+    fn project_knowledge_rejects_untrusted_policy_and_raw_or_secret_marker() {
+        let workspace = temp_workspace("project-knowledge-reject");
+        let mut untrusted = safe_project_knowledge_candidate("policy");
+        untrusted.provenance.source_kind = "model_suggested".to_string();
+        let untrusted_error =
+            project_knowledge_commit_candidate(workspace.to_string_lossy().to_string(), untrusted)
+                .expect_err("untrusted policy should block");
+        let mut raw = safe_project_knowledge_candidate("project_fact");
+        raw.summary = format!("{} {}", "raw", "prompt should not persist");
+        let raw_error =
+            project_knowledge_commit_candidate(workspace.to_string_lossy().to_string(), raw)
+                .expect_err("raw marker should block");
+        let mut secret = safe_project_knowledge_candidate("project_fact");
+        secret.summary = format!(
+            "fake key marker {}",
+            ["s", "k-fake-project-knowledge-secret"].join("")
+        );
+        let secret_error =
+            project_knowledge_commit_candidate(workspace.to_string_lossy().to_string(), secret)
+                .expect_err("secret marker should block");
+
+        assert_eq!(untrusted_error.error_code, "PROJECT_KNOWLEDGE_BLOCKED");
+        assert_eq!(raw_error.error_code, "PROJECT_KNOWLEDGE_BLOCKED");
+        assert_eq!(secret_error.error_code, "PROJECT_KNOWLEDGE_BLOCKED");
+
+        let _ = fs::remove_dir_all(workspace);
+    }
+
+    #[test]
+    fn project_knowledge_revoke_and_expire_append_events_without_deleting_history() {
+        let workspace = temp_workspace("project-knowledge-lifecycle");
+        let first = project_knowledge_commit_candidate(
+            workspace.to_string_lossy().to_string(),
+            safe_project_knowledge_candidate("project_fact"),
+        )
+        .expect("first commit");
+        let second = project_knowledge_commit_candidate(
+            workspace.to_string_lossy().to_string(),
+            safe_project_knowledge_candidate("pitfall"),
+        )
+        .expect("second commit");
+
+        let revoked = project_knowledge_revoke(
+            workspace.to_string_lossy().to_string(),
+            first.entry.entry_id.clone(),
+            PROJECT_KNOWLEDGE_REVOKE_CONFIRMATION.to_string(),
+        )
+        .expect("revoke");
+        let expired = project_knowledge_expire(
+            workspace.to_string_lossy().to_string(),
+            second.entry.entry_id.clone(),
+            "Superseded by newer reviewed project knowledge.".to_string(),
+        )
+        .expect("expire");
+        let snapshot = project_knowledge_list(workspace.to_string_lossy().to_string())
+            .expect("project knowledge list");
+        let entries_log = fs::read_to_string(
+            workspace
+                .join(".deepseek-workbench")
+                .join("project-knowledge")
+                .join("entries.jsonl"),
+        )
+        .expect("entries log");
+
+        assert_eq!(revoked.status, "revoked");
+        assert_eq!(expired.status, "expired");
+        assert_eq!(snapshot.entry_count, 2);
+        assert_eq!(snapshot.revoked_entry_count, 1);
+        assert_eq!(snapshot.expired_entry_count, 1);
+        assert!(entries_log.contains(&first.entry.entry_id));
+        assert!(entries_log.contains(&second.entry.entry_id));
+
+        let _ = fs::remove_dir_all(workspace);
+    }
+
+    #[test]
+    fn project_knowledge_list_skips_corrupt_lines_safely() {
+        let workspace = temp_workspace("project-knowledge-corrupt");
+        let _commit = project_knowledge_commit_candidate(
+            workspace.to_string_lossy().to_string(),
+            safe_project_knowledge_candidate("project_fact"),
+        )
+        .expect("commit");
+        let entries_path = workspace
+            .join(".deepseek-workbench")
+            .join("project-knowledge")
+            .join("entries.jsonl");
+        use std::io::Write;
+        let mut file = fs::OpenOptions::new()
+            .append(true)
+            .open(&entries_path)
+            .expect("entries append");
+        writeln!(file, "not-json-with-private-marker").expect("corrupt line");
+
+        let snapshot = project_knowledge_list(workspace.to_string_lossy().to_string())
+            .expect("project knowledge list");
+        let serialized = serde_json::to_string(&snapshot).expect("snapshot");
+
+        assert_eq!(snapshot.status, "warning");
+        assert_eq!(snapshot.entry_count, 1);
+        assert!(snapshot
+            .warnings
+            .contains(&"PARSE_ERROR_LINE_SKIPPED".to_string()));
+        assert!(!serialized.contains("private-marker"));
 
         let _ = fs::remove_dir_all(workspace);
     }

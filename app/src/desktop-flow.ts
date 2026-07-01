@@ -359,6 +359,107 @@ export type LiveDeepSeekPatchProposalCommandResult = {
   safeMessage: string;
 };
 
+export type ProjectKnowledgeEvidenceRef = {
+  refId: string;
+  kind: string;
+  summary: string;
+  hashPrefix: string;
+  warningCodes?: string[] | undefined;
+};
+
+export type ProjectKnowledgeCandidate = {
+  type: "policy" | "project_fact" | "pitfall";
+  namespace: string;
+  summary: string;
+  trust: {
+    score: number;
+    level: "low" | "medium" | "high" | "trusted";
+    humanReviewed: boolean;
+    reviewedBy?: string | undefined;
+  };
+  provenance: {
+    sourceKind:
+      | "human_reviewed"
+      | "repo_doc_summary"
+      | "manual_import_summary"
+      | "model_suggested"
+      | "tool_output_summary"
+      | "external_summary";
+    sourceId?: string | undefined;
+    actor?: string | undefined;
+    summary: string;
+    refHashes?: string[] | undefined;
+  };
+  evidenceRefs: ProjectKnowledgeEvidenceRef[];
+  tags?: string[] | undefined;
+  policyScope?: string | undefined;
+  sourceKind?: "human_reviewed" | "repo_doc_summary" | "manual_import_summary";
+  factKind?: string | undefined;
+  triggerSummary?: string | undefined;
+  mitigationSummary?: string | undefined;
+  severity?: "low" | "medium" | "high" | undefined;
+  expiresAt?: string | undefined;
+  pinned?: boolean | undefined;
+};
+
+export type ProjectKnowledgeEntrySummary = {
+  entryId: string;
+  type: "policy" | "project_fact" | "pitfall";
+  namespace: string;
+  summary: string;
+  status: string;
+  evidenceRefCount: number;
+  tagCount: number;
+  entryHash: string;
+  warningCodes: string[];
+  summaryOnly: true;
+};
+
+export type ProjectKnowledgeSnapshotResult = {
+  ok: true;
+  status: "empty" | "ready" | "warning";
+  storePath: string;
+  entriesPath: string;
+  eventsPath: string;
+  indexPath: string;
+  entryCount: number;
+  activeEntryCount: number;
+  revokedEntryCount: number;
+  expiredEntryCount: number;
+  entries: ProjectKnowledgeEntrySummary[];
+  warnings: string[];
+  snapshotHash: string;
+  summaryOnly: true;
+  rawContentIncluded: false;
+  safeMessage: string;
+};
+
+export type ProjectKnowledgeCommitResult = {
+  ok: true;
+  entry: ProjectKnowledgeEntrySummary;
+  eventId: string;
+  storePath: string;
+  entryCount: number;
+  indexHash: string;
+  summaryOnly: true;
+  rawContentIncluded: false;
+  safeMessage: string;
+  warnings: string[];
+};
+
+export type ProjectKnowledgeLifecycleResult = {
+  ok: true;
+  entryId: string;
+  status: "revoked" | "expired";
+  eventId: string;
+  storePath: string;
+  indexHash: string;
+  summaryOnly: true;
+  rawContentIncluded: false;
+  safeMessage: string;
+  warnings: string[];
+};
+
 export const allowedDesktopCommands = [
   "get_app_version",
   "apply_approved_user_workspace_patch",
@@ -370,6 +471,10 @@ export const allowedDesktopCommands = [
   "record_verification_lane_event",
   "record_live_proposal_summary_event",
   "generate_live_deepseek_patch_proposal",
+  "project_knowledge_list",
+  "project_knowledge_commit_candidate",
+  "project_knowledge_revoke",
+  "project_knowledge_expire",
   "run_git_read_lane",
   "run_shell_verification_lane",
   "run_web_table_to_csv_flow"
@@ -574,6 +679,89 @@ export async function generateLiveDeepSeekPatchProposal(
   );
 }
 
+export async function listProjectKnowledge(
+  workspaceRoot: string,
+  invokeImpl?: TauriInvoke
+): Promise<ProjectKnowledgeSnapshotResult> {
+  validateProjectKnowledgeWorkspace(workspaceRoot);
+  return invokeAllowedCommand<ProjectKnowledgeSnapshotResult>(
+    "project_knowledge_list",
+    { workspaceRoot },
+    invokeImpl
+  );
+}
+
+export async function commitProjectKnowledgeCandidate(
+  request: {
+    workspaceRoot: string;
+    candidate: ProjectKnowledgeCandidate;
+  },
+  invokeImpl?: TauriInvoke
+): Promise<ProjectKnowledgeCommitResult> {
+  validateProjectKnowledgeWorkspace(request.workspaceRoot);
+  validateProjectKnowledgeCandidate(request.candidate);
+  return invokeAllowedCommand<ProjectKnowledgeCommitResult>(
+    "project_knowledge_commit_candidate",
+    {
+      workspaceRoot: request.workspaceRoot,
+      candidate: request.candidate
+    },
+    invokeImpl
+  );
+}
+
+export async function revokeProjectKnowledgeEntry(
+  request: {
+    workspaceRoot: string;
+    entryId: string;
+    typedConfirmation: "REVOKE PROJECT KNOWLEDGE" | string;
+  },
+  invokeImpl?: TauriInvoke
+): Promise<ProjectKnowledgeLifecycleResult> {
+  validateProjectKnowledgeWorkspace(request.workspaceRoot);
+  if (request.entryId.trim().length === 0) {
+    throw new Error("Project knowledge entry id is required");
+  }
+  if (request.typedConfirmation !== "REVOKE PROJECT KNOWLEDGE") {
+    throw new Error("Project knowledge revoke confirmation is required");
+  }
+  return invokeAllowedCommand<ProjectKnowledgeLifecycleResult>(
+    "project_knowledge_revoke",
+    {
+      workspaceRoot: request.workspaceRoot,
+      entryId: request.entryId,
+      typedConfirmation: request.typedConfirmation
+    },
+    invokeImpl
+  );
+}
+
+export async function expireProjectKnowledgeEntry(
+  request: {
+    workspaceRoot: string;
+    entryId: string;
+    reasonSummary: string;
+  },
+  invokeImpl?: TauriInvoke
+): Promise<ProjectKnowledgeLifecycleResult> {
+  validateProjectKnowledgeWorkspace(request.workspaceRoot);
+  if (request.entryId.trim().length === 0) {
+    throw new Error("Project knowledge entry id is required");
+  }
+  if (request.reasonSummary.trim().length === 0) {
+    throw new Error("Project knowledge expire reason summary is required");
+  }
+  return invokeAllowedCommand<ProjectKnowledgeLifecycleResult>(
+    "project_knowledge_expire",
+    {
+      workspaceRoot: request.workspaceRoot,
+      entryId: request.entryId,
+      reasonSummary: request.reasonSummary
+    },
+    invokeImpl
+  );
+}
+
 export async function invokeAllowedCommand<T>(
   command: string,
   args: Record<string, unknown>,
@@ -636,6 +824,13 @@ function normalizeAllowedCommandResponse(
       return normalizeApprovedRollbackResult(raw);
     case "generate_live_deepseek_patch_proposal":
       return normalizeLiveDeepSeekPatchProposalResult(raw);
+    case "project_knowledge_list":
+      return normalizeProjectKnowledgeSnapshotResult(raw);
+    case "project_knowledge_commit_candidate":
+      return normalizeProjectKnowledgeCommitResult(raw);
+    case "project_knowledge_revoke":
+    case "project_knowledge_expire":
+      return normalizeProjectKnowledgeLifecycleResult(raw);
     case "run_web_table_to_csv_flow":
       return normalizeDesktopFlowResult(raw);
     default:
@@ -896,6 +1091,248 @@ function validateLiveDeepSeekPatchProposalRequest(
   if (containsForbiddenLiveProposalValue(request)) {
     throw new Error("Live proposal request contains unsafe fields");
   }
+}
+
+function validateProjectKnowledgeWorkspace(workspaceRoot: string): void {
+  if (workspaceRoot.trim().length === 0) {
+    throw new Error("Workspace root is required");
+  }
+}
+
+function validateProjectKnowledgeCandidate(
+  candidate: ProjectKnowledgeCandidate
+): void {
+  if (containsForbiddenLiveProposalValue(candidate)) {
+    throw new Error("Project knowledge candidate contains unsafe fields");
+  }
+  if (
+    candidate.type !== "policy" &&
+    candidate.type !== "project_fact" &&
+    candidate.type !== "pitfall"
+  ) {
+    throw new Error("Project knowledge type is unsupported");
+  }
+  if (candidate.namespace.trim().length === 0) {
+    throw new Error("Project knowledge namespace is required");
+  }
+  if (candidate.summary.trim().length === 0) {
+    throw new Error("Project knowledge summary is required");
+  }
+  if (!Array.isArray(candidate.evidenceRefs)) {
+    throw new Error("Project knowledge evidence refs are required");
+  }
+  if (
+    candidate.type === "project_fact" &&
+    candidate.evidenceRefs.length === 0
+  ) {
+    throw new Error("Project facts require evidence refs");
+  }
+  if (candidate.type === "policy" && candidate.sourceKind === undefined) {
+    throw new Error("Policy project knowledge requires a source kind");
+  }
+  if (
+    candidate.type === "pitfall" &&
+    (candidate.triggerSummary?.trim().length ?? 0) === 0
+  ) {
+    throw new Error("Pitfalls require a trigger summary");
+  }
+  if (
+    candidate.type === "pitfall" &&
+    (candidate.mitigationSummary?.trim().length ?? 0) === 0
+  ) {
+    throw new Error("Pitfalls require a mitigation summary");
+  }
+}
+
+function normalizeProjectKnowledgeSnapshotResult(
+  raw: unknown
+): ProjectKnowledgeSnapshotResult {
+  const record = isRecord(raw) ? raw : {};
+  if (
+    record.ok !== true ||
+    (record.status !== "empty" &&
+      record.status !== "ready" &&
+      record.status !== "warning") ||
+    typeof record.storePath !== "string" ||
+    typeof record.entriesPath !== "string" ||
+    typeof record.eventsPath !== "string" ||
+    typeof record.indexPath !== "string" ||
+    typeof record.entryCount !== "number" ||
+    typeof record.activeEntryCount !== "number" ||
+    typeof record.revokedEntryCount !== "number" ||
+    typeof record.expiredEntryCount !== "number" ||
+    !Array.isArray(record.entries) ||
+    !Array.isArray(record.warnings) ||
+    typeof record.snapshotHash !== "string" ||
+    record.summaryOnly !== true ||
+    record.rawContentIncluded !== false ||
+    typeof record.safeMessage !== "string"
+  ) {
+    throw normalizeDesktopCommandError({
+      errorCode: "INVALID_RESPONSE",
+      safeMessage: "Project knowledge snapshot response was invalid",
+      stage: "normalize_response"
+    });
+  }
+  if (containsForbiddenLiveProposalValue(record)) {
+    throw normalizeDesktopCommandError({
+      errorCode: "INVALID_RESPONSE",
+      safeMessage:
+        "Project knowledge snapshot response contained unsafe fields",
+      stage: "normalize_response"
+    });
+  }
+  return {
+    ok: true,
+    status: record.status,
+    storePath: safeErrorMessage(record.storePath),
+    entriesPath: safeErrorMessage(record.entriesPath),
+    eventsPath: safeErrorMessage(record.eventsPath),
+    indexPath: safeErrorMessage(record.indexPath),
+    entryCount: record.entryCount,
+    activeEntryCount: record.activeEntryCount,
+    revokedEntryCount: record.revokedEntryCount,
+    expiredEntryCount: record.expiredEntryCount,
+    entries: record.entries.map(normalizeProjectKnowledgeEntrySummary),
+    warnings: record.warnings.filter(
+      (value): value is string => typeof value === "string"
+    ),
+    snapshotHash: safeErrorMessage(record.snapshotHash),
+    summaryOnly: true,
+    rawContentIncluded: false,
+    safeMessage: safeErrorMessage(record.safeMessage)
+  };
+}
+
+function normalizeProjectKnowledgeCommitResult(
+  raw: unknown
+): ProjectKnowledgeCommitResult {
+  const record = isRecord(raw) ? raw : {};
+  if (
+    record.ok !== true ||
+    !isRecord(record.entry) ||
+    typeof record.eventId !== "string" ||
+    typeof record.storePath !== "string" ||
+    typeof record.entryCount !== "number" ||
+    typeof record.indexHash !== "string" ||
+    record.summaryOnly !== true ||
+    record.rawContentIncluded !== false ||
+    typeof record.safeMessage !== "string" ||
+    !Array.isArray(record.warnings)
+  ) {
+    throw normalizeDesktopCommandError({
+      errorCode: "INVALID_RESPONSE",
+      safeMessage: "Project knowledge commit response was invalid",
+      stage: "normalize_response"
+    });
+  }
+  if (containsForbiddenLiveProposalValue(record)) {
+    throw normalizeDesktopCommandError({
+      errorCode: "INVALID_RESPONSE",
+      safeMessage: "Project knowledge commit response contained unsafe fields",
+      stage: "normalize_response"
+    });
+  }
+  return {
+    ok: true,
+    entry: normalizeProjectKnowledgeEntrySummary(record.entry),
+    eventId: safeErrorMessage(record.eventId),
+    storePath: safeErrorMessage(record.storePath),
+    entryCount: record.entryCount,
+    indexHash: safeErrorMessage(record.indexHash),
+    summaryOnly: true,
+    rawContentIncluded: false,
+    safeMessage: safeErrorMessage(record.safeMessage),
+    warnings: record.warnings.filter(
+      (value): value is string => typeof value === "string"
+    )
+  };
+}
+
+function normalizeProjectKnowledgeLifecycleResult(
+  raw: unknown
+): ProjectKnowledgeLifecycleResult {
+  const record = isRecord(raw) ? raw : {};
+  if (
+    record.ok !== true ||
+    typeof record.entryId !== "string" ||
+    (record.status !== "revoked" && record.status !== "expired") ||
+    typeof record.eventId !== "string" ||
+    typeof record.storePath !== "string" ||
+    typeof record.indexHash !== "string" ||
+    record.summaryOnly !== true ||
+    record.rawContentIncluded !== false ||
+    typeof record.safeMessage !== "string" ||
+    !Array.isArray(record.warnings)
+  ) {
+    throw normalizeDesktopCommandError({
+      errorCode: "INVALID_RESPONSE",
+      safeMessage: "Project knowledge lifecycle response was invalid",
+      stage: "normalize_response"
+    });
+  }
+  if (containsForbiddenLiveProposalValue(record)) {
+    throw normalizeDesktopCommandError({
+      errorCode: "INVALID_RESPONSE",
+      safeMessage:
+        "Project knowledge lifecycle response contained unsafe fields",
+      stage: "normalize_response"
+    });
+  }
+  return {
+    ok: true,
+    entryId: safeErrorMessage(record.entryId),
+    status: record.status,
+    eventId: safeErrorMessage(record.eventId),
+    storePath: safeErrorMessage(record.storePath),
+    indexHash: safeErrorMessage(record.indexHash),
+    summaryOnly: true,
+    rawContentIncluded: false,
+    safeMessage: safeErrorMessage(record.safeMessage),
+    warnings: record.warnings.filter(
+      (value): value is string => typeof value === "string"
+    )
+  };
+}
+
+function normalizeProjectKnowledgeEntrySummary(
+  value: unknown
+): ProjectKnowledgeEntrySummary {
+  const record = isRecord(value) ? value : {};
+  if (
+    typeof record.entryId !== "string" ||
+    (record.type !== "policy" &&
+      record.type !== "project_fact" &&
+      record.type !== "pitfall") ||
+    typeof record.namespace !== "string" ||
+    typeof record.summary !== "string" ||
+    typeof record.status !== "string" ||
+    typeof record.evidenceRefCount !== "number" ||
+    typeof record.tagCount !== "number" ||
+    typeof record.entryHash !== "string" ||
+    !Array.isArray(record.warningCodes) ||
+    record.summaryOnly !== true
+  ) {
+    throw normalizeDesktopCommandError({
+      errorCode: "INVALID_RESPONSE",
+      safeMessage: "Project knowledge entry summary was invalid",
+      stage: "normalize_response"
+    });
+  }
+  return {
+    entryId: safeErrorMessage(record.entryId),
+    type: record.type,
+    namespace: safeErrorMessage(record.namespace),
+    summary: safeErrorMessage(record.summary),
+    status: safeErrorMessage(record.status),
+    evidenceRefCount: record.evidenceRefCount,
+    tagCount: record.tagCount,
+    entryHash: safeErrorMessage(record.entryHash),
+    warningCodes: record.warningCodes.filter(
+      (item): item is string => typeof item === "string"
+    ),
+    summaryOnly: true
+  };
 }
 
 function normalizeLiveDeepSeekPatchProposalResult(

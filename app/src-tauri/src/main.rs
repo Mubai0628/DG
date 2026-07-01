@@ -15,6 +15,10 @@ fn main() {
             commands::record_verification_lane_event,
             commands::record_live_proposal_summary_event,
             commands::generate_live_deepseek_patch_proposal,
+            commands::project_knowledge_list,
+            commands::project_knowledge_commit_candidate,
+            commands::project_knowledge_revoke,
+            commands::project_knowledge_expire,
             commands::run_web_table_to_csv_flow
         ])
         .run(tauri::generate_context!())
