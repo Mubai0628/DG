@@ -24,6 +24,7 @@ import {
   recordVerificationLaneEvent,
   revokeProjectKnowledgeEntry,
   rollbackApprovedUserWorkspacePatch,
+  callMcpReadonlyTool,
   runDesktopWebTableToCsvFlow,
   runGitReadLane,
   runMcpReadonlyDiscovery,
@@ -38,6 +39,7 @@ import {
   type LiveProposalSummaryEventPreview,
   type LiveProposalSummaryEventRecordResult,
   type McpReadonlyDiscoverResult,
+  type McpReadonlyToolCallCommandResult,
   type ProjectKnowledgeCommitResult,
   type ProjectKnowledgeLifecycleResult,
   type ProjectKnowledgeSnapshotResult,
@@ -183,6 +185,11 @@ import {
   summarizeMcpToolProposalView,
   type McpToolProposalView
 } from "./mcp-tool-proposal-view.js";
+import {
+  buildMcpReadonlyToolExecutionView,
+  summarizeMcpReadonlyToolExecutionView,
+  type McpReadonlyToolExecutionView
+} from "./mcp-readonly-tool-execution-view.js";
 import {
   buildMcpMetadataRedactionAuditView,
   summarizeMcpMetadataRedactionAuditView,
@@ -696,6 +703,22 @@ export function DesktopShell(): JSX.Element {
     useState("");
   const [mcpToolProposalPreview, setMcpToolProposalPreview] = useState<
     McpToolProposalView | undefined
+  >();
+  const [
+    mcpReadonlyToolTypedConfirmation,
+    setMcpReadonlyToolTypedConfirmation
+  ] = useState("");
+  const [mcpReadonlyToolArgumentSummary, setMcpReadonlyToolArgumentSummary] =
+    useState("querySummaryHash=docs-safe; maxResults=3");
+  const [mcpReadonlyToolExecutionPreview, setMcpReadonlyToolExecutionPreview] =
+    useState<McpReadonlyToolExecutionView | undefined>();
+  const [mcpReadonlyToolCallStatus, setMcpReadonlyToolCallStatus] =
+    useState<McpReadonlyConnectionRunStatus>("idle");
+  const [mcpReadonlyToolCallResult, setMcpReadonlyToolCallResult] = useState<
+    McpReadonlyToolCallCommandResult | undefined
+  >();
+  const [mcpReadonlyToolCallError, setMcpReadonlyToolCallError] = useState<
+    string | undefined
   >();
   const [
     mcpMetadataRedactionAuditPreview,
@@ -2088,6 +2111,33 @@ export function DesktopShell(): JSX.Element {
   );
   const displayedMcpToolProposal =
     mcpToolProposalPreview ?? mcpToolProposalCandidate;
+  const mcpReadonlyToolExecutionCandidate =
+    useMemo<McpReadonlyToolExecutionView>(
+      () =>
+        buildMcpReadonlyToolExecutionView({
+          connectionProfileRef:
+            displayedMcpReadonlyConnection.profileId ??
+            "mcp-profile.docs-readonly",
+          toolId: displayedMcpToolProposal.toolName ?? "docs.search",
+          toolName: displayedMcpToolProposal.toolName ?? "docs.search",
+          typedConfirmation: mcpReadonlyToolTypedConfirmation,
+          argumentSummary: mcpReadonlyToolArgumentSummary,
+          result: mcpReadonlyToolCallResult,
+          errorSummary: mcpReadonlyToolCallError,
+          inFlight: mcpReadonlyToolCallStatus === "running"
+        }),
+      [
+        displayedMcpReadonlyConnection.profileId,
+        displayedMcpToolProposal.toolName,
+        mcpReadonlyToolArgumentSummary,
+        mcpReadonlyToolCallError,
+        mcpReadonlyToolCallResult,
+        mcpReadonlyToolCallStatus,
+        mcpReadonlyToolTypedConfirmation
+      ]
+    );
+  const displayedMcpReadonlyToolExecution =
+    mcpReadonlyToolExecutionPreview ?? mcpReadonlyToolExecutionCandidate;
   const mcpMetadataRedactionAuditCandidate =
     useMemo<McpMetadataRedactionAuditView>(
       () =>
@@ -3097,6 +3147,10 @@ export function DesktopShell(): JSX.Element {
     setMcpReadonlyConnectionStatus("idle");
     setMcpReadonlyConnectionPreview(undefined);
     setMcpToolProposalPreview(undefined);
+    setMcpReadonlyToolExecutionPreview(undefined);
+    setMcpReadonlyToolCallResult(undefined);
+    setMcpReadonlyToolCallError(undefined);
+    setMcpReadonlyToolCallStatus("idle");
     setMcpMetadataRedactionAuditPreview(undefined);
     setContextAssemblyPreview(undefined);
   }
@@ -3109,7 +3163,64 @@ export function DesktopShell(): JSX.Element {
   function handleClearMcpToolProposal(): void {
     setMcpToolProposalSummaryText("");
     setMcpToolProposalPreview(undefined);
+    setMcpReadonlyToolExecutionPreview(undefined);
+    setMcpReadonlyToolCallResult(undefined);
+    setMcpReadonlyToolCallError(undefined);
+    setMcpReadonlyToolCallStatus("idle");
     setContextAssemblyPreview(undefined);
+  }
+
+  async function handleCallMcpReadonlyTool(): Promise<void> {
+    const candidate = mcpReadonlyToolExecutionCandidate;
+    setMcpReadonlyToolExecutionPreview(candidate);
+    if (candidate.safeCallRequest === undefined) {
+      setMcpReadonlyToolCallStatus("error");
+      setMcpReadonlyToolCallError(candidate.nextAction);
+      return;
+    }
+
+    setMcpReadonlyToolCallStatus("running");
+    setMcpReadonlyToolCallError(undefined);
+    try {
+      const result = await callMcpReadonlyTool(candidate.safeCallRequest);
+      setMcpReadonlyToolCallResult(result);
+      setMcpReadonlyToolCallStatus("done");
+      setMcpReadonlyToolExecutionPreview(
+        buildMcpReadonlyToolExecutionView({
+          connectionProfileRef: candidate.connectionProfileRef,
+          toolId: candidate.toolId,
+          toolName: candidate.toolName,
+          typedConfirmation: mcpReadonlyToolTypedConfirmation,
+          argumentSummary: mcpReadonlyToolArgumentSummary,
+          result
+        })
+      );
+    } catch (caught) {
+      const safeMessage = safeErrorMessage(caught);
+      setMcpReadonlyToolCallError(safeMessage);
+      setMcpReadonlyToolCallStatus("error");
+      setMcpReadonlyToolExecutionPreview(
+        buildMcpReadonlyToolExecutionView({
+          connectionProfileRef: candidate.connectionProfileRef,
+          toolId: candidate.toolId,
+          toolName: candidate.toolName,
+          typedConfirmation: mcpReadonlyToolTypedConfirmation,
+          argumentSummary: mcpReadonlyToolArgumentSummary,
+          errorSummary: safeMessage
+        })
+      );
+    }
+  }
+
+  function handleClearMcpReadonlyToolExecution(): void {
+    setMcpReadonlyToolTypedConfirmation("");
+    setMcpReadonlyToolArgumentSummary(
+      "querySummaryHash=docs-safe; maxResults=3"
+    );
+    setMcpReadonlyToolExecutionPreview(undefined);
+    setMcpReadonlyToolCallResult(undefined);
+    setMcpReadonlyToolCallError(undefined);
+    setMcpReadonlyToolCallStatus("idle");
   }
 
   function handlePreviewMcpMetadataRedactionAudit(): void {
@@ -7829,6 +7940,223 @@ export function DesktopShell(): JSX.Element {
             <p className="fieldHelp">
               {summarizeMcpToolProposalView(displayedMcpToolProposal).source} ·{" "}
               {displayedMcpToolProposal.nextAction}
+            </p>
+          </section>
+
+          <section
+            className="eventPanel"
+            aria-label="MCP Read-only Tool Execution"
+          >
+            <div className="panelHeader">
+              <h2>MCP Read-only Tool Execution</h2>
+              <span className="muted">
+                Explicit approval / read-only tool only
+              </span>
+              <span className="muted">No mutating tools</span>
+            </div>
+            <p className="fieldHelp">
+              Calls only the fixed MCP read-only Tauri wrapper after exact typed
+              confirmation. The App Shell does not expose raw arguments, raw
+              output, generic MCP invocation, mutating tools, EventStore writes,
+              Git, shell, native bridge, or desktop actions.
+            </p>
+
+            <div className="formGrid">
+              <label>
+                <span>Typed confirmation</span>
+                <input
+                  value={mcpReadonlyToolTypedConfirmation}
+                  onChange={(event) => {
+                    setMcpReadonlyToolTypedConfirmation(event.target.value);
+                    setMcpReadonlyToolExecutionPreview(undefined);
+                    setMcpReadonlyToolCallError(undefined);
+                  }}
+                  placeholder="CALL READONLY MCP TOOL"
+                />
+              </label>
+              <label>
+                <span>Arguments summary</span>
+                <input
+                  value={mcpReadonlyToolArgumentSummary}
+                  onChange={(event) => {
+                    setMcpReadonlyToolArgumentSummary(event.target.value);
+                    setMcpReadonlyToolExecutionPreview(undefined);
+                    setMcpReadonlyToolCallResult(undefined);
+                    setMcpReadonlyToolCallError(undefined);
+                  }}
+                  placeholder="querySummaryHash=docs-safe; maxResults=3"
+                />
+              </label>
+            </div>
+
+            <div className="buttonRow">
+              <button
+                type="button"
+                className="primary"
+                disabled={
+                  displayedMcpReadonlyToolExecution.safeCallRequest ===
+                    undefined || mcpReadonlyToolCallStatus === "running"
+                }
+                onClick={(event) => {
+                  event.preventDefault();
+                  event.stopPropagation();
+                  void handleCallMcpReadonlyTool();
+                }}
+              >
+                Call Read-only MCP Tool
+              </button>
+              <button
+                type="button"
+                className="secondary"
+                onClick={(event) => {
+                  event.preventDefault();
+                  event.stopPropagation();
+                  handleClearMcpReadonlyToolExecution();
+                }}
+              >
+                Clear MCP Tool Result
+              </button>
+              <button type="button" className="secondary" disabled>
+                Invoke Mutating MCP Tool (disabled)
+              </button>
+              <button type="button" className="secondary" disabled>
+                Write MCP Result Event (disabled)
+              </button>
+            </div>
+
+            {displayedMcpReadonlyToolExecution.status === "blocked" ? (
+              <div className="errorBox">
+                <strong>MCP read-only tool call blocked</strong>
+                <p>{displayedMcpReadonlyToolExecution.nextAction}</p>
+              </div>
+            ) : null}
+
+            <dl className="summaryGrid compact">
+              <div>
+                <dt>Status</dt>
+                <dd>{displayedMcpReadonlyToolExecution.status}</dd>
+              </div>
+              <div>
+                <dt>Connection profile</dt>
+                <dd>
+                  {displayedMcpReadonlyToolExecution.connectionProfileRef}
+                </dd>
+              </div>
+              <div>
+                <dt>Tool</dt>
+                <dd>{displayedMcpReadonlyToolExecution.toolName}</dd>
+              </div>
+              <div>
+                <dt>Risk</dt>
+                <dd>{displayedMcpReadonlyToolExecution.riskLevel}</dd>
+              </div>
+              <div>
+                <dt>Schema summary</dt>
+                <dd>{displayedMcpReadonlyToolExecution.inputSchemaSummary}</dd>
+              </div>
+              <div>
+                <dt>Approval receipt</dt>
+                <dd>{displayedMcpReadonlyToolExecution.approvalReceiptId}</dd>
+              </div>
+              <div>
+                <dt>Typed confirmation</dt>
+                <dd>
+                  {displayedMcpReadonlyToolExecution.typedConfirmation ===
+                  displayedMcpReadonlyToolExecution.typedConfirmationRequired
+                    ? "matched"
+                    : "missing"}
+                </dd>
+              </div>
+              <div>
+                <dt>Output hash</dt>
+                <dd>
+                  {displayedMcpReadonlyToolExecution.outputHashPrefix ?? "n/a"}
+                </dd>
+              </div>
+              <div>
+                <dt>Output bytes / lines</dt>
+                <dd>
+                  {displayedMcpReadonlyToolExecution.outputBytes ?? 0} /{" "}
+                  {displayedMcpReadonlyToolExecution.outputLineCount ?? 0}
+                </dd>
+              </div>
+              <div>
+                <dt>Redaction counts</dt>
+                <dd>
+                  {
+                    displayedMcpReadonlyToolExecution.redactionSummary
+                      .secretMarkerCount
+                  }{" "}
+                  /{" "}
+                  {
+                    displayedMcpReadonlyToolExecution.redactionSummary
+                      .rawMarkerCount
+                  }{" "}
+                  /{" "}
+                  {
+                    displayedMcpReadonlyToolExecution.redactionSummary
+                      .mutatingMarkerCount
+                  }
+                </dd>
+              </div>
+              <div>
+                <dt>Replay result events</dt>
+                <dd>
+                  {
+                    displayedMcpReadonlyToolExecution.replaySummary
+                      .resultEventCount
+                  }
+                </dd>
+              </div>
+              <div>
+                <dt>Call / Event write</dt>
+                <dd>
+                  {displayedMcpReadonlyToolExecution.readiness
+                    .canSubmitReadonlyToolCall
+                    ? "yes"
+                    : "no"}{" "}
+                  /{" "}
+                  {displayedMcpReadonlyToolExecution.readiness
+                    .canWriteEventStore
+                    ? "yes"
+                    : "no"}
+                </dd>
+              </div>
+              <div>
+                <dt>Git / shell / lease</dt>
+                <dd>
+                  {displayedMcpReadonlyToolExecution.readiness.canExecuteGit
+                    ? "yes"
+                    : "no"}{" "}
+                  /{" "}
+                  {displayedMcpReadonlyToolExecution.readiness.canExecuteShell
+                    ? "yes"
+                    : "no"}{" "}
+                  /{" "}
+                  {displayedMcpReadonlyToolExecution.readiness
+                    .canIssuePermissionLease
+                    ? "yes"
+                    : "no"}
+                </dd>
+              </div>
+            </dl>
+
+            {displayedMcpReadonlyToolExecution.findings.length > 0 ? (
+              <p className="muted">
+                findings{" "}
+                {displayedMcpReadonlyToolExecution.findings
+                  .map((finding) => finding.code)
+                  .join(", ")}
+              </p>
+            ) : null}
+
+            <p className="fieldHelp">
+              {
+                summarizeMcpReadonlyToolExecutionView(
+                  displayedMcpReadonlyToolExecution
+                ).source
+              }{" "}
+              · {displayedMcpReadonlyToolExecution.nextAction}
             </p>
           </section>
 

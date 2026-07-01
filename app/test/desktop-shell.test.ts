@@ -102,6 +102,7 @@ import {
 import { buildLiveProposalEvaluationTelemetryAuditView } from "../src/live-proposal-evaluation-telemetry-audit-view.js";
 import { buildMcpMetadataRedactionAuditView } from "../src/mcp-metadata-redaction-audit-view.js";
 import { buildMcpReadonlyConnectionView } from "../src/mcp-readonly-connection-view.js";
+import { buildMcpReadonlyToolExecutionView } from "../src/mcp-readonly-tool-execution-view.js";
 import {
   buildMcpToolProposalView,
   mcpToolProposalApprovalRefs,
@@ -1188,7 +1189,7 @@ describe("desktop command wrapper", () => {
     expect(result.eventPreview.notWritten).toBe(true);
   });
 
-  it("keeps MCP readonly tool command fixed without App hidden invocation", async () => {
+  it("keeps MCP readonly tool command fixed without generic invocation", async () => {
     const appSource = await readFile(
       path.join(appRoot, "src", "App.tsx"),
       "utf8"
@@ -1202,9 +1203,145 @@ describe("desktop command wrapper", () => {
     expect(flowSource).toContain("callMcpReadonlyTool");
     expect(flowSource).not.toContain("mcpGenericInvoke");
     expect(flowSource).not.toContain("callTool(");
-    expect(appSource).not.toContain("callMcpReadonlyTool(");
+    expect(appSource).toContain("callMcpReadonlyTool(");
     expect(appSource).not.toContain("call_mcp_readonly_tool");
+    expect(appSource).not.toContain("mcpGenericInvoke");
+    expect(appSource).not.toContain("callTool(");
     expect(appSource).not.toContain("Run MCP Tool");
+  });
+
+  it("gates MCP readonly tool execution on exact approval and read-only safety", () => {
+    const needsApproval = buildMcpReadonlyToolExecutionView();
+    const wrongConfirmation = buildMcpReadonlyToolExecutionView({
+      typedConfirmation: "CALL MCP TOOL"
+    });
+    const ready = buildMcpReadonlyToolExecutionView({
+      typedConfirmation: "CALL READONLY MCP TOOL"
+    });
+    const mutating = buildMcpReadonlyToolExecutionView({
+      typedConfirmation: "CALL READONLY MCP TOOL",
+      toolId: "docs.write"
+    });
+
+    expect(needsApproval.status).toBe("needs_approval");
+    expect(needsApproval.safeCallRequest).toBeUndefined();
+    expect(wrongConfirmation.safeCallRequest).toBeUndefined();
+    expect(ready.status).toBe("ready_to_call");
+    expect(ready.safeCallRequest).toMatchObject({
+      connectionProfileRef: "mcp-profile.docs-readonly",
+      maxOutputBytes: 8192,
+      timeoutMs: 5000
+    });
+    expect(ready.safeCallRequest?.serverProfile).toMatchObject({
+      serverKind: "mcp",
+      transportKind: "injected_test_transport"
+    });
+    expect(ready.safeCallRequest?.toolContractSummary).toMatchObject({
+      toolId: "docs.search",
+      declaredReadOnly: true,
+      riskLevel: "safe_readonly",
+      approvalRequired: true,
+      typedConfirmationRequired: true
+    });
+    expect(ready.safeCallRequest?.approvalReceipt).toMatchObject({
+      typedConfirmation: "CALL READONLY MCP TOOL"
+    });
+    expect(ready.readiness.canSubmitReadonlyToolCall).toBe(true);
+    expect(ready.readiness.canInvokeMutatingTool).toBe(false);
+    expect(ready.readiness.canWriteEventStore).toBe(false);
+    expect(ready.readiness.canExecuteGit).toBe(false);
+    expect(ready.readiness.canExecuteShell).toBe(false);
+    expect(ready.readiness.canIssuePermissionLease).toBe(false);
+    expect(ready.readiness.appCanExecute).toBe(false);
+    expect(mutating.status).toBe("blocked");
+    expect(mutating.safeCallRequest).toBeUndefined();
+    expect(mutating.findings.map((finding) => finding.code)).toContain(
+      "MUTATING_TOOL_REJECTED"
+    );
+  });
+
+  it("shows safe MCP readonly tool result and replay summary only", async () => {
+    const ready = buildMcpReadonlyToolExecutionView({
+      typedConfirmation: "CALL READONLY MCP TOOL"
+    });
+    const request = ready.safeCallRequest;
+
+    expect(request).toBeDefined();
+    const invoke: TauriInvoke = async <T>(
+      command: string,
+      payload?: Record<string, unknown>
+    ): Promise<T> => {
+      expect(command).toBe("call_mcp_readonly_tool");
+      expect(JSON.stringify(payload)).not.toContain("raw output body");
+      return {
+        ok: true,
+        status: "called",
+        callId: "mcp-readonly-tool-call-ui",
+        toolId: "docs.search",
+        connectionProfileRef: "mcp-profile.docs-readonly",
+        outputSummary: {
+          outputHash: "outputhashui",
+          outputBytes: 128,
+          outputLineCount: 3,
+          warningCodes: [],
+          rawOutputIncluded: false
+        },
+        outputHash: "outputhashui",
+        outputBytes: 128,
+        redactionCounts: {
+          secretMarkerCount: 0,
+          rawMarkerCount: 0,
+          mutatingMarkerCount: 0,
+          truncatedByteCount: 0
+        },
+        warningCodes: [],
+        eventPreview: {
+          type: "mcp.readonly_tool.result",
+          callId: "mcp-readonly-tool-call-ui",
+          toolId: "docs.search",
+          connectionProfileRefHash: "profilehash",
+          outputHash: "outputhashui",
+          outputBytes: 128,
+          warningCodes: [],
+          summaryOnly: true,
+          rawOutputIncluded: false,
+          notWritten: true
+        },
+        summaryOnly: true,
+        calledReadonlyTool: true,
+        rawOutputIncluded: false,
+        rawArgsIncluded: false,
+        canCallMcpTool: false,
+        canInvokeMutatingTool: false,
+        canWriteEventStore: false,
+        canExecuteGit: false,
+        canExecuteShell: false,
+        canIssuePermissionLease: false,
+        appCanExecute: false,
+        resultHash: "resulthashui",
+        safeMessage: "Summary-only MCP read-only result."
+      } satisfies McpReadonlyToolCallCommandResult as T;
+    };
+    const result = await callMcpReadonlyTool(request!, invoke);
+    const view = buildMcpReadonlyToolExecutionView({
+      typedConfirmation: "CALL READONLY MCP TOOL",
+      result
+    });
+    const serialized = JSON.stringify(view);
+
+    expect(view.status).toBe("called");
+    expect(view.outputHashPrefix).toBe("outputhashui");
+    expect(view.outputBytes).toBe(128);
+    expect(view.replaySummary).toMatchObject({
+      status: "result_summary_ready",
+      resultEventCount: 1,
+      rawOutputIncluded: false,
+      rawArgsIncluded: false
+    });
+    expect(serialized).not.toContain("raw output body");
+    expect(serialized).not.toContain("apiKey");
+    expect(view.readiness.canWriteEventStore).toBe(false);
+    expect(view.readiness.appCanExecute).toBe(false);
   });
 
   it("renders MCP read-only connection surface with disabled execution controls", async () => {
@@ -1242,6 +1379,30 @@ describe("desktop command wrapper", () => {
     expect(appSource).not.toContain("mcpToolCall");
     expect(appSource).not.toContain("callTool(");
     expect(appSource).not.toContain("tools/call");
+  });
+
+  it("renders MCP readonly execution surface with explicit approval only", async () => {
+    const appSource = await readFile(
+      path.join(appRoot, "src", "App.tsx"),
+      "utf8"
+    );
+
+    expect(appSource).toContain("MCP Read-only Tool Execution");
+    expect(appSource).toContain("Explicit approval / read-only tool only");
+    expect(appSource).toContain("No mutating tools");
+    expect(appSource).toContain("CALL READONLY MCP TOOL");
+    expect(appSource).toContain("Call Read-only MCP Tool");
+    expect(appSource).toContain("Invoke Mutating MCP Tool (disabled)");
+    expect(appSource).toContain("Write MCP Result Event (disabled)");
+    expect(appSource).toContain(
+      "callMcpReadonlyTool(candidate.safeCallRequest)"
+    );
+    expect(appSource).toContain("raw output");
+    expect(appSource).toContain("raw arguments");
+    expect(appSource).not.toContain("mcpGenericInvoke");
+    expect(appSource).not.toContain("callTool(");
+    expect(appSource).not.toContain("tools/call");
+    expect(appSource).not.toContain("handleRunMcpTool");
   });
 
   it("imports safe MCP tool proposal summaries into read-only App surfaces", () => {
@@ -10954,7 +11115,7 @@ describe("app user workspace apply prototype", () => {
     expect(combined).not.toContain("handlePromoteUserWorkspace");
     expect(combined).not.toContain("handleRollbackUserWorkspace");
     expect(combined).not.toContain("handleWriteUserWorkspaceEvents");
-    expect(combined).not.toContain("approvalReceiptId");
+    expect(adapterSource).not.toContain("approvalReceiptId");
     expect(adapterSource).not.toContain("preimageContent");
     expect(adapterSource).not.toContain("safeInvoke");
     expect(adapterSource).not.toContain("EventStore");
@@ -11046,7 +11207,7 @@ describe("app user workspace rollback prototype", () => {
     expect(combined).not.toContain("handleApplyUserWorkspace");
     expect(combined).not.toContain("handlePromoteUserWorkspace");
     expect(combined).not.toContain("handleWriteUserWorkspaceEvents");
-    expect(combined).not.toContain("approvalReceiptId");
+    expect(adapterSource).not.toContain("approvalReceiptId");
     expect(adapterSource).not.toContain("preimageContent");
     expect(adapterSource).not.toContain("safeInvoke");
     expect(adapterSource).not.toContain("EventStore");
@@ -19295,10 +19456,6 @@ describe("desktop source boundaries", () => {
       ),
       "utf8"
     );
-    const appSource = await readFile(
-      path.join(repoRoot, "app", "src", "App.tsx"),
-      "utf8"
-    );
     const combined = `${eventsDoc}\n${docsIndex}\n${runtimeSource}`;
 
     expect(eventsDoc).toContain("MCP Read-only Tool Events and Replay v0.19");
@@ -19329,8 +19486,53 @@ describe("desktop source boundaries", () => {
     expect(combined).toContain("ASK_FIRST");
     expect(combined).toContain("READ_ONLY");
     expect(combined).toContain("raw MCP tool output");
-    expect(appSource).not.toContain("MCP Read-only Tool Execution");
-    expect(appSource).not.toContain("Call Read-only MCP Tool");
+  });
+
+  it("documents the P0X-006 MCP readonly App execution surface", async () => {
+    const appDoc = await readFile(
+      path.join(
+        repoRoot,
+        "docs",
+        "app-shell-mcp-readonly-tool-execution-v0.19.md"
+      ),
+      "utf8"
+    );
+    const docsIndex = await readFile(
+      path.join(repoRoot, "docs", "README.md"),
+      "utf8"
+    );
+    const appSource = await readFile(
+      path.join(repoRoot, "app", "src", "App.tsx"),
+      "utf8"
+    );
+    const viewSource = await readFile(
+      path.join(repoRoot, "app", "src", "mcp-readonly-tool-execution-view.ts"),
+      "utf8"
+    );
+    const combined = `${appDoc}\n${docsIndex}\n${viewSource}`;
+
+    expect(appDoc).toContain("App Shell MCP Read-only Tool Execution v0.19");
+    expect(appDoc).toContain("fixed `callMcpReadonlyTool()` wrapper");
+    expect(appDoc).toContain("CALL READONLY MCP TOOL");
+    expect(appDoc).toContain("raw MCP tool output");
+    expect(appDoc).toContain("raw MCP tool arguments");
+    expect(appDoc).toContain("generic MCP tool invocation");
+    expect(appDoc).toContain("mutating MCP tool buttons");
+    expect(appDoc).toContain("EventStore writes");
+    expect(appDoc).toContain("No Git/shell/native bridge/desktop action");
+    expect(docsIndex).toContain(
+      "app-shell-mcp-readonly-tool-execution-v0.19.md"
+    );
+    expect(viewSource).toContain("buildMcpReadonlyToolExecutionView");
+    expect(viewSource).toContain("canInvokeMutatingTool: false");
+    expect(viewSource).toContain("canWriteEventStore: false");
+    expect(viewSource).toContain("canExecuteGit: false");
+    expect(viewSource).toContain("canExecuteShell: false");
+    expect(viewSource).toContain("appCanExecute: false");
+    expect(appSource).toContain("MCP Read-only Tool Execution");
+    expect(appSource).toContain("Call Read-only MCP Tool");
+    expect(combined).not.toContain("fetch(");
+    expect(combined).not.toContain("process.env");
   });
 
   it("documents the P0S-001 MVP hardening recovery design gate", async () => {

@@ -302,6 +302,7 @@ foundation.
 - [Runtime MCP Read-only Tool Call Wrapper v0.19](runtime-mcp-readonly-tool-call-v0.19.md)
 - [App / Tauri MCP Read-only Tool Command v0.19](app-tauri-mcp-readonly-tool-command-v0.19.md)
 - [MCP Read-only Tool Events and Replay v0.19](mcp-readonly-tool-events-replay-v0.19.md)
+- [App Shell MCP Read-only Tool Execution v0.19](app-shell-mcp-readonly-tool-execution-v0.19.md)
 - [Runtime Memory Recall Preview v0.3](runtime-memory-recall-preview-v0.3.md)
 - [v0.4.0 Controlled Creation Preview RC release notes](release-notes-v0.4.0-controlled-creation-preview-rc.1.md)
 - [App Shell Controlled Creation manual QA](app-shell-controlled-creation-manual-qa.md)
