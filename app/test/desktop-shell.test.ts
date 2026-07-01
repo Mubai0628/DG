@@ -17705,6 +17705,84 @@ describe("desktop source boundaries", () => {
     expect(rootReadme).toContain("active v0.18 roadmap");
   });
 
+  it("documents the P0V-001 MCP read-only connection gate", async () => {
+    const adr = await readFile(
+      path.join(
+        repoRoot,
+        "docs",
+        "adr",
+        "0011-mcp-readonly-connection-gate.md"
+      ),
+      "utf8"
+    );
+    const threatModel = await readFile(
+      path.join(
+        repoRoot,
+        "docs",
+        "mcp-readonly-connection-threat-model-v0.17.md"
+      ),
+      "utf8"
+    );
+    const implementationGate = await readFile(
+      path.join(
+        repoRoot,
+        "docs",
+        "mcp-readonly-connection-implementation-gate-v0.17.md"
+      ),
+      "utf8"
+    );
+    const nextPlan = await readFile(
+      path.join(
+        repoRoot,
+        "docs",
+        "p0v-002-mcp-connection-profile-schema-plan.md"
+      ),
+      "utf8"
+    );
+    const docsIndex = await readFile(
+      path.join(repoRoot, "docs", "README.md"),
+      "utf8"
+    );
+    const combined = `${adr}\n${threatModel}\n${implementationGate}\n${nextPlan}`;
+
+    expect(adr).toContain("ADR 0011: MCP Read-only Connection Gate");
+    expect(adr).toContain("v0.18 only supports read-only MCP discovery");
+    expect(adr).toContain("resources metadata list");
+    expect(adr).toContain("prompts metadata list");
+    expect(adr).toContain("tools metadata list");
+    expect(adr).toContain(
+      "Capability Broker receives metadata descriptors only"
+    );
+    expect(threatModel).toContain("malicious MCP server metadata");
+    expect(threatModel).toContain("prompt injection");
+    expect(threatModel).toContain("command injection through server profile");
+    expect(threatModel).toContain("hanging server / timeout");
+    expect(threatModel).toContain("Windows path / command issues");
+    expect(implementationGate).toContain("Connection Profile Safety");
+    expect(implementationGate).toContain("No Tool Invocation Safety");
+    expect(implementationGate).toContain("No Resource Read Safety");
+    expect(implementationGate).toContain("CI / Boundary Safety");
+    expect(nextPlan).toContain("P0V-002 MCP Connection Profile Schema Plan");
+    expect(combined).toContain("no MCP tool invocation");
+    expect(combined).toContain("no resource content read");
+    expect(combined).toContain("no arbitrary process spawn");
+    expect(combined).toContain("no user-supplied command execution");
+    expect(combined).toContain("no App hidden connection");
+    expect(combined).toContain("no native bridge");
+    expect(combined).toContain("no desktop action");
+    expect(combined).toContain("redaction audit");
+    expect(docsIndex).toContain("adr/0011-mcp-readonly-connection-gate.md");
+    expect(docsIndex).toContain(
+      "mcp-readonly-connection-threat-model-v0.17.md"
+    );
+    expect(docsIndex).toContain(
+      "mcp-readonly-connection-implementation-gate-v0.17.md"
+    );
+    expect(docsIndex).toContain(
+      "p0v-002-mcp-connection-profile-schema-plan.md"
+    );
+  });
+
   it("documents the P0S-001 MVP hardening recovery design gate", async () => {
     const adr = await readFile(
       path.join(repoRoot, "docs", "adr", "0011-mvp-hardening-recovery.md"),
