@@ -12,6 +12,7 @@ export * from "./mcp-readonly-discovery.js";
 export * from "./mcp-tool-broker-planning.js";
 export * from "./mcp-tool-input-risk.js";
 export * from "./mcp-tool-invocation-proposal.js";
+export * from "./mcp-tool-proposal-redaction-audit.js";
 export * from "./mcp-tool-simulated-result.js";
 export * from "./native-descriptors.js";
 export * from "./plan-preview.js";

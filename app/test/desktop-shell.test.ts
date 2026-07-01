@@ -18759,6 +18759,37 @@ describe("desktop source boundaries", () => {
     expect(appSource).not.toMatch(/>\s*Approve Tool Invocation\s*</);
   });
 
+  it("documents the runtime MCP tool proposal redaction audit", async () => {
+    const doc = await readFile(
+      path.join(
+        repoRoot,
+        "docs",
+        "runtime-mcp-tool-proposal-redaction-audit-v0.18.md"
+      ),
+      "utf8"
+    );
+    const docsIndex = await readFile(
+      path.join(repoRoot, "docs", "README.md"),
+      "utf8"
+    );
+    const combined = `${doc}\n${docsIndex}`;
+
+    expect(doc).toContain("Runtime MCP Tool Proposal Redaction Audit v0.18");
+    expect(doc).toContain("summary-only MCP tool proposal");
+    expect(doc).toContain("Raw arguments");
+    expect(doc).toContain("Raw tool output");
+    expect(doc).toContain("API key");
+    expect(doc).toContain("EventStore write claims");
+    expect(doc).toContain("App execution claims");
+    expect(doc).toContain("No real MCP `tools/call`");
+    expect(doc).toContain("No EventStore write");
+    expect(doc).toContain("No native bridge");
+    expect(doc).toContain("No desktop action");
+    expect(combined).toContain(
+      "runtime-mcp-tool-proposal-redaction-audit-v0.18.md"
+    );
+  });
+
   it("documents the P0S-001 MVP hardening recovery design gate", async () => {
     const adr = await readFile(
       path.join(repoRoot, "docs", "adr", "0011-mvp-hardening-recovery.md"),
