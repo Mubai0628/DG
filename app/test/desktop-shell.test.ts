@@ -15958,6 +15958,122 @@ describe("desktop source boundaries", () => {
     );
   });
 
+  it("documents the P0T-001 production memory project knowledge design gate", async () => {
+    const adr = await readFile(
+      path.join(
+        repoRoot,
+        "docs",
+        "adr",
+        "0011-production-memory-project-knowledge.md"
+      ),
+      "utf8"
+    );
+    const threatModel = await readFile(
+      path.join(repoRoot, "docs", "production-memory-threat-model-v0.15.md"),
+      "utf8"
+    );
+    const implementationGate = await readFile(
+      path.join(
+        repoRoot,
+        "docs",
+        "production-memory-implementation-gate-v0.15.md"
+      ),
+      "utf8"
+    );
+    const nextPlan = await readFile(
+      path.join(
+        repoRoot,
+        "docs",
+        "p0t-002-project-knowledge-store-contract-plan.md"
+      ),
+      "utf8"
+    );
+    const docsIndex = await readFile(
+      path.join(repoRoot, "docs", "README.md"),
+      "utf8"
+    );
+    const combined = `${adr}\n${threatModel}\n${implementationGate}\n${nextPlan}\n${docsIndex}`;
+
+    expect(combined).toContain(
+      "ADR 0011: Production Memory / Project Knowledge"
+    );
+    expect(combined).toContain("Proposed / Accepted for P0T design gate");
+    expect(combined).toContain("workspace-local and persistent");
+    expect(combined).toContain("summary-only");
+    expect(combined).toContain("policy");
+    expect(combined).toContain("project_fact");
+    expect(combined).toContain("pitfall");
+    expect(combined).toContain("candidate");
+    expect(combined).toContain("reviewed");
+    expect(combined).toContain("committed");
+    expect(combined).toContain("recalled");
+    expect(combined).toContain("revoked");
+    expect(combined).toContain("expired");
+    expect(combined).toContain("Policy memory requires a human trusted source");
+    expect(combined).toContain("Project facts require evidence refs");
+    expect(combined).toContain("Pitfalls require trigger and mitigation");
+    expect(combined).toContain("Model output may propose memory candidates");
+    expect(combined).toContain("it cannot commit memory");
+    expect(combined).toContain("Tool\noutput may propose memory candidates");
+    expect(combined).toContain("it cannot commit policy memory");
+    expect(combined).toContain(
+      "App commit and revoke actions must be explicit"
+    );
+    expect(combined).toContain("Memory recall must be visible");
+    expect(combined).toContain("audit surface");
+    expect(combined).toContain("prompt injection creating fake memory");
+    expect(combined).toContain("model hallucination stored as fact");
+    expect(combined).toContain("stale project fact");
+    expect(combined).toContain("wrong policy persistence");
+    expect(combined).toContain("policy poisoning");
+    expect(combined).toContain("secret leakage");
+    expect(combined).toContain("raw source leakage");
+    expect(combined).toContain("raw diff leakage");
+    expect(combined).toContain("raw prompt leakage");
+    expect(combined).toContain("API key leakage");
+    expect(combined).toContain("tool output poisoning");
+    expect(combined).toContain("external source poisoning");
+    expect(combined).toContain("over-recall");
+    expect(combined).toContain("memory interfering with patch safety");
+    expect(combined).toContain("revoke/expire bypass");
+    expect(combined).toContain("replay mismatch");
+    expect(combined).toContain("filesystem corruption of memory store");
+    expect(combined).toContain("Schema safety tests");
+    expect(combined).toContain("Storage safety tests");
+    expect(combined).toContain("Candidate safety tests");
+    expect(combined).toContain("Commit safety tests");
+    expect(combined).toContain("Policy source safety tests");
+    expect(combined).toContain("Evidence and provenance safety tests");
+    expect(combined).toContain("Revoke and expire safety tests");
+    expect(combined).toContain("Recall safety tests");
+    expect(combined).toContain("Context integration safety tests");
+    expect(combined).toContain("Event and replay safety tests");
+    expect(combined).toContain("App UI safety tests");
+    expect(combined).toContain("CI and boundary checks");
+    expect(combined).toContain("JSONL");
+    expect(combined).toContain("append-only");
+    expect(combined).toContain("No Tauri command in P0T-002");
+    expect(combined).toContain("No App UI feature in P0T-002");
+    expect(combined).toContain("No file write implementation");
+    expect(combined).toContain("No memory store mutation");
+    expect(combined).toContain("No API key read");
+    expect(combined).toContain("No fetch/network");
+    expect(combined).toContain("No apply");
+    expect(combined).toContain("No rollback");
+    expect(combined).toContain("No native bridge");
+    expect(combined).toContain("No desktop action");
+    expect(docsIndex).toContain(
+      "adr/0011-production-memory-project-knowledge.md"
+    );
+    expect(docsIndex).toContain("production-memory-threat-model-v0.15.md");
+    expect(docsIndex).toContain(
+      "production-memory-implementation-gate-v0.15.md"
+    );
+    expect(docsIndex).toContain(
+      "p0t-002-project-knowledge-store-contract-plan.md"
+    );
+  });
+
   it("documents the P0S-001 MVP hardening recovery design gate", async () => {
     const adr = await readFile(
       path.join(repoRoot, "docs", "adr", "0011-mvp-hardening-recovery.md"),
