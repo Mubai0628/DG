@@ -170,6 +170,7 @@ import {
   buildApprovedRollbackRequestFromExecutionFlow
 } from "../src/app-approved-execution-flow-view.js";
 import { buildApprovedExecutionRecoveryView } from "../src/approved-execution-recovery-view.js";
+import { buildApprovedExecutionReplayTimelineView } from "../src/approved-execution-replay-timeline-view.js";
 import { buildDisposablePatchApplyView } from "../src/disposable-patch-apply-view.js";
 import { buildApprovalGatedDisposableApplyView } from "../src/approval-gated-disposable-apply-view.js";
 import { buildDisposablePatchRollbackView } from "../src/disposable-patch-rollback-view.js";
@@ -10789,6 +10790,228 @@ describe("app approved execution receipt preview", () => {
     expect(JSON.stringify(rawBlocked)).not.toContain("not-a-real-key");
   });
 
+  it("projects approved execution replay timeline states deterministically", () => {
+    const proposalImport = {
+      status: "imported"
+    } as never;
+    const validationPreview = { status: "valid" };
+    const diffAuditPreview = { status: "audit_ready" };
+    const applyResult = safeApplyResult();
+    const rollbackResult = safeRollbackResult();
+    const verificationSummary = fixedVerificationEventSummary();
+    const fullEventSummary = fixedEventSummary({
+      eventCount: 5,
+      displayedEventCount: 5,
+      approvedApplyCount: 1,
+      approvedRollbackCount: 1,
+      verificationEventCount: 2,
+      liveProposalEventCount: 1,
+      typeCounts: {
+        "model.patch_proposal.live_generated": 1,
+        "user_workspace.patch_apply.app_executed": 1,
+        "git.read_lane.executed": 1,
+        "shell.verification_lane.executed": 1,
+        "user_workspace.patch_rollback.app_executed": 1
+      },
+      timeline: [
+        {
+          id: "proposal-event-1",
+          ts: "2026-06-26T00:00:00.000Z",
+          type: "model.patch_proposal.live_generated",
+          taskId: "task-1",
+          summary: "live proposal generated: proposal-1 · summary only",
+          safePayloadKeys: ["proposalId", "proposalHash"]
+        },
+        {
+          id: "apply-event-1",
+          ts: "2026-06-26T00:00:01.000Z",
+          type: "user_workspace.patch_apply.app_executed",
+          taskId: "task-1",
+          summary:
+            "approved apply executed: op approved-apply-1 · checkpoint checkpoint-1 · files 1",
+          safePayloadKeys: ["pathSummaries", "pathSummaryCount"]
+        },
+        ...(verificationSummary.timeline as unknown[]),
+        {
+          id: "rollback-event-1",
+          ts: "2026-06-26T00:00:04.000Z",
+          type: "user_workspace.patch_rollback.app_executed",
+          taskId: "task-1",
+          summary:
+            "approved rollback executed: op approved-rollback-1 · checkpoint checkpoint-1 · files 1",
+          safePayloadKeys: ["pathSummaries", "pathSummaryCount"]
+        }
+      ]
+    });
+    const rollbackChain = buildApprovedExecutionReplayTimelineView({
+      eventSummary: fullEventSummary,
+      modelPatchProposalImportView: proposalImport,
+      patchValidationPreview: validationPreview,
+      patchDiffAuditPreview: diffAuditPreview,
+      approvalReceiptView: safeReceiptView("rollback"),
+      approvedExecutionFlowView: buildAppApprovedExecutionFlowView({
+        workspaceRoot: "D:\\workspace",
+        receiptView: safeReceiptView("rollback"),
+        applyResult
+      }),
+      applyResult,
+      rollbackResult,
+      verificationLaneProjection:
+        buildVerificationLaneProjectionView(verificationSummary)
+    });
+    const applyFailure = buildApprovedExecutionReplayTimelineView({
+      eventSummary: fixedEventSummary({
+        approvedApplyCount: 1,
+        timeline: []
+      }),
+      modelPatchProposalImportView: proposalImport,
+      patchValidationPreview: validationPreview,
+      patchDiffAuditPreview: diffAuditPreview,
+      approvalReceiptView: safeReceiptView("apply"),
+      approvedExecutionFlowView: buildAppApprovedExecutionFlowView({
+        workspaceRoot: "D:\\workspace",
+        receiptView: safeReceiptView("apply"),
+        contentDraft: "summary safe content"
+      }),
+      approvedExecutionError:
+        "Expected before hash mismatch. Snapshot changed before apply."
+    });
+    const failedVerificationSummary = fixedVerificationEventSummary({
+      timeline: [
+        {
+          id: "shell-verification-event-1",
+          ts: "2026-06-25T00:00:02.000Z",
+          type: "shell.verification_lane.executed",
+          taskId: "no task",
+          summary:
+            "shell verification lane recorded: app.typecheck · 1 exit · 12 stdout bytes · 0 stderr bytes · result shellhash",
+          safePayloadKeys: ["templateId", "exitCode", "resultHash"]
+        }
+      ]
+    });
+    const verificationFailure = buildApprovedExecutionReplayTimelineView({
+      eventSummary: failedVerificationSummary,
+      modelPatchProposalImportView: proposalImport,
+      patchValidationPreview: validationPreview,
+      patchDiffAuditPreview: diffAuditPreview,
+      approvalReceiptView: safeReceiptView("apply"),
+      approvedExecutionFlowView: buildAppApprovedExecutionFlowView({
+        workspaceRoot: "D:\\workspace",
+        receiptView: safeReceiptView("apply"),
+        contentDraft: "summary safe content",
+        applyResult
+      }),
+      applyResult,
+      verificationLaneProjection:
+        buildVerificationLaneProjectionView(failedVerificationSummary)
+    });
+    const duplicated = buildApprovedExecutionReplayTimelineView({
+      eventSummary: fixedEventSummary({
+        approvedApplyCount: 1,
+        timeline: [
+          {
+            id: "apply-event-dup",
+            ts: "2026-06-26T00:00:01.000Z",
+            type: "user_workspace.patch_apply.app_executed",
+            taskId: "task-1",
+            summary: "approved apply executed: files 1",
+            safePayloadKeys: ["pathSummaries"]
+          },
+          {
+            id: "apply-event-dup",
+            ts: "2026-06-26T00:00:01.000Z",
+            type: "user_workspace.patch_apply.app_executed",
+            taskId: "task-1",
+            summary: "approved apply executed: files 1",
+            safePayloadKeys: ["pathSummaries"]
+          }
+        ]
+      }),
+      modelPatchProposalImportView: proposalImport,
+      patchValidationPreview: validationPreview,
+      patchDiffAuditPreview: diffAuditPreview,
+      approvalReceiptView: safeReceiptView("apply"),
+      applyResult
+    });
+    const duplicatedAgain = buildApprovedExecutionReplayTimelineView({
+      eventSummary: fixedEventSummary({
+        approvedApplyCount: 1,
+        timeline: [
+          {
+            id: "apply-event-dup",
+            ts: "2026-06-26T00:00:01.000Z",
+            type: "user_workspace.patch_apply.app_executed",
+            taskId: "task-1",
+            summary: "approved apply executed: files 1",
+            safePayloadKeys: ["pathSummaries"]
+          },
+          {
+            id: "apply-event-dup",
+            ts: "2026-06-26T00:00:01.000Z",
+            type: "user_workspace.patch_apply.app_executed",
+            taskId: "task-1",
+            summary: "approved apply executed: files 1",
+            safePayloadKeys: ["pathSummaries"]
+          }
+        ]
+      }),
+      modelPatchProposalImportView: proposalImport,
+      patchValidationPreview: validationPreview,
+      patchDiffAuditPreview: diffAuditPreview,
+      approvalReceiptView: safeReceiptView("apply"),
+      applyResult
+    });
+    const rawBlocked = buildApprovedExecutionReplayTimelineView({
+      eventSummary: fixedEventSummary({
+        timeline: [
+          {
+            id: "unsafe-event",
+            ts: "2026-06-26T00:00:01.000Z",
+            type: "user_workspace.patch_apply.app_executed",
+            taskId: "task-1",
+            summary: "unsafe raw prompt sk-fake-not-a-real-key",
+            safePayloadKeys: []
+          }
+        ]
+      })
+    });
+
+    expect(rollbackChain.status).toBe("projected");
+    expect(rollbackChain.stages.map((stage) => stage.kind)).toEqual([
+      "proposal_imported_or_generated",
+      "validation_result",
+      "diff_audit",
+      "approval_receipt_created",
+      "apply_attempted",
+      "apply_succeeded_or_failed",
+      "checkpoint_created",
+      "verification_run",
+      "verification_passed_or_failed",
+      "rollback_attempted",
+      "rollback_succeeded_or_failed",
+      "final_task_status"
+    ]);
+    expect(rollbackChain.completedStageCount).toBe(12);
+    expect(rollbackChain.readiness.canApplyPatch).toBe(false);
+    expect(rollbackChain.readiness.canRollback).toBe(false);
+    expect(rollbackChain.readiness.canWriteEventStore).toBe(false);
+    expect(applyFailure.status).toBe("warning");
+    expect(applyFailure.findings.map((finding) => finding.code)).toContain(
+      "APPROVED_REPLAY_TIMELINE_EVENT_MISSING"
+    );
+    expect(verificationFailure.status).toBe("warning");
+    expect(
+      verificationFailure.stages.find(
+        (stage) => stage.kind === "verification_passed_or_failed"
+      )?.warningCodes
+    ).toContain("VERIFICATION_FAILED");
+    expect(duplicated.duplicateEventCount).toBe(1);
+    expect(duplicated.timelineHash).toBe(duplicatedAgain.timelineHash);
+    expect(rawBlocked.status).toBe("blocked");
+    expect(JSON.stringify(rawBlocked)).not.toContain("sk-fake");
+    expect(JSON.stringify(rawBlocked)).not.toContain("not-a-real-key");
+  });
+
   it("builds the P0O-007 approved execution smoke request from fixtures", async () => {
     const fixture = JSON.parse(
       await readFile(
@@ -10909,11 +11132,15 @@ describe("app approved execution receipt preview", () => {
       path.join(appRoot, "src", "approved-execution-recovery-view.ts"),
       "utf8"
     );
+    const replayTimelineSource = await readFile(
+      path.join(appRoot, "src", "approved-execution-replay-timeline-view.ts"),
+      "utf8"
+    );
     const desktopFlowSource = await readFile(
       path.join(appRoot, "src", "desktop-flow.ts"),
       "utf8"
     );
-    const combined = `${appSource}\n${viewSource}\n${flowSource}\n${recoverySource}`;
+    const combined = `${appSource}\n${viewSource}\n${flowSource}\n${recoverySource}\n${replayTimelineSource}`;
 
     expect(appSource).toContain("App Approved Execution Receipt");
     expect(appSource).toContain("Receipt preview / no execution");
@@ -10936,6 +11163,12 @@ describe("app approved execution receipt preview", () => {
     expect(appSource).toContain("Checkpoint status");
     expect(appSource).toContain("Rollback guidance");
     expect(appSource).toContain("Manual recovery guidance");
+    expect(appSource).toContain("Approved Execution Replay Timeline");
+    expect(appSource).toContain("Audit timeline / summary-only replay");
+    expect(appSource).toContain("Preview Approved Replay Timeline");
+    expect(appSource).toContain("Replay Write Event (disabled)");
+    expect(appSource).toContain("Execute From Timeline (disabled)");
+    expect(appSource).toContain("Apply / rollback / verification events");
     expect(appSource).toContain("Latest approved execution");
     expect(appSource).toMatch(
       /The App\s+Shell does not invoke Tauri,\s+write files,\s+apply patches,\s+rollback,\s+write events,\s+issue leases,\s+or execute Git or shell commands/
@@ -10950,8 +11183,13 @@ describe("app approved execution receipt preview", () => {
     expect(recoverySource).not.toContain("safeInvoke");
     expect(recoverySource).not.toContain("writeFile");
     expect(recoverySource).not.toContain("readFile(");
+    expect(replayTimelineSource).not.toContain("safeInvoke");
+    expect(replayTimelineSource).not.toContain("writeFile");
+    expect(replayTimelineSource).not.toContain("readFile(");
     expect(combined).not.toContain("handleIssuePermissionLease");
     expect(combined).not.toContain("appendEventStore");
+    expect(combined).not.toContain("handleExecuteFromTimeline");
+    expect(combined).not.toContain("handleReplayWriteEvent");
     expect(desktopFlowSource).toContain("apply_approved_user_workspace_patch");
     expect(desktopFlowSource).toContain(
       "rollback_approved_user_workspace_patch"
@@ -10994,6 +11232,45 @@ describe("app approved execution receipt preview", () => {
     expect(combined).toContain("no raw content display");
     expect(docsIndex).toContain(
       "app-shell-approved-execution-recovery-v0.15.md"
+    );
+  });
+
+  it("documents the P0S-005 approved execution replay timeline boundary", async () => {
+    const docs = await readFile(
+      path.join(
+        repoRoot,
+        "docs",
+        "app-shell-approved-execution-replay-timeline-v0.15.md"
+      ),
+      "utf8"
+    );
+    const docsIndex = await readFile(
+      path.join(repoRoot, "docs", "README.md"),
+      "utf8"
+    );
+    const appReadme = await readFile(path.join(appRoot, "README.md"), "utf8");
+    const combined = `${docs}\n${docsIndex}\n${appReadme}`;
+
+    expect(combined).toContain(
+      "App Shell Approved Execution Replay Timeline v0.15"
+    );
+    expect(combined).toContain("proposal_imported_or_generated");
+    expect(combined).toContain("validation_result");
+    expect(combined).toContain("diff_audit");
+    expect(combined).toContain("approval_receipt_created");
+    expect(combined).toContain("apply_attempted");
+    expect(combined).toContain("checkpoint_created");
+    expect(combined).toContain("verification_passed_or_failed");
+    expect(combined).toContain("rollback_succeeded_or_failed");
+    expect(combined).toContain("final_task_status");
+    expect(combined).toContain("Missing events produce warnings");
+    expect(combined).toContain("Duplicate event ids are deduplicated");
+    expect(combined).toContain("no EventStore write");
+    expect(combined).toContain("no apply or rollback from the timeline");
+    expect(combined).toContain("no arbitrary Git or shell");
+    expect(combined).toContain("no raw content in timeline output");
+    expect(docsIndex).toContain(
+      "app-shell-approved-execution-replay-timeline-v0.15.md"
     );
   });
 });

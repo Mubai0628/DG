@@ -94,6 +94,10 @@ Current scope:
   guidance, manual recovery guidance, and disabled unsafe recovery buttons while
   no retry, rollback, file write, EventStore write, Git/shell, native bridge,
   or desktop action is triggered from that panel
+- preview the P0S Approved Execution Replay Timeline surface for the proposal,
+  validation, audit, approval receipt, apply, checkpoint, verification,
+  rollback, and final task status chain while missing/duplicate events remain
+  warnings and no replay event write or execution is enabled
 - lock the P0R E2E coding task regression smoke with safe docs-task,
   verification-failure, rollback, and expected event summary fixtures while no
   new App execution path is added

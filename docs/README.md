@@ -211,6 +211,7 @@ foundation.
 - [P0S-002 E2E Golden Regression Suite plan](p0s-002-e2e-golden-regression-suite-plan.md)
 - [Runtime E2E Golden Regression Suite v0.15](runtime-e2e-golden-regression-suite-v0.15.md)
 - [App Shell Approved Execution Recovery v0.15](app-shell-approved-execution-recovery-v0.15.md)
+- [App Shell Approved Execution Replay Timeline v0.15](app-shell-approved-execution-replay-timeline-v0.15.md)
 - [Runtime Memory Recall Preview v0.3](runtime-memory-recall-preview-v0.3.md)
 - [v0.4.0 Controlled Creation Preview RC release notes](release-notes-v0.4.0-controlled-creation-preview-rc.1.md)
 - [App Shell Controlled Creation manual QA](app-shell-controlled-creation-manual-qa.md)

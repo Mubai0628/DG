@@ -274,6 +274,11 @@ import {
   type ApprovedExecutionRecoveryView
 } from "./approved-execution-recovery-view.js";
 import {
+  buildApprovedExecutionReplayTimelineView,
+  summarizeApprovedExecutionReplayTimelineView,
+  type ApprovedExecutionReplayTimelineView
+} from "./approved-execution-replay-timeline-view.js";
+import {
   buildDisposablePatchApplyView,
   type AppDisposablePatchApplyView
 } from "./disposable-patch-apply-view.js";
@@ -671,6 +676,10 @@ export function DesktopShell(): JSX.Element {
     appApprovedExecutionRecoveryPreview,
     setAppApprovedExecutionRecoveryPreview
   ] = useState<ApprovedExecutionRecoveryView | undefined>();
+  const [
+    appApprovedExecutionReplayTimelinePreview,
+    setAppApprovedExecutionReplayTimelinePreview
+  ] = useState<ApprovedExecutionReplayTimelineView | undefined>();
   const [gitReadLane, setGitReadLane] = useState<GitReadLane>("status_summary");
   const [gitReadPathspecs, setGitReadPathspecs] = useState("");
   const [gitReadLaneStatus, setGitReadLaneStatus] =
@@ -1689,6 +1698,41 @@ export function DesktopShell(): JSX.Element {
   );
   const displayedE2ETaskRecovery =
     e2eTaskRecoveryPreview ?? buildE2ETaskRecoveryView();
+  const appApprovedExecutionReplayTimelineCandidate =
+    useMemo<ApprovedExecutionReplayTimelineView>(
+      () =>
+        buildApprovedExecutionReplayTimelineView({
+          eventSummary,
+          liveProposalGenerationView: liveDeepSeekProposalGenerationView,
+          modelPatchProposalImportView: modelPatchProposalImportPreview,
+          patchValidationPreview: patchProposalValidationPreview,
+          patchDiffAuditPreview,
+          approvalReceiptView: displayedAppApprovedExecutionReceipt,
+          approvedExecutionFlowView: appApprovedExecutionFlowView,
+          applyResult: appApprovedApplyResult,
+          rollbackResult: appApprovedRollbackResult,
+          approvedExecutionError: appApprovedExecutionError,
+          recoveryView: appApprovedExecutionRecoveryCandidate,
+          verificationLaneProjection
+        }),
+      [
+        appApprovedApplyResult,
+        appApprovedExecutionError,
+        appApprovedExecutionFlowView,
+        appApprovedExecutionRecoveryCandidate,
+        appApprovedRollbackResult,
+        displayedAppApprovedExecutionReceipt,
+        eventSummary,
+        liveDeepSeekProposalGenerationView,
+        modelPatchProposalImportPreview,
+        patchDiffAuditPreview,
+        patchProposalValidationPreview,
+        verificationLaneProjection
+      ]
+    );
+  const displayedApprovedExecutionReplayTimeline =
+    appApprovedExecutionReplayTimelinePreview ??
+    buildApprovedExecutionReplayTimelineView();
   const liveProposalSummaryEventPreview = useMemo<
     LiveProposalSummaryEventPreview | undefined
   >(() => {
@@ -1885,6 +1929,22 @@ export function DesktopShell(): JSX.Element {
     appApprovedExecutionEventResult,
     appApprovedExecutionFlowView,
     appApprovedRollbackResult
+  ]);
+  useEffect(() => {
+    setAppApprovedExecutionReplayTimelinePreview(undefined);
+  }, [
+    appApprovedApplyResult,
+    appApprovedExecutionError,
+    appApprovedExecutionFlowView,
+    appApprovedExecutionRecoveryCandidate,
+    appApprovedRollbackResult,
+    displayedAppApprovedExecutionReceipt,
+    eventSummary,
+    liveDeepSeekProposalGenerationView,
+    modelPatchProposalImportPreview,
+    patchDiffAuditPreview,
+    patchProposalValidationPreview,
+    verificationLaneProjection
   ]);
   const contextAssemblyCandidate = useMemo<AppContextAssemblyPreviewView>(
     () =>
@@ -2280,6 +2340,12 @@ export function DesktopShell(): JSX.Element {
 
   function handlePreviewApprovedExecutionRecovery(): void {
     setAppApprovedExecutionRecoveryPreview(appApprovedExecutionRecoveryCandidate);
+  }
+
+  function handlePreviewApprovedExecutionReplayTimeline(): void {
+    setAppApprovedExecutionReplayTimelinePreview(
+      appApprovedExecutionReplayTimelineCandidate
+    );
   }
 
   function handleImportE2EProposalToChain(): void {
@@ -9682,6 +9748,170 @@ export function DesktopShell(): JSX.Element {
                 ).source
               }{" "}
               · {displayedApprovedExecutionRecovery.nextAction}
+            </p>
+          </section>
+
+          <section
+            className="eventPanel"
+            aria-label="Approved Execution Replay Timeline"
+          >
+            <div className="panelHeader">
+              <h2>Approved Execution Replay Timeline</h2>
+              <span className="muted">
+                Audit timeline / summary-only replay
+              </span>
+            </div>
+            <p className="fieldHelp">
+              Reconstructs the approved proposal, validation, audit, receipt,
+              apply, checkpoint, verification, rollback, and final task status
+              chain from safe summaries. The App Shell does not write events,
+              apply patches, rollback, run Git or shell, expose raw output, or
+              execute recovery actions from this timeline.
+            </p>
+            <div className="buttonRow">
+              <button
+                type="button"
+                className="secondary"
+                onClick={(event) => {
+                  event.preventDefault();
+                  event.stopPropagation();
+                  handlePreviewApprovedExecutionReplayTimeline();
+                }}
+              >
+                Preview Approved Replay Timeline
+              </button>
+              <button
+                type="button"
+                className="secondary"
+                disabled
+                aria-disabled="true"
+              >
+                Replay Write Event (disabled)
+              </button>
+              <button
+                type="button"
+                className="secondary"
+                disabled
+                aria-disabled="true"
+              >
+                Execute From Timeline (disabled)
+              </button>
+            </div>
+
+            {displayedApprovedExecutionReplayTimeline.status === "empty" ? (
+              <p className="empty">
+                No approved execution replay timeline yet. Refresh Event Log /
+                Replay or preview approved execution summaries first.
+              </p>
+            ) : null}
+
+            {displayedApprovedExecutionReplayTimeline.status === "blocked" ? (
+              <div className="errorBox">
+                <strong>Approved replay timeline blocked</strong>
+                <p>{displayedApprovedExecutionReplayTimeline.nextAction}</p>
+              </div>
+            ) : null}
+
+            <dl className="summaryGrid compact">
+              <div>
+                <dt>Status</dt>
+                <dd>{displayedApprovedExecutionReplayTimeline.status}</dd>
+              </div>
+              <div>
+                <dt>Stages</dt>
+                <dd>
+                  {displayedApprovedExecutionReplayTimeline.completedStageCount}
+                  /{displayedApprovedExecutionReplayTimeline.stageCount}{" "}
+                  complete
+                </dd>
+              </div>
+              <div>
+                <dt>Missing / warning / blocked</dt>
+                <dd>
+                  {displayedApprovedExecutionReplayTimeline.missingStageCount} /{" "}
+                  {displayedApprovedExecutionReplayTimeline.warningStageCount} /{" "}
+                  {displayedApprovedExecutionReplayTimeline.blockedStageCount}
+                </dd>
+              </div>
+              <div>
+                <dt>Persisted / duplicate events</dt>
+                <dd>
+                  {displayedApprovedExecutionReplayTimeline.persistedEventCount}{" "}
+                  / {displayedApprovedExecutionReplayTimeline.duplicateEventCount}
+                </dd>
+              </div>
+              <div>
+                <dt>Apply / rollback / verification events</dt>
+                <dd>
+                  {displayedApprovedExecutionReplayTimeline.approvedApplyEventCount}{" "}
+                  /{" "}
+                  {
+                    displayedApprovedExecutionReplayTimeline.approvedRollbackEventCount
+                  }{" "}
+                  /{" "}
+                  {displayedApprovedExecutionReplayTimeline.verificationEventCount}
+                </dd>
+              </div>
+              <div>
+                <dt>Blockers / warnings</dt>
+                <dd>
+                  {displayedApprovedExecutionReplayTimeline.blockerCount} /{" "}
+                  {displayedApprovedExecutionReplayTimeline.warningCount}
+                </dd>
+              </div>
+              <div>
+                <dt>Hash</dt>
+                <dd>{displayedApprovedExecutionReplayTimeline.hashPrefix}</dd>
+              </div>
+              <div>
+                <dt>Execution readiness</dt>
+                <dd>
+                  apply no / rollback no / event write no
+                </dd>
+              </div>
+            </dl>
+
+            {displayedApprovedExecutionReplayTimeline.stages.length > 0 ? (
+              <ol className="timeline">
+                {displayedApprovedExecutionReplayTimeline.stages.map(
+                  (stage) => (
+                    <li key={stage.kind}>
+                      <span className="timelineMeta">
+                        {stage.label} · {stage.status} · {stage.hashPrefix}
+                      </span>
+                      <span>{stage.summary}</span>
+                      {stage.warningCodes.length > 0 ? (
+                        <span className="timelineMeta">
+                          Warnings: {stage.warningCodes.join(", ")}
+                        </span>
+                      ) : null}
+                      {stage.blockerCodes.length > 0 ? (
+                        <span className="timelineMeta">
+                          Blockers: {stage.blockerCodes.join(", ")}
+                        </span>
+                      ) : null}
+                    </li>
+                  )
+                )}
+              </ol>
+            ) : null}
+
+            {displayedApprovedExecutionReplayTimeline.findings.length > 0 ? (
+              <p className="muted">
+                findings{" "}
+                {displayedApprovedExecutionReplayTimeline.findings
+                  .map((finding) => finding.code)
+                  .join(", ")}
+              </p>
+            ) : null}
+
+            <p className="fieldHelp">
+              {
+                summarizeApprovedExecutionReplayTimelineView(
+                  displayedApprovedExecutionReplayTimeline
+                )
+              }{" "}
+              · {displayedApprovedExecutionReplayTimeline.nextAction}
             </p>
           </section>
 
