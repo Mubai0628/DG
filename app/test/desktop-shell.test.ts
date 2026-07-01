@@ -19087,6 +19087,58 @@ describe("desktop source boundaries", () => {
     );
   });
 
+  it("documents the P0X-002 MCP readonly tool contract schema", async () => {
+    const runtimeDoc = await readFile(
+      path.join(
+        repoRoot,
+        "docs",
+        "runtime-mcp-readonly-tool-contract-v0.19.md"
+      ),
+      "utf8"
+    );
+    const docsIndex = await readFile(
+      path.join(repoRoot, "docs", "README.md"),
+      "utf8"
+    );
+    const runtimeSource = await readFile(
+      path.join(
+        repoRoot,
+        "runtime",
+        "src",
+        "capabilities",
+        "mcp-readonly-tool-contract.ts"
+      ),
+      "utf8"
+    );
+    const combined = `${runtimeDoc}\n${docsIndex}\n${runtimeSource}`;
+
+    expect(runtimeDoc).toContain("Runtime MCP Read-only Tool Contract v0.19");
+    expect(runtimeDoc).toContain("contract validation only");
+    expect(runtimeDoc).toContain("does not call MCP tools");
+    expect(runtimeDoc).toContain("runtime wrapper");
+    expect(runtimeDoc).toContain("does not add a Tauri command");
+    expect(runtimeDoc).toContain("does not write events");
+    expect(runtimeDoc).toContain("fixed `connectionProfileRef`");
+    expect(runtimeDoc).toContain("exact typed confirmation");
+    expect(runtimeDoc).toContain("CALL READONLY MCP TOOL");
+    expect(runtimeDoc).toContain("mutating names");
+    expect(runtimeDoc).toContain("rawPrompt, rawSource, rawDiff, or rawCsv");
+    expect(runtimeDoc).toContain("All execution readiness flags remain false");
+    expect(runtimeDoc).toContain("no arbitrary MCP tool call");
+    expect(runtimeDoc).toContain("no plugin or skill runtime");
+    expect(runtimeDoc).toContain("no native bridge");
+    expect(runtimeDoc).toContain("no desktop action");
+    expect(docsIndex).toContain("runtime-mcp-readonly-tool-contract-v0.19.md");
+    expect(runtimeSource).toContain("buildMcpReadonlyToolContract");
+    expect(runtimeSource).toContain("validateMcpReadonlyToolContract");
+    expect(runtimeSource).toContain("summarizeMcpReadonlyToolContract");
+    expect(runtimeSource).toContain("canCallMcpTool: false");
+    expect(runtimeSource).toContain("canWriteEventStore: false");
+    expect(runtimeSource).toContain("appCanExecute: false");
+    expect(combined).not.toContain("fetch(");
+    expect(combined).not.toContain("process.env");
+  });
+
   it("documents the P0S-001 MVP hardening recovery design gate", async () => {
     const adr = await readFile(
       path.join(repoRoot, "docs", "adr", "0011-mvp-hardening-recovery.md"),
