@@ -18979,6 +18979,114 @@ describe("desktop source boundaries", () => {
     expect(rootReadme).toContain("P0X is the active v0.20 roadmap");
   });
 
+  it("documents the P0X-001 MCP readonly tool execution design gate", async () => {
+    const adr = await readFile(
+      path.join(repoRoot, "docs", "adr", "0011-mcp-readonly-tool-execution.md"),
+      "utf8"
+    );
+    const threatModel = await readFile(
+      path.join(
+        repoRoot,
+        "docs",
+        "mcp-readonly-tool-execution-threat-model-v0.19.md"
+      ),
+      "utf8"
+    );
+    const implementationGate = await readFile(
+      path.join(
+        repoRoot,
+        "docs",
+        "mcp-readonly-tool-execution-implementation-gate-v0.19.md"
+      ),
+      "utf8"
+    );
+    const nextPlan = await readFile(
+      path.join(
+        repoRoot,
+        "docs",
+        "p0x-002-mcp-readonly-tool-allowlist-contract-plan.md"
+      ),
+      "utf8"
+    );
+    const docsIndex = await readFile(
+      path.join(repoRoot, "docs", "README.md"),
+      "utf8"
+    );
+    const combined = `${adr}\n${threatModel}\n${implementationGate}\n${nextPlan}\n${docsIndex}`;
+
+    expect(combined).toContain("ADR 0011: MCP Read-only Tool Execution");
+    expect(combined).toContain("Proposed / Accepted for P0X design gate");
+    expect(combined).toContain("read-only tools only");
+    expect(combined).toContain("discovered MCP metadata");
+    expect(combined).toContain("allowlisted");
+    expect(combined).toContain("Input must pass schema validation");
+    expect(combined).toContain("Risk classifier output");
+    expect(combined).toContain("explicit approval receipt");
+    expect(combined).toContain("exact typed confirmation");
+    expect(combined).toContain("fixed, bounded wrapper");
+    expect(combined).toContain("fixed, non-generic Tauri command");
+    expect(combined).toContain("summary-only tool result records");
+    expect(combined).toContain("Mutating MCP tools remain disabled");
+    expect(combined).toContain("Plugin and skill execution remain disabled");
+    expect(combined).toContain("no MCP tool execution in P0X-001");
+    expect(combined).toContain("no runtime callTool wrapper in P0X-001");
+    expect(combined).toContain("no Tauri command in P0X-001");
+    expect(threatModel).toContain("Malicious Metadata");
+    expect(threatModel).toContain("Schema Spoofing");
+    expect(threatModel).toContain("Tool Name Collision");
+    expect(threatModel).toContain("Read-only Claim Lying");
+    expect(threatModel).toContain("Tool Output Secrets");
+    expect(threatModel).toContain("Prompt Injection in Descriptions");
+    expect(threatModel).toContain("Oversized Output");
+    expect(threatModel).toContain("Long-Running Tool Call");
+    expect(threatModel).toContain("Network Exfiltration by Server");
+    expect(threatModel).toContain("Resource Content Leakage");
+    expect(threatModel).toContain("Approval Bypass");
+    expect(threatModel).toContain("Replay Tampering");
+    expect(threatModel).toContain("Event Raw Output Leakage");
+    expect(threatModel).toContain("App Hidden Invocation");
+    expect(threatModel).toContain("Cross-Workspace Profile Confusion");
+    expect(implementationGate).toContain("Connection / Profile Safety");
+    expect(implementationGate).toContain("Allowlist Safety");
+    expect(implementationGate).toContain("Schema Validation Safety");
+    expect(implementationGate).toContain("Risk Classifier Safety");
+    expect(implementationGate).toContain("Approval Safety");
+    expect(implementationGate).toContain("Call Boundary Safety");
+    expect(implementationGate).toContain("Timeout / Output Safety");
+    expect(implementationGate).toContain("Redaction Safety");
+    expect(implementationGate).toContain("Event / Replay Safety");
+    expect(implementationGate).toContain("App UI Safety");
+    expect(implementationGate).toContain("CI / Boundary Safety");
+    expect(nextPlan).toContain(
+      "P0X-002 MCP Read-only Tool Allowlist / Invocation Contract Schema Plan"
+    );
+    expect(nextPlan).toContain("no MCP tool execution in P0X-002");
+    expect(nextPlan).toContain(
+      "runtime/src/capabilities/mcp-readonly-tool-allowlist-contract.ts"
+    );
+    expect(nextPlan).toContain("fixed connection profile ref");
+    expect(nextPlan).toContain("typed confirmation phrase requirement");
+    expect(nextPlan).toContain("execution readiness flags false");
+    expect(combined).toContain("no arbitrary MCP tool call");
+    expect(combined).toContain("no plugin code execution");
+    expect(combined).toContain("no skill runtime execution");
+    expect(combined).toContain("no broad PermissionLease");
+    expect(combined).toContain("no raw MCP tool output persistence");
+    expect(combined).toContain("no raw MCP tool args persistence");
+    expect(combined).toContain("no native bridge");
+    expect(combined).toContain("no desktop action");
+    expect(docsIndex).toContain("adr/0011-mcp-readonly-tool-execution.md");
+    expect(docsIndex).toContain(
+      "mcp-readonly-tool-execution-threat-model-v0.19.md"
+    );
+    expect(docsIndex).toContain(
+      "mcp-readonly-tool-execution-implementation-gate-v0.19.md"
+    );
+    expect(docsIndex).toContain(
+      "p0x-002-mcp-readonly-tool-allowlist-contract-plan.md"
+    );
+  });
+
   it("documents the P0S-001 MVP hardening recovery design gate", async () => {
     const adr = await readFile(
       path.join(repoRoot, "docs", "adr", "0011-mvp-hardening-recovery.md"),
