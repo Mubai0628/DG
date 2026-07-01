@@ -1,3 +1,9 @@
+import {
+  validateMcpConnectionProfile,
+  type McpConnectionProfile,
+  type McpConnectionProfileValidationResult
+} from "./mcp-connection-profile.js";
+
 export type McpReadonlyDiscoveryInput = unknown;
 
 export type McpDiscoveryStatus = "listed" | "warning" | "blocked" | "empty";
@@ -96,6 +102,102 @@ export type McpReadonlyDiscoveryResult = {
   nextAction: string;
   source: "runtime_mcp_readonly_discovery";
 };
+
+export type McpReadOnlyDiscoveryInput = {
+  profile?: McpConnectionProfile | McpConnectionProfileValidationResult;
+  transport?: McpReadOnlyTransport | undefined;
+  requestedMethods?: string[] | undefined;
+  timeoutMs?: number | undefined;
+  maxMetadataBytes?: number | undefined;
+  maxItems?: number | undefined;
+  createdAt?: string | undefined;
+  idGenerator?: (() => string) | undefined;
+};
+
+export type McpReadOnlyTransport = {
+  send(
+    request: McpReadOnlyTransportRequest
+  ): Promise<McpReadOnlyTransportResponse>;
+};
+
+export type McpReadOnlyTransportRequest = {
+  jsonrpc: "2.0";
+  id: string;
+  method: "initialize" | "resources/list" | "prompts/list" | "tools/list";
+  params: {
+    profileId: string;
+    serverRefHash: string;
+    summaryOnly: true;
+    noToolInvocation: true;
+    noResourceRead: true;
+    noPromptExecution: true;
+    noMutation: true;
+  };
+};
+
+export type McpReadOnlyTransportResponse = unknown;
+
+export type McpDiscoveredResourceSummary = McpResourceSummary;
+export type McpDiscoveredPromptSummary = McpPromptSummary;
+export type McpDiscoveredToolSummary = McpToolSummary;
+export type McpReadOnlyDiscoveryFinding = McpDiscoveryFinding;
+
+export type McpReadOnlyDiscoveryReadiness = {
+  canListMetadata: boolean;
+  canConnectServer: false;
+  canSpawnProcess: false;
+  canInvokeTool: false;
+  canReadResource: false;
+  canExecutePrompt: false;
+  canMutate: false;
+  canUseNetwork: false;
+  canWriteEventStore: false;
+  canExecuteGit: false;
+  canExecuteShell: false;
+  appCanExecute: false;
+};
+
+export type McpReadOnlyDiscoveryResult = {
+  status: McpDiscoveryStatus;
+  discoveryId: string;
+  profileId?: string | undefined;
+  serverInfoSummary?: {
+    serverId: string;
+    displayName: string;
+    serverVersion?: string | undefined;
+    metadataHash: string;
+  };
+  requestedMethods: string[];
+  serverCount: number;
+  toolCount: number;
+  resourceCount: number;
+  promptCount: number;
+  blockedCount: number;
+  warningCount: number;
+  findingCount: number;
+  resourceSummaries: McpDiscoveredResourceSummary[];
+  promptSummaries: McpDiscoveredPromptSummary[];
+  toolSummaries: McpDiscoveredToolSummary[];
+  riskNotes: string[];
+  findings: McpReadOnlyDiscoveryFinding[];
+  discoveryHash: string;
+  readiness: McpReadOnlyDiscoveryReadiness;
+  nextAction: string;
+  source: "runtime_mcp_readonly_discovery_client";
+};
+
+const allowedReadOnlyMethods = new Set([
+  "initialize",
+  "resources/list",
+  "prompts/list",
+  "tools/list"
+]);
+
+const blockedReadOnlyMethods = new Set([
+  "tools/call",
+  "resources/read",
+  "prompts/get"
+]);
 
 const forbiddenFieldCodes = new Map<string, string>([
   ["command", "COMMAND_FIELD_REJECTED"],
@@ -304,6 +406,179 @@ export function discoverMcpCapabilitiesReadonly(
   );
 }
 
+export async function runMcpReadOnlyDiscovery(
+  input: McpReadOnlyDiscoveryInput
+): Promise<McpReadOnlyDiscoveryResult> {
+  const findings: McpDiscoveryFinding[] = [];
+  const profile = resolveProfile(input.profile, findings);
+  const requestedMethods = resolveRequestedMethods(profile, input, findings);
+  const discoveryId =
+    input.idGenerator?.() ??
+    `mcp-readonly-discovery-${stablePreviewHash(
+      stableStringify({
+        profileId: profile?.profileId ?? "missing",
+        requestedMethods,
+        createdAt: input.createdAt
+      })
+    ).slice(0, 12)}`;
+
+  if (input.transport === undefined) {
+    addFinding(
+      findings,
+      "transport",
+      "blocker",
+      "TRANSPORT_REQUIRED",
+      "MCP read-only discovery requires an injected transport.",
+      "$.transport"
+    );
+  }
+
+  if (profile !== undefined) {
+    validateClientLimits(profile, input, findings);
+  }
+
+  if (
+    hasBlockers(findings) ||
+    profile === undefined ||
+    input.transport === undefined
+  ) {
+    return buildClientResult({
+      discoveryId,
+      profile,
+      requestedMethods,
+      resourceSummaries: [],
+      promptSummaries: [],
+      toolSummaries: [],
+      findings,
+      riskNotes: []
+    });
+  }
+
+  const resources: McpResourceSummary[] = [];
+  const prompts: McpPromptSummary[] = [];
+  const tools: McpToolSummary[] = [];
+  const riskNotes: string[] = [];
+  let serverInfo:
+    | {
+        serverId: string;
+        displayName: string;
+        serverVersion?: string | undefined;
+        metadataHash: string;
+      }
+    | undefined;
+
+  for (const method of requestedMethods) {
+    const request = buildTransportRequest(profile, method);
+    let response: unknown;
+    try {
+      response = await input.transport.send(request);
+    } catch {
+      addFinding(
+        findings,
+        "transport",
+        "blocker",
+        "TRANSPORT_ERROR",
+        "Injected MCP read-only transport failed without exposing raw stderr or response content.",
+        `$.transport.${method}`
+      );
+      continue;
+    }
+
+    if (
+      isOversized(response, input.maxMetadataBytes ?? profile.maxMetadataBytes)
+    ) {
+      addFinding(
+        findings,
+        "schema",
+        "blocker",
+        "METADATA_RESPONSE_TOO_LARGE",
+        "MCP read-only metadata response exceeds the configured summary limit.",
+        `$.responses.${method}`
+      );
+      continue;
+    }
+
+    scanUnsafeValues(response, findings, `$.responses.${method}`);
+    const payload = readJsonRpcResult(
+      response,
+      findings,
+      `$.responses.${method}`
+    );
+    if (payload === undefined) {
+      continue;
+    }
+
+    if (method === "initialize") {
+      serverInfo = normalizeServerInfo(payload, profile);
+      riskNotes.push(...readStringArray(payload.riskNotes));
+    } else if (method === "resources/list") {
+      readRecordArray(payload.resources)
+        .slice(0, input.maxItems ?? profile.maxItems)
+        .forEach((resource, index) => {
+          resources.push(normalizeResource(resource, `resources.${index}`));
+        });
+    } else if (method === "prompts/list") {
+      readRecordArray(payload.prompts)
+        .slice(0, input.maxItems ?? profile.maxItems)
+        .forEach((prompt, index) => {
+          prompts.push(normalizePrompt(prompt, `prompts.${index}`, findings));
+        });
+    } else if (method === "tools/list") {
+      readRecordArray(payload.tools)
+        .slice(0, input.maxItems ?? profile.maxItems)
+        .forEach((tool, index) => {
+          validateDiscoveredToolPolicy(tool, `tools.${index}`, findings);
+          tools.push(normalizeTool(tool, `tools.${index}`));
+        });
+    }
+  }
+
+  return buildClientResult({
+    discoveryId,
+    profile,
+    serverInfo,
+    requestedMethods,
+    resourceSummaries: resources,
+    promptSummaries: prompts,
+    toolSummaries: tools,
+    findings,
+    riskNotes
+  });
+}
+
+export function summarizeMcpReadOnlyDiscovery(
+  result: McpReadOnlyDiscoveryResult
+): Pick<
+  McpReadOnlyDiscoveryResult,
+  | "status"
+  | "discoveryId"
+  | "profileId"
+  | "serverCount"
+  | "toolCount"
+  | "resourceCount"
+  | "promptCount"
+  | "blockedCount"
+  | "warningCount"
+  | "discoveryHash"
+  | "readiness"
+  | "source"
+> {
+  return {
+    status: result.status,
+    discoveryId: result.discoveryId,
+    ...(result.profileId !== undefined ? { profileId: result.profileId } : {}),
+    serverCount: result.serverCount,
+    toolCount: result.toolCount,
+    resourceCount: result.resourceCount,
+    promptCount: result.promptCount,
+    blockedCount: result.blockedCount,
+    warningCount: result.warningCount,
+    discoveryHash: result.discoveryHash,
+    readiness: result.readiness,
+    source: result.source
+  };
+}
+
 export function summarizeMcpReadonlyDiscovery(
   result: McpReadonlyDiscoveryResult
 ): Pick<
@@ -331,6 +606,392 @@ export function summarizeMcpReadonlyDiscovery(
     readiness: result.readiness,
     source: result.source
   };
+}
+
+function resolveProfile(
+  inputProfile:
+    | McpConnectionProfile
+    | McpConnectionProfileValidationResult
+    | undefined,
+  findings: McpDiscoveryFinding[]
+): McpConnectionProfile | undefined {
+  if (inputProfile === undefined) {
+    addFinding(
+      findings,
+      "schema",
+      "blocker",
+      "PROFILE_REQUIRED",
+      "MCP read-only discovery requires a valid connection profile.",
+      "$.profile"
+    );
+    return undefined;
+  }
+  if ("status" in inputProfile && "summary" in inputProfile) {
+    if (
+      inputProfile.status === "blocked" ||
+      inputProfile.profile === undefined
+    ) {
+      addFinding(
+        findings,
+        "schema",
+        "blocker",
+        "PROFILE_BLOCKED",
+        "Blocked MCP connection profiles cannot be used for read-only discovery.",
+        "$.profile"
+      );
+      return undefined;
+    }
+    return inputProfile.profile;
+  }
+
+  const validation = validateMcpConnectionProfile(inputProfile);
+  if (validation.status === "blocked" || validation.profile === undefined) {
+    addFinding(
+      findings,
+      "schema",
+      "blocker",
+      "PROFILE_BLOCKED",
+      "Blocked MCP connection profiles cannot be used for read-only discovery.",
+      "$.profile"
+    );
+    return undefined;
+  }
+  return validation.profile;
+}
+
+function resolveRequestedMethods(
+  profile: McpConnectionProfile | undefined,
+  input: McpReadOnlyDiscoveryInput,
+  findings: McpDiscoveryFinding[]
+): Array<"initialize" | "resources/list" | "prompts/list" | "tools/list"> {
+  const defaults: Array<
+    "initialize" | "resources/list" | "prompts/list" | "tools/list"
+  > = ["initialize"];
+  if (profile?.readOnlyPolicy.allowListResources === true) {
+    defaults.push("resources/list");
+  }
+  if (profile?.readOnlyPolicy.allowListPrompts === true) {
+    defaults.push("prompts/list");
+  }
+  if (profile?.readOnlyPolicy.allowListTools === true) {
+    defaults.push("tools/list");
+  }
+
+  const requested =
+    input.requestedMethods !== undefined && input.requestedMethods.length > 0
+      ? input.requestedMethods
+      : defaults;
+  const safeMethods: Array<
+    "initialize" | "resources/list" | "prompts/list" | "tools/list"
+  > = [];
+
+  requested.forEach((method, index) => {
+    if (
+      blockedReadOnlyMethods.has(method) ||
+      !allowedReadOnlyMethods.has(method)
+    ) {
+      addFinding(
+        findings,
+        method.includes("tool")
+          ? "tool"
+          : method.includes("resource")
+            ? "resource"
+            : "prompt",
+        "blocker",
+        "MCP_METHOD_REJECTED",
+        "MCP read-only discovery only allows initialize and metadata list methods.",
+        `$.requestedMethods.${index}`
+      );
+      return;
+    }
+    safeMethods.push(
+      method as "initialize" | "resources/list" | "prompts/list" | "tools/list"
+    );
+  });
+
+  return [...new Set(safeMethods)];
+}
+
+function validateClientLimits(
+  profile: McpConnectionProfile,
+  input: McpReadOnlyDiscoveryInput,
+  findings: McpDiscoveryFinding[]
+): void {
+  if (
+    input.timeoutMs !== undefined &&
+    (!Number.isInteger(input.timeoutMs) ||
+      input.timeoutMs <= 0 ||
+      input.timeoutMs > profile.timeoutMs)
+  ) {
+    addFinding(
+      findings,
+      "policy",
+      "blocker",
+      "DISCOVERY_TIMEOUT_REJECTED",
+      "Requested MCP discovery timeout exceeds the validated profile limit.",
+      "$.timeoutMs"
+    );
+  }
+  if (
+    input.maxMetadataBytes !== undefined &&
+    (!Number.isInteger(input.maxMetadataBytes) ||
+      input.maxMetadataBytes <= 0 ||
+      input.maxMetadataBytes > profile.maxMetadataBytes)
+  ) {
+    addFinding(
+      findings,
+      "policy",
+      "blocker",
+      "DISCOVERY_METADATA_LIMIT_REJECTED",
+      "Requested MCP metadata byte limit exceeds the validated profile limit.",
+      "$.maxMetadataBytes"
+    );
+  }
+  if (
+    input.maxItems !== undefined &&
+    (!Number.isInteger(input.maxItems) ||
+      input.maxItems <= 0 ||
+      input.maxItems > profile.maxItems)
+  ) {
+    addFinding(
+      findings,
+      "policy",
+      "blocker",
+      "DISCOVERY_ITEM_LIMIT_REJECTED",
+      "Requested MCP metadata item limit exceeds the validated profile limit.",
+      "$.maxItems"
+    );
+  }
+}
+
+function buildTransportRequest(
+  profile: McpConnectionProfile,
+  method: "initialize" | "resources/list" | "prompts/list" | "tools/list"
+): McpReadOnlyTransportRequest {
+  return {
+    jsonrpc: "2.0",
+    id: `${method.replace(/[^a-z0-9]+/gi, "-")}-${stablePreviewHash(
+      `${profile.profileHash}:${method}`
+    ).slice(0, 8)}`,
+    method,
+    params: {
+      profileId: profile.profileId,
+      serverRefHash: stablePreviewHash(profile.serverRef).slice(0, 16),
+      summaryOnly: true,
+      noToolInvocation: true,
+      noResourceRead: true,
+      noPromptExecution: true,
+      noMutation: true
+    }
+  };
+}
+
+function readJsonRpcResult(
+  response: unknown,
+  findings: McpDiscoveryFinding[],
+  path: string
+): Record<string, unknown> | undefined {
+  if (!isRecord(response) || response.jsonrpc !== "2.0") {
+    addFinding(
+      findings,
+      "schema",
+      "blocker",
+      "MALFORMED_JSON_RPC_RESPONSE",
+      "Injected MCP discovery transport returned malformed JSON-RPC metadata.",
+      path
+    );
+    return undefined;
+  }
+  if (response.error !== undefined) {
+    addFinding(
+      findings,
+      "transport",
+      "blocker",
+      "JSON_RPC_ERROR",
+      "Injected MCP discovery transport returned an error summary.",
+      `${path}.error`
+    );
+    return undefined;
+  }
+  if (!isRecord(response.result)) {
+    addFinding(
+      findings,
+      "schema",
+      "blocker",
+      "JSON_RPC_RESULT_OBJECT_REQUIRED",
+      "Injected MCP discovery transport must return result metadata objects.",
+      `${path}.result`
+    );
+    return undefined;
+  }
+  return response.result;
+}
+
+function normalizeServerInfo(
+  payload: Record<string, unknown>,
+  profile: McpConnectionProfile
+): {
+  serverId: string;
+  displayName: string;
+  serverVersion?: string | undefined;
+  metadataHash: string;
+} {
+  const info = isRecord(payload.serverInfo) ? payload.serverInfo : payload;
+  const serverId = readSafeId(info.serverId) ?? profile.serverRef;
+  const displayName = readNonEmptyString(info.displayName) ?? serverId;
+  return {
+    serverId,
+    displayName,
+    ...(typeof info.serverVersion === "string"
+      ? { serverVersion: info.serverVersion }
+      : {}),
+    metadataHash:
+      readNonEmptyString(info.metadataHash) ??
+      stablePreviewHash(stableStringify({ serverId, displayName }))
+  };
+}
+
+function validateDiscoveredToolPolicy(
+  tool: Record<string, unknown>,
+  path: string,
+  findings: McpDiscoveryFinding[]
+): void {
+  const operationKind = readNonEmptyString(tool.operationKind)?.toLowerCase();
+  const warningCodes = readStringArray(tool.warningCodes);
+  const riskLevel = readNonEmptyString(tool.riskLevel);
+  const defaultInvocationPolicy = readNonEmptyString(
+    tool.defaultInvocationPolicy
+  );
+
+  if (defaultInvocationPolicy === "AUTO") {
+    addFinding(
+      findings,
+      "policy",
+      "blocker",
+      "AUTO_INVOCATION_REJECTED",
+      "MCP tool metadata cannot default to AUTO invocation.",
+      `${path}.defaultInvocationPolicy`
+    );
+  }
+  if (
+    (operationKind === "write" ||
+      operationKind === "mutate" ||
+      operationKind === "delete") &&
+    !warningCodes.includes("MUTATING_TOOL_DISABLED") &&
+    !warningCodes.includes("MUTATING_TOOL_REQUIRES_SEPARATE_APPROVAL") &&
+    riskLevel !== "A5"
+  ) {
+    addFinding(
+      findings,
+      "tool",
+      "blocker",
+      "MUTATING_TOOL_WITHOUT_RISK_WARNING",
+      "Mutating MCP tool metadata must be disabled or carry a risk warning in read-only discovery.",
+      path
+    );
+  }
+}
+
+function buildClientResult(input: {
+  discoveryId: string;
+  profile?: McpConnectionProfile | undefined;
+  serverInfo?:
+    | {
+        serverId: string;
+        displayName: string;
+        serverVersion?: string | undefined;
+        metadataHash: string;
+      }
+    | undefined;
+  requestedMethods: string[];
+  resourceSummaries: McpResourceSummary[];
+  promptSummaries: McpPromptSummary[];
+  toolSummaries: McpToolSummary[];
+  findings: McpDiscoveryFinding[];
+  riskNotes: string[];
+}): McpReadOnlyDiscoveryResult {
+  const blockedCount = input.findings.filter(
+    (finding) => finding.severity === "blocker"
+  ).length;
+  const warningCount = input.findings.filter(
+    (finding) => finding.severity === "warning"
+  ).length;
+  const status: McpDiscoveryStatus =
+    blockedCount > 0
+      ? "blocked"
+      : input.profile === undefined
+        ? "empty"
+        : warningCount > 0
+          ? "warning"
+          : "listed";
+  const safeShape = {
+    discoveryId: input.discoveryId,
+    profileId: input.profile?.profileId,
+    serverInfo: input.serverInfo,
+    requestedMethods: input.requestedMethods,
+    resources: input.resourceSummaries,
+    prompts: input.promptSummaries,
+    tools: input.toolSummaries,
+    findings: input.findings.map((finding) => ({
+      code: finding.code,
+      severity: finding.severity,
+      kind: finding.kind,
+      path: finding.path
+    })),
+    riskNotes: input.riskNotes
+  };
+
+  return {
+    status,
+    discoveryId: input.discoveryId,
+    ...(input.profile !== undefined
+      ? { profileId: input.profile.profileId }
+      : {}),
+    ...(blockedCount === 0 && input.serverInfo !== undefined
+      ? { serverInfoSummary: input.serverInfo }
+      : {}),
+    requestedMethods: input.requestedMethods,
+    serverCount: blockedCount === 0 && input.serverInfo !== undefined ? 1 : 0,
+    toolCount: blockedCount === 0 ? input.toolSummaries.length : 0,
+    resourceCount: blockedCount === 0 ? input.resourceSummaries.length : 0,
+    promptCount: blockedCount === 0 ? input.promptSummaries.length : 0,
+    blockedCount,
+    warningCount,
+    findingCount: input.findings.length,
+    resourceSummaries: blockedCount === 0 ? input.resourceSummaries : [],
+    promptSummaries: blockedCount === 0 ? input.promptSummaries : [],
+    toolSummaries: blockedCount === 0 ? input.toolSummaries : [],
+    riskNotes: blockedCount === 0 ? input.riskNotes : [],
+    findings: input.findings,
+    discoveryHash: stablePreviewHash(stableStringify(safeShape)),
+    readiness: {
+      canListMetadata: blockedCount === 0 && input.profile !== undefined,
+      canConnectServer: false,
+      canSpawnProcess: false,
+      canInvokeTool: false,
+      canReadResource: false,
+      canExecutePrompt: false,
+      canMutate: false,
+      canUseNetwork: false,
+      canWriteEventStore: false,
+      canExecuteGit: false,
+      canExecuteShell: false,
+      appCanExecute: false
+    },
+    nextAction:
+      blockedCount > 0
+        ? "Reject MCP read-only discovery until profile, method, transport, metadata, and redaction blockers are fixed."
+        : "MCP metadata was listed through an injected transport; tool calls, resource reads, prompt execution, mutation, process spawn, and network remain disabled.",
+    source: "runtime_mcp_readonly_discovery_client"
+  };
+}
+
+function hasBlockers(findings: McpDiscoveryFinding[]): boolean {
+  return findings.some((finding) => finding.severity === "blocker");
+}
+
+function isOversized(value: unknown, maxBytes: number): boolean {
+  return stableStringify(value).length > maxBytes;
 }
 
 function normalizeInputToServers(
