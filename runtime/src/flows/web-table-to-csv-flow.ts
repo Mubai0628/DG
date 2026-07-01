@@ -5,11 +5,9 @@ import { JsonlEventStore, replay, type EventRecord } from "../events/index.js";
 import { ToolBroker } from "../tools/tool-broker.js";
 import { type ToolBrokerErrorKind } from "../tools/types.js";
 import { DraftWriter } from "../workspace/index.js";
-import {
-  validateBrowserDomPayload,
-  webTableToCsv,
-  type BrowserDomPayload
-} from "../web/index.js";
+import { validateBrowserDomPayload } from "../web/browser-payload-contract.js";
+import { type BrowserDomPayload } from "../web/types.js";
+import { webTableToCsv } from "../web/web-table-to-csv.js";
 
 import {
   type WebTableToCsvFlowInput,
