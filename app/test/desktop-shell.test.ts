@@ -17170,6 +17170,100 @@ describe("desktop source boundaries", () => {
     expect(rootReadme).toContain("v0.17 Capability Host MVP status");
   });
 
+  it("documents the P0U-001 capability host design gate", async () => {
+    const adr = await readFile(
+      path.join(repoRoot, "docs", "adr", "0011-capability-host-mvp.md"),
+      "utf8"
+    );
+    const threatModel = await readFile(
+      path.join(repoRoot, "docs", "capability-host-threat-model-v0.16.md"),
+      "utf8"
+    );
+    const implementationGate = await readFile(
+      path.join(
+        repoRoot,
+        "docs",
+        "capability-host-implementation-gate-v0.16.md"
+      ),
+      "utf8"
+    );
+    const nextPlan = await readFile(
+      path.join(
+        repoRoot,
+        "docs",
+        "p0u-002-capability-descriptor-manifest-schema-plan.md"
+      ),
+      "utf8"
+    );
+    const docsIndex = await readFile(
+      path.join(repoRoot, "docs", "README.md"),
+      "utf8"
+    );
+    const rootReadme = await readFile(path.join(repoRoot, "README.md"), "utf8");
+    const combined = `${adr}\n${threatModel}\n${implementationGate}\n${nextPlan}\n${docsIndex}\n${rootReadme}`;
+
+    expect(combined).toContain("ADR 0011: Capability Host MVP");
+    expect(combined).toContain("Proposed / Accepted for P0U design gate");
+    expect(combined).toContain("Capability Host is descriptor-first");
+    expect(combined).toContain(
+      "MCP / plugin / skill sources are represented as metadata descriptors"
+    );
+    expect(combined).toContain("No external capability execution in v0.17");
+    expect(combined).toContain("No MCP stdio/http connection in v0.17");
+    expect(combined).toContain("No MCP HTTP/SSE/WebSocket connection");
+    expect(combined).toContain("No plugin code loading");
+    expect(combined).toContain("No skill runtime execution");
+    expect(combined).toContain(
+      "Capability Broker is the only integration boundary"
+    );
+    expect(combined).toContain("risk / source type / invocation policy");
+    expect(combined).toContain("manual-only preview");
+    expect(combined).toContain("App surface remains read-only");
+    expect(combined).toContain("malicious MCP server metadata");
+    expect(combined).toContain("plugin manifest poisoning");
+    expect(combined).toContain("skill package metadata poisoning");
+    expect(combined).toContain("prompt injection in descriptions");
+    expect(combined).toContain("tool schema secret leakage");
+    expect(combined).toContain("URL / endpoint leakage");
+    expect(combined).toContain("command field smuggling");
+    expect(combined).toContain("shell/git/native command smuggling");
+    expect(combined).toContain("path traversal in package metadata");
+    expect(combined).toContain("dependency confusion");
+    expect(combined).toContain("version spoofing");
+    expect(combined).toContain("capability id collision");
+    expect(combined).toContain("risk downgrade");
+    expect(combined).toContain("approval bypass");
+    expect(combined).toContain("PermissionLease misuse");
+    expect(combined).toContain("event/replay confusion");
+    expect(combined).toContain("raw args");
+    expect(combined).toContain("descriptor schema safety");
+    expect(combined).toContain("source identity safety");
+    expect(combined).toContain("path / URL metadata safety");
+    expect(combined).toContain("command/execution field safety");
+    expect(combined).toContain("secret/redaction safety");
+    expect(combined).toContain("capability broker mapping safety");
+    expect(combined).toContain("App UI safety");
+    expect(combined).toContain("CI/boundary checker safety");
+    expect(combined).toContain("docs/replay safety");
+    expect(combined).toContain(
+      "Do not implement MCP/plugin/skill execution until descriptor, broker, audit, App UI, and redaction gates are complete."
+    );
+    expect(combined).toContain(
+      "runtime/src/capabilities/external-capability-manifest.ts"
+    );
+    expect(combined).toContain("No MCP tool invocation");
+    expect(combined).toContain("No arbitrary Git/shell");
+    expect(combined).toContain("No native bridge");
+    expect(combined).toContain("No desktop action");
+    expect(docsIndex).toContain("adr/0011-capability-host-mvp.md");
+    expect(docsIndex).toContain("capability-host-threat-model-v0.16.md");
+    expect(docsIndex).toContain("capability-host-implementation-gate-v0.16.md");
+    expect(docsIndex).toContain(
+      "p0u-002-capability-descriptor-manifest-schema-plan.md"
+    );
+    expect(rootReadme).toContain("docs/adr/0011-capability-host-mvp.md");
+  });
+
   it("documents the P0S-001 MVP hardening recovery design gate", async () => {
     const adr = await readFile(
       path.join(repoRoot, "docs", "adr", "0011-mvp-hardening-recovery.md"),

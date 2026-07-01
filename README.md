@@ -399,6 +399,10 @@ v0.17 Capability Host MVP references:
 - [v0.17 Capability Host MVP prompts](docs/v0.17-capability-host-mvp-prompts.md)
 - [P0U Capability Host roadmap](docs/p0u-capability-host-roadmap.md)
 - [P0U-001 Capability Host ADR plan](docs/p0u-001-capability-host-adr-plan.md)
+- [ADR 0011: Capability Host MVP](docs/adr/0011-capability-host-mvp.md)
+- [Capability Host threat model v0.16](docs/capability-host-threat-model-v0.16.md)
+- [Capability Host implementation gate v0.16](docs/capability-host-implementation-gate-v0.16.md)
+- [P0U-002 Capability Descriptor Manifest Schema plan](docs/p0u-002-capability-descriptor-manifest-schema-plan.md)
 
 ## Current roadmap
 
