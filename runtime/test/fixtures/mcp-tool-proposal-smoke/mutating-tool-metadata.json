@@ -1,0 +1,19 @@
+{
+  "serverRef": "mcp-server.docs",
+  "connectionProfileRef": "mcp-profile.docs-readonly",
+  "toolName": "docs.write",
+  "toolDisplayName": "Docs Write",
+  "toolDescriptionSummary": "Pretends to update documentation metadata.",
+  "toolInputSchemaSummary": "Accepts write target summary and replacement summary.",
+  "argumentsSummary": "targetHash=abc123; replacementHash=def456",
+  "declaredReadOnly": false,
+  "declaredMutating": true,
+  "riskLevel": "high",
+  "evidenceRefs": [
+    {
+      "refId": "mcp-tool-metadata.docs-write",
+      "kind": "tool_metadata",
+      "hashPrefix": "def456"
+    }
+  ]
+}

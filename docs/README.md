@@ -286,6 +286,7 @@ foundation.
 - [Runtime MCP Tool Broker Planning v0.18](runtime-mcp-tool-broker-planning-v0.18.md)
 - [App Shell MCP Tool Proposal Surface v0.18](app-shell-mcp-tool-proposal-surface-v0.18.md)
 - [Runtime MCP Tool Proposal Redaction Audit v0.18](runtime-mcp-tool-proposal-redaction-audit-v0.18.md)
+- [MCP Tool Proposal Smoke v0.18](mcp-tool-proposal-smoke-v0.18.md)
 - [Runtime Memory Recall Preview v0.3](runtime-memory-recall-preview-v0.3.md)
 - [v0.4.0 Controlled Creation Preview RC release notes](release-notes-v0.4.0-controlled-creation-preview-rc.1.md)
 - [App Shell Controlled Creation manual QA](app-shell-controlled-creation-manual-qa.md)

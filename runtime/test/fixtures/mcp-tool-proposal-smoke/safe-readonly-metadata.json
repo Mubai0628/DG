@@ -1,0 +1,19 @@
+{
+  "serverRef": "mcp-server.docs",
+  "connectionProfileRef": "mcp-profile.docs-readonly",
+  "toolName": "docs.search",
+  "toolDisplayName": "Docs Search",
+  "toolDescriptionSummary": "Searches summary-only documentation metadata.",
+  "toolInputSchemaSummary": "Accepts query summary hash, section filter hash, and limit metadata.",
+  "argumentsSummary": "queryHash=abc123; sectionHash=overview; limit=5",
+  "declaredReadOnly": true,
+  "declaredMutating": false,
+  "riskLevel": "low",
+  "evidenceRefs": [
+    {
+      "refId": "mcp-tool-metadata.docs-search",
+      "kind": "tool_metadata",
+      "hashPrefix": "abc123"
+    }
+  ]
+}

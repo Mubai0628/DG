@@ -18790,6 +18790,33 @@ describe("desktop source boundaries", () => {
     );
   });
 
+  it("documents the MCP tool proposal smoke and hardening flow", async () => {
+    const doc = await readFile(
+      path.join(repoRoot, "docs", "mcp-tool-proposal-smoke-v0.18.md"),
+      "utf8"
+    );
+    const docsIndex = await readFile(
+      path.join(repoRoot, "docs", "README.md"),
+      "utf8"
+    );
+    const combined = `${doc}\n${docsIndex}`;
+
+    expect(doc).toContain("MCP Tool Proposal Smoke v0.18");
+    expect(doc).toContain("invocation proposal");
+    expect(doc).toContain("input risk classifier");
+    expect(doc).toContain("simulated result");
+    expect(doc).toContain("broker planning");
+    expect(doc).toContain("App read-only surface summary");
+    expect(doc).toContain("redaction audit");
+    expect(doc).toContain("No real MCP `tools/call`");
+    expect(doc).toContain("No raw args or raw tool output persistence");
+    expect(doc).toContain("No EventStore write");
+    expect(doc).toContain("No App execution");
+    expect(doc).toContain("No native bridge");
+    expect(doc).toContain("No desktop action");
+    expect(combined).toContain("mcp-tool-proposal-smoke-v0.18.md");
+  });
+
   it("documents the P0S-001 MVP hardening recovery design gate", async () => {
     const adr = await readFile(
       path.join(repoRoot, "docs", "adr", "0011-mvp-hardening-recovery.md"),
