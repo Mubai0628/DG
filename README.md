@@ -432,6 +432,10 @@ v0.17 Capability Host MVP references:
 - [v0.21.0 Plugin / Skill Sandbox MVP RC release notes](docs/release-notes-v0.21.0-plugin-skill-sandbox-mvp-rc.1.md)
 - [Plugin / Skill Sandbox manual QA](docs/plugin-skill-sandbox-manual-qa.md)
 - [Plugin / Skill Sandbox RC checklist](docs/plugin-skill-sandbox-rc-checklist.md)
+- [v0.22 Fixed Multi-Agent Execution MVP prompts](docs/v0.22-fixed-multi-agent-execution-mvp-prompts.md)
+- [v0.21 Plugin / Skill Sandbox post-release review](docs/v0.21-plugin-skill-sandbox-postrelease-review.md)
+- [P0Z Fixed Multi-Agent Execution roadmap](docs/p0z-fixed-multi-agent-execution-roadmap.md)
+- [P0Z-001 Fixed Multi-Agent Execution plan](docs/p0z-001-fixed-multi-agent-execution-plan.md)
 
 ## Current roadmap
 
@@ -490,13 +494,18 @@ contracts, explicit approval receipts, typed confirmation, bounded output,
 redaction audit, summary-only events, replay, App smoke coverage, no mutating
 tools, no generic MCP invocation, no plugin/skill runtime, no native bridge,
 and no desktop action.
-P0Y starts the Plugin / Skill Sandbox MVP roadmap and is prepared for the v0.21
-RC with descriptor-first, manifest-first, sandbox-contract-first governance,
-App read-only metadata surfaces, broker descriptor previews, built-in safe skill
-simulation, and redaction audit coverage while preserving no arbitrary plugin
-code execution, no arbitrary skill runtime, no plugin install execution, no
-native bridge, no desktop action, no arbitrary shell/process spawn, and no broad
-PermissionLease.
+P0Y starts the Plugin / Skill Sandbox MVP roadmap and is complete / prepared for
+the v0.21 RC with descriptor-first, manifest-first, sandbox-contract-first
+governance, App read-only metadata surfaces, broker descriptor previews,
+built-in safe skill simulation, and redaction audit coverage while preserving no
+arbitrary plugin code execution, no arbitrary skill runtime, no plugin install
+execution, no native bridge, no desktop action, no arbitrary shell/process
+spawn, and no broad PermissionLease. P0Z starts the Fixed Multi-Agent Execution
+MVP roadmap with fixed orchestrator/coder/reviewer/verifier roles, fixed routes,
+summary-only handoff dossiers, Capability Broker gated planning, human approval
+for apply, and replayable summary events while preserving no dynamic bidding, no
+arbitrary agent creation, no hidden raw prompt sharing, no direct agent tool
+execution, no native bridge, and no desktop action.
 
 - [v0.2 App Shell RC post-release review](docs/v0.2-app-shell-rc-postrelease-review.md)
 - [P0G Coding Workflow roadmap](docs/p0g-coding-workflow-roadmap.md)

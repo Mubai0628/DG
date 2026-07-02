@@ -20617,7 +20617,7 @@ describe("desktop source boundaries", () => {
     );
     expect(docsIndex).toContain("plugin-skill-sandbox-manual-qa.md");
     expect(docsIndex).toContain("plugin-skill-sandbox-rc-checklist.md");
-    expect(rootReadme).toContain("prepared for the v0.21");
+    expect(rootReadme).toContain("complete / prepared");
     expect(appReadme).toContain(
       "prepare the v0.21 Plugin / Skill Sandbox MVP RC"
     );
@@ -20637,6 +20637,86 @@ describe("desktop source boundaries", () => {
     expect(appSource).not.toMatch(/>\s*Execute Plugin Capability\s*</);
     expect(appSource).not.toMatch(/>\s*Run Plugin \/ Skill Audit\s*</);
     expect(appSource).not.toMatch(/>\s*Write Plugin \/ Skill Audit Event\s*</);
+  });
+
+  it("documents the v0.21 post-release review and P0Z fixed multi-agent roadmap", async () => {
+    const promptDoc = await readFile(
+      path.join(
+        repoRoot,
+        "docs",
+        "v0.22-fixed-multi-agent-execution-mvp-prompts.md"
+      ),
+      "utf8"
+    );
+    const review = await readFile(
+      path.join(
+        repoRoot,
+        "docs",
+        "v0.21-plugin-skill-sandbox-postrelease-review.md"
+      ),
+      "utf8"
+    );
+    const roadmap = await readFile(
+      path.join(repoRoot, "docs", "p0z-fixed-multi-agent-execution-roadmap.md"),
+      "utf8"
+    );
+    const plan = await readFile(
+      path.join(
+        repoRoot,
+        "docs",
+        "p0z-001-fixed-multi-agent-execution-plan.md"
+      ),
+      "utf8"
+    );
+    const docsIndex = await readFile(
+      path.join(repoRoot, "docs", "README.md"),
+      "utf8"
+    );
+    const rootReadme = await readFile(path.join(repoRoot, "README.md"), "utf8");
+    const combined = `${promptDoc}\n${review}\n${roadmap}\n${plan}\n${docsIndex}\n${rootReadme}`;
+
+    expect(review).toContain(
+      "v0.21 Plugin / Skill Sandbox Post-Release Review"
+    );
+    expect(review).toContain("v0.21.0-plugin-skill-sandbox-mvp-rc.1");
+    expect(review).toContain(
+      "Plugin and skill sandbox MVP, no arbitrary execution"
+    );
+    expect(review).toContain("arbitrary plugin execution");
+    expect(review).toContain("arbitrary skill runtime execution");
+    expect(review).toContain("Dynamic agent bidding");
+    expect(review).toContain("Manual GUI QA: documented");
+    expect(roadmap).toContain("P0Z Fixed Multi-Agent Execution Roadmap");
+    expect(roadmap).toContain("orchestrator, coder, reviewer, verifier");
+    expect(roadmap).toContain("Summary-only dossier handoff");
+    expect(roadmap).toContain("Dynamic agent bidding");
+    expect(roadmap).toContain("Arbitrary agent creation");
+    expect(roadmap).toContain("Hidden raw prompt sharing");
+    expect(roadmap).toContain("Desktop action");
+    expect(roadmap).toContain("Native bridge");
+    expect(plan).toContain("P0Z-001 Fixed Multi-Agent Execution Gate Plan");
+    expect(plan).toContain("no runtime fixed-agent implementation in P0Z-001");
+    expect(plan).toContain("no App UI implementation in P0Z-001");
+    expect(plan).toContain("no dynamic agent bidding");
+    expect(plan).toContain("no arbitrary agent creation");
+    expect(plan).toContain("no hidden raw prompt sharing");
+    expect(plan).toContain("no direct agent tool execution");
+    expect(promptDoc).toContain("v0.22 Fixed Multi-Agent Execution MVP");
+    expect(promptDoc).toContain("DW-P0Z-009");
+    expect(docsIndex).toContain(
+      "v0.22-fixed-multi-agent-execution-mvp-prompts.md"
+    );
+    expect(docsIndex).toContain(
+      "v0.21-plugin-skill-sandbox-postrelease-review.md"
+    );
+    expect(docsIndex).toContain("p0z-fixed-multi-agent-execution-roadmap.md");
+    expect(docsIndex).toContain("p0z-001-fixed-multi-agent-execution-plan.md");
+    expect(rootReadme).toContain("complete / prepared");
+    expect(rootReadme).toContain("P0Z starts the Fixed Multi-Agent Execution");
+    expect(combined).toContain("no native bridge");
+    expect(combined).toContain("no desktop action");
+    expect(combined).not.toContain("dynamic bidding is enabled");
+    expect(combined).not.toContain("agents can directly execute tools");
   });
 
   it("documents the P0S-001 MVP hardening recovery design gate", async () => {
