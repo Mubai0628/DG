@@ -20202,6 +20202,62 @@ describe("desktop source boundaries", () => {
     expect(combined).toContain("raw prompt");
   });
 
+  it("documents the P0Y-006 plugin skill broker integration without invocation", async () => {
+    const runtimeDoc = await readFile(
+      path.join(
+        repoRoot,
+        "docs",
+        "runtime-plugin-skill-broker-integration-v0.20.md"
+      ),
+      "utf8"
+    );
+    const docsIndex = await readFile(
+      path.join(repoRoot, "docs", "README.md"),
+      "utf8"
+    );
+    const runtimeSource = await readFile(
+      path.join(
+        repoRoot,
+        "runtime",
+        "src",
+        "capabilities",
+        "external-plugin-skill-descriptors.ts"
+      ),
+      "utf8"
+    );
+    const combined = `${runtimeDoc}\n${docsIndex}\n${runtimeSource}`;
+
+    expect(runtimeDoc).toContain(
+      "Runtime Plugin / Skill Broker Integration v0.20"
+    );
+    expect(runtimeDoc).toContain("descriptor preview only");
+    expect(runtimeDoc).toContain("no real plugin execution");
+    expect(runtimeDoc).toContain("no real skill runtime execution");
+    expect(runtimeDoc).toContain("no package install");
+    expect(runtimeDoc).toContain("no invocation");
+    expect(runtimeDoc).toContain("no PermissionLease issuance");
+    expect(runtimeDoc).toContain("no EventStore write");
+    expect(runtimeDoc).toContain("no network or fetch");
+    expect(runtimeDoc).toContain("no native bridge");
+    expect(runtimeDoc).toContain("no desktop action");
+    expect(runtimeDoc).toContain("runtime_external_plugin_skill_descriptors");
+    expect(runtimeSource).toContain("buildExternalPluginSkillDescriptors");
+    expect(runtimeSource).toContain("validateCapabilityDescriptor");
+    expect(runtimeSource).toContain("canRegisterForExecution: false");
+    expect(runtimeSource).toContain("canInvoke: false");
+    expect(runtimeSource).toContain("canIssuePermissionLease: false");
+    expect(runtimeSource).toContain("canWriteEventStore: false");
+    expect(runtimeSource).toContain("canExecutePlugin: false");
+    expect(runtimeSource).toContain("canRunSkillRuntime: false");
+    expect(runtimeSource).not.toContain("fetch(");
+    expect(runtimeSource).not.toContain("process.env");
+    expect(docsIndex).toContain(
+      "runtime-plugin-skill-broker-integration-v0.20.md"
+    );
+    expect(combined).toContain("raw metadata");
+    expect(combined).toContain("secret markers");
+  });
+
   it("documents the P0S-001 MVP hardening recovery design gate", async () => {
     const adr = await readFile(
       path.join(repoRoot, "docs", "adr", "0011-mvp-hardening-recovery.md"),

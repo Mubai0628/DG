@@ -5,6 +5,7 @@ export * from "./errors.js";
 export * from "./external-capability-broker-integration.js";
 export * from "./external-capability-manifest.js";
 export * from "./external-capability-redaction-audit.js";
+export * from "./external-plugin-skill-descriptors.js";
 export * from "./invocation-policy.js";
 export * from "./mcp-connection-profile.js";
 export * from "./mcp-discovery-descriptor-integration.js";

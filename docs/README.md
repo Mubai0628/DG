@@ -321,6 +321,7 @@ foundation.
 - [Runtime Package Metadata Scanner v0.20](runtime-package-metadata-scanner-v0.20.md)
 - [Runtime Plugin / Skill Sandbox Contract v0.20](runtime-plugin-skill-sandbox-contract-v0.20.md)
 - [Runtime Built-in Safe Skill Simulation v0.20](runtime-builtin-safe-skill-simulation-v0.20.md)
+- [Runtime Plugin / Skill Broker Integration v0.20](runtime-plugin-skill-broker-integration-v0.20.md)
 - [Runtime Memory Recall Preview v0.3](runtime-memory-recall-preview-v0.3.md)
 - [v0.4.0 Controlled Creation Preview RC release notes](release-notes-v0.4.0-controlled-creation-preview-rc.1.md)
 - [App Shell Controlled Creation manual QA](app-shell-controlled-creation-manual-qa.md)
