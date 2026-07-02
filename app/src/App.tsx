@@ -112,6 +112,11 @@ import {
   type CapabilityHostAuditView
 } from "./capability-host-audit-view.js";
 import {
+  buildPluginSkillHostView,
+  summarizePluginSkillHostView,
+  type PluginSkillHostView
+} from "./plugin-skill-host-view.js";
+import {
   buildPatchProposalCreationPreviewView,
   type AppPatchProposalCreationPreviewView,
   patchProposalCreationApprovalRefs,
@@ -736,6 +741,15 @@ export function DesktopShell(): JSX.Element {
   const [capabilityHostAuditPreview, setCapabilityHostAuditPreview] = useState<
     CapabilityHostAuditView | undefined
   >();
+  const [pluginSkillPluginManifestText, setPluginSkillPluginManifestText] =
+    useState("");
+  const [pluginSkillSkillManifestText, setPluginSkillSkillManifestText] =
+    useState("");
+  const [pluginSkillPackageMetadataText, setPluginSkillPackageMetadataText] =
+    useState("");
+  const [pluginSkillHostPreview, setPluginSkillHostPreview] = useState<
+    PluginSkillHostView | undefined
+  >();
   const [projectKnowledgeEntryType, setProjectKnowledgeEntryType] =
     useState<ProjectKnowledgeEntryType>("project_fact");
   const [projectKnowledgeNamespace, setProjectKnowledgeNamespace] =
@@ -1063,6 +1077,21 @@ export function DesktopShell(): JSX.Element {
   );
   const displayedCapabilityHostAudit =
     capabilityHostAuditPreview ?? buildCapabilityHostAuditView();
+  const pluginSkillHostCandidate = useMemo<PluginSkillHostView>(
+    () =>
+      buildPluginSkillHostView({
+        pluginManifestJsonText: pluginSkillPluginManifestText,
+        skillManifestJsonText: pluginSkillSkillManifestText,
+        packageMetadataJsonText: pluginSkillPackageMetadataText
+      }),
+    [
+      pluginSkillPackageMetadataText,
+      pluginSkillPluginManifestText,
+      pluginSkillSkillManifestText
+    ]
+  );
+  const displayedPluginSkillHost =
+    pluginSkillHostPreview ?? buildPluginSkillHostView();
   const displayedPatchProposalCreation =
     patchProposalCreationPreview ??
     modelImportedPatchProposalCreationPreview ??
@@ -3246,6 +3275,17 @@ export function DesktopShell(): JSX.Element {
   function handleClearCapabilityHostAudit(): void {
     setCapabilityHostAuditText("");
     setCapabilityHostAuditPreview(undefined);
+  }
+
+  function handlePreviewPluginSkillHost(): void {
+    setPluginSkillHostPreview(pluginSkillHostCandidate);
+  }
+
+  function handleClearPluginSkillHost(): void {
+    setPluginSkillPluginManifestText("");
+    setPluginSkillSkillManifestText("");
+    setPluginSkillPackageMetadataText("");
+    setPluginSkillHostPreview(undefined);
   }
 
   async function handleRefreshProjectKnowledge(): Promise<void> {
@@ -12617,6 +12657,280 @@ export function DesktopShell(): JSX.Element {
                 ).source
               }{" "}
               · {displayedCapabilityHostSurface.nextAction}
+            </p>
+          </section>
+
+          <section className="eventPanel" aria-label="Plugin / Skill Host">
+            <div className="panelHeader">
+              <h2>Plugin / Skill Host</h2>
+              <span className="muted">
+                Read-only / no plugin execution · Metadata only / no skill runtime
+              </span>
+            </div>
+            <p className="fieldHelp">
+              Preview plugin manifests, skill manifests, package metadata
+              summaries, sandbox contracts, and broker descriptor summaries.
+              The App Shell does not install plugins, run skills, execute
+              plugin capabilities, fetch network, invoke Tauri, write events,
+              or issue leases.
+            </p>
+
+            <label>
+              <span>Plugin manifest JSON</span>
+              <textarea
+                className="compactTextarea"
+                value={pluginSkillPluginManifestText}
+                onChange={(event) => {
+                  setPluginSkillPluginManifestText(event.target.value);
+                }}
+                placeholder="Paste plugin_manifest.v1 JSON"
+                spellCheck={false}
+              />
+            </label>
+
+            <label>
+              <span>Skill manifest JSON</span>
+              <textarea
+                className="compactTextarea"
+                value={pluginSkillSkillManifestText}
+                onChange={(event) => {
+                  setPluginSkillSkillManifestText(event.target.value);
+                }}
+                placeholder="Paste skill_manifest.v1 JSON"
+                spellCheck={false}
+              />
+            </label>
+
+            <label>
+              <span>Package metadata summary JSON</span>
+              <textarea
+                className="compactTextarea"
+                value={pluginSkillPackageMetadataText}
+                onChange={(event) => {
+                  setPluginSkillPackageMetadataText(event.target.value);
+                }}
+                placeholder="Paste summary-only package metadata JSON"
+                spellCheck={false}
+              />
+              <p className="fieldHelp">
+                Metadata preview rejects raw package content, raw args, raw
+                outputs, install scripts, command fields, API keys, and secret
+                markers before descriptor preview.
+              </p>
+            </label>
+
+            <div className="buttonRow">
+              <button
+                type="button"
+                className="secondary"
+                onClick={(event) => {
+                  event.preventDefault();
+                  event.stopPropagation();
+                  handlePreviewPluginSkillHost();
+                }}
+              >
+                Preview Plugin Manifest
+              </button>
+              <button
+                type="button"
+                className="secondary"
+                onClick={(event) => {
+                  event.preventDefault();
+                  event.stopPropagation();
+                  handlePreviewPluginSkillHost();
+                }}
+              >
+                Preview Skill Manifest
+              </button>
+              <button
+                type="button"
+                className="secondary"
+                onClick={(event) => {
+                  event.preventDefault();
+                  event.stopPropagation();
+                  handlePreviewPluginSkillHost();
+                }}
+              >
+                Preview Package Metadata
+              </button>
+              <button
+                type="button"
+                className="secondary"
+                onClick={(event) => {
+                  event.preventDefault();
+                  event.stopPropagation();
+                  handleClearPluginSkillHost();
+                }}
+              >
+                Clear
+              </button>
+              <button type="button" className="secondary" disabled>
+                Install Plugin (disabled)
+              </button>
+              <button type="button" className="secondary" disabled>
+                Run Skill (disabled)
+              </button>
+              <button type="button" className="secondary" disabled>
+                Execute Plugin Capability (disabled)
+              </button>
+            </div>
+
+            {displayedPluginSkillHost.status === "empty" ? (
+              <p className="empty">
+                No plugin, skill, or package metadata loaded. Paste
+                summary-only JSON to preview host descriptor boundaries.
+              </p>
+            ) : null}
+
+            {displayedPluginSkillHost.status === "blocked" ? (
+              <div className="errorBox">
+                <strong>Plugin / Skill Host metadata blocked</strong>
+                <p>{displayedPluginSkillHost.nextAction}</p>
+              </div>
+            ) : null}
+
+            <dl className="summaryGrid compact">
+              <div>
+                <dt>Status</dt>
+                <dd>{displayedPluginSkillHost.status}</dd>
+              </div>
+              <div>
+                <dt>Plugin / skill manifests</dt>
+                <dd>
+                  {displayedPluginSkillHost.pluginManifestStatus} /{" "}
+                  {displayedPluginSkillHost.skillManifestStatus}
+                </dd>
+              </div>
+              <div>
+                <dt>Package / sandbox</dt>
+                <dd>
+                  {displayedPluginSkillHost.packageScanStatus} /{" "}
+                  {displayedPluginSkillHost.sandboxStatus}
+                </dd>
+              </div>
+              <div>
+                <dt>Sandbox mode</dt>
+                <dd>{displayedPluginSkillHost.sandboxMode}</dd>
+              </div>
+              <div>
+                <dt>Broker status</dt>
+                <dd>{displayedPluginSkillHost.brokerStatus}</dd>
+              </div>
+              <div>
+                <dt>Plugin capabilities</dt>
+                <dd>{displayedPluginSkillHost.pluginCapabilityCount}</dd>
+              </div>
+              <div>
+                <dt>Skill steps</dt>
+                <dd>{displayedPluginSkillHost.skillStepCount}</dd>
+              </div>
+              <div>
+                <dt>Package files</dt>
+                <dd>{displayedPluginSkillHost.packageFileCount}</dd>
+              </div>
+              <div>
+                <dt>Scanner findings</dt>
+                <dd>{displayedPluginSkillHost.scannerFindingCount}</dd>
+              </div>
+              <div>
+                <dt>Broker descriptors</dt>
+                <dd>
+                  {displayedPluginSkillHost.brokerDescriptorCount} total,{" "}
+                  {displayedPluginSkillHost.pluginDescriptorCount} plugin,{" "}
+                  {displayedPluginSkillHost.skillDescriptorCount} skill
+                </dd>
+              </div>
+              <div>
+                <dt>Risk summary</dt>
+                <dd>
+                  {Object.entries(displayedPluginSkillHost.riskSummary)
+                    .map(([risk, count]) => `${risk}:${count}`)
+                    .join(", ") || "none"}
+                </dd>
+              </div>
+              <div>
+                <dt>Policy summary</dt>
+                <dd>
+                  {Object.entries(displayedPluginSkillHost.policySummary)
+                    .map(([policy, count]) => `${policy}:${count}`)
+                    .join(", ") || "none"}
+                </dd>
+              </div>
+              <div>
+                <dt>Blockers / warnings</dt>
+                <dd>
+                  {displayedPluginSkillHost.blockerCount} /{" "}
+                  {displayedPluginSkillHost.warningCount}
+                </dd>
+              </div>
+              <div>
+                <dt>Hash</dt>
+                <dd>{displayedPluginSkillHost.hashPrefix ?? "n/a"}</dd>
+              </div>
+              <div>
+                <dt>Preview / broker preview</dt>
+                <dd>
+                  {displayedPluginSkillHost.readiness.canPreviewMetadata
+                    ? "yes"
+                    : "no"}{" "}
+                  /{" "}
+                  {displayedPluginSkillHost.readiness
+                    .canPreviewBrokerDescriptors
+                    ? "yes"
+                    : "no"}
+                </dd>
+              </div>
+              <div>
+                <dt>Install / run</dt>
+                <dd>
+                  {displayedPluginSkillHost.readiness.canInstallPlugin
+                    ? "yes"
+                    : "no"}{" "}
+                  /{" "}
+                  {displayedPluginSkillHost.readiness.canRunSkill
+                    ? "yes"
+                    : "no"}
+                </dd>
+              </div>
+              <div>
+                <dt>Execute / lease</dt>
+                <dd>
+                  {displayedPluginSkillHost.readiness
+                    .canExecutePluginCapability
+                    ? "yes"
+                    : "no"}{" "}
+                  /{" "}
+                  {displayedPluginSkillHost.readiness.canIssuePermissionLease
+                    ? "yes"
+                    : "no"}
+                </dd>
+              </div>
+              <div>
+                <dt>Fetch / Tauri</dt>
+                <dd>
+                  {displayedPluginSkillHost.readiness.canFetchNetwork
+                    ? "yes"
+                    : "no"}{" "}
+                  /{" "}
+                  {displayedPluginSkillHost.readiness.canUseTauri
+                    ? "yes"
+                    : "no"}
+                </dd>
+              </div>
+            </dl>
+
+            {displayedPluginSkillHost.findings.length > 0 ? (
+              <p className="muted">
+                findings{" "}
+                {displayedPluginSkillHost.findings
+                  .map((finding) => finding.code)
+                  .join(", ")}
+              </p>
+            ) : null}
+
+            <p className="fieldHelp">
+              {summarizePluginSkillHostView(displayedPluginSkillHost).source} ·{" "}
+              {displayedPluginSkillHost.nextAction}
             </p>
           </section>
 

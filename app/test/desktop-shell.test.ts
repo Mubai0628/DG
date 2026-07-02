@@ -69,6 +69,7 @@ import {
   summarizeCapabilityHostSurfaceView
 } from "../src/capability-host-surface-view.js";
 import { buildCapabilityHostAuditView } from "../src/capability-host-audit-view.js";
+import { buildPluginSkillHostView } from "../src/plugin-skill-host-view.js";
 import {
   buildPatchProposalCreationPreviewView,
   parsePatchProposalPathRefsInput,
@@ -20256,6 +20257,158 @@ describe("desktop source boundaries", () => {
     );
     expect(combined).toContain("raw metadata");
     expect(combined).toContain("secret markers");
+  });
+
+  it("renders the P0Y-007 Plugin / Skill Host as a read-only App surface", async () => {
+    const safePluginManifest = {
+      schemaVersion: "plugin_manifest.v1",
+      pluginId: "plugin.readonly.docs",
+      name: "Readonly Docs Plugin",
+      description: "Provides summary-only documentation lookup metadata.",
+      version: "1.0.0",
+      capabilities: [
+        {
+          capabilityId: "plugin.readonly.docs.search",
+          kind: "read",
+          summary: "Searches documentation summaries.",
+          riskLevel: "low",
+          requiresApproval: false,
+          executionMode: "metadata_only"
+        }
+      ],
+      riskNotes: ["Read-only descriptor metadata only."]
+    };
+    const safeSkillManifest = {
+      schemaVersion: "skill_manifest.v1",
+      skillId: "skill.docs.review",
+      name: "Docs Review Skill",
+      description: "Reviews documentation summary refs.",
+      version: "1.0.0",
+      steps: [
+        {
+          stepId: "summarize-docs",
+          summary: "Summarize documentation metadata.",
+          mode: "simulated_builtin_safe"
+        }
+      ],
+      requiredCapabilities: [
+        {
+          capabilityId: "plugin.readonly.docs.search",
+          riskLevel: "low",
+          invocationPolicy: "manual_only_preview"
+        }
+      ],
+      riskNotes: ["Summary-only simulation metadata."]
+    };
+    const safePackageMetadata = {
+      packageName: "@example/readonly-docs-plugin",
+      version: "1.0.0",
+      packageKind: "plugin",
+      manifestJson: safePluginManifest,
+      fileListSummary: [
+        { path: "package.json", hashPrefix: "aaa111" },
+        { path: "metadata/plugin.json", hashPrefix: "bbb222" }
+      ],
+      packageSizeBytes: 4096,
+      declaredScriptsSummary: [],
+      dependencyNames: ["zod"],
+      licenseSummary: "MIT"
+    };
+    const safeView = buildPluginSkillHostView({
+      pluginManifestJsonText: JSON.stringify(safePluginManifest),
+      skillManifestJsonText: JSON.stringify(safeSkillManifest),
+      packageMetadataJsonText: JSON.stringify(safePackageMetadata),
+      createdAt: "2026-01-01T00:00:00.000Z"
+    });
+    const blockedView = buildPluginSkillHostView({
+      pluginManifestJsonText: JSON.stringify({
+        ...safePluginManifest,
+        rawCode: "console.log('blocked')"
+      }),
+      createdAt: "2026-01-01T00:00:00.000Z"
+    });
+    const appSource = await readFile(
+      path.join(repoRoot, "app", "src", "App.tsx"),
+      "utf8"
+    );
+    const viewSource = await readFile(
+      path.join(repoRoot, "app", "src", "plugin-skill-host-view.ts"),
+      "utf8"
+    );
+
+    expect(safeView.status).toBe("preview_ready");
+    expect(safeView.pluginCapabilityCount).toBe(1);
+    expect(safeView.skillStepCount).toBe(1);
+    expect(safeView.packageFileCount).toBe(2);
+    expect(safeView.brokerDescriptorCount).toBeGreaterThanOrEqual(2);
+    expect(safeView.readiness).toMatchObject({
+      canInstallPlugin: false,
+      canRunSkill: false,
+      canExecutePluginCapability: false,
+      canInvokeCapability: false,
+      canIssuePermissionLease: false,
+      canWriteEventStore: false,
+      canFetchNetwork: false,
+      canUseTauri: false,
+      appCanExecute: false
+    });
+    expect(blockedView.status).toBe("blocked");
+    expect(blockedView.findings.map((finding) => finding.code)).toContain(
+      "RAW_CODE_FIELD_REJECTED"
+    );
+    expect(JSON.stringify(safeView)).not.toContain("console.log");
+
+    expect(appSource).toContain("Plugin / Skill Host");
+    expect(appSource).toContain("Read-only / no plugin execution");
+    expect(appSource).toContain("Metadata only / no skill runtime");
+    expect(appSource).toContain("Preview Plugin Manifest");
+    expect(appSource).toContain("Preview Skill Manifest");
+    expect(appSource).toContain("Preview Package Metadata");
+    expect(appSource).toContain("Install Plugin (disabled)");
+    expect(appSource).toContain("Run Skill (disabled)");
+    expect(appSource).toContain("Execute Plugin Capability (disabled)");
+    expect(appSource).not.toMatch(/>\s*Install Plugin\s*</);
+    expect(appSource).not.toMatch(/>\s*Run Skill\s*</);
+    expect(appSource).not.toMatch(/>\s*Execute Plugin Capability\s*</);
+    expect(viewSource).not.toContain("fetch(");
+    expect(viewSource).not.toContain("invoke(");
+    expect(viewSource).not.toContain("process.env");
+    expect(viewSource).not.toContain("localStorage");
+    expect(viewSource).not.toContain("sessionStorage");
+  });
+
+  it("documents the P0Y-007 App Plugin / Skill Host without execution", async () => {
+    const appDoc = await readFile(
+      path.join(repoRoot, "docs", "app-shell-plugin-skill-host-v0.20.md"),
+      "utf8"
+    );
+    const docsIndex = await readFile(
+      path.join(repoRoot, "docs", "README.md"),
+      "utf8"
+    );
+    const appReadme = await readFile(
+      path.join(repoRoot, "app", "README.md"),
+      "utf8"
+    );
+    const combined = `${appDoc}\n${docsIndex}\n${appReadme}`;
+
+    expect(appDoc).toContain("App Shell Plugin / Skill Host v0.20");
+    expect(appDoc).toContain("no plugin execution");
+    expect(appDoc).toContain("no arbitrary skill runtime execution");
+    expect(appDoc).toContain("no package install");
+    expect(appDoc).toContain("no plugin capability execution");
+    expect(appDoc).toContain("no Tauri command");
+    expect(appDoc).toContain("no EventStore write");
+    expect(appDoc).toContain("no fetch or network");
+    expect(appDoc).toContain("no PermissionLease issuance");
+    expect(appDoc).toContain("raw package content");
+    expect(appDoc).toContain("API keys");
+    expect(appDoc).toContain("Install Plugin (disabled)");
+    expect(appDoc).toContain("Run Skill (disabled)");
+    expect(appDoc).toContain("Execute Plugin Capability (disabled)");
+    expect(docsIndex).toContain("app-shell-plugin-skill-host-v0.20.md");
+    expect(combined).toContain("read-only metadata surface");
+    expect(combined).toContain("broker descriptor");
   });
 
   it("documents the P0S-001 MVP hardening recovery design gate", async () => {

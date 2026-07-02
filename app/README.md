@@ -71,6 +71,11 @@ Current scope:
   plus verification smoke coverage while arbitrary Git, arbitrary shell, Git
   writes, install/network/destructive commands, raw output events, native
   bridge, desktop action, and broad PermissionLease remain absent
+- preview the P0Y Plugin / Skill Host as a read-only metadata surface for
+  plugin manifests, skill manifests, package metadata summaries, sandbox mode,
+  and broker descriptor counts while plugin install, skill runtime, capability
+  execution, fetch/network, Tauri calls, EventStore writes, native bridge, and
+  desktop action remain disabled
 - prepare the v0.13 App Live Proposal Generation MVP RC with explicit
   user-confirmed live DeepSeek patch proposal generation through a fixed Tauri
   command, repair/schema/import/chain preview integration, summary-only live
