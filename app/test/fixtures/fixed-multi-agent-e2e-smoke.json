@@ -1,0 +1,86 @@
+{
+  "fixtureId": "fixed-multi-agent-docs-smoke-v0.21",
+  "taskSummary": "Create or update a docs-only file through fixed multi-agent flow.",
+  "intent": "code_change",
+  "targetPathSummary": "docs/fixed-multi-agent-e2e-smoke-output.md",
+  "expectedRoute": ["orchestrator", "coder", "reviewer", "verifier"],
+  "roleSummaries": [
+    {
+      "role": "orchestrator",
+      "summary": "Plan the fixed route and hand off summary refs only."
+    },
+    {
+      "role": "coder",
+      "summary": "Create a docs-only proposal summary without applying changes."
+    },
+    {
+      "role": "reviewer",
+      "summary": "Validate path scope, audit risk, and keep approval human-gated."
+    },
+    {
+      "role": "verifier",
+      "summary": "Report fixed verification safe-lane summaries without running arbitrary commands."
+    }
+  ],
+  "reviewerRiskSummary": {
+    "riskLevel": "low",
+    "summary": "Docs-only target, no execution lane, human approval required.",
+    "warningCodes": []
+  },
+  "verifierSummary": {
+    "status": "summary_only",
+    "gitLaneRef": "native.git.status.summary",
+    "shellLaneRef": "runtime.shell.scoped_test_summary",
+    "warningCodes": []
+  },
+  "approvalBoundary": {
+    "humanApprovalRequired": true,
+    "autoApply": false,
+    "applyPath": "existing_app_approved_apply_flow"
+  },
+  "rollbackBoundary": {
+    "rollbackAvailable": true,
+    "autoRollback": false,
+    "rollbackPath": "existing_app_approved_rollback_flow"
+  },
+  "replayBoundary": {
+    "requiresRoleTimeline": true,
+    "eventWritesEnabled": false,
+    "eventTypes": [
+      "agent.run.planned",
+      "agent.handoff.created",
+      "agent.review.completed",
+      "agent.verify.completed",
+      "agent.run.completed"
+    ]
+  },
+  "contentBoundary": {
+    "prompt": "omitted",
+    "source": "omitted",
+    "diff": "omitted",
+    "modelResponse": "omitted",
+    "credential": "omitted",
+    "stdout": "omitted",
+    "stderr": "omitted"
+  },
+  "disabledCapabilities": {
+    "dynamicBidding": false,
+    "arbitraryAgentCreation": false,
+    "directAgentToolExecution": false,
+    "mcpMutatingTool": false,
+    "pluginSkillRuntime": false,
+    "arbitraryGit": false,
+    "arbitraryShell": false,
+    "nativeBridge": false,
+    "desktopAction": false
+  },
+  "expectedReadiness": {
+    "canAutoApply": false,
+    "canApplyPatch": false,
+    "canRollback": false,
+    "canWriteEventStore": false,
+    "canRunShell": false,
+    "canGitWrite": false,
+    "appCanExecute": false
+  }
+}

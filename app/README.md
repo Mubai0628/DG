@@ -207,6 +207,10 @@ Current scope:
   timeline for planned/stage/handoff/review/verify agent events, with no event
   write, no agent/tool execution, no raw prompt/source/diff/model response, no
   API key, and no raw stdout/stderr
+- document the P0Z Fixed Multi-Agent E2E Smoke for a docs-only fixed route with
+  orchestrator/coder/reviewer/verifier summaries, reviewer risk summary,
+  verifier safe-lane summary, human-approved apply, rollback availability,
+  replayed role timeline, no raw content, and no auto-apply
 - prepare the v0.19 MCP Tool Invocation Proposal RC with proposal schema,
   input risk classification, simulated result summaries, broker planning,
   read-only App proposal surface, redaction audit, and smoke hardening while
@@ -285,7 +289,9 @@ Current limitations:
   apply/rollback, and no EventStore write; Fixed Agent Replay Projection is
   summary-only with virtual or persisted agent event refs only, no event write,
   no raw prompt/source/diff/model response, no reasoning_content, no API key,
-  and no raw tool output/stdout/stderr; none of these App
+  and no raw tool output/stdout/stderr; Fixed Multi-Agent E2E Smoke locks a
+  docs-only summary path with human-approved apply and rollback boundaries;
+  none of these App
   surfaces reads or writes files; Capability Host previews descriptor metadata
   only for MCP, plugin, and skill sources, maps safe descriptors to broker
   summaries, and audits redaction boundaries without connecting to MCP servers,

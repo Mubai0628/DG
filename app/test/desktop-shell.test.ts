@@ -21101,6 +21101,236 @@ describe("desktop source boundaries", () => {
     expect(combined).not.toContain("event writing is enabled");
   });
 
+  it("smokes a docs-only fixed multi-agent flow through replay without raw content", async () => {
+    const fixture = JSON.parse(
+      await readFile(
+        path.join(appRoot, "test", "fixtures", "fixed-multi-agent-e2e-smoke.json"),
+        "utf8"
+      )
+    ) as {
+      taskSummary: string;
+      intent: "code_change";
+      expectedRoute: string[];
+      roleSummaries: Array<{ role: string; summary: string }>;
+      reviewerRiskSummary: { riskLevel: string; summary: string };
+      verifierSummary: { status: string; gitLaneRef: string; shellLaneRef: string };
+      approvalBoundary: {
+        humanApprovalRequired: boolean;
+        autoApply: boolean;
+        applyPath: string;
+      };
+      rollbackBoundary: {
+        rollbackAvailable: boolean;
+        autoRollback: boolean;
+        rollbackPath: string;
+      };
+      replayBoundary: { requiresRoleTimeline: boolean; eventWritesEnabled: boolean };
+      expectedReadiness: {
+        canAutoApply: boolean;
+        canApplyPatch: boolean;
+        canRollback: boolean;
+        canWriteEventStore: boolean;
+        canRunShell: boolean;
+        canGitWrite: boolean;
+        appCanExecute: boolean;
+      };
+    };
+    const draft = buildRunDraftView({
+      objectiveDraft: fixture.taskSummary,
+      acceptanceCriteriaDraft:
+        "Fixed roles only\nReviewer risk summary\nVerifier safe-lane summary\nHuman approval required\nRollback available",
+      selectedIntent: fixture.intent
+    });
+    const route = buildAgentRoutePreviewView({
+      runDraft: draft,
+      selectedIntent: fixture.intent,
+      objectiveSummary: draft.objectiveSummary,
+      acceptanceCriteriaCount: draft.acceptanceCriteriaCount
+    });
+    const capabilityPlan = buildCapabilityPlanPreviewView({
+      runDraft: draft,
+      agentRoutePreview: route,
+      selectedIntent: fixture.intent
+    });
+    const fixedRun = buildFixedMultiAgentRunView({
+      runDraft: draft,
+      selectedIntent: fixture.intent,
+      agentRoutePreview: route,
+      capabilityPlanPreview: capabilityPlan,
+      createdAt: "2026-07-02T00:00:00.000Z"
+    });
+    const replay = buildFixedAgentReplayProjectionView({
+      fixedMultiAgentRun: fixedRun,
+      eventSummary: {
+        ok: true,
+        eventCount: 2,
+        displayedEventCount: 2,
+        taskCount: 0,
+        completedTaskCount: 0,
+        draftCount: 0,
+        approvedApplyCount: 0,
+        approvedRollbackCount: 0,
+        verificationEventCount: 0,
+        liveProposalEventCount: 0,
+        projectKnowledgeEventCount: 0,
+        projectKnowledgeEntryCount: 0,
+        typeCounts: {
+          "agent.review.completed": 1,
+          "agent.verify.completed": 1
+        },
+        timeline: [
+          {
+            id: "event-review-1",
+            ts: "2026-07-02T00:01:00.000Z",
+            type: "agent.review.completed",
+            taskId: fixedRun.runId,
+            summary: fixture.reviewerRiskSummary.summary,
+            safePayloadKeys: ["riskLevel", "warningCodes", "summaryHash"]
+          },
+          {
+            id: "event-verify-1",
+            ts: "2026-07-02T00:02:00.000Z",
+            type: "agent.verify.completed",
+            taskId: fixedRun.runId,
+            summary: "fixed verification safe-lane summary",
+            safePayloadKeys: ["gitLaneRef", "shellLaneRef", "warningCodes"]
+          }
+        ],
+        safetyScan: { ok: true, findings: 0, warningCodes: [] },
+        warnings: []
+      }
+    });
+
+    expect(fixture.expectedRoute).toEqual([
+      "orchestrator",
+      "coder",
+      "reviewer",
+      "verifier"
+    ]);
+    expect(fixedRun.route).toEqual(fixture.expectedRoute);
+    expect(fixedRun.roleCount).toBe(4);
+    expect(fixedRun.handoffCount).toBeGreaterThanOrEqual(3);
+    expect(fixture.roleSummaries.map((summary) => summary.role)).toEqual(
+      fixture.expectedRoute
+    );
+    expect(
+      fixedRun.stages.some(
+        (stage) => stage.role === "reviewer" && stage.status !== "blocked"
+      )
+    ).toBe(true);
+    expect(
+      fixedRun.stages.some(
+        (stage) => stage.role === "verifier" && stage.status !== "blocked"
+      )
+    ).toBe(true);
+    expect(fixture.reviewerRiskSummary.riskLevel).toBe("low");
+    expect(fixture.verifierSummary.status).toBe("summary_only");
+    expect(fixture.verifierSummary.gitLaneRef).toContain("summary");
+    expect(fixture.verifierSummary.shellLaneRef).toContain("summary");
+    expect(fixture.approvalBoundary.humanApprovalRequired).toBe(true);
+    expect(fixture.approvalBoundary.autoApply).toBe(false);
+    expect(fixture.approvalBoundary.applyPath).toBe(
+      "existing_app_approved_apply_flow"
+    );
+    expect(fixture.rollbackBoundary.rollbackAvailable).toBe(true);
+    expect(fixture.rollbackBoundary.autoRollback).toBe(false);
+    expect(fixture.replayBoundary.requiresRoleTimeline).toBe(true);
+    expect(fixture.replayBoundary.eventWritesEnabled).toBe(false);
+    expect(replay.latestRoute).toEqual(fixture.expectedRoute);
+    expect(
+      replay.roleStageTimeline.some((stage) => stage.role === "reviewer")
+    ).toBe(true);
+    expect(
+      replay.roleStageTimeline.some((stage) => stage.role === "verifier")
+    ).toBe(true);
+    expect(
+      replay.eventTimeline.some(
+        (event) => event.eventType === "agent.review.completed"
+      )
+    ).toBe(true);
+    expect(
+      replay.eventTimeline.some(
+        (event) => event.eventType === "agent.verify.completed"
+      )
+    ).toBe(true);
+    expect(fixedRun.readiness.canAutoApply).toBe(
+      fixture.expectedReadiness.canAutoApply
+    );
+    expect(fixedRun.readiness.canApplyPatch).toBe(
+      fixture.expectedReadiness.canApplyPatch
+    );
+    expect(fixedRun.readiness.canRollback).toBe(
+      fixture.expectedReadiness.canRollback
+    );
+    expect(fixedRun.readiness.canWriteEventStore).toBe(
+      fixture.expectedReadiness.canWriteEventStore
+    );
+    expect(fixedRun.readiness.canRunShell).toBe(
+      fixture.expectedReadiness.canRunShell
+    );
+    expect(fixedRun.readiness.canGitWrite).toBe(
+      fixture.expectedReadiness.canGitWrite
+    );
+    expect(fixedRun.readiness.appCanExecute).toBe(
+      fixture.expectedReadiness.appCanExecute
+    );
+    expect(replay.readiness.canWriteEventStore).toBe(false);
+    expect(replay.readiness.canExecuteAgents).toBe(false);
+    expect(replay.readiness.canInvokeTools).toBe(false);
+    expect(replay.readiness.canApplyPatch).toBe(false);
+    expect(replay.readiness.canRollback).toBe(false);
+
+    const combined = JSON.stringify({ fixture, fixedRun, replay });
+    expect(combined).not.toMatch(
+      /rawPrompt|rawSource|rawDiff|rawResponse|reasoning_content|apiKey|Authorization|Bearer|sk-/i
+    );
+  });
+
+  it("documents and locks the fixed multi-agent e2e smoke", async () => {
+    const fixture = await readFile(
+      path.join(appRoot, "test", "fixtures", "fixed-multi-agent-e2e-smoke.json"),
+      "utf8"
+    );
+    const doc = await readFile(
+      path.join(repoRoot, "docs", "fixed-multi-agent-e2e-smoke-v0.21.md"),
+      "utf8"
+    );
+    const docsIndex = await readFile(
+      path.join(repoRoot, "docs", "README.md"),
+      "utf8"
+    );
+    const rootReadme = await readFile(path.join(repoRoot, "README.md"), "utf8");
+    const appReadme = await readFile(path.join(appRoot, "README.md"), "utf8");
+    const combined = `${fixture}\n${doc}\n${docsIndex}\n${rootReadme}\n${appReadme}`;
+
+    expect(fixture).toContain("fixed-multi-agent-docs-smoke-v0.21");
+    expect(fixture).toContain("existing_app_approved_apply_flow");
+    expect(fixture).toContain("existing_app_approved_rollback_flow");
+    expect(doc).toContain("Fixed Multi-Agent E2E Smoke v0.21");
+    expect(doc).toContain("orchestrator -> coder -> reviewer -> verifier");
+    expect(doc).toContain("Human approval remains required");
+    expect(doc).toContain("Rollback remains available");
+    expect(doc).toContain("agent.handoff.created");
+    expect(doc).toContain("agent.review.completed");
+    expect(doc).toContain("agent.verify.completed");
+    expect(doc).toContain("no dynamic bidding");
+    expect(doc).toContain("no auto-apply");
+    expect(doc).toContain("no arbitrary Git or shell");
+    expect(doc).toContain("no mutating MCP tool");
+    expect(doc).toContain("no plugin or skill runtime execution");
+    expect(doc).toContain("no native bridge");
+    expect(doc).toContain("no desktop action");
+    expect(doc).toContain("raw prompt");
+    expect(doc).toContain("raw source");
+    expect(doc).toContain("raw model response");
+    expect(docsIndex).toContain("fixed-multi-agent-e2e-smoke-v0.21.md");
+    expect(rootReadme).toContain("fixed-multi-agent-e2e-smoke-v0.21.md");
+    expect(appReadme).toContain("Fixed Multi-Agent E2E Smoke");
+    expect(combined).not.toContain("dynamic bidding is enabled");
+    expect(combined).not.toContain("auto-apply is enabled");
+    expect(combined).not.toContain("agents can directly execute tools");
+  });
+
   it("documents the P0S-001 MVP hardening recovery design gate", async () => {
     const adr = await readFile(
       path.join(repoRoot, "docs", "adr", "0011-mvp-hardening-recovery.md"),

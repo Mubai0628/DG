@@ -438,6 +438,7 @@ v0.17 Capability Host MVP references:
 - [P0Z-001 Fixed Multi-Agent Execution plan](docs/p0z-001-fixed-multi-agent-execution-plan.md)
 - [App Shell Fixed Multi-Agent Run v0.21](docs/app-shell-fixed-multi-agent-run-v0.21.md)
 - [Fixed Agent Events / Replay v0.21](docs/fixed-agent-events-replay-v0.21.md)
+- [Fixed Multi-Agent E2E Smoke v0.21](docs/fixed-multi-agent-e2e-smoke-v0.21.md)
 
 ## Current roadmap
 
@@ -507,7 +508,9 @@ MVP roadmap with fixed orchestrator/coder/reviewer/verifier roles, fixed routes,
 summary-only handoff dossiers, Capability Broker gated planning, human approval
 for apply, and replayable summary events while preserving no dynamic bidding, no
 arbitrary agent creation, no hidden raw prompt sharing, no direct agent tool
-execution, no native bridge, and no desktop action.
+execution, no native bridge, and no desktop action. The fixed multi-agent E2E
+smoke keeps the docs-only task summary-only with human-approved apply and
+rollback boundaries plus replayed role timelines.
 
 - [v0.2 App Shell RC post-release review](docs/v0.2-app-shell-rc-postrelease-review.md)
 - [P0G Coding Workflow roadmap](docs/p0g-coding-workflow-roadmap.md)

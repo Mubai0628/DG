@@ -343,6 +343,7 @@ foundation.
 - [Runtime Agent Capability Plan v0.21](runtime-agent-capability-plan-v0.21.md)
 - [App Shell Fixed Multi-Agent Run v0.21](app-shell-fixed-multi-agent-run-v0.21.md)
 - [Fixed Agent Events / Replay v0.21](fixed-agent-events-replay-v0.21.md)
+- [Fixed Multi-Agent E2E Smoke v0.21](fixed-multi-agent-e2e-smoke-v0.21.md)
 - [Runtime Memory Recall Preview v0.3](runtime-memory-recall-preview-v0.3.md)
 - [v0.4.0 Controlled Creation Preview RC release notes](release-notes-v0.4.0-controlled-creation-preview-rc.1.md)
 - [App Shell Controlled Creation manual QA](app-shell-controlled-creation-manual-qa.md)
