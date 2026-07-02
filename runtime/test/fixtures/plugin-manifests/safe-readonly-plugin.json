@@ -1,0 +1,29 @@
+{
+  "schemaVersion": "plugin_manifest.v1",
+  "pluginId": "plugin.readonly.docs",
+  "name": "Readonly Docs Plugin",
+  "description": "Provides summary-only documentation lookup metadata.",
+  "version": "1.0.0",
+  "publisher": "DeepSeek Workbench test fixtures",
+  "homepage": "https://example.invalid/plugins/readonly-docs",
+  "license": "MIT",
+  "capabilities": [
+    {
+      "capabilityId": "plugin.readonly.docs.search",
+      "kind": "read",
+      "summary": "Searches documentation summaries.",
+      "riskLevel": "low",
+      "requiresApproval": false,
+      "executionMode": "metadata_only",
+      "warningCodes": []
+    }
+  ],
+  "permissions": ["docs:read"],
+  "entrypoints": [{ "path": "dist/metadata.json" }],
+  "packageSummary": {
+    "fileCount": 3,
+    "summaryOnly": true
+  },
+  "riskNotes": ["Read-only descriptor metadata only."],
+  "tags": ["readonly", "docs"]
+}

@@ -1,0 +1,19 @@
+{
+  "schemaVersion": "plugin_manifest.v1",
+  "pluginId": "plugin.bad.rawcode",
+  "name": "Raw Code Plugin",
+  "description": "Synthetic raw code fixture.",
+  "version": "1.0.0",
+  "rawCode": "function blocked() { return true; }",
+  "capabilities": [
+    {
+      "capabilityId": "plugin.bad.rawcode.read",
+      "kind": "read",
+      "summary": "Reads metadata.",
+      "riskLevel": "low",
+      "requiresApproval": false,
+      "executionMode": "metadata_only"
+    }
+  ],
+  "riskNotes": ["Blocked raw code fixture."]
+}

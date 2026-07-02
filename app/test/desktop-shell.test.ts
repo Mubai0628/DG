@@ -19971,6 +19971,51 @@ describe("desktop source boundaries", () => {
     expect(combined).toContain("no broad PermissionLease");
   });
 
+  it("documents the P0Y-002 plugin manifest schema without runtime execution", async () => {
+    const runtimeDoc = await readFile(
+      path.join(repoRoot, "docs", "runtime-plugin-manifest-schema-v0.20.md"),
+      "utf8"
+    );
+    const docsIndex = await readFile(
+      path.join(repoRoot, "docs", "README.md"),
+      "utf8"
+    );
+    const runtimeSource = await readFile(
+      path.join(
+        repoRoot,
+        "runtime",
+        "src",
+        "capabilities",
+        "plugin-manifest-schema.ts"
+      ),
+      "utf8"
+    );
+    const combined = `${runtimeDoc}\n${docsIndex}\n${runtimeSource}`;
+
+    expect(runtimeDoc).toContain("Runtime Plugin Manifest Schema v0.20");
+    expect(runtimeDoc).toContain("schema only");
+    expect(runtimeDoc).toContain("no runtime plugin execution");
+    expect(runtimeDoc).toContain("no package install");
+    expect(runtimeDoc).toContain("no code load");
+    expect(runtimeDoc).toContain("no lifecycle script execution");
+    expect(runtimeDoc).toContain("no native bridge");
+    expect(runtimeDoc).toContain("no desktop action");
+    expect(runtimeDoc).toContain("no arbitrary shell/process spawn");
+    expect(runtimeDoc).toContain("runtime_plugin_manifest_schema");
+    expect(runtimeDoc).toContain("all execution paths false");
+    expect(runtimeSource).toContain("validatePluginManifest");
+    expect(runtimeSource).toContain("canExecutePlugin: false");
+    expect(runtimeSource).toContain("canInstallPackage: false");
+    expect(runtimeSource).toContain("canLoadCode: false");
+    expect(runtimeSource).toContain("canIssuePermissionLease: false");
+    expect(runtimeSource).not.toContain("fetch(");
+    expect(runtimeSource).not.toContain("process.env");
+    expect(docsIndex).toContain("runtime-plugin-manifest-schema-v0.20.md");
+    expect(combined).toContain("lifecycle script");
+    expect(combined).toContain("secret markers");
+    expect(combined).toContain("raw code markers");
+  });
+
   it("documents the P0S-001 MVP hardening recovery design gate", async () => {
     const adr = await readFile(
       path.join(repoRoot, "docs", "adr", "0011-mvp-hardening-recovery.md"),

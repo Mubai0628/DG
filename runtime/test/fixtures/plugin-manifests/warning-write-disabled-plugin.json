@@ -1,0 +1,21 @@
+{
+  "schemaVersion": "plugin_manifest.v1",
+  "pluginId": "plugin.disabled.writer",
+  "name": "Disabled Writer Plugin",
+  "description": "Declares write metadata while remaining disabled.",
+  "version": "1.0.0",
+  "capabilities": [
+    {
+      "capabilityId": "plugin.disabled.writer.plan",
+      "kind": "write",
+      "summary": "Plans a write operation without executing it.",
+      "riskLevel": "high",
+      "requiresApproval": false,
+      "executionMode": "disabled"
+    }
+  ],
+  "permissions": ["workspace:write"],
+  "entrypoints": [],
+  "riskNotes": [],
+  "tags": []
+}

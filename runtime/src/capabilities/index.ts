@@ -21,6 +21,7 @@ export * from "./mcp-tool-simulated-result.js";
 export * from "./native-descriptors.js";
 export * from "./plan-preview.js";
 export * from "./permission-lease.js";
+export * from "./plugin-manifest-schema.js";
 export * from "./plugin-skill-metadata-scanner.js";
 export * from "./registry.js";
 export * from "./risk.js";

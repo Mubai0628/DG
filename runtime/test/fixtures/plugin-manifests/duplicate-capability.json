@@ -1,0 +1,26 @@
+{
+  "schemaVersion": "plugin_manifest.v1",
+  "pluginId": "plugin.bad.duplicate",
+  "name": "Duplicate Capability Plugin",
+  "description": "Synthetic duplicate capability fixture.",
+  "version": "1.0.0",
+  "capabilities": [
+    {
+      "capabilityId": "plugin.bad.duplicate.read",
+      "kind": "read",
+      "summary": "Reads metadata.",
+      "riskLevel": "low",
+      "requiresApproval": false,
+      "executionMode": "metadata_only"
+    },
+    {
+      "capabilityId": "plugin.bad.duplicate.read",
+      "kind": "read",
+      "summary": "Reads other metadata.",
+      "riskLevel": "low",
+      "requiresApproval": false,
+      "executionMode": "metadata_only"
+    }
+  ],
+  "riskNotes": ["Duplicate fixture."]
+}

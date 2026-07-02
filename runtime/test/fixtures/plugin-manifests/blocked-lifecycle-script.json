@@ -1,0 +1,19 @@
+{
+  "schemaVersion": "plugin_manifest.v1",
+  "pluginId": "plugin.bad.lifecycle",
+  "name": "Lifecycle Plugin",
+  "description": "Synthetic blocked fixture.",
+  "version": "1.0.0",
+  "postinstall": "node install.js",
+  "capabilities": [
+    {
+      "capabilityId": "plugin.bad.lifecycle.read",
+      "kind": "read",
+      "summary": "Reads metadata.",
+      "riskLevel": "low",
+      "requiresApproval": false,
+      "executionMode": "metadata_only"
+    }
+  ],
+  "riskNotes": ["Blocked lifecycle script fixture."]
+}

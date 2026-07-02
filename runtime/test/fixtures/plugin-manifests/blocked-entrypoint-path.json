@@ -1,0 +1,19 @@
+{
+  "schemaVersion": "plugin_manifest.v1",
+  "pluginId": "plugin.bad.path",
+  "name": "Path Plugin",
+  "description": "Synthetic unsafe entrypoint fixture.",
+  "version": "1.0.0",
+  "capabilities": [
+    {
+      "capabilityId": "plugin.bad.path.read",
+      "kind": "read",
+      "summary": "Reads metadata.",
+      "riskLevel": "low",
+      "requiresApproval": false,
+      "executionMode": "metadata_only"
+    }
+  ],
+  "entrypoints": [{ "path": "../private/.env" }],
+  "riskNotes": ["Blocked unsafe path fixture."]
+}
