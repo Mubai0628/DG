@@ -19838,6 +19838,71 @@ describe("desktop source boundaries", () => {
     expect(combinedDocs).toContain("no broad PermissionLease");
   });
 
+  it("documents the v0.20 post-release review and P0Y plugin skill sandbox roadmap", async () => {
+    const prompt = await readFile(
+      path.join(repoRoot, "docs", "v0.21-plugin-skill-sandbox-mvp-prompts.md"),
+      "utf8"
+    );
+    const review = await readFile(
+      path.join(
+        repoRoot,
+        "docs",
+        "v0.20-mcp-readonly-tool-execution-postrelease-review.md"
+      ),
+      "utf8"
+    );
+    const roadmap = await readFile(
+      path.join(repoRoot, "docs", "p0y-plugin-skill-sandbox-roadmap.md"),
+      "utf8"
+    );
+    const plan = await readFile(
+      path.join(repoRoot, "docs", "p0y-001-plugin-skill-sandbox-gate-plan.md"),
+      "utf8"
+    );
+    const docsIndex = await readFile(
+      path.join(repoRoot, "docs", "README.md"),
+      "utf8"
+    );
+    const rootReadme = await readFile(path.join(repoRoot, "README.md"), "utf8");
+    const combined = `${prompt}\n${review}\n${roadmap}\n${plan}\n${docsIndex}\n${rootReadme}`;
+
+    expect(review).toContain(
+      "v0.20 MCP Read-only Tool Execution Post-Release Review"
+    );
+    expect(review).toContain("v0.20.0-mcp-readonly-tool-execution-rc.1");
+    expect(review).toContain("Controlled MCP read-only tool execution MVP");
+    expect(review).toContain("MCP read-only tool execution exists");
+    expect(review).toContain("Plugin code execution");
+    expect(review).toContain("Skill runtime execution");
+    expect(roadmap).toContain("P0Y Plugin / Skill Sandbox Roadmap");
+    expect(roadmap).toContain("Plugin / Skill Sandbox MVP");
+    expect(roadmap).toContain("Descriptor-first");
+    expect(roadmap).toContain("No arbitrary plugin code execution");
+    expect(roadmap).toContain("No arbitrary skill runtime");
+    expect(roadmap).toContain("No native bridge");
+    expect(roadmap).toContain("No desktop action");
+    expect(roadmap).toContain("No arbitrary process spawn or shell");
+    expect(roadmap).toContain("No broad PermissionLease");
+    expect(plan).toContain("P0Y-001 Plugin / Skill Sandbox Gate Plan");
+    expect(plan).toContain("no plugin code execution in P0Y-001");
+    expect(plan).toContain("no skill runtime execution in P0Y-001");
+    expect(plan).toContain("no native bridge");
+    expect(plan).toContain("no desktop action");
+    expect(plan).toContain("no arbitrary shell/process spawn");
+    expect(combined).toContain("no raw plugin package content in events");
+    expect(combined).toContain("no raw skill package content in events");
+    expect(combined).toContain(
+      "no API key / Authorization / bearer / secret persistence"
+    );
+    expect(docsIndex).toContain("v0.21-plugin-skill-sandbox-mvp-prompts.md");
+    expect(docsIndex).toContain(
+      "v0.20-mcp-readonly-tool-execution-postrelease-review.md"
+    );
+    expect(docsIndex).toContain("p0y-plugin-skill-sandbox-roadmap.md");
+    expect(docsIndex).toContain("p0y-001-plugin-skill-sandbox-gate-plan.md");
+    expect(rootReadme).toContain("P0Y starts the Plugin / Skill Sandbox");
+  });
+
   it("documents the P0S-001 MVP hardening recovery design gate", async () => {
     const adr = await readFile(
       path.join(repoRoot, "docs", "adr", "0011-mvp-hardening-recovery.md"),

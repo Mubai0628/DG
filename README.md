@@ -419,12 +419,16 @@ v0.17 Capability Host MVP references:
 - [MCP Tool Invocation Proposal manual QA](docs/mcp-tool-invocation-proposal-manual-qa.md)
 - [MCP Tool Invocation Proposal RC checklist](docs/mcp-tool-invocation-proposal-rc-checklist.md)
 - [v0.20 MCP Read-only Tool Execution prompts](docs/v0.20-mcp-readonly-tool-execution-prompts.md)
+- [v0.21 Plugin / Skill Sandbox MVP prompts](docs/v0.21-plugin-skill-sandbox-mvp-prompts.md)
 - [v0.19 MCP Tool Invocation Proposal post-release review](docs/v0.19-mcp-tool-invocation-proposal-postrelease-review.md)
 - [P0X MCP Read-only Tool Execution roadmap](docs/p0x-mcp-readonly-tool-execution-roadmap.md)
 - [P0X-001 MCP Read-only Tool Execution plan](docs/p0x-001-mcp-readonly-tool-execution-plan.md)
 - [v0.20.0 MCP Read-only Tool Execution RC release notes](docs/release-notes-v0.20.0-mcp-readonly-tool-execution-rc.1.md)
 - [MCP Read-only Tool Execution manual QA](docs/mcp-readonly-tool-execution-manual-qa.md)
 - [MCP Read-only Tool Execution RC checklist](docs/mcp-readonly-tool-execution-rc-checklist.md)
+- [v0.20 MCP Read-only Tool Execution post-release review](docs/v0.20-mcp-readonly-tool-execution-postrelease-review.md)
+- [P0Y Plugin / Skill Sandbox roadmap](docs/p0y-plugin-skill-sandbox-roadmap.md)
+- [P0Y-001 Plugin / Skill Sandbox gate plan](docs/p0y-001-plugin-skill-sandbox-gate-plan.md)
 
 ## Current roadmap
 
@@ -483,6 +487,10 @@ contracts, explicit approval receipts, typed confirmation, bounded output,
 redaction audit, summary-only events, replay, App smoke coverage, no mutating
 tools, no generic MCP invocation, no plugin/skill runtime, no native bridge,
 and no desktop action.
+P0Y starts the Plugin / Skill Sandbox MVP roadmap with descriptor-first,
+manifest-first, sandbox-contract-first governance while preserving no arbitrary
+plugin code execution, no arbitrary skill runtime, no native bridge, no desktop
+action, no arbitrary shell/process spawn, and no broad PermissionLease.
 
 - [v0.2 App Shell RC post-release review](docs/v0.2-app-shell-rc-postrelease-review.md)
 - [P0G Coding Workflow roadmap](docs/p0g-coding-workflow-roadmap.md)
