@@ -72,7 +72,8 @@ export function buildPluginSkillRedactionAuditView(
 
   const appHostSummary =
     parsedSummary.value ??
-    (input.pluginSkillHost === undefined || input.pluginSkillHost.status === "empty"
+    (input.pluginSkillHost === undefined ||
+    input.pluginSkillHost.status === "empty"
       ? undefined
       : summarizePluginSkillHostView(input.pluginSkillHost));
   const audit = buildPluginSkillRedactionAudit({

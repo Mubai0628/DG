@@ -80,6 +80,13 @@ Current scope:
   host metadata boundaries while raw metadata, raw prompt, raw args, raw output,
   install scripts, EventStore writes, plugin execution, skill runtime, native
   bridge, and desktop action remain disabled
+- prepare the v0.21 Plugin / Skill Sandbox MVP RC with manifest schema
+  validation, package metadata scanning, sandbox contracts, built-in safe skill
+  simulation, broker descriptor previews, App read-only plugin/skill host
+  surfaces, and redaction audit coverage while arbitrary plugin code execution,
+  arbitrary skill runtime execution, plugin install execution, native bridge,
+  desktop action, arbitrary shell/process spawn, and broad PermissionLease
+  remain disabled
 - prepare the v0.13 App Live Proposal Generation MVP RC with explicit
   user-confirmed live DeepSeek patch proposal generation through a fixed Tauri
   command, repair/schema/import/chain preview integration, summary-only live

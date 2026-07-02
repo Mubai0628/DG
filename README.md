@@ -429,6 +429,9 @@ v0.17 Capability Host MVP references:
 - [v0.20 MCP Read-only Tool Execution post-release review](docs/v0.20-mcp-readonly-tool-execution-postrelease-review.md)
 - [P0Y Plugin / Skill Sandbox roadmap](docs/p0y-plugin-skill-sandbox-roadmap.md)
 - [P0Y-001 Plugin / Skill Sandbox gate plan](docs/p0y-001-plugin-skill-sandbox-gate-plan.md)
+- [v0.21.0 Plugin / Skill Sandbox MVP RC release notes](docs/release-notes-v0.21.0-plugin-skill-sandbox-mvp-rc.1.md)
+- [Plugin / Skill Sandbox manual QA](docs/plugin-skill-sandbox-manual-qa.md)
+- [Plugin / Skill Sandbox RC checklist](docs/plugin-skill-sandbox-rc-checklist.md)
 
 ## Current roadmap
 
@@ -487,10 +490,13 @@ contracts, explicit approval receipts, typed confirmation, bounded output,
 redaction audit, summary-only events, replay, App smoke coverage, no mutating
 tools, no generic MCP invocation, no plugin/skill runtime, no native bridge,
 and no desktop action.
-P0Y starts the Plugin / Skill Sandbox MVP roadmap with descriptor-first,
-manifest-first, sandbox-contract-first governance while preserving no arbitrary
-plugin code execution, no arbitrary skill runtime, no native bridge, no desktop
-action, no arbitrary shell/process spawn, and no broad PermissionLease.
+P0Y starts the Plugin / Skill Sandbox MVP roadmap and is prepared for the v0.21
+RC with descriptor-first, manifest-first, sandbox-contract-first governance,
+App read-only metadata surfaces, broker descriptor previews, built-in safe skill
+simulation, and redaction audit coverage while preserving no arbitrary plugin
+code execution, no arbitrary skill runtime, no plugin install execution, no
+native bridge, no desktop action, no arbitrary shell/process spawn, and no broad
+PermissionLease.
 
 - [v0.2 App Shell RC post-release review](docs/v0.2-app-shell-rc-postrelease-review.md)
 - [P0G Coding Workflow roadmap](docs/p0g-coding-workflow-roadmap.md)

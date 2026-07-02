@@ -20361,7 +20361,7 @@ describe("desktop source boundaries", () => {
 
     expect(appSource).toContain("Plugin / Skill Host");
     expect(appSource).toContain("Read-only / no plugin execution");
-    expect(appSource).toContain("Metadata only / no skill runtime");
+    expect(appSource).toContain("Metadata only / no skill");
     expect(appSource).toContain("Preview Plugin Manifest");
     expect(appSource).toContain("Preview Skill Manifest");
     expect(appSource).toContain("Preview Package Metadata");
@@ -20482,13 +20482,9 @@ describe("desktop source boundaries", () => {
     expect(appSource).toContain("Preview Plugin / Skill Audit");
     expect(appSource).toContain("Clear Plugin / Skill Audit");
     expect(appSource).toContain("Run Plugin / Skill Audit (disabled)");
-    expect(appSource).toContain(
-      "Write Plugin / Skill Audit Event (disabled)"
-    );
+    expect(appSource).toContain("Write Plugin / Skill Audit Event (disabled)");
     expect(appSource).not.toMatch(/>\s*Run Plugin \/ Skill Audit\s*</);
-    expect(appSource).not.toMatch(
-      />\s*Write Plugin \/ Skill Audit Event\s*</
-    );
+    expect(appSource).not.toMatch(/>\s*Write Plugin \/ Skill Audit Event\s*</);
     expect(viewSource).not.toContain("fetch(");
     expect(viewSource).not.toContain("invoke(");
     expect(viewSource).not.toContain("process.env");
@@ -20498,7 +20494,11 @@ describe("desktop source boundaries", () => {
 
   it("documents the P0Y-008 plugin skill redaction audit and smoke coverage", async () => {
     const runtimeDoc = await readFile(
-      path.join(repoRoot, "docs", "runtime-plugin-skill-redaction-audit-v0.20.md"),
+      path.join(
+        repoRoot,
+        "docs",
+        "runtime-plugin-skill-redaction-audit-v0.20.md"
+      ),
       "utf8"
     );
     const appDoc = await readFile(
@@ -20536,12 +20536,107 @@ describe("desktop source boundaries", () => {
     expect(smokeDoc).toContain("Plugin / Skill Host Smoke v0.20");
     expect(smokeDoc).toContain("Convert still remains the real");
     expect(smokeDoc).toContain("no arbitrary plugin code execution");
-    expect(docsIndex).toContain("runtime-plugin-skill-redaction-audit-v0.20.md");
+    expect(docsIndex).toContain(
+      "runtime-plugin-skill-redaction-audit-v0.20.md"
+    );
     expect(docsIndex).toContain(
       "app-shell-plugin-skill-redaction-audit-v0.20.md"
     );
     expect(docsIndex).toContain("plugin-skill-host-smoke-v0.20.md");
     expect(combined).toContain("desktop action");
+  });
+
+  it("documents the v0.21 plugin skill sandbox RC and keeps App execution disabled", async () => {
+    const releaseNotes = await readFile(
+      path.join(
+        repoRoot,
+        "docs",
+        "release-notes-v0.21.0-plugin-skill-sandbox-mvp-rc.1.md"
+      ),
+      "utf8"
+    );
+    const manualQa = await readFile(
+      path.join(repoRoot, "docs", "plugin-skill-sandbox-manual-qa.md"),
+      "utf8"
+    );
+    const rcChecklist = await readFile(
+      path.join(repoRoot, "docs", "plugin-skill-sandbox-rc-checklist.md"),
+      "utf8"
+    );
+    const docsIndex = await readFile(
+      path.join(repoRoot, "docs", "README.md"),
+      "utf8"
+    );
+    const rootReadme = await readFile(path.join(repoRoot, "README.md"), "utf8");
+    const appReadme = await readFile(
+      path.join(repoRoot, "app", "README.md"),
+      "utf8"
+    );
+    const appSource = await readFile(
+      path.join(repoRoot, "app", "src", "App.tsx"),
+      "utf8"
+    );
+    const combinedDocs = `${releaseNotes}\n${manualQa}\n${rcChecklist}\n${docsIndex}\n${rootReadme}\n${appReadme}`;
+
+    expect(releaseNotes).toContain("v0.21.0-plugin-skill-sandbox-mvp-rc.1");
+    expect(releaseNotes).toContain(
+      "Plugin and skill sandbox MVP, no arbitrary execution"
+    );
+    expect(releaseNotes).toContain("Plugin Manifest Schema");
+    expect(releaseNotes).toContain("Skill Manifest Schema");
+    expect(releaseNotes).toContain("Package Metadata Scanner");
+    expect(releaseNotes).toContain(
+      "Capability Broker can preview plugin/skill descriptors"
+    );
+    expect(releaseNotes).toContain("No arbitrary plugin code is executed");
+    expect(releaseNotes).toContain("No arbitrary skill runtime is executed");
+    expect(releaseNotes).toContain(
+      "no plugin installation with code execution"
+    );
+    expect(releaseNotes).toContain("no native bridge");
+    expect(releaseNotes).toContain("no desktop action");
+    expect(releaseNotes).toContain("summary-only reports");
+    expect(manualQa).toContain("Convert Smoke");
+    expect(manualQa).toContain("Plugin Manifest Safe Preview");
+    expect(manualQa).toContain("Plugin Manifest Unsafe Script Blocked");
+    expect(manualQa).toContain("Skill Manifest Safe Preview");
+    expect(manualQa).toContain("Skill Manifest Execution Claim Blocked");
+    expect(manualQa).toContain("Package Metadata Scanner");
+    expect(manualQa).toContain("Built-in Safe Skill Simulation");
+    expect(manualQa).toContain("Broker Descriptors");
+    expect(manualQa).toContain("Redaction Audit");
+    expect(manualQa).toContain("No arbitrary plugin code execution");
+    expect(manualQa).toContain("No arbitrary skill runtime execution");
+    expect(rcChecklist).toContain("pnpm verify:ci");
+    expect(rcChecklist).toContain("pnpm release:smoke");
+    expect(rcChecklist).toContain("pnpm app:qa:check");
+    expect(rcChecklist).toContain("GitHub Actions");
+    expect(rcChecklist).toContain("Suggested tag");
+    expect(docsIndex).toContain(
+      "release-notes-v0.21.0-plugin-skill-sandbox-mvp-rc.1.md"
+    );
+    expect(docsIndex).toContain("plugin-skill-sandbox-manual-qa.md");
+    expect(docsIndex).toContain("plugin-skill-sandbox-rc-checklist.md");
+    expect(rootReadme).toContain("prepared for the v0.21");
+    expect(appReadme).toContain(
+      "prepare the v0.21 Plugin / Skill Sandbox MVP RC"
+    );
+    expect(combinedDocs).not.toContain("App can execute plugin");
+    expect(combinedDocs).not.toContain("App can run skill");
+
+    expect(appSource).toContain("Read-only / no plugin execution");
+    expect(appSource).toContain("Metadata only / no skill");
+    expect(appSource).toContain("Summary only / no raw metadata");
+    expect(appSource).toContain("Install Plugin (disabled)");
+    expect(appSource).toContain("Run Skill (disabled)");
+    expect(appSource).toContain("Execute Plugin Capability (disabled)");
+    expect(appSource).toContain("Run Plugin / Skill Audit (disabled)");
+    expect(appSource).toContain("Write Plugin / Skill Audit Event (disabled)");
+    expect(appSource).not.toMatch(/>\s*Install Plugin\s*</);
+    expect(appSource).not.toMatch(/>\s*Run Skill\s*</);
+    expect(appSource).not.toMatch(/>\s*Execute Plugin Capability\s*</);
+    expect(appSource).not.toMatch(/>\s*Run Plugin \/ Skill Audit\s*</);
+    expect(appSource).not.toMatch(/>\s*Write Plugin \/ Skill Audit Event\s*</);
   });
 
   it("documents the P0S-001 MVP hardening recovery design gate", async () => {

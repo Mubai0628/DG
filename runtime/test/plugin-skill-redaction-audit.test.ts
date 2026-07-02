@@ -173,7 +173,9 @@ describe("plugin skill redaction audit", () => {
     });
     expect(audit.metadataCounts.pluginCapabilityCount).toBe(1);
     expect(audit.metadataCounts.skillStepCount).toBe(1);
-    expect(audit.metadataCounts.brokerDescriptorCount).toBeGreaterThanOrEqual(2);
+    expect(audit.metadataCounts.brokerDescriptorCount).toBeGreaterThanOrEqual(
+      2
+    );
     expect(audit.rawFieldDetectedCount).toBe(0);
     expect(summary.source).toBe("runtime_plugin_skill_redaction_audit");
     expect(audit.readiness.canPreviewAudit).toBe(true);

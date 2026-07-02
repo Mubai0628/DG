@@ -165,16 +165,8 @@ export function validateExternalPluginSkillDescriptors(
   validateSourceStatus(parsed, findings);
 
   const descriptors = [
-    ...descriptorsFromPluginManifest(
-      parsed.pluginManifestResult,
-      parsed,
-      findings
-    ),
-    ...descriptorsFromSkillManifest(
-      parsed.skillManifestResult,
-      parsed,
-      findings
-    )
+    ...descriptorsFromPluginManifest(parsed.pluginManifestResult, parsed),
+    ...descriptorsFromSkillManifest(parsed.skillManifestResult, parsed)
   ];
   validateDescriptorSet(descriptors, findings);
 
@@ -318,8 +310,7 @@ function validateSourceStatus(
 
 function descriptorsFromPluginManifest(
   value: unknown,
-  record: Record<string, unknown>,
-  findings: ExternalPluginSkillDescriptorFinding[]
+  record: Record<string, unknown>
 ): ExternalPluginSkillDescriptorPreview[] {
   const result = value as PluginManifestValidationResult | undefined;
   if (result?.manifest === undefined || result.status === "blocked") {
@@ -358,8 +349,7 @@ function descriptorsFromPluginManifest(
 
 function descriptorsFromSkillManifest(
   value: unknown,
-  record: Record<string, unknown>,
-  findings: ExternalPluginSkillDescriptorFinding[]
+  record: Record<string, unknown>
 ): ExternalPluginSkillDescriptorPreview[] {
   const result = value as SkillManifestValidationResult | undefined;
   if (result?.manifest === undefined || result.status === "blocked") {

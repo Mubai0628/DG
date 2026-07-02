@@ -756,8 +756,10 @@ export function DesktopShell(): JSX.Element {
     PluginSkillHostView | undefined
   >();
   const [pluginSkillAuditText, setPluginSkillAuditText] = useState("");
-  const [pluginSkillRedactionAuditPreview, setPluginSkillRedactionAuditPreview] =
-    useState<PluginSkillRedactionAuditView | undefined>();
+  const [
+    pluginSkillRedactionAuditPreview,
+    setPluginSkillRedactionAuditPreview
+  ] = useState<PluginSkillRedactionAuditView | undefined>();
   const [projectKnowledgeEntryType, setProjectKnowledgeEntryType] =
     useState<ProjectKnowledgeEntryType>("project_fact");
   const [projectKnowledgeNamespace, setProjectKnowledgeNamespace] =
@@ -12696,15 +12698,16 @@ export function DesktopShell(): JSX.Element {
             <div className="panelHeader">
               <h2>Plugin / Skill Host</h2>
               <span className="muted">
-                Read-only / no plugin execution · Metadata only / no skill runtime
+                Read-only / no plugin execution · Metadata only / no skill
+                runtime
               </span>
             </div>
             <p className="fieldHelp">
               Preview plugin manifests, skill manifests, package metadata
-              summaries, sandbox contracts, and broker descriptor summaries.
-              The App Shell does not install plugins, run skills, execute
-              plugin capabilities, fetch network, invoke Tauri, write events,
-              or issue leases.
+              summaries, sandbox contracts, and broker descriptor summaries. The
+              App Shell does not install plugins, run skills, execute plugin
+              capabilities, fetch network, invoke Tauri, write events, or issue
+              leases.
             </p>
 
             <label>
@@ -12809,8 +12812,8 @@ export function DesktopShell(): JSX.Element {
 
             {displayedPluginSkillHost.status === "empty" ? (
               <p className="empty">
-                No plugin, skill, or package metadata loaded. Paste
-                summary-only JSON to preview host descriptor boundaries.
+                No plugin, skill, or package metadata loaded. Paste summary-only
+                JSON to preview host descriptor boundaries.
               </p>
             ) : null}
 
@@ -12927,8 +12930,7 @@ export function DesktopShell(): JSX.Element {
               <div>
                 <dt>Execute / lease</dt>
                 <dd>
-                  {displayedPluginSkillHost.readiness
-                    .canExecutePluginCapability
+                  {displayedPluginSkillHost.readiness.canExecutePluginCapability
                     ? "yes"
                     : "no"}{" "}
                   /{" "}
@@ -12976,10 +12978,10 @@ export function DesktopShell(): JSX.Element {
             </div>
             <p className="fieldHelp">
               Audits plugin, skill, package, sandbox, descriptor, and App host
-              summaries for raw metadata, raw package content, raw prompt,
-              raw args, raw output, secrets, install scripts, command fields,
-              native bridge, desktop action, and execution readiness. No
-              execution is performed.
+              summaries for raw metadata, raw package content, raw prompt, raw
+              args, raw output, secrets, install scripts, command fields, native
+              bridge, desktop action, and execution readiness. No execution is
+              performed.
             </p>
 
             <label>
@@ -13177,7 +13179,9 @@ export function DesktopShell(): JSX.Element {
               <div>
                 <dt>Risk summary</dt>
                 <dd>
-                  {Object.entries(displayedPluginSkillRedactionAudit.riskSummary)
+                  {Object.entries(
+                    displayedPluginSkillRedactionAudit.riskSummary
+                  )
                     .map(([risk, count]) => `${risk}:${count}`)
                     .join(", ") || "none"}
                 </dd>

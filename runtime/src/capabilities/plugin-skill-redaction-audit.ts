@@ -436,8 +436,7 @@ function sourceCountsFrom(
   input: PluginSkillRedactionAuditInput
 ): PluginSkillRedactionAuditSourceCounts {
   return {
-    pluginManifestResultCount:
-      input.pluginManifestResult === undefined ? 0 : 1,
+    pluginManifestResultCount: input.pluginManifestResult === undefined ? 0 : 1,
     skillManifestResultCount: input.skillManifestResult === undefined ? 0 : 1,
     packageScanResultCount: input.packageScanResult === undefined ? 0 : 1,
     sandboxContractCount: input.sandboxContract === undefined ? 0 : 1,
@@ -580,9 +579,7 @@ function isAllowedSafeSummaryKey(
   return false;
 }
 
-function kindFor(
-  normalizedKey: string
-): PluginSkillRedactionAuditFindingKind {
+function kindFor(normalizedKey: string): PluginSkillRedactionAuditFindingKind {
   if (
     normalizedKey.includes("secret") ||
     normalizedKey.includes("token") ||
@@ -615,7 +612,10 @@ function kindFor(
   ) {
     return "execution_field";
   }
-  if (normalizedKey.startsWith(rawPrefix) || normalizedKey.includes("content")) {
+  if (
+    normalizedKey.startsWith(rawPrefix) ||
+    normalizedKey.includes("content")
+  ) {
     return "raw_field";
   }
   return "redaction";
@@ -650,9 +650,7 @@ function leakBooleansFrom(
       (finding) =>
         finding.kind === "execution_field" || finding.kind === "readiness"
     ),
-    nativeBridgeDetected: findings.some(
-      (finding) => finding.kind === "native"
-    ),
+    nativeBridgeDetected: findings.some((finding) => finding.kind === "native"),
     desktopActionDetected: findings.some(
       (finding) => finding.kind === "desktop"
     )
