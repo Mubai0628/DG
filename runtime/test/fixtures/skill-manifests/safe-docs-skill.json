@@ -1,0 +1,36 @@
+{
+  "schemaVersion": "skill_manifest.v1",
+  "skillId": "skill.docs.review",
+  "name": "Docs Review Skill",
+  "description": "Reviews summary-only documentation metadata.",
+  "version": "1.0.0",
+  "author": "DeepSeek Workbench test fixtures",
+  "inputSchemaSummary": {
+    "fields": ["docSummaryRef"]
+  },
+  "outputSchemaSummary": {
+    "fields": ["riskSummary", "checklist"]
+  },
+  "steps": [
+    {
+      "stepId": "skill.docs.review.summarize",
+      "summary": "Summarize metadata risk.",
+      "mode": "metadata_only",
+      "warningCodes": []
+    }
+  ],
+  "requiredCapabilities": [
+    {
+      "capabilityId": "capability.docs.read",
+      "riskLevel": "low",
+      "invocationPolicy": "disabled"
+    }
+  ],
+  "riskNotes": ["Metadata-only review."],
+  "simulationExamples": [
+    {
+      "summary": "Generate checklist summary only."
+    }
+  ],
+  "tags": ["docs", "readonly"]
+}

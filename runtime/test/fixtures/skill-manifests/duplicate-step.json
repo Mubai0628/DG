@@ -1,0 +1,21 @@
+{
+  "schemaVersion": "skill_manifest.v1",
+  "skillId": "skill.bad.duplicate",
+  "name": "Duplicate Step Skill",
+  "description": "Synthetic duplicate step fixture.",
+  "version": "1.0.0",
+  "steps": [
+    {
+      "stepId": "skill.bad.duplicate.step",
+      "summary": "Read metadata.",
+      "mode": "metadata_only"
+    },
+    {
+      "stepId": "skill.bad.duplicate.step",
+      "summary": "Read more metadata.",
+      "mode": "metadata_only"
+    }
+  ],
+  "requiredCapabilities": [],
+  "riskNotes": ["Duplicate fixture."]
+}

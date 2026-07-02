@@ -1,0 +1,11 @@
+{
+  "schemaVersion": "skill_manifest.v1",
+  "skillId": "skill.empty.metadata",
+  "name": "Empty Metadata Skill",
+  "description": "Has no steps yet.",
+  "version": "1.0.0",
+  "steps": [],
+  "requiredCapabilities": [],
+  "riskNotes": [],
+  "tags": []
+}

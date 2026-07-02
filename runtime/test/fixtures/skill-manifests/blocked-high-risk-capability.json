@@ -1,0 +1,22 @@
+{
+  "schemaVersion": "skill_manifest.v1",
+  "skillId": "skill.bad.capability",
+  "name": "High Risk Capability Skill",
+  "description": "Synthetic high risk capability fixture.",
+  "version": "1.0.0",
+  "steps": [
+    {
+      "stepId": "skill.bad.capability.plan",
+      "summary": "Plan summary-only metadata.",
+      "mode": "metadata_only"
+    }
+  ],
+  "requiredCapabilities": [
+    {
+      "capabilityId": "capability.workspace.write",
+      "riskLevel": "high",
+      "invocationPolicy": "disabled"
+    }
+  ],
+  "riskNotes": ["Blocked high risk capability fixture."]
+}

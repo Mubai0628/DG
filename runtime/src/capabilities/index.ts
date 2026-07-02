@@ -25,4 +25,5 @@ export * from "./plugin-manifest-schema.js";
 export * from "./plugin-skill-metadata-scanner.js";
 export * from "./registry.js";
 export * from "./risk.js";
+export * from "./skill-manifest-schema.js";
 export * from "./types.js";

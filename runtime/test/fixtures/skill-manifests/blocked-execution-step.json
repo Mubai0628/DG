@@ -1,0 +1,16 @@
+{
+  "schemaVersion": "skill_manifest.v1",
+  "skillId": "skill.bad.execute",
+  "name": "Execution Step Skill",
+  "description": "Synthetic execution claim fixture.",
+  "version": "1.0.0",
+  "steps": [
+    {
+      "stepId": "skill.bad.execute.run",
+      "summary": "Run a shell command from the skill runtime.",
+      "mode": "metadata_only"
+    }
+  ],
+  "requiredCapabilities": [],
+  "riskNotes": ["Blocked execution fixture."]
+}

@@ -20016,6 +20016,52 @@ describe("desktop source boundaries", () => {
     expect(combined).toContain("raw code markers");
   });
 
+  it("documents the P0Y-003 skill manifest schema without runtime execution", async () => {
+    const runtimeDoc = await readFile(
+      path.join(repoRoot, "docs", "runtime-skill-manifest-schema-v0.20.md"),
+      "utf8"
+    );
+    const docsIndex = await readFile(
+      path.join(repoRoot, "docs", "README.md"),
+      "utf8"
+    );
+    const runtimeSource = await readFile(
+      path.join(
+        repoRoot,
+        "runtime",
+        "src",
+        "capabilities",
+        "skill-manifest-schema.ts"
+      ),
+      "utf8"
+    );
+    const combined = `${runtimeDoc}\n${docsIndex}\n${runtimeSource}`;
+
+    expect(runtimeDoc).toContain("Runtime Skill Manifest Schema v0.20");
+    expect(runtimeDoc).toContain("schema only");
+    expect(runtimeDoc).toContain("no skill runtime execution");
+    expect(runtimeDoc).toContain("no arbitrary MCP tool invocation");
+    expect(runtimeDoc).toContain("no plugin execution request");
+    expect(runtimeDoc).toContain("no shell command");
+    expect(runtimeDoc).toContain("no Git command");
+    expect(runtimeDoc).toContain("no direct filesystem write");
+    expect(runtimeDoc).toContain("no native bridge");
+    expect(runtimeDoc).toContain("no desktop action");
+    expect(runtimeDoc).toContain("runtime_skill_manifest_schema");
+    expect(runtimeDoc).toContain("all execution paths false");
+    expect(runtimeSource).toContain("validateSkillManifest");
+    expect(runtimeSource).toContain("canExecuteSkill: false");
+    expect(runtimeSource).toContain("canRunSkillRuntime: false");
+    expect(runtimeSource).toContain("canInvokeMcpTool: false");
+    expect(runtimeSource).toContain("canExecutePlugin: false");
+    expect(runtimeSource).not.toContain("fetch(");
+    expect(runtimeSource).not.toContain("process.env");
+    expect(docsIndex).toContain("runtime-skill-manifest-schema-v0.20.md");
+    expect(combined).toContain("raw prompt");
+    expect(combined).toContain("secret markers");
+    expect(combined).toContain("duplicate steps");
+  });
+
   it("documents the P0S-001 MVP hardening recovery design gate", async () => {
     const adr = await readFile(
       path.join(repoRoot, "docs", "adr", "0011-mvp-hardening-recovery.md"),

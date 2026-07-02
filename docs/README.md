@@ -317,6 +317,7 @@ foundation.
 - [Plugin / Skill Sandbox implementation gate v0.20](plugin-skill-sandbox-implementation-gate-v0.20.md)
 - [P0Y-002 Plugin Manifest Schema plan](p0y-002-plugin-manifest-schema-plan.md)
 - [Runtime Plugin Manifest Schema v0.20](runtime-plugin-manifest-schema-v0.20.md)
+- [Runtime Skill Manifest Schema v0.20](runtime-skill-manifest-schema-v0.20.md)
 - [Runtime Memory Recall Preview v0.3](runtime-memory-recall-preview-v0.3.md)
 - [v0.4.0 Controlled Creation Preview RC release notes](release-notes-v0.4.0-controlled-creation-preview-rc.1.md)
 - [App Shell Controlled Creation manual QA](app-shell-controlled-creation-manual-qa.md)

@@ -1,0 +1,17 @@
+{
+  "schemaVersion": "skill_manifest.v1",
+  "skillId": "skill.bad.rawprompt",
+  "name": "Raw Prompt Skill",
+  "description": "Synthetic raw prompt fixture.",
+  "version": "1.0.0",
+  "rawPrompt": "Synthetic raw prompt content.",
+  "steps": [
+    {
+      "stepId": "skill.bad.rawprompt.step",
+      "summary": "Read metadata.",
+      "mode": "metadata_only"
+    }
+  ],
+  "requiredCapabilities": [],
+  "riskNotes": ["Blocked raw prompt fixture."]
+}
