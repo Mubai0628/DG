@@ -100,6 +100,11 @@ import {
   type AppCapabilityPlanPreviewView
 } from "./capability-plan-preview-view.js";
 import {
+  buildFixedMultiAgentRunView,
+  summarizeFixedMultiAgentRunView,
+  type FixedMultiAgentRunView
+} from "./fixed-multi-agent-run-view.js";
+import {
   buildCapabilityHostSurfaceView,
   capabilityHostSurfaceWarningCodes,
   summarizeCapabilityHostSurfaceView,
@@ -694,6 +699,9 @@ export function DesktopShell(): JSX.Element {
     liveProposalEvaluationTelemetryAuditPreview,
     setLiveProposalEvaluationTelemetryAuditPreview
   ] = useState<LiveProposalEvaluationTelemetryAuditView | undefined>();
+  const [fixedMultiAgentRunPreview, setFixedMultiAgentRunPreview] = useState<
+    FixedMultiAgentRunView | undefined
+  >();
   const [mcpReadonlyProfileText, setMcpReadonlyProfileText] = useState(
     defaultMcpReadonlyProfileJson
   );
@@ -1342,6 +1350,24 @@ export function DesktopShell(): JSX.Element {
       selectedIntent
     ]
   );
+  const fixedMultiAgentRunCandidate = useMemo<FixedMultiAgentRunView>(
+    () =>
+      buildFixedMultiAgentRunView({
+        runDraft: displayedRunDraft,
+        selectedIntent,
+        objectiveSummary: displayedRunDraft.objectiveSummary,
+        agentRoutePreview,
+        capabilityPlanPreview
+      }),
+    [
+      agentRoutePreview,
+      capabilityPlanPreview,
+      displayedRunDraft,
+      selectedIntent
+    ]
+  );
+  const displayedFixedMultiAgentRun =
+    fixedMultiAgentRunPreview ?? buildFixedMultiAgentRunView();
   const patchProposalValidationCandidate =
     useMemo<AppPatchProposalValidationPreviewView>(
       () =>
@@ -2344,6 +2370,9 @@ export function DesktopShell(): JSX.Element {
     liveProposalEvaluationTelemetryAuditText
   ]);
   useEffect(() => {
+    setFixedMultiAgentRunPreview(undefined);
+  }, [agentRoutePreview.routeId, capabilityPlanPreview.source, displayedRunDraft.draftId]);
+  useEffect(() => {
     setMcpReadonlyConnectionPreview(undefined);
     setMcpReadonlyDiscoverResult(undefined);
     setMcpReadonlyDiscoverError(undefined);
@@ -2494,6 +2523,7 @@ export function DesktopShell(): JSX.Element {
         modelPatchProposalImport: modelPatchProposalImportPreview,
         modelProposalChainIntegration: modelProposalChainIntegrationPreview,
         liveProposalPreviewGate: liveProposalPreviewGatePreview,
+        fixedMultiAgentRun: fixedMultiAgentRunPreview,
         mcpToolProposal: displayedMcpToolProposal,
         capabilityHostSurface: capabilityHostSurfacePreview,
         snapshotContract: displayedDisposableWorkspaceSnapshot,
@@ -2512,6 +2542,7 @@ export function DesktopShell(): JSX.Element {
       displayedDisposableWorkspaceSnapshot,
       capabilityHostSurfacePreview,
       displayedMcpToolProposal,
+      fixedMultiAgentRunPreview,
       liveProposalPreviewGatePreview,
       modelProposalChainIntegrationPreview,
       modelPatchProposalImportPreview,
@@ -2825,6 +2856,21 @@ export function DesktopShell(): JSX.Element {
 
   function handlePreviewContextAssembly(): void {
     setContextAssemblyPreview(contextAssemblyCandidate);
+  }
+
+  function handlePreviewFixedRunPlan(): void {
+    setFixedMultiAgentRunPreview(fixedMultiAgentRunCandidate);
+    setContextAssemblyPreview(undefined);
+  }
+
+  function handlePreviewFixedAgentHandoffs(): void {
+    setFixedMultiAgentRunPreview(fixedMultiAgentRunCandidate);
+    setContextAssemblyPreview(undefined);
+  }
+
+  function handleClearFixedMultiAgentRun(): void {
+    setFixedMultiAgentRunPreview(undefined);
+    setContextAssemblyPreview(undefined);
   }
 
   function handlePreviewPatchProposal(): void {
@@ -12453,6 +12499,204 @@ export function DesktopShell(): JSX.Element {
             ) : null}
 
             <p className="fieldHelp">{capabilityPlanPreview.nextAction}</p>
+          </section>
+
+          <section
+            className="eventPanel"
+            aria-label="Fixed Multi-Agent Run"
+          >
+            <div className="panelHeader">
+              <h2>Fixed Multi-Agent Run</h2>
+              <span className="muted">Fixed roles / no dynamic bidding</span>
+            </div>
+            <p className="fieldHelp">
+              Runs a fixed orchestrator/coder/reviewer/verifier route using
+              summary-only handoff dossiers. Agents cannot directly execute
+              tools, apply patches, run Git/shell, call MCP mutating tools, or
+              invoke plugin/skill runtimes.
+            </p>
+
+            <div className="buttonRow">
+              <button
+                type="button"
+                className="secondary"
+                onClick={(event) => {
+                  event.preventDefault();
+                  event.stopPropagation();
+                  handlePreviewFixedRunPlan();
+                }}
+                disabled={displayedRunDraft.status === "empty"}
+                aria-disabled={displayedRunDraft.status === "empty"}
+              >
+                Preview fixed run plan
+              </button>
+              <button
+                type="button"
+                className="secondary"
+                onClick={(event) => {
+                  event.preventDefault();
+                  event.stopPropagation();
+                  handlePreviewFixedAgentHandoffs();
+                }}
+                disabled={displayedRunDraft.status === "empty"}
+                aria-disabled={displayedRunDraft.status === "empty"}
+              >
+                Preview agent handoffs
+              </button>
+              <button
+                type="button"
+                className="secondary"
+                onClick={(event) => {
+                  event.preventDefault();
+                  event.stopPropagation();
+                  handleClearFixedMultiAgentRun();
+                }}
+              >
+                Clear multi-agent preview
+              </button>
+              <button type="button" className="secondary" disabled>
+                Add Agent (disabled)
+              </button>
+              <button type="button" className="secondary" disabled>
+                Bid Agents (disabled)
+              </button>
+              <button type="button" className="secondary" disabled>
+                Auto-run Tools (disabled)
+              </button>
+              <button type="button" className="secondary" disabled>
+                Auto-apply (disabled)
+              </button>
+              <button type="button" className="secondary" disabled>
+                Invoke MCP Tool (disabled)
+              </button>
+              <button type="button" className="secondary" disabled>
+                Shell lane (disabled)
+              </button>
+              <button type="button" className="secondary" disabled>
+                Git Write (disabled)
+              </button>
+            </div>
+
+            {displayedFixedMultiAgentRun.status === "empty" ? (
+              <p className="empty">
+                Preview a local run draft first. Fixed multi-agent run summaries
+                will appear here before context assembly.
+              </p>
+            ) : null}
+
+            <dl className="summaryGrid compact">
+              <div>
+                <dt>Status</dt>
+                <dd>{displayedFixedMultiAgentRun.status}</dd>
+              </div>
+              <div>
+                <dt>Intent</dt>
+                <dd>{displayedFixedMultiAgentRun.intent}</dd>
+              </div>
+              <div>
+                <dt>Route</dt>
+                <dd>
+                  {displayedFixedMultiAgentRun.route.length > 0
+                    ? displayedFixedMultiAgentRun.route.join(" / ")
+                    : "n/a"}
+                </dd>
+              </div>
+              <div>
+                <dt>Roles</dt>
+                <dd>{displayedFixedMultiAgentRun.roleCount}</dd>
+              </div>
+              <div>
+                <dt>Stages</dt>
+                <dd>
+                  {displayedFixedMultiAgentRun.stageCount} ·{" "}
+                  {displayedFixedMultiAgentRun.stageStatus}
+                </dd>
+              </div>
+              <div>
+                <dt>Handoffs</dt>
+                <dd>{displayedFixedMultiAgentRun.handoffCount}</dd>
+              </div>
+              <div>
+                <dt>Blockers</dt>
+                <dd>{displayedFixedMultiAgentRun.blockedCount}</dd>
+              </div>
+              <div>
+                <dt>Warnings</dt>
+                <dd>{displayedFixedMultiAgentRun.warningCount}</dd>
+              </div>
+              <div>
+                <dt>Hash</dt>
+                <dd>{displayedFixedMultiAgentRun.runHashPrefix}</dd>
+              </div>
+              <div>
+                <dt>App execution</dt>
+                <dd>
+                  {displayedFixedMultiAgentRun.readiness.appCanExecute
+                    ? "enabled"
+                    : "disabled"}
+                </dd>
+              </div>
+            </dl>
+
+            <p className="fieldHelp">
+              {summarizeFixedMultiAgentRunView(displayedFixedMultiAgentRun)}
+            </p>
+
+            {displayedFixedMultiAgentRun.stages.length > 0 ? (
+              <ol className="timeline">
+                {displayedFixedMultiAgentRun.stages.map((stage) => (
+                  <li key={stage.stageId}>
+                    <span className="timelineMeta">
+                      {stage.kind} · {stage.status}
+                      {stage.role !== undefined ? ` · ${stage.role}` : ""}
+                    </span>
+                    <span>{stage.summary}</span>
+                    {stage.warningCodes.length > 0 ? (
+                      <span className="timelineMeta">
+                        Warnings: {stage.warningCodes.join(", ")}
+                      </span>
+                    ) : null}
+                  </li>
+                ))}
+              </ol>
+            ) : null}
+
+            {displayedFixedMultiAgentRun.handoffs.length > 0 ? (
+              <ol className="timeline">
+                {displayedFixedMultiAgentRun.handoffs.map((handoff) => (
+                  <li key={handoff.handoffId}>
+                    <span className="timelineMeta">
+                      {handoff.fromRole} to {handoff.toRole} ·{" "}
+                      {handoff.dossierHashPrefix}
+                    </span>
+                    <span>
+                      evidence {handoff.evidenceRefCount} · context{" "}
+                      {handoff.contextRefCount} · memory{" "}
+                      {handoff.memoryRefCount} · capabilities{" "}
+                      {handoff.capabilityPlanRefCount}
+                    </span>
+                    {handoff.warningCodes.length > 0 ? (
+                      <span className="timelineMeta">
+                        Warnings: {handoff.warningCodes.join(", ")}
+                      </span>
+                    ) : null}
+                  </li>
+                ))}
+              </ol>
+            ) : null}
+
+            {displayedFixedMultiAgentRun.findings.length > 0 ? (
+              <p className="muted">
+                findings{" "}
+                {displayedFixedMultiAgentRun.findings
+                  .map((finding) => finding.code)
+                  .join(", ")}
+              </p>
+            ) : null}
+
+            <p className="fieldHelp">
+              {displayedFixedMultiAgentRun.nextAction}
+            </p>
           </section>
 
           <section className="eventPanel" aria-label="Capability Host">

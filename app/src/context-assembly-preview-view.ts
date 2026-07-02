@@ -4,6 +4,7 @@ import type { CapabilityHostSurfaceView } from "./capability-host-surface-view.j
 import type { AppControlPlaneProjectionView } from "./control-plane-view.js";
 import type { AppControlledCreationReplayProjectionView } from "./controlled-creation-replay-projection-view.js";
 import type { AppDisposableWorkspaceSnapshotView } from "./disposable-workspace-snapshot-view.js";
+import type { FixedMultiAgentRunView } from "./fixed-multi-agent-run-view.js";
 import type { LiveProposalPreviewGateView } from "./live-proposal-preview-gate-view.js";
 import type { AppMemoryRecallPreviewView } from "./memory-recall-preview-view.js";
 import type { McpToolProposalView } from "./mcp-tool-proposal-view.js";
@@ -65,6 +66,7 @@ export type AppContextAssemblySourceRef = {
     | "user_workspace_promotion_readiness"
     | "agent_route"
     | "capability_plan"
+    | "fixed_multi_agent_run"
     | "capability_host_surface"
     | "verification_evidence"
     | "event_evidence"
@@ -152,6 +154,7 @@ export type AppContextAssemblyPreviewInput = {
     | undefined;
   agentRoutePreview?: AppAgentRoutePreviewView | undefined;
   capabilityPlanPreview?: AppCapabilityPlanPreviewView | undefined;
+  fixedMultiAgentRun?: FixedMultiAgentRunView | undefined;
   capabilityHostSurface?: CapabilityHostSurfaceView | undefined;
   controlProjection?: AppControlPlaneProjectionView | undefined;
   verificationLaneProjection?: AppVerificationLaneProjectionView | undefined;
@@ -429,6 +432,33 @@ function buildSegments(
         })
       );
     }
+  }
+
+  if (
+    input.fixedMultiAgentRun !== undefined &&
+    input.fixedMultiAgentRun.status !== "empty"
+  ) {
+    segments.push(
+      segment({
+        layer: "no_compress_zone",
+        title: "Fixed multi-agent run summary",
+        sourceKind: "fixed_multi_agent_run",
+        sourceRefId: input.fixedMultiAgentRun.runId,
+        summary: [
+          input.fixedMultiAgentRun.status,
+          `intent:${input.fixedMultiAgentRun.intent}`,
+          `roles:${input.fixedMultiAgentRun.roleCount}`,
+          `handoffs:${input.fixedMultiAgentRun.handoffCount}`,
+          `blockers:${input.fixedMultiAgentRun.blockedCount}`,
+          `warnings:${input.fixedMultiAgentRun.warningCount}`,
+          `hash:${input.fixedMultiAgentRun.runHashPrefix}`
+        ].join(" | "),
+        warningCodes: [
+          "FIXED_MULTI_AGENT_RUN_NO_COMPRESS",
+          ...input.fixedMultiAgentRun.findings.map((finding) => finding.code)
+        ]
+      })
+    );
   }
 
   if (

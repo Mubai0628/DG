@@ -63,6 +63,7 @@ import {
   buildCapabilityPlanPreviewView,
   capabilityPlanApprovalRefs
 } from "../src/capability-plan-preview-view.js";
+import { buildFixedMultiAgentRunView } from "../src/fixed-multi-agent-run-view.js";
 import {
   buildCapabilityHostSurfaceView,
   capabilityHostSurfaceWarningCodes,
@@ -20839,6 +20840,124 @@ describe("desktop source boundaries", () => {
     expect(docsIndex).toContain("runtime-agent-capability-plan-v0.21.md");
     expect(combined).toContain("No native bridge");
     expect(combined).toContain("No desktop action");
+    expect(combined).not.toContain("dynamic bidding is enabled");
+    expect(combined).not.toContain("arbitrary agent creation is enabled");
+    expect(combined).not.toContain("agents can directly execute tools");
+  });
+
+  it("previews the App fixed multi-agent run surface without dynamic execution controls", async () => {
+    const draft = buildRunDraftView({
+      objectiveDraft: "Update the runtime docs summary for a fixed route.",
+      acceptanceCriteriaDraft:
+        "Use fixed roles only\nKeep output summary-only\nDo not execute tools",
+      selectedIntent: "code_change"
+    });
+    const route = buildAgentRoutePreviewView({
+      runDraft: draft,
+      selectedIntent: "code_change",
+      objectiveSummary: draft.objectiveSummary,
+      acceptanceCriteriaCount: draft.acceptanceCriteriaCount
+    });
+    const capabilityPlan = buildCapabilityPlanPreviewView({
+      runDraft: draft,
+      agentRoutePreview: route,
+      selectedIntent: "code_change"
+    });
+    const view = buildFixedMultiAgentRunView({
+      runDraft: draft,
+      selectedIntent: "code_change",
+      agentRoutePreview: route,
+      capabilityPlanPreview: capabilityPlan,
+      createdAt: "2026-07-02T00:00:00.000Z"
+    });
+
+    expect(["preview", "warning"]).toContain(view.status);
+    expect(view.intent).toBe("code_change");
+    expect(view.route).toEqual([
+      "orchestrator",
+      "coder",
+      "reviewer",
+      "verifier"
+    ]);
+    expect(view.handoffCount).toBeGreaterThanOrEqual(3);
+    expect(view.readiness.canCreateDynamicAgent).toBe(false);
+    expect(view.readiness.canBidAgents).toBe(false);
+    expect(view.readiness.canAutoRunTools).toBe(false);
+    expect(view.readiness.canAutoApply).toBe(false);
+    expect(view.readiness.canInvokeMcpTool).toBe(false);
+    expect(view.readiness.canRunShell).toBe(false);
+    expect(view.readiness.canGitWrite).toBe(false);
+    expect(view.readiness.appCanExecute).toBe(false);
+
+    const blocked = buildFixedMultiAgentRunView({
+      runDraft: draft,
+      selectedIntent: "code_change",
+      [("raw" + "Prompt") as "objectiveSummary"]: "unsafe raw prompt marker"
+    });
+    expect(blocked.status).toBe("blocked");
+    expect(blocked.findings.map((finding) => finding.code)).toContain(
+      "FIXED_MULTI_AGENT_FORBIDDEN_FIELD"
+    );
+
+    const context = buildContextAssemblyPreviewView({
+      runDraft: draft,
+      fixedMultiAgentRun: view
+    });
+    expect(
+      context.segments.some(
+        (segment) =>
+          segment.sourceKind === "fixed_multi_agent_run" &&
+          segment.layer === "no_compress_zone" &&
+          segment.noCompress
+      )
+    ).toBe(true);
+  });
+
+  it("documents and locks the App fixed multi-agent run surface", async () => {
+    const appSource = await readFile(
+      path.join(appRoot, "src", "App.tsx"),
+      "utf8"
+    );
+    const doc = await readFile(
+      path.join(repoRoot, "docs", "app-shell-fixed-multi-agent-run-v0.21.md"),
+      "utf8"
+    );
+    const docsIndex = await readFile(
+      path.join(repoRoot, "docs", "README.md"),
+      "utf8"
+    );
+    const rootReadme = await readFile(path.join(repoRoot, "README.md"), "utf8");
+    const appReadme = await readFile(path.join(appRoot, "README.md"), "utf8");
+    const combined = `${doc}\n${docsIndex}\n${rootReadme}\n${appReadme}\n${appSource}`;
+
+    expect(appSource).toContain("Fixed Multi-Agent Run");
+    expect(appSource).toContain("Fixed roles / no dynamic bidding");
+    expect(appSource).toContain("Preview fixed run plan");
+    expect(appSource).toContain("Preview agent handoffs");
+    expect(appSource).toContain("Clear multi-agent preview");
+    expect(appSource).toContain("Add Agent (disabled)");
+    expect(appSource).toContain("Bid Agents (disabled)");
+    expect(appSource).toContain("Auto-run Tools (disabled)");
+    expect(appSource).toContain("Auto-apply (disabled)");
+    expect(appSource).toContain("Invoke MCP Tool (disabled)");
+    expect(appSource).toContain("Shell lane (disabled)");
+    expect(appSource).toContain("Git Write (disabled)");
+    expect(appSource).not.toMatch(/>\s*Add Agent\s*</);
+    expect(appSource).not.toMatch(/>\s*Bid Agents\s*</);
+    expect(appSource).not.toMatch(/>\s*Auto-run Tools\s*</);
+    expect(appSource).not.toMatch(/>\s*Auto-apply\s*</);
+    expect(appSource).not.toMatch(/>\s*Invoke MCP Tool\s*</);
+    expect(appSource).not.toMatch(/>\s*Shell lane\s*</);
+    expect(appSource).not.toMatch(/>\s*Git Write\s*</);
+    expect(doc).toContain("App Shell Fixed Multi-Agent Run");
+    expect(doc).toContain("no dynamic agent bidding");
+    expect(doc).toContain("no arbitrary agent creation");
+    expect(doc).toContain("no direct agent tool execution");
+    expect(doc).toContain("raw prompt");
+    expect(doc).toContain("fixed_multi_agent_run");
+    expect(docsIndex).toContain("app-shell-fixed-multi-agent-run-v0.21.md");
+    expect(rootReadme).toContain("app-shell-fixed-multi-agent-run-v0.21.md");
+    expect(appReadme).toContain("Fixed Multi-Agent Run");
     expect(combined).not.toContain("dynamic bidding is enabled");
     expect(combined).not.toContain("arbitrary agent creation is enabled");
     expect(combined).not.toContain("agents can directly execute tools");
