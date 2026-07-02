@@ -439,6 +439,9 @@ v0.17 Capability Host MVP references:
 - [App Shell Fixed Multi-Agent Run v0.21](docs/app-shell-fixed-multi-agent-run-v0.21.md)
 - [Fixed Agent Events / Replay v0.21](docs/fixed-agent-events-replay-v0.21.md)
 - [Fixed Multi-Agent E2E Smoke v0.21](docs/fixed-multi-agent-e2e-smoke-v0.21.md)
+- [v0.22.0 Fixed Multi-Agent Execution MVP RC release notes](docs/release-notes-v0.22.0-fixed-multi-agent-execution-mvp-rc.1.md)
+- [Fixed Multi-Agent Execution manual QA](docs/fixed-multi-agent-execution-manual-qa.md)
+- [Fixed Multi-Agent Execution RC checklist](docs/fixed-multi-agent-execution-rc-checklist.md)
 
 ## Current roadmap
 

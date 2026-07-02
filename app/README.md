@@ -211,6 +211,12 @@ Current scope:
   orchestrator/coder/reviewer/verifier summaries, reviewer risk summary,
   verifier safe-lane summary, human-approved apply, rollback availability,
   replayed role timeline, no raw content, and no auto-apply
+- prepare the v0.22 Fixed Multi-Agent Execution MVP RC with release notes,
+  manual QA, RC checklist, scoped gates, full gates, GitHub Actions
+  verification, tag, and prerelease flow while preserving fixed routes, human
+  approval, summary-only events, no dynamic bidding, no arbitrary agent
+  creation, no direct agent tool execution, no arbitrary Git/shell, no native
+  bridge, and no desktop action
 - prepare the v0.19 MCP Tool Invocation Proposal RC with proposal schema,
   input risk classification, simulated result summaries, broker planning,
   read-only App proposal surface, redaction audit, and smoke hardening while

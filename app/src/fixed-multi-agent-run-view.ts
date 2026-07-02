@@ -11,7 +11,6 @@ import {
 } from "../../runtime/src/agents/fixed-agent-orchestrator.js";
 import {
   buildFixedAgentRoleOutput,
-  summarizeFixedAgentRoleOutput,
   type FixedAgentRoleOutputStatus
 } from "../../runtime/src/agents/fixed-agent-role-adapters.js";
 import {
@@ -43,13 +42,7 @@ export type FixedMultiAgentRunStage = {
   stageId: string;
   kind: FixedMultiAgentRunStageKind;
   role?: FixedAgentRole | undefined;
-  status:
-    | "empty"
-    | "planned"
-    | "ready"
-    | "warning"
-    | "blocked"
-    | "disabled";
+  status: "empty" | "planned" | "ready" | "warning" | "blocked" | "disabled";
   summary: string;
   warningCodes: string[];
 };
@@ -452,7 +445,9 @@ function memoryRefsFrom(input: FixedMultiAgentRunInput): string[] {
 function capabilityRefsFrom(input: FixedMultiAgentRunInput): string[] {
   const itemRefs =
     input.capabilityPlanPreview?.items.map((item) => item.capabilityId) ?? [];
-  return uniqueStrings(itemRefs.length > 0 ? itemRefs : ["runtime.context.assembly"]);
+  return uniqueStrings(
+    itemRefs.length > 0 ? itemRefs : ["runtime.context.assembly"]
+  );
 }
 
 function warningsFrom(input: FixedMultiAgentRunInput): string[] {
@@ -464,7 +459,10 @@ function warningsFrom(input: FixedMultiAgentRunInput): string[] {
   ]);
 }
 
-function roleOutputInputFor(role: FixedAgentRole, planId: string): {
+function roleOutputInputFor(
+  role: FixedAgentRole,
+  planId: string
+): {
   role: FixedAgentRole;
   status: FixedAgentRoleOutputStatus;
   routeSummary?: unknown;
@@ -511,7 +509,9 @@ function roleOutputInputFor(role: FixedAgentRole, planId: string): {
       validationSummaryRefs: { ...baseRef, refId: `${planId}-validation` },
       auditSummaryRefs: { ...baseRef, refId: `${planId}-diff-audit` },
       approvalSummaryRefs: { ...baseRef, refId: `${planId}-approval-draft` },
-      riskNotes: ["Reviewer handoff is summary-only; approval execution remains disabled."]
+      riskNotes: [
+        "Reviewer handoff is summary-only; approval execution remains disabled."
+      ]
     };
   }
   return {
@@ -534,7 +534,10 @@ function capabilityRefsForRole(role: FixedAgentRole): string[] {
     return ["runtime.model_proposal.import", "runtime.patch_proposal.preview"];
   }
   if (role === "reviewer") {
-    return ["runtime.patch.validation_preview", "runtime.patch.diff_audit_preview"];
+    return [
+      "runtime.patch.validation_preview",
+      "runtime.patch.diff_audit_preview"
+    ];
   }
   return ["native.git.status", "runtime.shell.scoped_test_summary"];
 }
@@ -624,7 +627,8 @@ function inputFindingsFrom(input: unknown): FixedMultiAgentRunFinding[] {
       findings.push({
         code: "FIXED_MULTI_AGENT_FORBIDDEN_FIELD",
         severity: "blocker",
-        safeMessage: "Fixed multi-agent preview input contains a forbidden field.",
+        safeMessage:
+          "Fixed multi-agent preview input contains a forbidden field.",
         source: "app_input"
       });
     }
@@ -636,7 +640,8 @@ function inputFindingsFrom(input: unknown): FixedMultiAgentRunFinding[] {
       findings.push({
         code: "FIXED_MULTI_AGENT_EXECUTION_FLAG_BLOCKED",
         severity: "blocker",
-        safeMessage: "Fixed multi-agent preview input attempted to enable execution.",
+        safeMessage:
+          "Fixed multi-agent preview input attempted to enable execution.",
         source: "app_input"
       });
     }
@@ -646,7 +651,8 @@ function inputFindingsFrom(input: unknown): FixedMultiAgentRunFinding[] {
           findings.push({
             code: pattern.code,
             severity: "blocker",
-            safeMessage: "Fixed multi-agent preview input contains an unsafe marker.",
+            safeMessage:
+              "Fixed multi-agent preview input contains an unsafe marker.",
             source: "app_input"
           });
         }
@@ -747,7 +753,9 @@ function visit(
 ): void {
   visitor(path, value);
   if (Array.isArray(value)) {
-    value.forEach((item, index) => visit(item, [...path, String(index)], visitor));
+    value.forEach((item, index) =>
+      visit(item, [...path, String(index)], visitor)
+    );
     return;
   }
   if (value !== null && typeof value === "object") {

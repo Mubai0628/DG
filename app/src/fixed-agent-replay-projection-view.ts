@@ -6,7 +6,6 @@ import {
   normalizeTimelineItem,
   safeArray,
   safeErrorMessage,
-  safeText,
   type WorkspaceEventSummary
 } from "./safety.js";
 
@@ -199,7 +198,9 @@ export function buildFixedAgentReplayProjectionView(
     (finding) => finding.severity === "warning"
   ).length;
   const warningCount =
-    warningFindingCount + (fixedRun?.warningCount ?? 0) + persistedEvents.length;
+    warningFindingCount +
+    (fixedRun?.warningCount ?? 0) +
+    persistedEvents.length;
   const projectionHash = hashText(
     stableStringify({
       fixedRun: fixedRun?.runHash,
@@ -207,7 +208,10 @@ export function buildFixedAgentReplayProjectionView(
         event.eventType,
         event.hashPrefix
       ]),
-      virtual: virtualEvents.map((event) => [event.eventType, event.hashPrefix]),
+      virtual: virtualEvents.map((event) => [
+        event.eventType,
+        event.hashPrefix
+      ]),
       findings: findings.map((finding) => [finding.code, finding.severity])
     })
   );
@@ -285,35 +289,36 @@ function virtualEventsFrom(
       ref: handoff.handoffId
     })
   );
-  const review =
-    fixedRun.roles.includes("reviewer")
-      ? [
-          replayEventSummary({
-            eventType: "agent.review.completed",
-            role: "reviewer",
-            stage: "reviewer",
-            summary: "review summary projected; approval execution disabled",
-            warningCodes: fixedRun.findings.map((finding) => finding.code),
-            ref: `${fixedRun.runId}-review`
-          })
-        ]
-      : [];
-  const verify =
-    fixedRun.roles.includes("verifier")
-      ? [
-          replayEventSummary({
-            eventType: "agent.verify.completed",
-            role: "verifier",
-            stage: "verifier",
-            summary: "verification summary projected; Git/shell execution disabled",
-            warningCodes: fixedRun.findings.map((finding) => finding.code),
-            ref: `${fixedRun.runId}-verify`
-          })
-        ]
-      : [];
+  const review = fixedRun.roles.includes("reviewer")
+    ? [
+        replayEventSummary({
+          eventType: "agent.review.completed",
+          role: "reviewer",
+          stage: "reviewer",
+          summary: "review summary projected; approval execution disabled",
+          warningCodes: fixedRun.findings.map((finding) => finding.code),
+          ref: `${fixedRun.runId}-review`
+        })
+      ]
+    : [];
+  const verify = fixedRun.roles.includes("verifier")
+    ? [
+        replayEventSummary({
+          eventType: "agent.verify.completed",
+          role: "verifier",
+          stage: "verifier",
+          summary:
+            "verification summary projected; Git/shell execution disabled",
+          warningCodes: fixedRun.findings.map((finding) => finding.code),
+          ref: `${fixedRun.runId}-verify`
+        })
+      ]
+    : [];
   const finalEvent = replayEventSummary({
     eventType:
-      fixedRun.status === "blocked" ? "agent.run.blocked" : "agent.run.completed",
+      fixedRun.status === "blocked"
+        ? "agent.run.blocked"
+        : "agent.run.completed",
     stage: fixedRun.status === "blocked" ? "blocked" : "completed",
     summary: `fixed run projection:${fixedRun.status}`,
     findingCount: fixedRun.findingCount,
@@ -376,9 +381,7 @@ function replayEventSummary(input: {
   };
 }
 
-function roleStageStatus(
-  status: string
-): FixedAgentReplayRoleStage["status"] {
+function roleStageStatus(status: string): FixedAgentReplayRoleStage["status"] {
   if (status === "blocked") {
     return "blocked";
   }
@@ -460,7 +463,9 @@ function nextActionFor(status: FixedAgentReplayProjectionStatus): string {
   return "Preview a fixed multi-agent run before replay projection.";
 }
 
-function readiness(canPreview: boolean): FixedAgentReplayProjectionView["readiness"] {
+function readiness(
+  canPreview: boolean
+): FixedAgentReplayProjectionView["readiness"] {
   return {
     canPreviewReplay: canPreview,
     canWriteEventStore: false,
@@ -503,7 +508,9 @@ function visit(
 ): void {
   visitor(path, value);
   if (Array.isArray(value)) {
-    value.forEach((item, index) => visit(item, [...path, String(index)], visitor));
+    value.forEach((item, index) =>
+      visit(item, [...path, String(index)], visitor)
+    );
     return;
   }
   if (value !== null && typeof value === "object") {

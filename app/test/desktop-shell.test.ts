@@ -21104,7 +21104,12 @@ describe("desktop source boundaries", () => {
   it("smokes a docs-only fixed multi-agent flow through replay without raw content", async () => {
     const fixture = JSON.parse(
       await readFile(
-        path.join(appRoot, "test", "fixtures", "fixed-multi-agent-e2e-smoke.json"),
+        path.join(
+          appRoot,
+          "test",
+          "fixtures",
+          "fixed-multi-agent-e2e-smoke.json"
+        ),
         "utf8"
       )
     ) as {
@@ -21113,7 +21118,11 @@ describe("desktop source boundaries", () => {
       expectedRoute: string[];
       roleSummaries: Array<{ role: string; summary: string }>;
       reviewerRiskSummary: { riskLevel: string; summary: string };
-      verifierSummary: { status: string; gitLaneRef: string; shellLaneRef: string };
+      verifierSummary: {
+        status: string;
+        gitLaneRef: string;
+        shellLaneRef: string;
+      };
       approvalBoundary: {
         humanApprovalRequired: boolean;
         autoApply: boolean;
@@ -21124,7 +21133,10 @@ describe("desktop source boundaries", () => {
         autoRollback: boolean;
         rollbackPath: string;
       };
-      replayBoundary: { requiresRoleTimeline: boolean; eventWritesEnabled: boolean };
+      replayBoundary: {
+        requiresRoleTimeline: boolean;
+        eventWritesEnabled: boolean;
+      };
       expectedReadiness: {
         canAutoApply: boolean;
         canApplyPatch: boolean;
@@ -21288,7 +21300,12 @@ describe("desktop source boundaries", () => {
 
   it("documents and locks the fixed multi-agent e2e smoke", async () => {
     const fixture = await readFile(
-      path.join(appRoot, "test", "fixtures", "fixed-multi-agent-e2e-smoke.json"),
+      path.join(
+        appRoot,
+        "test",
+        "fixtures",
+        "fixed-multi-agent-e2e-smoke.json"
+      ),
       "utf8"
     );
     const doc = await readFile(
@@ -21329,6 +21346,128 @@ describe("desktop source boundaries", () => {
     expect(combined).not.toContain("dynamic bidding is enabled");
     expect(combined).not.toContain("auto-apply is enabled");
     expect(combined).not.toContain("agents can directly execute tools");
+  });
+
+  it("documents the v0.22 fixed multi-agent execution rc without enabling agent execution", async () => {
+    const appSource = await readFile(
+      path.join(appRoot, "src", "App.tsx"),
+      "utf8"
+    );
+    const releaseNotes = await readFile(
+      path.join(
+        repoRoot,
+        "docs",
+        "release-notes-v0.22.0-fixed-multi-agent-execution-mvp-rc.1.md"
+      ),
+      "utf8"
+    );
+    const manualQa = await readFile(
+      path.join(repoRoot, "docs", "fixed-multi-agent-execution-manual-qa.md"),
+      "utf8"
+    );
+    const rcChecklist = await readFile(
+      path.join(
+        repoRoot,
+        "docs",
+        "fixed-multi-agent-execution-rc-checklist.md"
+      ),
+      "utf8"
+    );
+    const docsIndex = await readFile(
+      path.join(repoRoot, "docs", "README.md"),
+      "utf8"
+    );
+    const rootReadme = await readFile(path.join(repoRoot, "README.md"), "utf8");
+    const appReadme = await readFile(path.join(appRoot, "README.md"), "utf8");
+    const combined = `${releaseNotes}\n${manualQa}\n${rcChecklist}\n${docsIndex}\n${rootReadme}\n${appReadme}\n${appSource}`;
+
+    expect(releaseNotes).toContain(
+      "v0.22.0-fixed-multi-agent-execution-mvp-rc.1"
+    );
+    expect(releaseNotes).toContain(
+      "Fixed multi-agent execution MVP, no dynamic bidding"
+    );
+    expect(releaseNotes).toContain(
+      "web_table_to_csv Convert remains the real conversion flow"
+    );
+    expect(releaseNotes).toContain(
+      "App-side approved execution remains human-approved and rollbackable"
+    );
+    expect(releaseNotes).toContain(
+      "Git/shell verification safe lanes remain fixed and summary-only"
+    );
+    expect(releaseNotes).toContain("no dynamic agent bidding");
+    expect(releaseNotes).toContain("no arbitrary agent creation");
+    expect(releaseNotes).toContain("no autonomous arbitrary tool execution");
+    expect(releaseNotes).toContain("no agent direct apply/rollback");
+    expect(releaseNotes).toContain("no raw prompt/source/diff in agent events");
+    expect(releaseNotes).toContain("fixed roles");
+    expect(releaseNotes).toContain("summary-only handoff dossier");
+    expect(releaseNotes).toContain("human approval for apply");
+    expect(releaseNotes).toContain("summary-only events");
+    expect(releaseNotes).toContain("replay timeline");
+    expect(releaseNotes).toContain(
+      "docs/fixed-multi-agent-execution-manual-qa.md"
+    );
+    expect(releaseNotes).toContain(
+      "docs/fixed-multi-agent-execution-rc-checklist.md"
+    );
+
+    expect(manualQa).toContain("Convert Smoke");
+    expect(manualQa).toContain("Fixed Route Preview");
+    expect(manualQa).toContain("code_change");
+    expect(manualQa).toContain("Documentation Route");
+    expect(manualQa).toContain("Agent handoff summary");
+    expect(manualQa).toContain("Reviewer summary");
+    expect(manualQa).toContain("Verifier summary");
+    expect(manualQa).toContain("Approved Apply Still Works");
+    expect(manualQa).toContain("Verification Safe Lane Still Works");
+    expect(manualQa).toContain("Rollback Still Works");
+    expect(manualQa).toContain("Replay Timeline");
+    expect(manualQa).toContain("No dynamic bidding");
+    expect(manualQa).toContain("raw prompt/source");
+
+    expect(rcChecklist).toContain("Local Scoped Command Gate");
+    expect(rcChecklist).toContain("Full Stage-end Command Gate");
+    expect(rcChecklist).toContain("Visual Smoke Gate");
+    expect(rcChecklist).toContain("GitHub Actions");
+    expect(rcChecklist).toContain(
+      "git tag v0.22.0-fixed-multi-agent-execution-mvp-rc.1"
+    );
+    expect(rcChecklist).toContain(
+      "gh release create v0.22.0-fixed-multi-agent-execution-mvp-rc.1"
+    );
+    expect(rcChecklist).toContain("Rollback Guidance");
+    expect(rcChecklist).toContain("full docs path links");
+
+    expect(appSource).toContain("Fixed Multi-Agent Run");
+    expect(appSource).toContain("Fixed roles / no dynamic bidding");
+    expect(appSource).toContain("Fixed Agent Replay Projection");
+    expect(appSource).toContain("Summary-only replay / no event write");
+    expect(appSource).toContain("Add Agent (disabled)");
+    expect(appSource).toContain("Bid Agents (disabled)");
+    expect(appSource).toContain("Auto-run Tools (disabled)");
+    expect(appSource).toContain("Auto-apply (disabled)");
+    expect(appSource).toContain("Invoke MCP Tool (disabled)");
+    expect(appSource).not.toMatch(/>\s*Add Agent\s*</);
+    expect(appSource).not.toMatch(/>\s*Bid Agents\s*</);
+    expect(appSource).not.toMatch(/>\s*Auto-run Tools\s*</);
+    expect(appSource).not.toMatch(/>\s*Auto-apply\s*</);
+    expect(appSource).not.toMatch(/>\s*Invoke MCP Tool\s*</);
+
+    expect(docsIndex).toContain(
+      "release-notes-v0.22.0-fixed-multi-agent-execution-mvp-rc.1.md"
+    );
+    expect(docsIndex).toContain("fixed-multi-agent-execution-manual-qa.md");
+    expect(docsIndex).toContain("fixed-multi-agent-execution-rc-checklist.md");
+    expect(rootReadme).toContain(
+      "release-notes-v0.22.0-fixed-multi-agent-execution-mvp-rc.1.md"
+    );
+    expect(appReadme).toContain("v0.22 Fixed Multi-Agent Execution MVP RC");
+    expect(combined).not.toContain("dynamic bidding is enabled");
+    expect(combined).not.toContain("arbitrary agent creation is enabled");
+    expect(combined).not.toContain("agents can directly execute tools");
+    expect(combined).not.toContain("auto-apply is enabled");
   });
 
   it("documents the P0S-001 MVP hardening recovery design gate", async () => {

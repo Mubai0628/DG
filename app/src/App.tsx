@@ -2391,7 +2391,11 @@ export function DesktopShell(): JSX.Element {
   ]);
   useEffect(() => {
     setFixedMultiAgentRunPreview(undefined);
-  }, [agentRoutePreview.routeId, capabilityPlanPreview.source, displayedRunDraft.draftId]);
+  }, [
+    agentRoutePreview.routeId,
+    capabilityPlanPreview.source,
+    displayedRunDraft.draftId
+  ]);
   useEffect(() => {
     setFixedAgentReplayProjectionPreview(undefined);
   }, [eventSummary, fixedMultiAgentRunPreview]);
@@ -12535,10 +12539,7 @@ export function DesktopShell(): JSX.Element {
             <p className="fieldHelp">{capabilityPlanPreview.nextAction}</p>
           </section>
 
-          <section
-            className="eventPanel"
-            aria-label="Fixed Multi-Agent Run"
-          >
+          <section className="eventPanel" aria-label="Fixed Multi-Agent Run">
             <div className="panelHeader">
               <h2>Fixed Multi-Agent Run</h2>
               <span className="muted">Fixed roles / no dynamic bidding</span>
@@ -12739,7 +12740,9 @@ export function DesktopShell(): JSX.Element {
           >
             <div className="panelHeader">
               <h2>Fixed Agent Replay Projection</h2>
-              <span className="muted">Summary-only replay / no event write</span>
+              <span className="muted">
+                Summary-only replay / no event write
+              </span>
             </div>
             <p className="fieldHelp">
               Projects fixed agent run, stage, handoff, review, and verification
@@ -12797,7 +12800,9 @@ export function DesktopShell(): JSX.Element {
                 <dt>Route</dt>
                 <dd>
                   {displayedFixedAgentReplayProjection.latestRoute.length > 0
-                    ? displayedFixedAgentReplayProjection.latestRoute.join(" / ")
+                    ? displayedFixedAgentReplayProjection.latestRoute.join(
+                        " / "
+                      )
                     : "n/a"}
                 </dd>
               </div>
@@ -12829,7 +12834,9 @@ export function DesktopShell(): JSX.Element {
               </div>
               <div>
                 <dt>Hash</dt>
-                <dd>{displayedFixedAgentReplayProjection.projectionHashPrefix}</dd>
+                <dd>
+                  {displayedFixedAgentReplayProjection.projectionHashPrefix}
+                </dd>
               </div>
               <div>
                 <dt>Event writes</dt>

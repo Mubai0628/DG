@@ -76,7 +76,7 @@ write events, invoke tools, or execute commands.
 
 1. Open the App Shell.
 2. Enter a docs-only objective such as `Create or update a docs-only file
-   through fixed multi-agent flow`.
+through fixed multi-agent flow`.
 3. Choose the coding intent and preview the fixed multi-agent run.
 4. Confirm the route is `orchestrator / coder / reviewer / verifier`.
 5. Confirm reviewer risk summary stays low and summary-only.
