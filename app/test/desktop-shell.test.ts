@@ -70,6 +70,7 @@ import {
 } from "../src/capability-host-surface-view.js";
 import { buildCapabilityHostAuditView } from "../src/capability-host-audit-view.js";
 import { buildPluginSkillHostView } from "../src/plugin-skill-host-view.js";
+import { buildPluginSkillRedactionAuditView } from "../src/plugin-skill-redaction-audit-view.js";
 import {
   buildPatchProposalCreationPreviewView,
   parsePatchProposalPathRefsInput,
@@ -20409,6 +20410,138 @@ describe("desktop source boundaries", () => {
     expect(docsIndex).toContain("app-shell-plugin-skill-host-v0.20.md");
     expect(combined).toContain("read-only metadata surface");
     expect(combined).toContain("broker descriptor");
+  });
+
+  it("renders the P0Y-008 Plugin / Skill Redaction Audit as a read-only App surface", async () => {
+    const safePluginManifest = {
+      schemaVersion: "plugin_manifest.v1",
+      pluginId: "plugin.readonly.docs",
+      name: "Readonly Docs Plugin",
+      description: "Provides summary-only documentation lookup metadata.",
+      version: "1.0.0",
+      capabilities: [
+        {
+          capabilityId: "plugin.readonly.docs.search",
+          kind: "read",
+          summary: "Searches documentation summaries.",
+          riskLevel: "low",
+          requiresApproval: false,
+          executionMode: "metadata_only"
+        }
+      ],
+      riskNotes: ["Read-only descriptor metadata only."]
+    };
+    const host = buildPluginSkillHostView({
+      pluginManifestJsonText: JSON.stringify(safePluginManifest),
+      createdAt: "2026-01-01T00:00:00.000Z"
+    });
+    const safeAudit = buildPluginSkillRedactionAuditView({
+      pluginSkillHost: host
+    });
+    const blockedAudit = buildPluginSkillRedactionAuditView({
+      summaryJsonText: JSON.stringify({
+        rawPrompt: "blocked prompt",
+        apiKey: "sk-fake1234567890",
+        canExecutePlugin: true
+      })
+    });
+    const appSource = await readFile(
+      path.join(repoRoot, "app", "src", "App.tsx"),
+      "utf8"
+    );
+    const viewSource = await readFile(
+      path.join(repoRoot, "app", "src", "plugin-skill-redaction-audit-view.ts"),
+      "utf8"
+    );
+
+    expect(safeAudit.status).toBe("audit_ready");
+    expect(safeAudit.sourceCounts.appHostSummaryCount).toBe(1);
+    expect(safeAudit.readiness).toMatchObject({
+      canRunPluginSkillAudit: false,
+      canInstallPlugin: false,
+      canRunSkill: false,
+      canExecutePluginCapability: false,
+      canInvokeCapability: false,
+      canIssuePermissionLease: false,
+      canWriteEventStore: false,
+      canFetchNetwork: false,
+      canUseTauri: false,
+      appCanExecute: false
+    });
+    expect(blockedAudit.status).toBe("blocked");
+    expect(blockedAudit.findings.map((finding) => finding.code)).toContain(
+      "RAW_PROMPT_FIELD_REJECTED"
+    );
+    expect(blockedAudit.findings.map((finding) => finding.code)).toContain(
+      "API_KEY_FIELD_REJECTED"
+    );
+    expect(JSON.stringify(blockedAudit)).not.toContain("sk-fake1234567890");
+
+    expect(appSource).toContain("Plugin / Skill Redaction Audit");
+    expect(appSource).toContain("Summary only / no raw metadata");
+    expect(appSource).toContain("Preview Plugin / Skill Audit");
+    expect(appSource).toContain("Clear Plugin / Skill Audit");
+    expect(appSource).toContain("Run Plugin / Skill Audit (disabled)");
+    expect(appSource).toContain(
+      "Write Plugin / Skill Audit Event (disabled)"
+    );
+    expect(appSource).not.toMatch(/>\s*Run Plugin \/ Skill Audit\s*</);
+    expect(appSource).not.toMatch(
+      />\s*Write Plugin \/ Skill Audit Event\s*</
+    );
+    expect(viewSource).not.toContain("fetch(");
+    expect(viewSource).not.toContain("invoke(");
+    expect(viewSource).not.toContain("process.env");
+    expect(viewSource).not.toContain("localStorage");
+    expect(viewSource).not.toContain("sessionStorage");
+  });
+
+  it("documents the P0Y-008 plugin skill redaction audit and smoke coverage", async () => {
+    const runtimeDoc = await readFile(
+      path.join(repoRoot, "docs", "runtime-plugin-skill-redaction-audit-v0.20.md"),
+      "utf8"
+    );
+    const appDoc = await readFile(
+      path.join(
+        repoRoot,
+        "docs",
+        "app-shell-plugin-skill-redaction-audit-v0.20.md"
+      ),
+      "utf8"
+    );
+    const smokeDoc = await readFile(
+      path.join(repoRoot, "docs", "plugin-skill-host-smoke-v0.20.md"),
+      "utf8"
+    );
+    const docsIndex = await readFile(
+      path.join(repoRoot, "docs", "README.md"),
+      "utf8"
+    );
+    const combined = `${runtimeDoc}\n${appDoc}\n${smokeDoc}\n${docsIndex}`;
+
+    expect(runtimeDoc).toContain(
+      "Runtime Plugin / Skill Redaction Audit v0.20"
+    );
+    expect(runtimeDoc).toContain("raw package content");
+    expect(runtimeDoc).toContain("raw prompt");
+    expect(runtimeDoc).toContain("raw args");
+    expect(runtimeDoc).toContain("install scripts");
+    expect(runtimeDoc).toContain("no plugin execution");
+    expect(runtimeDoc).toContain("no arbitrary skill runtime");
+    expect(runtimeDoc).toContain("no EventStore write");
+    expect(runtimeDoc).toContain("no native bridge");
+    expect(runtimeDoc).toContain("runtime_plugin_skill_redaction_audit");
+    expect(appDoc).toContain("Summary only / no raw metadata");
+    expect(appDoc).toContain("Run Plugin / Skill Audit (disabled)");
+    expect(smokeDoc).toContain("Plugin / Skill Host Smoke v0.20");
+    expect(smokeDoc).toContain("Convert still remains the real");
+    expect(smokeDoc).toContain("no arbitrary plugin code execution");
+    expect(docsIndex).toContain("runtime-plugin-skill-redaction-audit-v0.20.md");
+    expect(docsIndex).toContain(
+      "app-shell-plugin-skill-redaction-audit-v0.20.md"
+    );
+    expect(docsIndex).toContain("plugin-skill-host-smoke-v0.20.md");
+    expect(combined).toContain("desktop action");
   });
 
   it("documents the P0S-001 MVP hardening recovery design gate", async () => {

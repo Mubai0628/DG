@@ -76,6 +76,10 @@ Current scope:
   and broker descriptor counts while plugin install, skill runtime, capability
   execution, fetch/network, Tauri calls, EventStore writes, native bridge, and
   desktop action remain disabled
+- preview the P0Y Plugin / Skill Redaction Audit as a summary-only check of
+  host metadata boundaries while raw metadata, raw prompt, raw args, raw output,
+  install scripts, EventStore writes, plugin execution, skill runtime, native
+  bridge, and desktop action remain disabled
 - prepare the v0.13 App Live Proposal Generation MVP RC with explicit
   user-confirmed live DeepSeek patch proposal generation through a fixed Tauri
   command, repair/schema/import/chain preview integration, summary-only live

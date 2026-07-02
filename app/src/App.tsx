@@ -117,6 +117,11 @@ import {
   type PluginSkillHostView
 } from "./plugin-skill-host-view.js";
 import {
+  buildPluginSkillRedactionAuditView,
+  summarizePluginSkillRedactionAuditView,
+  type PluginSkillRedactionAuditView
+} from "./plugin-skill-redaction-audit-view.js";
+import {
   buildPatchProposalCreationPreviewView,
   type AppPatchProposalCreationPreviewView,
   patchProposalCreationApprovalRefs,
@@ -750,6 +755,9 @@ export function DesktopShell(): JSX.Element {
   const [pluginSkillHostPreview, setPluginSkillHostPreview] = useState<
     PluginSkillHostView | undefined
   >();
+  const [pluginSkillAuditText, setPluginSkillAuditText] = useState("");
+  const [pluginSkillRedactionAuditPreview, setPluginSkillRedactionAuditPreview] =
+    useState<PluginSkillRedactionAuditView | undefined>();
   const [projectKnowledgeEntryType, setProjectKnowledgeEntryType] =
     useState<ProjectKnowledgeEntryType>("project_fact");
   const [projectKnowledgeNamespace, setProjectKnowledgeNamespace] =
@@ -1092,6 +1100,20 @@ export function DesktopShell(): JSX.Element {
   );
   const displayedPluginSkillHost =
     pluginSkillHostPreview ?? buildPluginSkillHostView();
+  const pluginSkillRedactionAuditCandidate =
+    useMemo<PluginSkillRedactionAuditView>(
+      () =>
+        buildPluginSkillRedactionAuditView({
+          pluginSkillHost:
+            displayedPluginSkillHost.status === "empty"
+              ? undefined
+              : displayedPluginSkillHost,
+          summaryJsonText: pluginSkillAuditText
+        }),
+      [displayedPluginSkillHost, pluginSkillAuditText]
+    );
+  const displayedPluginSkillRedactionAudit =
+    pluginSkillRedactionAuditPreview ?? buildPluginSkillRedactionAuditView();
   const displayedPatchProposalCreation =
     patchProposalCreationPreview ??
     modelImportedPatchProposalCreationPreview ??
@@ -3286,6 +3308,16 @@ export function DesktopShell(): JSX.Element {
     setPluginSkillSkillManifestText("");
     setPluginSkillPackageMetadataText("");
     setPluginSkillHostPreview(undefined);
+    setPluginSkillRedactionAuditPreview(undefined);
+  }
+
+  function handlePreviewPluginSkillRedactionAudit(): void {
+    setPluginSkillRedactionAuditPreview(pluginSkillRedactionAuditCandidate);
+  }
+
+  function handleClearPluginSkillRedactionAudit(): void {
+    setPluginSkillAuditText("");
+    setPluginSkillRedactionAuditPreview(undefined);
   }
 
   async function handleRefreshProjectKnowledge(): Promise<void> {
@@ -12931,6 +12963,301 @@ export function DesktopShell(): JSX.Element {
             <p className="fieldHelp">
               {summarizePluginSkillHostView(displayedPluginSkillHost).source} ·{" "}
               {displayedPluginSkillHost.nextAction}
+            </p>
+          </section>
+
+          <section
+            className="eventPanel"
+            aria-label="Plugin / Skill Redaction Audit"
+          >
+            <div className="panelHeader">
+              <h2>Plugin / Skill Redaction Audit</h2>
+              <span className="muted">Summary only / no raw metadata</span>
+            </div>
+            <p className="fieldHelp">
+              Audits plugin, skill, package, sandbox, descriptor, and App host
+              summaries for raw metadata, raw package content, raw prompt,
+              raw args, raw output, secrets, install scripts, command fields,
+              native bridge, desktop action, and execution readiness. No
+              execution is performed.
+            </p>
+
+            <label>
+              <span>Optional plugin / skill host summary JSON</span>
+              <textarea
+                className="compactTextarea"
+                value={pluginSkillAuditText}
+                onChange={(event) => {
+                  setPluginSkillAuditText(event.target.value);
+                }}
+                placeholder="Paste plugin / skill host summary JSON"
+                spellCheck={false}
+              />
+              <p className="fieldHelp">
+                Empty input audits the current Plugin / Skill Host preview
+                summary. Pasted JSON is treated as summary metadata only.
+              </p>
+            </label>
+
+            <div className="buttonRow">
+              <button
+                type="button"
+                className="secondary"
+                onClick={(event) => {
+                  event.preventDefault();
+                  event.stopPropagation();
+                  handlePreviewPluginSkillRedactionAudit();
+                }}
+              >
+                Preview Plugin / Skill Audit
+              </button>
+              <button
+                type="button"
+                className="secondary"
+                onClick={(event) => {
+                  event.preventDefault();
+                  event.stopPropagation();
+                  handleClearPluginSkillRedactionAudit();
+                }}
+              >
+                Clear Plugin / Skill Audit
+              </button>
+              <button type="button" className="secondary" disabled>
+                Run Plugin / Skill Audit (disabled)
+              </button>
+              <button type="button" className="secondary" disabled>
+                Write Plugin / Skill Audit Event (disabled)
+              </button>
+            </div>
+
+            {displayedPluginSkillRedactionAudit.status === "empty" ? (
+              <p className="empty">
+                No plugin / skill audit loaded. Preview host metadata or paste
+                summary JSON to inspect redaction boundaries.
+              </p>
+            ) : null}
+
+            {displayedPluginSkillRedactionAudit.status === "blocked" ? (
+              <div className="errorBox">
+                <strong>Plugin / Skill audit blocked</strong>
+                <p>{displayedPluginSkillRedactionAudit.nextAction}</p>
+              </div>
+            ) : null}
+
+            <dl className="summaryGrid compact">
+              <div>
+                <dt>Status</dt>
+                <dd>{displayedPluginSkillRedactionAudit.status}</dd>
+              </div>
+              <div>
+                <dt>Audit</dt>
+                <dd>{displayedPluginSkillRedactionAudit.auditId}</dd>
+              </div>
+              <div>
+                <dt>Sources</dt>
+                <dd>
+                  {
+                    displayedPluginSkillRedactionAudit.sourceCounts
+                      .pluginManifestResultCount
+                  }
+                  p /{" "}
+                  {
+                    displayedPluginSkillRedactionAudit.sourceCounts
+                      .skillManifestResultCount
+                  }
+                  s /{" "}
+                  {
+                    displayedPluginSkillRedactionAudit.sourceCounts
+                      .packageScanResultCount
+                  }
+                  pkg /{" "}
+                  {
+                    displayedPluginSkillRedactionAudit.sourceCounts
+                      .descriptorResultCount
+                  }
+                  desc /{" "}
+                  {
+                    displayedPluginSkillRedactionAudit.sourceCounts
+                      .appHostSummaryCount
+                  }
+                  app
+                </dd>
+              </div>
+              <div>
+                <dt>Metadata refs</dt>
+                <dd>
+                  {
+                    displayedPluginSkillRedactionAudit.metadataCounts
+                      .totalMetadataRefCount
+                  }
+                </dd>
+              </div>
+              <div>
+                <dt>Plugin / skill counts</dt>
+                <dd>
+                  {
+                    displayedPluginSkillRedactionAudit.metadataCounts
+                      .pluginCapabilityCount
+                  }{" "}
+                  /{" "}
+                  {
+                    displayedPluginSkillRedactionAudit.metadataCounts
+                      .skillStepCount
+                  }
+                </dd>
+              </div>
+              <div>
+                <dt>Package files / deps</dt>
+                <dd>
+                  {
+                    displayedPluginSkillRedactionAudit.metadataCounts
+                      .packageFileCount
+                  }{" "}
+                  /{" "}
+                  {
+                    displayedPluginSkillRedactionAudit.metadataCounts
+                      .packageDependencyCount
+                  }
+                </dd>
+              </div>
+              <div>
+                <dt>Redacted / raw fields</dt>
+                <dd>
+                  {displayedPluginSkillRedactionAudit.redactedFieldCount} /{" "}
+                  {displayedPluginSkillRedactionAudit.rawFieldDetectedCount}
+                </dd>
+              </div>
+              <div>
+                <dt>Secret / raw metadata</dt>
+                <dd>
+                  {displayedPluginSkillRedactionAudit.leakBooleans
+                    .secretDetected
+                    ? "yes"
+                    : "no"}{" "}
+                  /{" "}
+                  {displayedPluginSkillRedactionAudit.leakBooleans
+                    .rawMetadataDetected
+                    ? "yes"
+                    : "no"}
+                </dd>
+              </div>
+              <div>
+                <dt>Prompt / args / output</dt>
+                <dd>
+                  {displayedPluginSkillRedactionAudit.leakBooleans
+                    .rawPromptDetected
+                    ? "yes"
+                    : "no"}{" "}
+                  /{" "}
+                  {displayedPluginSkillRedactionAudit.leakBooleans
+                    .rawArgsDetected
+                    ? "yes"
+                    : "no"}{" "}
+                  /{" "}
+                  {displayedPluginSkillRedactionAudit.leakBooleans
+                    .rawOutputDetected
+                    ? "yes"
+                    : "no"}
+                </dd>
+              </div>
+              <div>
+                <dt>Install / execution</dt>
+                <dd>
+                  {displayedPluginSkillRedactionAudit.leakBooleans
+                    .installScriptDetected
+                    ? "yes"
+                    : "no"}{" "}
+                  /{" "}
+                  {displayedPluginSkillRedactionAudit.leakBooleans
+                    .executionFieldDetected
+                    ? "yes"
+                    : "no"}
+                </dd>
+              </div>
+              <div>
+                <dt>Risk summary</dt>
+                <dd>
+                  {Object.entries(displayedPluginSkillRedactionAudit.riskSummary)
+                    .map(([risk, count]) => `${risk}:${count}`)
+                    .join(", ") || "none"}
+                </dd>
+              </div>
+              <div>
+                <dt>Blockers / warnings</dt>
+                <dd>
+                  {displayedPluginSkillRedactionAudit.blockerCount} /{" "}
+                  {displayedPluginSkillRedactionAudit.warningCount}
+                </dd>
+              </div>
+              <div>
+                <dt>Hash</dt>
+                <dd>
+                  {displayedPluginSkillRedactionAudit.auditHash.substring(
+                    0,
+                    12
+                  )}
+                </dd>
+              </div>
+              <div>
+                <dt>Preview / run</dt>
+                <dd>
+                  {displayedPluginSkillRedactionAudit.readiness.canPreviewAudit
+                    ? "yes"
+                    : "no"}{" "}
+                  /{" "}
+                  {displayedPluginSkillRedactionAudit.readiness
+                    .canRunPluginSkillAudit
+                    ? "yes"
+                    : "no"}
+                </dd>
+              </div>
+              <div>
+                <dt>Install / runtime</dt>
+                <dd>
+                  {displayedPluginSkillRedactionAudit.readiness.canInstallPlugin
+                    ? "yes"
+                    : "no"}{" "}
+                  /{" "}
+                  {displayedPluginSkillRedactionAudit.readiness.canRunSkill
+                    ? "yes"
+                    : "no"}
+                </dd>
+              </div>
+              <div>
+                <dt>Event / fetch / Tauri</dt>
+                <dd>
+                  {displayedPluginSkillRedactionAudit.readiness
+                    .canWriteEventStore
+                    ? "yes"
+                    : "no"}{" "}
+                  /{" "}
+                  {displayedPluginSkillRedactionAudit.readiness.canFetchNetwork
+                    ? "yes"
+                    : "no"}{" "}
+                  /{" "}
+                  {displayedPluginSkillRedactionAudit.readiness.canUseTauri
+                    ? "yes"
+                    : "no"}
+                </dd>
+              </div>
+            </dl>
+
+            {displayedPluginSkillRedactionAudit.findings.length > 0 ? (
+              <p className="muted">
+                findings{" "}
+                {displayedPluginSkillRedactionAudit.findings
+                  .map((finding) => finding.code)
+                  .join(", ")}
+              </p>
+            ) : null}
+
+            <p className="fieldHelp">
+              {
+                summarizePluginSkillRedactionAuditView(
+                  displayedPluginSkillRedactionAudit
+                ).appSource
+              }{" "}
+              · {displayedPluginSkillRedactionAudit.nextAction}
             </p>
           </section>
 
