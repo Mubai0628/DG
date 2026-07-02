@@ -64,6 +64,7 @@ import {
   capabilityPlanApprovalRefs
 } from "../src/capability-plan-preview-view.js";
 import { buildFixedMultiAgentRunView } from "../src/fixed-multi-agent-run-view.js";
+import { buildFixedAgentReplayProjectionView } from "../src/fixed-agent-replay-projection-view.js";
 import {
   buildCapabilityHostSurfaceView,
   capabilityHostSurfaceWarningCodes,
@@ -20961,6 +20962,143 @@ describe("desktop source boundaries", () => {
     expect(combined).not.toContain("dynamic bidding is enabled");
     expect(combined).not.toContain("arbitrary agent creation is enabled");
     expect(combined).not.toContain("agents can directly execute tools");
+  });
+
+  it("projects fixed agent events into a summary-only replay timeline", () => {
+    const draft = buildRunDraftView({
+      objectiveDraft: "Update docs through a fixed multi-agent route.",
+      acceptanceCriteriaDraft:
+        "Plan fixed roles\nReview summary\nVerify summary",
+      selectedIntent: "code_change"
+    });
+    const route = buildAgentRoutePreviewView({
+      runDraft: draft,
+      selectedIntent: "code_change",
+      objectiveSummary: draft.objectiveSummary,
+      acceptanceCriteriaCount: draft.acceptanceCriteriaCount
+    });
+    const capabilityPlan = buildCapabilityPlanPreviewView({
+      runDraft: draft,
+      agentRoutePreview: route,
+      selectedIntent: "code_change"
+    });
+    const fixedRun = buildFixedMultiAgentRunView({
+      runDraft: draft,
+      selectedIntent: "code_change",
+      agentRoutePreview: route,
+      capabilityPlanPreview: capabilityPlan,
+      createdAt: "2026-07-02T00:00:00.000Z"
+    });
+    const replay = buildFixedAgentReplayProjectionView({
+      fixedMultiAgentRun: fixedRun,
+      eventSummary: {
+        ok: true,
+        eventCount: 1,
+        displayedEventCount: 1,
+        taskCount: 0,
+        completedTaskCount: 0,
+        draftCount: 0,
+        approvedApplyCount: 0,
+        approvedRollbackCount: 0,
+        verificationEventCount: 0,
+        liveProposalEventCount: 0,
+        projectKnowledgeEventCount: 0,
+        projectKnowledgeEntryCount: 0,
+        typeCounts: { "agent.run.planned": 1 },
+        timeline: [
+          {
+            id: "event-agent-1",
+            ts: "2026-07-02T00:00:00.000Z",
+            type: "agent.run.planned",
+            taskId: fixedRun.runId,
+            summary: "fixed route summary",
+            safePayloadKeys: ["runId", "planId", "warningCodes"]
+          }
+        ],
+        safetyScan: { ok: true, findings: 0, warningCodes: [] },
+        warnings: []
+      }
+    });
+
+    expect(["projected", "warning"]).toContain(replay.status);
+    expect(replay.agentRunCount).toBeGreaterThanOrEqual(1);
+    expect(replay.latestRoute).toEqual([
+      "orchestrator",
+      "coder",
+      "reviewer",
+      "verifier"
+    ]);
+    expect(
+      replay.roleStageTimeline.some((stage) => stage.role === "reviewer")
+    ).toBe(true);
+    expect(
+      replay.roleStageTimeline.some((stage) => stage.role === "verifier")
+    ).toBe(true);
+    expect(
+      replay.eventTimeline.some(
+        (event) => event.eventType === "agent.handoff.created"
+      )
+    ).toBe(true);
+    expect(replay.readiness.canWriteEventStore).toBe(false);
+    expect(replay.readiness.canExecuteAgents).toBe(false);
+    expect(replay.readiness.canInvokeTools).toBe(false);
+    expect(replay.readiness.canApplyPatch).toBe(false);
+    expect(replay.readiness.canExecuteGit).toBe(false);
+    expect(replay.readiness.canExecuteShell).toBe(false);
+    expect(JSON.stringify(replay)).not.toMatch(
+      /rawPrompt|rawSource|rawDiff|rawResponse|reasoning_content|sk-/i
+    );
+
+    const blockedRun = buildFixedMultiAgentRunView({
+      runDraft: draft,
+      selectedIntent: "code_change",
+      [("raw" + "Source") as "objectiveSummary"]: "unsafe raw source marker"
+    });
+    const blockedReplay = buildFixedAgentReplayProjectionView({
+      fixedMultiAgentRun: blockedRun
+    });
+    expect(blockedReplay.status).toBe("blocked");
+    expect(blockedReplay.findings.map((finding) => finding.code)).toContain(
+      "FIXED_MULTI_AGENT_FORBIDDEN_FIELD"
+    );
+  });
+
+  it("documents and locks fixed agent events replay projection", async () => {
+    const appSource = await readFile(
+      path.join(appRoot, "src", "App.tsx"),
+      "utf8"
+    );
+    const doc = await readFile(
+      path.join(repoRoot, "docs", "fixed-agent-events-replay-v0.21.md"),
+      "utf8"
+    );
+    const docsIndex = await readFile(
+      path.join(repoRoot, "docs", "README.md"),
+      "utf8"
+    );
+    const rootReadme = await readFile(path.join(repoRoot, "README.md"), "utf8");
+    const appReadme = await readFile(path.join(appRoot, "README.md"), "utf8");
+    const combined = `${doc}\n${docsIndex}\n${rootReadme}\n${appReadme}\n${appSource}`;
+
+    expect(appSource).toContain("Fixed Agent Replay Projection");
+    expect(appSource).toContain("Summary-only replay / no event write");
+    expect(appSource).toContain("Preview Agent Replay Projection");
+    expect(appSource).toContain("Clear Agent Replay Projection");
+    expect(appSource).toContain("Write Agent Event (disabled)");
+    expect(appSource).not.toMatch(/>\s*Write Agent Event\s*</);
+    expect(doc).toContain("agent.run.planned");
+    expect(doc).toContain("agent.handoff.created");
+    expect(doc).toContain("agent.review.completed");
+    expect(doc).toContain("agent.verify.completed");
+    expect(doc).toContain("raw prompt");
+    expect(doc).toContain("raw model response");
+    expect(doc).toContain("reasoning_content");
+    expect(doc).toContain("does not write events");
+    expect(docsIndex).toContain("fixed-agent-events-replay-v0.21.md");
+    expect(rootReadme).toContain("fixed-agent-events-replay-v0.21.md");
+    expect(appReadme).toContain("Fixed Agent Replay Projection");
+    expect(combined).not.toContain("agents can directly execute tools");
+    expect(combined).not.toContain("event writing is enabled");
   });
 
   it("documents the P0S-001 MVP hardening recovery design gate", async () => {

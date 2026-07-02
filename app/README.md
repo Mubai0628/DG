@@ -203,6 +203,10 @@ Current scope:
   orchestrator/coder/reviewer/verifier roles, summary-only handoff dossiers,
   no dynamic bidding, no arbitrary agent creation, no direct tool execution,
   no App apply/rollback, and no EventStore write
+- preview the P0Z Fixed Agent Replay Projection as a summary-only audit
+  timeline for planned/stage/handoff/review/verify agent events, with no event
+  write, no agent/tool execution, no raw prompt/source/diff/model response, no
+  API key, and no raw stdout/stderr
 - prepare the v0.19 MCP Tool Invocation Proposal RC with proposal schema,
   input risk classification, simulated result summaries, broker planning,
   read-only App proposal surface, redaction audit, and smoke hardening while
@@ -278,7 +282,10 @@ Current limitations:
   reasoning_content, API keys, or raw proposal output; Fixed Multi-Agent Run is
   preview-only with fixed roles, summary-only handoff dossiers, no dynamic
   bidding, no arbitrary agent creation, no direct tool execution, no App
-  apply/rollback, and no EventStore write; none of these App
+  apply/rollback, and no EventStore write; Fixed Agent Replay Projection is
+  summary-only with virtual or persisted agent event refs only, no event write,
+  no raw prompt/source/diff/model response, no reasoning_content, no API key,
+  and no raw tool output/stdout/stderr; none of these App
   surfaces reads or writes files; Capability Host previews descriptor metadata
   only for MCP, plugin, and skill sources, maps safe descriptors to broker
   summaries, and audits redaction boundaries without connecting to MCP servers,

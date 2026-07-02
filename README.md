@@ -437,6 +437,7 @@ v0.17 Capability Host MVP references:
 - [P0Z Fixed Multi-Agent Execution roadmap](docs/p0z-fixed-multi-agent-execution-roadmap.md)
 - [P0Z-001 Fixed Multi-Agent Execution plan](docs/p0z-001-fixed-multi-agent-execution-plan.md)
 - [App Shell Fixed Multi-Agent Run v0.21](docs/app-shell-fixed-multi-agent-run-v0.21.md)
+- [Fixed Agent Events / Replay v0.21](docs/fixed-agent-events-replay-v0.21.md)
 
 ## Current roadmap
 

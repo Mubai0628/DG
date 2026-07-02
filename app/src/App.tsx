@@ -105,6 +105,11 @@ import {
   type FixedMultiAgentRunView
 } from "./fixed-multi-agent-run-view.js";
 import {
+  buildFixedAgentReplayProjectionView,
+  summarizeFixedAgentReplayProjectionView,
+  type FixedAgentReplayProjectionView
+} from "./fixed-agent-replay-projection-view.js";
+import {
   buildCapabilityHostSurfaceView,
   capabilityHostSurfaceWarningCodes,
   summarizeCapabilityHostSurfaceView,
@@ -702,6 +707,10 @@ export function DesktopShell(): JSX.Element {
   const [fixedMultiAgentRunPreview, setFixedMultiAgentRunPreview] = useState<
     FixedMultiAgentRunView | undefined
   >();
+  const [
+    fixedAgentReplayProjectionPreview,
+    setFixedAgentReplayProjectionPreview
+  ] = useState<FixedAgentReplayProjectionView | undefined>();
   const [mcpReadonlyProfileText, setMcpReadonlyProfileText] = useState(
     defaultMcpReadonlyProfileJson
   );
@@ -1368,6 +1377,17 @@ export function DesktopShell(): JSX.Element {
   );
   const displayedFixedMultiAgentRun =
     fixedMultiAgentRunPreview ?? buildFixedMultiAgentRunView();
+  const fixedAgentReplayProjectionCandidate =
+    useMemo<FixedAgentReplayProjectionView>(
+      () =>
+        buildFixedAgentReplayProjectionView({
+          fixedMultiAgentRun: fixedMultiAgentRunPreview,
+          eventSummary
+        }),
+      [eventSummary, fixedMultiAgentRunPreview]
+    );
+  const displayedFixedAgentReplayProjection =
+    fixedAgentReplayProjectionPreview ?? buildFixedAgentReplayProjectionView();
   const patchProposalValidationCandidate =
     useMemo<AppPatchProposalValidationPreviewView>(
       () =>
@@ -2373,6 +2393,9 @@ export function DesktopShell(): JSX.Element {
     setFixedMultiAgentRunPreview(undefined);
   }, [agentRoutePreview.routeId, capabilityPlanPreview.source, displayedRunDraft.draftId]);
   useEffect(() => {
+    setFixedAgentReplayProjectionPreview(undefined);
+  }, [eventSummary, fixedMultiAgentRunPreview]);
+  useEffect(() => {
     setMcpReadonlyConnectionPreview(undefined);
     setMcpReadonlyDiscoverResult(undefined);
     setMcpReadonlyDiscoverError(undefined);
@@ -2860,17 +2883,28 @@ export function DesktopShell(): JSX.Element {
 
   function handlePreviewFixedRunPlan(): void {
     setFixedMultiAgentRunPreview(fixedMultiAgentRunCandidate);
+    setFixedAgentReplayProjectionPreview(undefined);
     setContextAssemblyPreview(undefined);
   }
 
   function handlePreviewFixedAgentHandoffs(): void {
     setFixedMultiAgentRunPreview(fixedMultiAgentRunCandidate);
+    setFixedAgentReplayProjectionPreview(undefined);
     setContextAssemblyPreview(undefined);
   }
 
   function handleClearFixedMultiAgentRun(): void {
     setFixedMultiAgentRunPreview(undefined);
+    setFixedAgentReplayProjectionPreview(undefined);
     setContextAssemblyPreview(undefined);
+  }
+
+  function handlePreviewFixedAgentReplayProjection(): void {
+    setFixedAgentReplayProjectionPreview(fixedAgentReplayProjectionCandidate);
+  }
+
+  function handleClearFixedAgentReplayProjection(): void {
+    setFixedAgentReplayProjectionPreview(undefined);
   }
 
   function handlePreviewPatchProposal(): void {
@@ -12696,6 +12730,175 @@ export function DesktopShell(): JSX.Element {
 
             <p className="fieldHelp">
               {displayedFixedMultiAgentRun.nextAction}
+            </p>
+          </section>
+
+          <section
+            className="eventPanel"
+            aria-label="Fixed Agent Replay Projection"
+          >
+            <div className="panelHeader">
+              <h2>Fixed Agent Replay Projection</h2>
+              <span className="muted">Summary-only replay / no event write</span>
+            </div>
+            <p className="fieldHelp">
+              Projects fixed agent run, stage, handoff, review, and verification
+              summaries into an audit timeline. No event is written and no
+              agent, tool, apply, rollback, Git, or shell action is executed.
+            </p>
+
+            <div className="buttonRow">
+              <button
+                type="button"
+                className="secondary"
+                onClick={(event) => {
+                  event.preventDefault();
+                  event.stopPropagation();
+                  handlePreviewFixedAgentReplayProjection();
+                }}
+                disabled={fixedMultiAgentRunPreview === undefined}
+                aria-disabled={fixedMultiAgentRunPreview === undefined}
+              >
+                Preview Agent Replay Projection
+              </button>
+              <button
+                type="button"
+                className="secondary"
+                onClick={(event) => {
+                  event.preventDefault();
+                  event.stopPropagation();
+                  handleClearFixedAgentReplayProjection();
+                }}
+              >
+                Clear Agent Replay Projection
+              </button>
+              <button type="button" className="secondary" disabled>
+                Write Agent Event (disabled)
+              </button>
+            </div>
+
+            {displayedFixedAgentReplayProjection.status === "empty" ? (
+              <p className="empty">
+                Preview a fixed multi-agent run first. Agent replay summaries
+                will appear here without writing events.
+              </p>
+            ) : null}
+
+            <dl className="summaryGrid compact">
+              <div>
+                <dt>Status</dt>
+                <dd>{displayedFixedAgentReplayProjection.status}</dd>
+              </div>
+              <div>
+                <dt>Agent runs</dt>
+                <dd>{displayedFixedAgentReplayProjection.agentRunCount}</dd>
+              </div>
+              <div>
+                <dt>Route</dt>
+                <dd>
+                  {displayedFixedAgentReplayProjection.latestRoute.length > 0
+                    ? displayedFixedAgentReplayProjection.latestRoute.join(" / ")
+                    : "n/a"}
+                </dd>
+              </div>
+              <div>
+                <dt>Role stages</dt>
+                <dd>
+                  {displayedFixedAgentReplayProjection.roleStageTimeline.length}
+                </dd>
+              </div>
+              <div>
+                <dt>Virtual events</dt>
+                <dd>
+                  {displayedFixedAgentReplayProjection.virtualAgentEventCount}
+                </dd>
+              </div>
+              <div>
+                <dt>Persisted agent events</dt>
+                <dd>
+                  {displayedFixedAgentReplayProjection.persistedAgentEventCount}
+                </dd>
+              </div>
+              <div>
+                <dt>Blockers</dt>
+                <dd>{displayedFixedAgentReplayProjection.blockerCount}</dd>
+              </div>
+              <div>
+                <dt>Warnings</dt>
+                <dd>{displayedFixedAgentReplayProjection.warningCount}</dd>
+              </div>
+              <div>
+                <dt>Hash</dt>
+                <dd>{displayedFixedAgentReplayProjection.projectionHashPrefix}</dd>
+              </div>
+              <div>
+                <dt>Event writes</dt>
+                <dd>
+                  {displayedFixedAgentReplayProjection.eventWritesEnabled
+                    ? "enabled"
+                    : "disabled"}
+                </dd>
+              </div>
+            </dl>
+
+            <p className="fieldHelp">
+              {summarizeFixedAgentReplayProjectionView(
+                displayedFixedAgentReplayProjection
+              )}
+            </p>
+
+            {displayedFixedAgentReplayProjection.roleStageTimeline.length >
+            0 ? (
+              <ol className="timeline">
+                {displayedFixedAgentReplayProjection.roleStageTimeline.map(
+                  (stage) => (
+                    <li key={stage.stageId}>
+                      <span className="timelineMeta">
+                        {stage.role} · {stage.status}
+                      </span>
+                      <span>{stage.summary}</span>
+                      {stage.warningCodes.length > 0 ? (
+                        <span className="timelineMeta">
+                          Warnings: {stage.warningCodes.join(", ")}
+                        </span>
+                      ) : null}
+                    </li>
+                  )
+                )}
+              </ol>
+            ) : null}
+
+            {displayedFixedAgentReplayProjection.eventTimeline.length > 0 ? (
+              <ol className="timeline">
+                {displayedFixedAgentReplayProjection.eventTimeline.map(
+                  (event) => (
+                    <li key={event.eventId}>
+                      <span className="timelineMeta">
+                        {event.eventType} · {event.stage} · {event.hashPrefix}
+                      </span>
+                      <span>{event.summary}</span>
+                      {event.warningCodes.length > 0 ? (
+                        <span className="timelineMeta">
+                          Warnings: {event.warningCodes.join(", ")}
+                        </span>
+                      ) : null}
+                    </li>
+                  )
+                )}
+              </ol>
+            ) : null}
+
+            {displayedFixedAgentReplayProjection.findings.length > 0 ? (
+              <p className="muted">
+                findings{" "}
+                {displayedFixedAgentReplayProjection.findings
+                  .map((finding) => finding.code)
+                  .join(", ")}
+              </p>
+            ) : null}
+
+            <p className="fieldHelp">
+              {displayedFixedAgentReplayProjection.nextAction}
             </p>
           </section>
 
