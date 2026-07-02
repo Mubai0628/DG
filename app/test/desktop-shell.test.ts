@@ -20113,6 +20113,95 @@ describe("desktop source boundaries", () => {
     expect(combined).toContain("readiness flags");
   });
 
+  it("documents the P0Y-005 sandbox contract and built-in safe simulation without arbitrary execution", async () => {
+    const contractDoc = await readFile(
+      path.join(
+        repoRoot,
+        "docs",
+        "runtime-plugin-skill-sandbox-contract-v0.20.md"
+      ),
+      "utf8"
+    );
+    const simulationDoc = await readFile(
+      path.join(
+        repoRoot,
+        "docs",
+        "runtime-builtin-safe-skill-simulation-v0.20.md"
+      ),
+      "utf8"
+    );
+    const docsIndex = await readFile(
+      path.join(repoRoot, "docs", "README.md"),
+      "utf8"
+    );
+    const contractSource = await readFile(
+      path.join(
+        repoRoot,
+        "runtime",
+        "src",
+        "capabilities",
+        "plugin-skill-sandbox-contract.ts"
+      ),
+      "utf8"
+    );
+    const simulationSource = await readFile(
+      path.join(
+        repoRoot,
+        "runtime",
+        "src",
+        "capabilities",
+        "builtin-safe-skill-simulation.ts"
+      ),
+      "utf8"
+    );
+    const combined = `${contractDoc}\n${simulationDoc}\n${docsIndex}\n${contractSource}\n${simulationSource}`;
+
+    expect(contractDoc).toContain(
+      "Runtime Plugin / Skill Sandbox Contract v0.20"
+    );
+    expect(contractDoc).toContain("simulated_builtin_safe");
+    expect(contractDoc).toContain("no arbitrary plugin code execution");
+    expect(contractDoc).toContain("no arbitrary skill runtime execution");
+    expect(contractDoc).toContain("no package install");
+    expect(contractDoc).toContain("no external package import");
+    expect(contractDoc).toContain("no network default");
+    expect(contractDoc).toContain("no filesystem write");
+    expect(contractDoc).toContain("no EventStore write");
+    expect(contractDoc).toContain("no native bridge");
+    expect(contractDoc).toContain("no desktop action");
+    expect(contractDoc).toContain("runtime_plugin_skill_sandbox_contract");
+    expect(simulationDoc).toContain(
+      "Runtime Built-in Safe Skill Simulation v0.20"
+    );
+    expect(simulationDoc).toContain("summarize manifest risk");
+    expect(simulationDoc).toContain("classify capability risk");
+    expect(simulationDoc).toContain("validate required input summary");
+    expect(simulationDoc).toContain("generate documentation checklist");
+    expect(simulationDoc).toContain("no dynamic code execution");
+    expect(simulationDoc).toContain("no network or fetch");
+    expect(simulationDoc).toContain("runtime_builtin_safe_skill_simulation");
+    expect(contractSource).toContain("buildPluginSkillSandboxContract");
+    expect(contractSource).toContain("canExecuteCustomCode: false");
+    expect(contractSource).toContain("canRunSkillRuntime: false");
+    expect(contractSource).toContain("canWriteEventStore: false");
+    expect(simulationSource).toContain("runBuiltinSafeSkillSimulation");
+    expect(simulationSource).toContain("canExecuteCustomCode: false");
+    expect(simulationSource).toContain("canRunSkillRuntime: false");
+    expect(simulationSource).toContain("canUseNetwork: false");
+    expect(simulationSource).not.toContain("fetch(");
+    expect(contractSource).not.toContain("process.env");
+    expect(simulationSource).not.toContain("process.env");
+    expect(docsIndex).toContain(
+      "runtime-plugin-skill-sandbox-contract-v0.20.md"
+    );
+    expect(docsIndex).toContain(
+      "runtime-builtin-safe-skill-simulation-v0.20.md"
+    );
+    expect(combined).toContain("secret markers");
+    expect(combined).toContain("raw source");
+    expect(combined).toContain("raw prompt");
+  });
+
   it("documents the P0S-001 MVP hardening recovery design gate", async () => {
     const adr = await readFile(
       path.join(repoRoot, "docs", "adr", "0011-mvp-hardening-recovery.md"),

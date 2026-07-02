@@ -1,4 +1,5 @@
 export * from "./broker-v2.js";
+export * from "./builtin-safe-skill-simulation.js";
 export * from "./descriptor.js";
 export * from "./errors.js";
 export * from "./external-capability-broker-integration.js";
@@ -23,6 +24,7 @@ export * from "./package-metadata-scanner.js";
 export * from "./plan-preview.js";
 export * from "./permission-lease.js";
 export * from "./plugin-manifest-schema.js";
+export * from "./plugin-skill-sandbox-contract.js";
 export * from "./plugin-skill-metadata-scanner.js";
 export * from "./registry.js";
 export * from "./risk.js";
