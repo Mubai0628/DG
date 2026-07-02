@@ -20719,6 +20719,83 @@ describe("desktop source boundaries", () => {
     expect(combined).not.toContain("agents can directly execute tools");
   });
 
+  it("documents the fixed multi-agent execution ADR and implementation gate", async () => {
+    const adr = await readFile(
+      path.join(repoRoot, "docs", "adr", "0011-fixed-multi-agent-execution.md"),
+      "utf8"
+    );
+    const threatModel = await readFile(
+      path.join(
+        repoRoot,
+        "docs",
+        "fixed-multi-agent-execution-threat-model-v0.21.md"
+      ),
+      "utf8"
+    );
+    const implementationGate = await readFile(
+      path.join(
+        repoRoot,
+        "docs",
+        "fixed-multi-agent-execution-implementation-gate-v0.21.md"
+      ),
+      "utf8"
+    );
+    const nextPlan = await readFile(
+      path.join(repoRoot, "docs", "p0z-002-agent-run-plan-schema-plan.md"),
+      "utf8"
+    );
+    const docsIndex = await readFile(
+      path.join(repoRoot, "docs", "README.md"),
+      "utf8"
+    );
+    const combined = `${adr}\n${threatModel}\n${implementationGate}\n${nextPlan}\n${docsIndex}`;
+
+    expect(adr).toContain("ADR 0011: Fixed Multi-Agent Execution");
+    expect(adr).toContain("Proposed / Accepted for P0Z design gate");
+    expect(adr).toContain("orchestrator");
+    expect(adr).toContain("coder");
+    expect(adr).toContain("reviewer");
+    expect(adr).toContain("verifier");
+    expect(adr).toContain("Dynamic bidding is not allowed");
+    expect(adr).toContain("Arbitrary agent creation is not allowed");
+    expect(adr).toContain("Hidden raw prompt sharing is not allowed");
+    expect(adr).toContain("summary-only dossier");
+    expect(adr).toContain("Capability Broker");
+    expect(adr).toContain("Agents cannot directly execute file writes");
+    expect(adr).toContain("Apply and rollback still require");
+    expect(threatModel).toMatch(/malicious or hallucinated agent plan/i);
+    expect(threatModel).toMatch(/role confusion/i);
+    expect(threatModel).toMatch(/agent-to-agent prompt injection/i);
+    expect(threatModel).toMatch(/cross-agent capability escalation/i);
+    expect(threatModel).toMatch(/dynamic bidding creep/i);
+    expect(threatModel).toMatch(/replay mismatch/i);
+    expect(implementationGate).toContain("Do not implement the runtime");
+    expect(implementationGate).toContain("Role Safety");
+    expect(implementationGate).toContain("Route Safety");
+    expect(implementationGate).toContain("Dossier Safety");
+    expect(implementationGate).toContain("Capability Safety");
+    expect(implementationGate).toContain("App UI Safety");
+    expect(nextPlan).toContain("P0Z-002 Agent Run Plan");
+    expect(nextPlan).toContain("No dynamic agent bidding");
+    expect(nextPlan).toContain("No arbitrary agent creation");
+    expect(nextPlan).toContain("No hidden raw prompt sharing");
+    expect(nextPlan).toContain("No direct capability invocation");
+    expect(nextPlan).toContain("readiness` with all execution flags false");
+    expect(docsIndex).toContain("adr/0011-fixed-multi-agent-execution.md");
+    expect(docsIndex).toContain(
+      "fixed-multi-agent-execution-threat-model-v0.21.md"
+    );
+    expect(docsIndex).toContain(
+      "fixed-multi-agent-execution-implementation-gate-v0.21.md"
+    );
+    expect(docsIndex).toContain("p0z-002-agent-run-plan-schema-plan.md");
+    expect(combined).toContain("No native bridge");
+    expect(combined).toContain("No desktop action");
+    expect(combined).not.toContain("dynamic bidding is enabled");
+    expect(combined).not.toContain("arbitrary agent creation is enabled");
+    expect(combined).not.toContain("agents can directly execute tools");
+  });
+
   it("documents the P0S-001 MVP hardening recovery design gate", async () => {
     const adr = await readFile(
       path.join(repoRoot, "docs", "adr", "0011-mvp-hardening-recovery.md"),
