@@ -340,6 +340,7 @@ foundation.
 - [Runtime Fixed Agent Run Plan v0.21](runtime-fixed-agent-run-plan-v0.21.md)
 - [Runtime Fixed Agent Orchestrator v0.21](runtime-fixed-agent-orchestrator-v0.21.md)
 - [Runtime Fixed Agent Role Adapters v0.21](runtime-fixed-agent-role-adapters-v0.21.md)
+- [Runtime Agent Capability Plan v0.21](runtime-agent-capability-plan-v0.21.md)
 - [Runtime Memory Recall Preview v0.3](runtime-memory-recall-preview-v0.3.md)
 - [v0.4.0 Controlled Creation Preview RC release notes](release-notes-v0.4.0-controlled-creation-preview-rc.1.md)
 - [App Shell Controlled Creation manual QA](app-shell-controlled-creation-manual-qa.md)

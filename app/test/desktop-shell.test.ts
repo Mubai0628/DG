@@ -20756,11 +20756,15 @@ describe("desktop source boundaries", () => {
       path.join(repoRoot, "docs", "runtime-fixed-agent-role-adapters-v0.21.md"),
       "utf8"
     );
+    const runtimeAgentCapabilityPlan = await readFile(
+      path.join(repoRoot, "docs", "runtime-agent-capability-plan-v0.21.md"),
+      "utf8"
+    );
     const docsIndex = await readFile(
       path.join(repoRoot, "docs", "README.md"),
       "utf8"
     );
-    const combined = `${adr}\n${threatModel}\n${implementationGate}\n${nextPlan}\n${runtimeRunPlan}\n${runtimeOrchestrator}\n${runtimeRoleAdapters}\n${docsIndex}`;
+    const combined = `${adr}\n${threatModel}\n${implementationGate}\n${nextPlan}\n${runtimeRunPlan}\n${runtimeOrchestrator}\n${runtimeRoleAdapters}\n${runtimeAgentCapabilityPlan}\n${docsIndex}`;
 
     expect(adr).toContain("ADR 0011: Fixed Multi-Agent Execution");
     expect(adr).toContain("Proposed / Accepted for P0Z design gate");
@@ -20811,6 +20815,16 @@ describe("desktop source boundaries", () => {
     expect(runtimeRoleAdapters).toContain("Claims that a role applied a patch");
     expect(runtimeRoleAdapters).toContain("no tool execution");
     expect(runtimeRoleAdapters).toContain("no App execution");
+    expect(runtimeAgentCapabilityPlan).toContain(
+      "Runtime Agent Capability Plan"
+    );
+    expect(runtimeAgentCapabilityPlan).toContain(
+      "does not invoke capabilities"
+    );
+    expect(runtimeAgentCapabilityPlan).toContain("mutating MCP tools");
+    expect(runtimeAgentCapabilityPlan).toContain("arbitrary shell command");
+    expect(runtimeAgentCapabilityPlan).toContain("PermissionLease issuing");
+    expect(runtimeAgentCapabilityPlan).toContain("no capability invocation");
     expect(docsIndex).toContain("adr/0011-fixed-multi-agent-execution.md");
     expect(docsIndex).toContain(
       "fixed-multi-agent-execution-threat-model-v0.21.md"
@@ -20822,6 +20836,7 @@ describe("desktop source boundaries", () => {
     expect(docsIndex).toContain("runtime-fixed-agent-run-plan-v0.21.md");
     expect(docsIndex).toContain("runtime-fixed-agent-orchestrator-v0.21.md");
     expect(docsIndex).toContain("runtime-fixed-agent-role-adapters-v0.21.md");
+    expect(docsIndex).toContain("runtime-agent-capability-plan-v0.21.md");
     expect(combined).toContain("No native bridge");
     expect(combined).toContain("No desktop action");
     expect(combined).not.toContain("dynamic bidding is enabled");
