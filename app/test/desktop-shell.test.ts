@@ -20748,11 +20748,15 @@ describe("desktop source boundaries", () => {
       path.join(repoRoot, "docs", "runtime-fixed-agent-run-plan-v0.21.md"),
       "utf8"
     );
+    const runtimeOrchestrator = await readFile(
+      path.join(repoRoot, "docs", "runtime-fixed-agent-orchestrator-v0.21.md"),
+      "utf8"
+    );
     const docsIndex = await readFile(
       path.join(repoRoot, "docs", "README.md"),
       "utf8"
     );
-    const combined = `${adr}\n${threatModel}\n${implementationGate}\n${nextPlan}\n${runtimeRunPlan}\n${docsIndex}`;
+    const combined = `${adr}\n${threatModel}\n${implementationGate}\n${nextPlan}\n${runtimeRunPlan}\n${runtimeOrchestrator}\n${docsIndex}`;
 
     expect(adr).toContain("ADR 0011: Fixed Multi-Agent Execution");
     expect(adr).toContain("Proposed / Accepted for P0Z design gate");
@@ -20791,6 +20795,12 @@ describe("desktop source boundaries", () => {
     expect(runtimeRunPlan).toContain("arbitrary agent ids");
     expect(runtimeRunPlan).toContain("raw prompt/source/diff/API key");
     expect(runtimeRunPlan).toContain("No runtime orchestrator state machine");
+    expect(runtimeOrchestrator).toContain("Runtime Fixed Agent Orchestrator");
+    expect(runtimeOrchestrator).toContain("does not execute agents or tools");
+    expect(runtimeOrchestrator).toContain("waiting_for_human_approval");
+    expect(runtimeOrchestrator).toContain("No model call");
+    expect(runtimeOrchestrator).toContain("No EventStore write");
+    expect(runtimeOrchestrator).toContain("No App execution");
     expect(docsIndex).toContain("adr/0011-fixed-multi-agent-execution.md");
     expect(docsIndex).toContain(
       "fixed-multi-agent-execution-threat-model-v0.21.md"
@@ -20800,6 +20810,7 @@ describe("desktop source boundaries", () => {
     );
     expect(docsIndex).toContain("p0z-002-agent-run-plan-schema-plan.md");
     expect(docsIndex).toContain("runtime-fixed-agent-run-plan-v0.21.md");
+    expect(docsIndex).toContain("runtime-fixed-agent-orchestrator-v0.21.md");
     expect(combined).toContain("No native bridge");
     expect(combined).toContain("No desktop action");
     expect(combined).not.toContain("dynamic bidding is enabled");

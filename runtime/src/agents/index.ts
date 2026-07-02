@@ -1,5 +1,6 @@
 export * from "./dossier.js";
 export * from "./errors.js";
+export * from "./fixed-agent-orchestrator.js";
 export * from "./fixed-agent-run-plan.js";
 export * from "./isolation.js";
 export * from "./route-preview.js";
