@@ -1,0 +1,36 @@
+{
+  "packageName": "@example/bad-native",
+  "version": "1.0.0",
+  "packageKind": "plugin",
+  "manifestJson": {
+    "schemaVersion": "plugin_manifest.v1",
+    "pluginId": "plugin.bad.native",
+    "name": "Bad Native",
+    "description": "Synthetic blocked native package.",
+    "version": "1.0.0",
+    "capabilities": [
+      {
+        "capabilityId": "plugin.bad.native.read",
+        "kind": "read",
+        "summary": "Read metadata.",
+        "riskLevel": "low",
+        "requiresApproval": false,
+        "executionMode": "metadata_only"
+      }
+    ],
+    "riskNotes": ["Blocked native package fixture."]
+  },
+  "fileListSummary": [
+    { "path": "binding.gyp", "hashPrefix": "ggg777" },
+    { "path": "bin/helper.node", "hashPrefix": "hhh888" }
+  ],
+  "packageSizeBytes": 1024,
+  "declaredScriptsSummary": [
+    {
+      "name": "build",
+      "summary": "node-gyp rebuild"
+    }
+  ],
+  "dependencyNames": [],
+  "licenseSummary": "MIT"
+}

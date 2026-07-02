@@ -1,0 +1,33 @@
+{
+  "packageName": "@example/readonly-docs-plugin",
+  "version": "1.0.0",
+  "packageKind": "plugin",
+  "manifestJson": {
+    "schemaVersion": "plugin_manifest.v1",
+    "pluginId": "plugin.readonly.docs",
+    "name": "Readonly Docs Plugin",
+    "description": "Provides summary-only documentation lookup metadata.",
+    "version": "1.0.0",
+    "capabilities": [
+      {
+        "capabilityId": "plugin.readonly.docs.search",
+        "kind": "read",
+        "summary": "Searches documentation summaries.",
+        "riskLevel": "low",
+        "requiresApproval": false,
+        "executionMode": "metadata_only"
+      }
+    ],
+    "riskNotes": ["Read-only descriptor metadata only."]
+  },
+  "fileListSummary": [
+    { "path": "package.json", "hashPrefix": "aaa111" },
+    { "path": "metadata/plugin.json", "hashPrefix": "bbb222" },
+    { "path": "README.md", "hashPrefix": "ccc333" }
+  ],
+  "packageSizeBytes": 4096,
+  "hashPrefixes": ["aaa111", "bbb222", "ccc333"],
+  "declaredScriptsSummary": [],
+  "dependencyNames": ["zod"],
+  "licenseSummary": "MIT"
+}

@@ -20062,6 +20062,57 @@ describe("desktop source boundaries", () => {
     expect(combined).toContain("duplicate steps");
   });
 
+  it("documents the P0Y-004 package metadata scanner without package execution", async () => {
+    const runtimeDoc = await readFile(
+      path.join(repoRoot, "docs", "runtime-package-metadata-scanner-v0.20.md"),
+      "utf8"
+    );
+    const docsIndex = await readFile(
+      path.join(repoRoot, "docs", "README.md"),
+      "utf8"
+    );
+    const runtimeSource = await readFile(
+      path.join(
+        repoRoot,
+        "runtime",
+        "src",
+        "capabilities",
+        "package-metadata-scanner.ts"
+      ),
+      "utf8"
+    );
+    const combined = `${runtimeDoc}\n${docsIndex}\n${runtimeSource}`;
+
+    expect(runtimeDoc).toContain("Runtime Package Metadata Scanner v0.20");
+    expect(runtimeDoc).toContain("metadata scanning only");
+    expect(runtimeDoc).toContain("no package install");
+    expect(runtimeDoc).toContain("no code execution");
+    expect(runtimeDoc).toContain("no lifecycle script execution");
+    expect(runtimeDoc).toContain("no native module loading");
+    expect(runtimeDoc).toContain("no EventStore write");
+    expect(runtimeDoc).toContain("no PermissionLease issuance");
+    expect(runtimeDoc).toContain("no native bridge");
+    expect(runtimeDoc).toContain("no desktop action");
+    expect(runtimeDoc).toContain("raw package contents");
+    expect(runtimeDoc).toContain("lifecycle scripts");
+    expect(runtimeDoc).toContain("native and binary markers");
+    expect(runtimeDoc).toContain("runtime_package_metadata_scanner");
+    expect(runtimeDoc).toContain("all execution paths false");
+    expect(runtimeSource).toContain("scanCapabilityPackageMetadata");
+    expect(runtimeSource).toContain("validatePluginManifest");
+    expect(runtimeSource).toContain("validateSkillManifest");
+    expect(runtimeSource).toContain("canInstallPackage: false");
+    expect(runtimeSource).toContain("canExecutePlugin: false");
+    expect(runtimeSource).toContain("canExecuteSkill: false");
+    expect(runtimeSource).toContain("canLoadCode: false");
+    expect(runtimeSource).toContain("canWriteEventStore: false");
+    expect(runtimeSource).not.toContain("fetch(");
+    expect(runtimeSource).not.toContain("process.env");
+    expect(docsIndex).toContain("runtime-package-metadata-scanner-v0.20.md");
+    expect(combined).toContain("secret markers");
+    expect(combined).toContain("readiness flags");
+  });
+
   it("documents the P0S-001 MVP hardening recovery design gate", async () => {
     const adr = await readFile(
       path.join(repoRoot, "docs", "adr", "0011-mvp-hardening-recovery.md"),

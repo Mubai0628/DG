@@ -19,6 +19,7 @@ export * from "./mcp-tool-invocation-proposal.js";
 export * from "./mcp-tool-proposal-redaction-audit.js";
 export * from "./mcp-tool-simulated-result.js";
 export * from "./native-descriptors.js";
+export * from "./package-metadata-scanner.js";
 export * from "./plan-preview.js";
 export * from "./permission-lease.js";
 export * from "./plugin-manifest-schema.js";
