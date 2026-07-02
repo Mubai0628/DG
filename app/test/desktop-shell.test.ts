@@ -19903,6 +19903,74 @@ describe("desktop source boundaries", () => {
     expect(rootReadme).toContain("P0Y starts the Plugin / Skill Sandbox");
   });
 
+  it("documents the P0Y-001 plugin skill sandbox design gate without execution", async () => {
+    const adr = await readFile(
+      path.join(repoRoot, "docs", "adr", "0011-plugin-skill-sandbox.md"),
+      "utf8"
+    );
+    const threatModel = await readFile(
+      path.join(repoRoot, "docs", "plugin-skill-sandbox-threat-model-v0.20.md"),
+      "utf8"
+    );
+    const implementationGate = await readFile(
+      path.join(
+        repoRoot,
+        "docs",
+        "plugin-skill-sandbox-implementation-gate-v0.20.md"
+      ),
+      "utf8"
+    );
+    const nextPlan = await readFile(
+      path.join(repoRoot, "docs", "p0y-002-plugin-manifest-schema-plan.md"),
+      "utf8"
+    );
+    const docsIndex = await readFile(
+      path.join(repoRoot, "docs", "README.md"),
+      "utf8"
+    );
+    const combined = `${adr}\n${threatModel}\n${implementationGate}\n${nextPlan}\n${docsIndex}`;
+
+    expect(combined).toContain("ADR 0011: Plugin / Skill Sandbox");
+    expect(combined).toContain("Proposed / Accepted for P0Y design gate");
+    expect(combined).toContain(
+      "Plugins and skills enter the system as manifests first"
+    );
+    expect(combined).toContain("No plugin code execution in P0Y");
+    expect(combined).toContain("No arbitrary skill runtime in P0Y");
+    expect(combined).toContain("Capability Broker risk classification");
+    expect(combined).toContain("No raw package file contents in events");
+    expect(combined).toContain(
+      "No plugin installation that executes lifecycle scripts"
+    );
+    expect(combined).toContain(
+      "Do not implement arbitrary plugin code execution"
+    );
+    expect(combined).toContain(
+      "Do not implement skill runtime execution in P0Y"
+    );
+    expect(threatModel).toContain("malicious manifest");
+    expect(threatModel).toContain("dependency confusion");
+    expect(threatModel).toContain("package lifecycle scripts");
+    expect(threatModel).toContain("hidden executable payload");
+    expect(threatModel).toContain("prompt injection");
+    expect(threatModel).toContain("broad PermissionLease");
+    expect(implementationGate).toContain("Manifest Schema Safety");
+    expect(implementationGate).toContain("Package Metadata Safety");
+    expect(implementationGate).toContain("Capability Descriptor Safety");
+    expect(implementationGate).toContain("Sandbox Contract Safety");
+    expect(implementationGate).toContain("Redaction Safety");
+    expect(implementationGate).toContain("App UI Safety");
+    expect(nextPlan).toContain("P0Y-002 Plugin Manifest Schema Plan");
+    expect(nextPlan).toContain("no runtime plugin execution");
+    expect(nextPlan).toContain("no package install");
+    expect(nextPlan).toContain("no code load");
+    expect(nextPlan).toContain("runtime_plugin_manifest_schema");
+    expect(combined).toContain("no native bridge");
+    expect(combined).toContain("no desktop action");
+    expect(combined).toContain("no arbitrary shell/process spawn");
+    expect(combined).toContain("no broad PermissionLease");
+  });
+
   it("documents the P0S-001 MVP hardening recovery design gate", async () => {
     const adr = await readFile(
       path.join(repoRoot, "docs", "adr", "0011-mvp-hardening-recovery.md"),
