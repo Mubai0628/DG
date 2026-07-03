@@ -22344,6 +22344,116 @@ describe("desktop source boundaries", () => {
     expect(combined).not.toContain("native bridge broad action is enabled");
   });
 
+  it("documents the P1B desktop action proposal ADR and implementation gate", async () => {
+    const adr = await readFile(
+      path.join(repoRoot, "docs", "adr", "0011-desktop-action-proposal.md"),
+      "utf8"
+    );
+    const threatModel = await readFile(
+      path.join(
+        repoRoot,
+        "docs",
+        "desktop-action-proposal-threat-model-v0.23.md"
+      ),
+      "utf8"
+    );
+    const implementationGate = await readFile(
+      path.join(
+        repoRoot,
+        "docs",
+        "desktop-action-proposal-implementation-gate-v0.23.md"
+      ),
+      "utf8"
+    );
+    const nextPlan = await readFile(
+      path.join(
+        repoRoot,
+        "docs",
+        "p1b-002-desktop-action-proposal-schema-plan.md"
+      ),
+      "utf8"
+    );
+    const docsIndex = await readFile(
+      path.join(repoRoot, "docs", "README.md"),
+      "utf8"
+    );
+    const combined = `${adr}\n${threatModel}\n${implementationGate}\n${nextPlan}\n${docsIndex}`;
+    const threatModelLower = threatModel.toLowerCase();
+
+    expect(adr).toContain("Desktop Action Proposal MVP");
+    expect(adr).toContain("proposal-first");
+    expect(adr).toContain("Desktop Observer evidence refs");
+    expect(adr).toContain("No real desktop action");
+    expect(adr).toContain("No click/type/select");
+    expect(adr).toContain("No clipboard write");
+    expect(adr).toContain("No file dialog automation");
+    expect(adr).toContain("target metadata validation");
+    expect(adr).toContain("risk classification");
+    expect(adr).toContain("dry-run / simulation");
+    expect(adr).toContain("privacy and redaction audit");
+    expect(adr).toContain("Capability Broker");
+    expect(adr).toContain(
+      "Future execution requires a separate approved desktop action phase"
+    );
+
+    expect(threatModelLower).toContain("wrong window target");
+    expect(threatModelLower).toContain("stale observer evidence refs");
+    expect(threatModelLower).toContain("ui spoofing");
+    expect(threatModelLower).toContain("focus hijack");
+    expect(threatModelLower).toContain("clickjacking");
+    expect(threatModelLower).toContain("destructive click");
+    expect(threatModelLower).toContain("typing into the wrong field");
+    expect(threatModelLower).toContain("clipboard leakage");
+    expect(threatModelLower).toContain("file dialog risks");
+    expect(threatModelLower).toContain("password/api key target risks");
+    expect(threatModelLower).toContain("raw screenshot leakage");
+    expect(threatModelLower).toContain("hidden background observation");
+    expect(threatModelLower).toContain("remote-control confusion");
+    expect(threatModelLower).toContain("agent autonomy escalation");
+    expect(threatModelLower).toContain("native bridge abuse");
+    expect(threatModelLower).toContain("event/replay mismatch");
+    expect(threatModelLower).toContain("approval bypass");
+
+    expect(implementationGate).toContain("Target Metadata Validation");
+    expect(implementationGate).toContain("Action Kind Safety");
+    expect(implementationGate).toContain("Sensitive Target Detection");
+    expect(implementationGate).toContain("Risk Classification");
+    expect(implementationGate).toContain("Approval Draft Safety");
+    expect(implementationGate).toContain("Dry-run Simulation");
+    expect(implementationGate).toContain("Redaction Audit");
+    expect(implementationGate).toContain("App UI Safety");
+    expect(implementationGate).toContain("CI / Boundary Safety");
+    expect(implementationGate).toContain("must prove no click, type, focus");
+
+    expect(nextPlan).toContain("P1B-002 Desktop Action Proposal Schema Plan");
+    expect(nextPlan).toContain("pure runtime schema");
+    expect(nextPlan).toContain("Proposal-only Action Kinds");
+    expect(nextPlan).toContain("focus_window");
+    expect(nextPlan).toContain("click_target");
+    expect(nextPlan).toContain("type_text");
+    expect(nextPlan).toContain("open_file_dialog");
+    expect(nextPlan).toContain("drag_drop");
+    expect(nextPlan).toContain("Required Guards");
+    expect(nextPlan).toContain("Keep all execution readiness flags false");
+
+    expect(docsIndex).toContain("adr/0011-desktop-action-proposal.md");
+    expect(docsIndex).toContain(
+      "desktop-action-proposal-threat-model-v0.23.md"
+    );
+    expect(docsIndex).toContain(
+      "desktop-action-proposal-implementation-gate-v0.23.md"
+    );
+    expect(docsIndex).toContain(
+      "p1b-002-desktop-action-proposal-schema-plan.md"
+    );
+
+    expect(combined).not.toContain("desktop action execution is enabled");
+    expect(combined).not.toContain("click/type/select is enabled");
+    expect(combined).not.toContain("clipboard write is enabled");
+    expect(combined).not.toContain("file dialog automation is enabled");
+    expect(combined).not.toContain("native bridge broad action is enabled");
+  });
+
   it("documents the v0.22 post-release review and P1A desktop observer roadmap", async () => {
     const promptDoc = await readFile(
       path.join(repoRoot, "docs", "v0.23-desktop-observer-mvp-prompts.md"),
