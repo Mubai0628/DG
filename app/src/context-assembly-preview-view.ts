@@ -4,6 +4,7 @@ import type { CapabilityHostSurfaceView } from "./capability-host-surface-view.j
 import type { AppControlPlaneProjectionView } from "./control-plane-view.js";
 import type { AppControlledCreationReplayProjectionView } from "./controlled-creation-replay-projection-view.js";
 import type { AppDisposableWorkspaceSnapshotView } from "./disposable-workspace-snapshot-view.js";
+import type { DesktopObservationEvidenceRef } from "./desktop-observer-view.js";
 import type { FixedMultiAgentRunView } from "./fixed-multi-agent-run-view.js";
 import type { LiveProposalPreviewGateView } from "./live-proposal-preview-gate-view.js";
 import type { AppMemoryRecallPreviewView } from "./memory-recall-preview-view.js";
@@ -69,6 +70,7 @@ export type AppContextAssemblySourceRef = {
     | "fixed_multi_agent_run"
     | "capability_host_surface"
     | "verification_evidence"
+    | "desktop_observation_summary"
     | "event_evidence"
     | "control_projection";
   sourceRefId: string;
@@ -156,6 +158,9 @@ export type AppContextAssemblyPreviewInput = {
   capabilityPlanPreview?: AppCapabilityPlanPreviewView | undefined;
   fixedMultiAgentRun?: FixedMultiAgentRunView | undefined;
   capabilityHostSurface?: CapabilityHostSurfaceView | undefined;
+  desktopObservationEvidenceRefs?:
+    | readonly DesktopObservationEvidenceRef[]
+    | undefined;
   controlProjection?: AppControlPlaneProjectionView | undefined;
   verificationLaneProjection?: AppVerificationLaneProjectionView | undefined;
   eventSummary?: WorkspaceEventSummary | undefined;
@@ -295,6 +300,11 @@ export function validateContextAssemblyPreviewInput(
     ...unsafeWarningCodes(
       input.patchSurface?.items.map((item) => item.label).join(" ")
     ),
+    ...unsafeWarningCodes(
+      input.desktopObservationEvidenceRefs
+        ?.map((ref) => ref.summary)
+        .join(" ")
+    ),
     ...rawKeyWarnings(input.runDraft),
     ...rawKeyWarnings(input.workspaceIndexBridge),
     ...rawKeyWarnings(input.memoryRecallPreview),
@@ -304,6 +314,7 @@ export function validateContextAssemblyPreviewInput(
     ...rawKeyWarnings(input.liveProposalPreviewGate),
     ...rawKeyWarnings(input.mcpToolProposal),
     ...rawKeyWarnings(input.capabilityHostSurface),
+    ...rawKeyWarnings(input.desktopObservationEvidenceRefs),
     ...rawKeyWarnings(input.verificationLaneProjection),
     ...rawKeyWarnings(input.userWorkspaceSnapshotContract),
     ...rawKeyWarnings(input.userWorkspacePromotionReadiness)
@@ -604,6 +615,35 @@ function buildSegments(
           `hash:${input.verificationLaneProjection.hashPrefix}`
         ].join(" | "),
         warningCodes: input.verificationLaneProjection.warningCodes
+      })
+    );
+  }
+
+  for (const ref of input.desktopObservationEvidenceRefs ?? []) {
+    segments.push(
+      segment({
+        layer:
+          ref.placement === "no_compress_zone"
+            ? "no_compress_zone"
+            : "volatile_tail",
+        title:
+          ref.placement === "no_compress_zone"
+            ? "Desktop observation screenshot privacy boundary"
+            : "Desktop observation summary evidence refs",
+        sourceKind: "desktop_observation_summary",
+        sourceRefId: ref.refId,
+        summary: [
+          `observation:${ref.observationId}`,
+          `windows:${ref.windowCount}`,
+          `apps:${ref.appCount}`,
+          `displays:${ref.displayCount}`,
+          `redactions:${ref.redactionCodes.length}`,
+          `hash:${ref.hashPrefix}`
+        ].join(" | "),
+        warningCodes: [
+          "DESKTOP_OBSERVATION_EVIDENCE_SUMMARY_ONLY",
+          ...ref.redactionCodes
+        ]
       })
     );
   }

@@ -60,6 +60,21 @@ export type DesktopObserverView = {
   source: "app_desktop_observer_surface";
 };
 
+export type DesktopObservationEvidenceRef = {
+  kind: "desktop_observation_summary";
+  placement: "volatile_tail" | "no_compress_zone";
+  refId: string;
+  observationId: string;
+  summary: string;
+  windowCount: number;
+  appCount: number;
+  displayCount: number;
+  hashPrefix: string;
+  redactionCodes: string[];
+  summaryOnly: true;
+  source: "desktop_observer";
+};
+
 export type DesktopObserverViewInput = {
   profileInput?: DesktopObservationProfileInput | undefined;
   observationResult?: DesktopObservationCommandResult | undefined;
@@ -227,6 +242,81 @@ export function summarizeDesktopObserverView(view: DesktopObserverView): {
   };
 }
 
+export function desktopObserverEvidenceRefs(
+  view: DesktopObserverView
+): DesktopObservationEvidenceRef[] {
+  if (
+    view.observationId === undefined ||
+    view.blockerCount > 0 ||
+    (view.status !== "observed" && view.status !== "warning")
+  ) {
+    return [];
+  }
+
+  const hashPrefix = safeHashPrefix(view.resultHash, view.observationId);
+  const redactionCodes = uniqueCodes(view.redactionWarnings);
+  const refs: DesktopObservationEvidenceRef[] = [
+    {
+      kind: "desktop_observation_summary",
+      placement: "volatile_tail",
+      refId: `desktop-observation-summary-${hashPrefix}`,
+      observationId: safeIdentifier(view.observationId, "desktop-observation"),
+      summary: [
+        "metadata summary only",
+        `windows:${view.windowCount}`,
+        `apps:${view.appCount}`,
+        `displays:${view.displayCount}`,
+        `redactions:${redactionCodes.length}`,
+        `hash:${hashPrefix}`
+      ].join(" | "),
+      windowCount: view.windowCount,
+      appCount: view.appCount,
+      displayCount: view.displayCount,
+      hashPrefix,
+      redactionCodes,
+      summaryOnly: true,
+      source: "desktop_observer"
+    }
+  ];
+
+  if (view.screenshotBoundary !== undefined) {
+    const boundaryHash = safeHashPrefix(
+      view.screenshotBoundary.boundaryHash ?? view.screenshotBoundary.hashPrefix,
+      view.screenshotBoundary.boundaryId ?? view.observationId
+    );
+    const boundaryCodes = uniqueCodes([
+      ...view.screenshotBoundary.redactionCodes,
+      ...view.screenshotBoundary.warningCodes,
+      ...view.screenshotBoundary.blockerCodes
+    ]);
+    refs.push({
+      kind: "desktop_observation_summary",
+      placement: "no_compress_zone",
+      refId: `desktop-observation-screenshot-boundary-${boundaryHash}`,
+      observationId: safeIdentifier(view.observationId, "desktop-observation"),
+      summary: [
+        "screen metadata privacy boundary",
+        `status:${view.screenshotBoundary.status}`,
+        `capture:${view.screenshotBoundary.captureMode}`,
+        `raw:${view.screenshotBoundary.rawPersisted ? "yes" : "no"}`,
+        `ocr:${view.screenshotBoundary.ocrPersisted ? "yes" : "no"}`,
+        `model:${view.screenshotBoundary.modelSent ? "yes" : "no"}`,
+        `redactions:${boundaryCodes.length}`,
+        `hash:${boundaryHash}`
+      ].join(" | "),
+      windowCount: view.windowCount,
+      appCount: view.appCount,
+      displayCount: view.displayCount,
+      hashPrefix: boundaryHash,
+      redactionCodes: boundaryCodes,
+      summaryOnly: true,
+      source: "desktop_observer"
+    });
+  }
+
+  return refs;
+}
+
 function determineStatus(args: {
   profileStatus: string;
   observeStatus: "idle" | "observing" | "observed" | "failed";
@@ -319,6 +409,32 @@ function safeCode(value: string): string {
   return safeText(value, "DESKTOP_OBSERVER_WARNING")
     .replace(/[^A-Za-z0-9_.-]/g, "_")
     .slice(0, 120);
+}
+
+function uniqueCodes(values: readonly string[]): string[] {
+  return Array.from(new Set(values.map(safeCode).filter((code) => code.length > 0)));
+}
+
+function safeHashPrefix(value: string | undefined, fallbackSeed: string): string {
+  const safeValue = safeText(value ?? "", "");
+  if (/^[A-Za-z0-9_.-]{6,128}$/.test(safeValue)) {
+    return safeValue.slice(0, 16);
+  }
+  return hashPrefix(fallbackSeed);
+}
+
+function safeIdentifier(value: string, fallback: string): string {
+  const safeValue = safeText(value, fallback).replace(/[^A-Za-z0-9_.-]/g, "-");
+  return safeValue.length > 0 ? safeValue.slice(0, 120) : fallback;
+}
+
+function hashPrefix(value: string): string {
+  let hash = 2166136261;
+  for (let index = 0; index < value.length; index += 1) {
+    hash ^= value.charCodeAt(index);
+    hash = Math.imul(hash, 16777619);
+  }
+  return (hash >>> 0).toString(16).padStart(8, "0").slice(0, 12);
 }
 
 function nextActionFor(status: DesktopObserverViewStatus): string {

@@ -197,6 +197,7 @@ import {
 } from "./live-proposal-evaluation-telemetry-audit-view.js";
 import {
   buildDesktopObserverView,
+  desktopObserverEvidenceRefs,
   summarizeDesktopObserverView,
   type DesktopObserverView
 } from "./desktop-observer-view.js";
@@ -1039,6 +1040,10 @@ export function DesktopShell(): JSX.Element {
   );
   const displayedDesktopObserver =
     desktopObserverPreview ?? desktopObserverCandidate;
+  const desktopObservationEvidenceRefs = useMemo(
+    () => desktopObserverEvidenceRefs(displayedDesktopObserver),
+    [displayedDesktopObserver]
+  );
   const runDraftCandidate = useMemo<AppRunDraftView>(
     () =>
       buildRunDraftView({
@@ -1351,10 +1356,12 @@ export function DesktopShell(): JSX.Element {
         contextCart,
         workspaceIndexRef: loadedWorkspaceIndexRef,
         patchSurface: patchWorkbenchSurfaces.diff,
-        memoryInspector
+        memoryInspector,
+        desktopObservationEvidenceRefs
       }),
     [
       contextCart,
+      desktopObservationEvidenceRefs,
       displayedRunDraft,
       loadedWorkspaceIndexRef,
       memoryInspector,
@@ -2580,6 +2587,7 @@ export function DesktopShell(): JSX.Element {
         modelPatchProposalImport: modelPatchProposalImportPreview,
         modelProposalChainIntegration: modelProposalChainIntegrationPreview,
         liveProposalPreviewGate: liveProposalPreviewGatePreview,
+        desktopObservationEvidenceRefs,
         fixedMultiAgentRun: fixedMultiAgentRunPreview,
         mcpToolProposal: displayedMcpToolProposal,
         capabilityHostSurface: capabilityHostSurfacePreview,
@@ -2607,6 +2615,7 @@ export function DesktopShell(): JSX.Element {
       displayedUserWorkspacePromotionReadiness,
       displayedSandboxApplyRollbackEventProjection,
       displayedRunDraft,
+      desktopObservationEvidenceRefs,
       eventSummary,
       loadedWorkspaceIndexRef,
       memoryRecallPreview,
@@ -5864,6 +5873,12 @@ export function DesktopShell(): JSX.Element {
                   {displayedDesktopObserver.screenshotBoundary === undefined
                     ? "not included"
                     : `${displayedDesktopObserver.screenshotBoundary.status} / ${displayedDesktopObserver.screenshotBoundary.hashPrefix ?? "no hash"}`}
+                </dd>
+              </div>
+              <div>
+                <dt>Evidence refs</dt>
+                <dd>
+                  {desktopObservationEvidenceRefs.length} summary-only
                 </dd>
               </div>
               <div>

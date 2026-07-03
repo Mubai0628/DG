@@ -107,7 +107,10 @@ import {
   parseLiveProposalEvaluationSummaryJson
 } from "../src/live-proposal-evaluation-summary-view.js";
 import { buildLiveProposalEvaluationTelemetryAuditView } from "../src/live-proposal-evaluation-telemetry-audit-view.js";
-import { buildDesktopObserverView } from "../src/desktop-observer-view.js";
+import {
+  buildDesktopObserverView,
+  desktopObserverEvidenceRefs
+} from "../src/desktop-observer-view.js";
 import { buildScreenshotRedactionBoundaryView } from "../src/screenshot-redaction-boundary-view.js";
 import { buildMcpMetadataRedactionAuditView } from "../src/mcp-metadata-redaction-audit-view.js";
 import { buildMcpReadonlyConnectionView } from "../src/mcp-readonly-connection-view.js";
@@ -1408,6 +1411,171 @@ describe("desktop command wrapper", () => {
     expect(viewSource).not.toContain("type=\"file\"");
     expect(viewSource).not.toContain("type=\"password\"");
     expect(viewSource).not.toContain("modelSent: true");
+  });
+
+  it("projects desktop observation summaries into context and agent evidence refs", () => {
+    const desktopObserver = buildDesktopObserverView({
+      observeStatus: "observed",
+      observationResult: {
+        ok: true,
+        status: "warning",
+        requestId: "desktop-observation-request-test",
+        observationId: "desktop-observation-evidence-test",
+        profileId: "desktop-observer-profile-test",
+        windowCount: 1,
+        appCount: 1,
+        displayCount: 1,
+        screenshotMetadataIncluded: true,
+        windows: [
+          {
+            windowIdHash: "window-hash",
+            titleSummary: "Sensitive Window Title",
+            appNameSummary: "app redacted",
+            focused: true,
+            redactionCodes: ["WINDOW_TITLE_REDACTED"]
+          }
+        ],
+        apps: [],
+        displays: [],
+        screenshotMetadata: {
+          width: 1280,
+          height: 720,
+          hashPrefix: "screenhash",
+          redactionCodes: ["RAW_SCREENSHOT_NOT_CAPTURED"],
+          rawScreenshotPersisted: false
+        },
+        warningCodes: ["SCREENSHOT_CAPTURE_NOT_PERFORMED"],
+        summaryOnly: true,
+        rawScreenshotPersisted: false,
+        rawOcrTextPersisted: false,
+        rawClipboardIncluded: false,
+        canDesktopAction: false,
+        canClickTypeSelect: false,
+        canWriteClipboard: false,
+        canSendToModel: false,
+        canWriteEventStore: false,
+        canApplyPatch: false,
+        canRollback: false,
+        canExecuteGit: false,
+        canExecuteShell: false,
+        appCanExecute: false,
+        resultHash: "desktop-observation-result-hash",
+        safeMessage: "Desktop observation metadata summarized without action."
+      }
+    });
+    const evidenceRefs = desktopObserverEvidenceRefs(desktopObserver);
+    const runDraft = buildRunDraftView({
+      objectiveDraft: "Use desktop observation summary as evidence.",
+      selectedIntent: "verification",
+      acceptanceCriteriaDraft: "Desktop evidence remains summary-only.",
+      workspaceRoot: "D:\\workspace"
+    });
+    const contextView = buildContextAssemblyPreviewView({
+      runDraft,
+      desktopObservationEvidenceRefs: evidenceRefs
+    });
+    const agentRoute = buildAgentRoutePreviewView({
+      runDraft,
+      desktopObservationEvidenceRefs: evidenceRefs
+    });
+    const desktopSegments = contextView.segments.filter(
+      (segment) => segment.sourceKind === "desktop_observation_summary"
+    );
+    const serialized = JSON.stringify({
+      evidenceRefs,
+      contextView,
+      agentRoute
+    });
+
+    expect(evidenceRefs).toHaveLength(2);
+    expect(evidenceRefs[0]).toMatchObject({
+      kind: "desktop_observation_summary",
+      placement: "volatile_tail",
+      observationId: "desktop-observation-evidence-test",
+      source: "desktop_observer",
+      summaryOnly: true
+    });
+    expect(evidenceRefs[1]).toMatchObject({
+      kind: "desktop_observation_summary",
+      placement: "no_compress_zone",
+      source: "desktop_observer",
+      summaryOnly: true
+    });
+    expect(desktopSegments).toHaveLength(2);
+    expect(
+      desktopSegments.some(
+        (segment) => segment.placement === "volatile_tail"
+      )
+    ).toBe(true);
+    expect(
+      desktopSegments.some(
+        (segment) => segment.placement === "no_compress_zone"
+      )
+    ).toBe(true);
+    expect(
+      desktopSegments.some(
+        (segment) => segment.placement === "frozen_prefix"
+      )
+    ).toBe(false);
+    expect(
+      agentRoute.steps.flatMap((step) => step.evidenceRefs)
+    ).toEqual(expect.arrayContaining(evidenceRefs.map((ref) => ref.refId)));
+    expect(serialized).not.toContain("Sensitive Window Title");
+    expect(serialized).not.toContain("rawScreenshotPath");
+    expect(serialized).not.toContain("ocrText");
+    expect(serialized).not.toContain("Send Screen to Model");
+  });
+
+  it("blocks raw screenshot and OCR metadata from desktop evidence refs", () => {
+    const blocked = buildDesktopObserverView({
+      observeStatus: "observed",
+      observationResult: {
+        ok: true,
+        status: "warning",
+        requestId: "desktop-observation-request-test",
+        observationId: "desktop-observation-raw-test",
+        profileId: "desktop-observer-profile-test",
+        windowCount: 0,
+        appCount: 0,
+        displayCount: 1,
+        screenshotMetadataIncluded: true,
+        windows: [],
+        apps: [],
+        displays: [],
+        screenshotMetadata: {
+          width: 1280,
+          height: 720,
+          hashPrefix: "screenhash",
+          redactionCodes: [],
+          rawScreenshotPersisted: false,
+          rawScreenshotPath: "C:/Users/example/Desktop/raw.png",
+          ocrText: "visible private OCR text"
+        },
+        warningCodes: [],
+        summaryOnly: true,
+        rawScreenshotPersisted: false,
+        rawOcrTextPersisted: false,
+        rawClipboardIncluded: false,
+        canDesktopAction: false,
+        canClickTypeSelect: false,
+        canWriteClipboard: false,
+        canSendToModel: false,
+        canWriteEventStore: false,
+        canApplyPatch: false,
+        canRollback: false,
+        canExecuteGit: false,
+        canExecuteShell: false,
+        appCanExecute: false,
+        resultHash: "desktop-observation-result-hash",
+        safeMessage: "Desktop observation metadata summarized without action."
+      } as DesktopObservationCommandResult
+    });
+
+    expect(blocked.status).toBe("blocked");
+    expect(blocked.screenshotBoundary?.blockerCodes).toEqual(
+      expect.arrayContaining(["forbidden_field"])
+    );
+    expect(desktopObserverEvidenceRefs(blocked)).toEqual([]);
   });
 
   it("calls MCP readonly discovery only through the fixed wrapper", async () => {
@@ -22099,11 +22267,19 @@ describe("desktop source boundaries", () => {
       ),
       "utf8"
     );
+    const evidenceRefsDoc = await readFile(
+      path.join(
+        repoRoot,
+        "docs",
+        "desktop-observer-evidence-refs-v0.22.md"
+      ),
+      "utf8"
+    );
     const docsIndex = await readFile(
       path.join(repoRoot, "docs", "README.md"),
       "utf8"
     );
-    const combined = `${adr}\n${threatModel}\n${implementationGate}\n${nextPlan}\n${profileDoc}\n${summaryDoc}\n${commandDoc}\n${redactionDoc}\n${surfaceDoc}\n${docsIndex}`;
+    const combined = `${adr}\n${threatModel}\n${implementationGate}\n${nextPlan}\n${profileDoc}\n${summaryDoc}\n${commandDoc}\n${redactionDoc}\n${surfaceDoc}\n${evidenceRefsDoc}\n${docsIndex}`;
 
     expect(adr).toContain("ADR 0011: Desktop Observer MVP");
     expect(adr).toContain("Proposed / Accepted for P1A design gate");
@@ -22223,6 +22399,16 @@ describe("desktop source boundaries", () => {
     expect(surfaceDoc).toContain("No clipboard read or write");
     expect(surfaceDoc).toContain("No model call");
 
+    expect(evidenceRefsDoc).toContain("Desktop Observer Evidence Refs v0.22");
+    expect(evidenceRefsDoc).toContain("desktop_observation_summary");
+    expect(evidenceRefsDoc).toContain("volatile_tail");
+    expect(evidenceRefsDoc).toContain("no_compress_zone");
+    expect(evidenceRefsDoc).toContain("Agent Route Preview");
+    expect(evidenceRefsDoc).toContain("does not contain raw screenshots");
+    expect(evidenceRefsDoc).toContain("OCR text");
+    expect(evidenceRefsDoc).toContain("No desktop action");
+    expect(evidenceRefsDoc).toContain("No automatic model send");
+
     expect(docsIndex).toContain("adr/0011-desktop-observer-mvp.md");
     expect(docsIndex).toContain("desktop-observer-threat-model-v0.22.md");
     expect(docsIndex).toContain(
@@ -22238,6 +22424,7 @@ describe("desktop source boundaries", () => {
       "runtime-screenshot-redaction-boundary-v0.22.md"
     );
     expect(docsIndex).toContain("app-shell-desktop-observer-surface-v0.22.md");
+    expect(docsIndex).toContain("desktop-observer-evidence-refs-v0.22.md");
     expect(combined).not.toContain("desktop action automation is enabled");
     expect(combined).not.toContain("click/type/select is enabled");
     expect(combined).not.toContain("raw screenshot persistence is enabled");

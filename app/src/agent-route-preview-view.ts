@@ -5,6 +5,7 @@ import {
   type AgentRoutePreviewStep
 } from "../../runtime/src/agents/route-preview.js";
 import type { AppContextCartView } from "./context-cart-view.js";
+import type { DesktopObservationEvidenceRef } from "./desktop-observer-view.js";
 import type { AppMemoryInspectorView } from "./memory-inspector-view.js";
 import type { AppRunDraftIntent, AppRunDraftView } from "./run-draft-view.js";
 import type { AppDiffSurfaceView } from "./workbench-surfaces.js";
@@ -80,6 +81,9 @@ export type AppAgentRoutePreviewInput = {
   workspaceIndexRef?: unknown;
   patchSurface?: AppDiffSurfaceView | undefined;
   memoryInspector?: AppMemoryInspectorView | undefined;
+  desktopObservationEvidenceRefs?:
+    | readonly DesktopObservationEvidenceRef[]
+    | undefined;
   capabilitySummary?: unknown;
   createdAt?: string | undefined;
   idGenerator?: (() => string) | undefined;
@@ -122,7 +126,13 @@ export function buildAgentRoutePreviewView(
     status,
     intent: runtimePreview.intent,
     routeId: runtimePreview.routeId,
-    steps: runtimePreview.steps.map(appStepFromRuntimeStep),
+    steps: runtimePreview.steps.map((step) =>
+      appStepFromRuntimeStep(
+        step,
+        desktopEvidenceRefIds(input.desktopObservationEvidenceRefs),
+        desktopEvidenceWarningCodes(input.desktopObservationEvidenceRefs)
+      )
+    ),
     roleCount: runtimePreview.steps.length,
     capabilityRefCount: runtimePreview.steps.reduce(
       (sum, step) => sum + step.allowedCapabilityRefs.length,
@@ -169,7 +179,9 @@ export function validateAgentRoutePreviewInput(
 }
 
 function appStepFromRuntimeStep(
-  step: AgentRoutePreviewStep
+  step: AgentRoutePreviewStep,
+  desktopEvidenceRefs: readonly string[],
+  desktopEvidenceWarnings: readonly string[]
 ): AppAgentRouteStepView {
   return {
     stepId: step.stepId,
@@ -185,8 +197,8 @@ function appStepFromRuntimeStep(
     })),
     contextRefs: step.contextRefs,
     memoryRefs: step.memoryRefs,
-    evidenceRefs: step.evidenceRefs,
-    warningCodes: step.warningCodes,
+    evidenceRefs: uniqueRefIds([...step.evidenceRefs, ...desktopEvidenceRefs]),
+    warningCodes: uniqueStrings([...step.warningCodes, ...desktopEvidenceWarnings]),
     dossierPreviewHash: step.dossierPreviewHash
   };
 }
@@ -197,7 +209,8 @@ function routeWarnings(
 ): string[] {
   const codes = [
     ...runtimePreview.warnings.map((warning) => warning.code),
-    ...(input.runDraft?.warnings.map((warning) => warning.code) ?? [])
+    ...(input.runDraft?.warnings.map((warning) => warning.code) ?? []),
+    ...desktopEvidenceWarningCodes(input.desktopObservationEvidenceRefs)
   ];
   if (input.contextCart?.status === "empty") {
     codes.push("CONTEXT_CART_EMPTY");
@@ -266,6 +279,48 @@ function patchProposalRefFrom(
   return count > 0 ? `patch-surface:${count}` : undefined;
 }
 
+function desktopEvidenceRefIds(
+  refs: readonly DesktopObservationEvidenceRef[] | undefined
+): string[] {
+  return uniqueRefIds(
+    (refs ?? [])
+      .filter((ref) => ref.summaryOnly === true && ref.source === "desktop_observer")
+      .map((ref) => safeErrorMessage(safeText(ref.refId, "")))
+  );
+}
+
+function desktopEvidenceWarningCodes(
+  refs: readonly DesktopObservationEvidenceRef[] | undefined
+): string[] {
+  if (refs === undefined || refs.length === 0) {
+    return [];
+  }
+  const serialized = JSON.stringify(refs);
+  const codes = [
+    "DESKTOP_OBSERVATION_EVIDENCE_SUMMARY_ONLY",
+    ...refs.flatMap((ref) => ref.redactionCodes)
+  ];
+  const raw = "raw";
+  const unsafeEvidencePattern = new RegExp(
+    [
+      raw + "Prompt",
+      raw + "Response",
+      raw + "Screenshot",
+      raw + "Ocr",
+      "ocr" + "Text",
+      "api" + "Key",
+      "Authori" + "zation",
+      "Bearer\\s",
+      "sk-"
+    ].join("|"),
+    "i"
+  );
+  if (unsafeEvidencePattern.test(serialized)) {
+    codes.push("DESKTOP_OBSERVATION_EVIDENCE_MARKER");
+  }
+  return uniqueStrings(codes);
+}
+
 function normalizeIntent(value: unknown): AppAgentRouteIntent {
   return value === "web_data_extraction" ||
     value === "code_change" ||
@@ -287,6 +342,16 @@ function uniqueStrings(values: readonly string[]): string[] {
       values
         .map((value) => safeErrorMessage(safeText(value, "")))
         .filter((value) => /^[A-Z0-9_.-]{1,80}$/.test(value))
+    )
+  );
+}
+
+function uniqueRefIds(values: readonly string[]): string[] {
+  return Array.from(
+    new Set(
+      values
+        .map((value) => safeErrorMessage(safeText(value, "")))
+        .filter((value) => /^[A-Za-z0-9_.:-]{1,160}$/.test(value))
     )
   );
 }
