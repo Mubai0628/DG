@@ -202,6 +202,10 @@ import {
   type DesktopObserverView
 } from "./desktop-observer-view.js";
 import {
+  buildDesktopActionProposalView,
+  type DesktopActionProposalView
+} from "./desktop-action-proposal-view.js";
+import {
   buildMcpReadonlyConnectionView,
   summarizeMcpReadonlyConnectionView,
   type McpReadonlyConnectionView
@@ -600,6 +604,10 @@ export function DesktopShell(): JSX.Element {
   const [desktopObserverError, setDesktopObserverError] = useState<
     string | undefined
   >();
+  const [desktopActionProposalText, setDesktopActionProposalText] =
+    useState("");
+  const [desktopActionProposalPreview, setDesktopActionProposalPreview] =
+    useState<DesktopActionProposalView | undefined>();
   const [bridgePreview, setBridgePreview] = useState<
     BridgeProposalPreviewState | undefined
   >();
@@ -1044,6 +1052,16 @@ export function DesktopShell(): JSX.Element {
     () => desktopObserverEvidenceRefs(displayedDesktopObserver),
     [displayedDesktopObserver]
   );
+  const desktopActionProposalCandidate = useMemo<DesktopActionProposalView>(
+    () =>
+      buildDesktopActionProposalView({
+        proposalJsonText: desktopActionProposalText,
+        sourceKind: "paste"
+      }),
+    [desktopActionProposalText]
+  );
+  const displayedDesktopActionProposal =
+    desktopActionProposalPreview ?? buildDesktopActionProposalView();
   const runDraftCandidate = useMemo<AppRunDraftView>(
     () =>
       buildRunDraftView({
@@ -2963,6 +2981,17 @@ export function DesktopShell(): JSX.Element {
         })
       );
     }
+  }
+
+  function handlePreviewDesktopActionProposal(): void {
+    setDesktopActionProposalPreview(desktopActionProposalCandidate);
+    setContextAssemblyPreview(undefined);
+  }
+
+  function handleClearDesktopActionProposal(): void {
+    setDesktopActionProposalText("");
+    setDesktopActionProposalPreview(undefined);
+    setContextAssemblyPreview(undefined);
   }
 
   function handlePreviewFixedRunPlan(): void {
@@ -5943,6 +5972,183 @@ export function DesktopShell(): JSX.Element {
                 summarizeDesktopObserverView(displayedDesktopObserver)
                   .nextAction
               }
+            </p>
+          </section>
+
+          <section
+            className="eventPanel"
+            aria-label="Desktop Action Proposal"
+          >
+            <div className="panelHeader">
+              <h2>Desktop Action Proposal</h2>
+              <span className="muted">Proposal only / no desktop action</span>
+            </div>
+            <p className="fieldHelp">
+              Models a future desktop action from Desktop Observer evidence.
+              The App Shell does not click, type, use clipboard, open file
+              dialogs, or perform desktop actions.
+            </p>
+
+            <label>
+              Desktop action proposal JSON
+              <textarea
+                rows={8}
+                value={desktopActionProposalText}
+                onChange={(event) => {
+                  setDesktopActionProposalText(event.target.value);
+                }}
+                placeholder="Paste desktop_action_proposal JSON draft"
+              />
+            </label>
+
+            <div className="buttonRow">
+              <button
+                type="button"
+                className="secondary"
+                onClick={(event) => {
+                  event.preventDefault();
+                  event.stopPropagation();
+                  handlePreviewDesktopActionProposal();
+                }}
+              >
+                Preview Desktop Action Proposal
+              </button>
+              <button
+                type="button"
+                className="secondary"
+                onClick={(event) => {
+                  event.preventDefault();
+                  event.stopPropagation();
+                  handleClearDesktopActionProposal();
+                }}
+              >
+                Clear Desktop Action Proposal
+              </button>
+              <button type="button" className="secondary" disabled>
+                Execute Desktop Action (disabled)
+              </button>
+              <button type="button" className="secondary" disabled>
+                Click Target (disabled)
+              </button>
+              <button type="button" className="secondary" disabled>
+                Type Text (disabled)
+              </button>
+              <button type="button" className="secondary" disabled>
+                Use Clipboard (disabled)
+              </button>
+            </div>
+
+            {displayedDesktopActionProposal.status === "blocked" ? (
+              <div className="errorBox">
+                <strong>Desktop Action Proposal blocked</strong>
+                <p>{displayedDesktopActionProposal.nextAction}</p>
+              </div>
+            ) : null}
+
+            <dl className="summaryGrid compact">
+              <div>
+                <dt>Status</dt>
+                <dd>{displayedDesktopActionProposal.status}</dd>
+              </div>
+              <div>
+                <dt>Proposal</dt>
+                <dd>{displayedDesktopActionProposal.proposalId ?? "n/a"}</dd>
+              </div>
+              <div>
+                <dt>Actions</dt>
+                <dd>{displayedDesktopActionProposal.actionCount}</dd>
+              </div>
+              <div>
+                <dt>Targets</dt>
+                <dd>{displayedDesktopActionProposal.targetSummary}</dd>
+              </div>
+              <div>
+                <dt>Risk</dt>
+                <dd>{displayedDesktopActionProposal.riskSummary}</dd>
+              </div>
+              <div>
+                <dt>Simulation</dt>
+                <dd>{displayedDesktopActionProposal.simulationSummary}</dd>
+              </div>
+              <div>
+                <dt>Capability plan</dt>
+                <dd>{displayedDesktopActionProposal.capabilitySummary}</dd>
+              </div>
+              <div>
+                <dt>Blockers / warnings</dt>
+                <dd>
+                  {displayedDesktopActionProposal.blockerCount} /{" "}
+                  {displayedDesktopActionProposal.warningCount}
+                </dd>
+              </div>
+              <div>
+                <dt>Hash</dt>
+                <dd>
+                  {displayedDesktopActionProposal.capabilityHash?.substring(
+                    0,
+                    12
+                  ) ??
+                    displayedDesktopActionProposal.simulationHash?.substring(
+                      0,
+                      12
+                    ) ??
+                    displayedDesktopActionProposal.proposalHash?.substring(
+                      0,
+                      12
+                    ) ??
+                    "n/a"}
+                </dd>
+              </div>
+              <div>
+                <dt>Read-only display</dt>
+                <dd>
+                  {displayedDesktopActionProposal.readiness
+                    .canDisplayReadOnlyPreview
+                    ? "ready"
+                    : "not ready"}
+                </dd>
+              </div>
+              <div>
+                <dt>Execution</dt>
+                <dd>
+                  {displayedDesktopActionProposal.readiness
+                    .canExecuteDesktopAction
+                    ? "enabled"
+                    : "disabled"}
+                </dd>
+              </div>
+              <div>
+                <dt>Native bridge / events</dt>
+                <dd>
+                  {displayedDesktopActionProposal.readiness.canUseNativeBridge
+                    ? "bridge"
+                    : "no bridge"}{" "}
+                  /{" "}
+                  {displayedDesktopActionProposal.readiness.canWriteEventStore
+                    ? "write"
+                    : "no write"}
+                </dd>
+              </div>
+            </dl>
+
+            {displayedDesktopActionProposal.contextAssemblyRef !== undefined ? (
+              <p className="muted">
+                no_compress_zone ref{" "}
+                {displayedDesktopActionProposal.contextAssemblyRef}
+              </p>
+            ) : null}
+
+            {displayedDesktopActionProposal.findings.length > 0 ? (
+              <p className="muted">
+                findings{" "}
+                {displayedDesktopActionProposal.findings
+                  .map((finding) => finding.code)
+                  .join(", ")}
+              </p>
+            ) : null}
+
+            <p className="fieldHelp">
+              {displayedDesktopActionProposal.nextAction}
             </p>
           </section>
 

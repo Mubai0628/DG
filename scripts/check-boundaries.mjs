@@ -509,10 +509,17 @@ function isDesktopObserverAppSurfaceCopy(file, line, ruleId) {
     return false;
   }
   if (file === "app/src/App.tsx") {
-    return line.includes("write clipboard");
+    return (
+      line.includes("write clipboard") ||
+      line.includes("use clipboard") ||
+      line.includes("Use Clipboard (disabled)")
+    );
   }
   if (file === "app/src/desktop-observer-view.ts") {
     return line.includes("clipboard access");
+  }
+  if (file === "app/src/desktop-action-proposal-view.ts") {
+    return line.includes("canUseClipboard");
   }
   return false;
 }

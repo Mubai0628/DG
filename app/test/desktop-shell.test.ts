@@ -111,6 +111,7 @@ import {
   buildDesktopObserverView,
   desktopObserverEvidenceRefs
 } from "../src/desktop-observer-view.js";
+import { buildDesktopActionProposalView } from "../src/desktop-action-proposal-view.js";
 import { buildScreenshotRedactionBoundaryView } from "../src/screenshot-redaction-boundary-view.js";
 import { buildMcpMetadataRedactionAuditView } from "../src/mcp-metadata-redaction-audit-view.js";
 import { buildMcpReadonlyConnectionView } from "../src/mcp-readonly-connection-view.js";
@@ -1414,6 +1415,222 @@ describe("desktop command wrapper", () => {
     expect(viewSource).not.toContain('type="file"');
     expect(viewSource).not.toContain('type="password"');
     expect(viewSource).not.toContain("modelSent: true");
+  });
+
+  it("builds the Desktop Action Proposal App surface as summary-only preview", async () => {
+    const empty = buildDesktopActionProposalView();
+    const safeDraft = await readFile(
+      path.join(
+        repoRoot,
+        "runtime",
+        "test",
+        "fixtures",
+        "desktop-action-proposals",
+        "safe-focus-window.json"
+      ),
+      "utf8"
+    );
+    const safe = buildDesktopActionProposalView({
+      proposalJsonText: safeDraft,
+      sourceKind: "fixture",
+      idGenerator: () => "desktop-action-proposal-view-test"
+    });
+    const serialized = JSON.stringify(safe);
+
+    expect(empty.status).toBe("empty");
+    expect(empty.actionCount).toBe(0);
+    expect(empty.readiness.canDisplayReadOnlyPreview).toBe(false);
+    expect(safe.status).toBe("preview_ready");
+    expect(safe.viewId).toBe("desktop-action-proposal-view-test");
+    expect(safe.proposalId).toBe("desktop-action-proposal-safe-focus");
+    expect(safe.actionCount).toBe(1);
+    expect(safe.targetSummary).toContain(
+      "focus_window:target-editor-window"
+    );
+    expect(safe.riskSummary).toContain("D1_LOW");
+    expect(safe.simulationSummary).toContain("foreground");
+    expect(safe.capabilitySummary).toContain("execute DISABLED");
+    expect(safe.contextAssemblyRef).toContain("no_compress_zone");
+    expect(safe.agentDossierEvidenceRef).toContain("summary_only");
+    expect(safe.auditSurfaceSummary.blockerCount).toBe(0);
+    expect(safe.readiness.canDisplayReadOnlyPreview).toBe(true);
+    expect(safe.readiness.canExecuteDesktopAction).toBe(false);
+    expect(safe.readiness.canClick).toBe(false);
+    expect(safe.readiness.canType).toBe(false);
+    expect(safe.readiness.canUseClipboard).toBe(false);
+    expect(safe.readiness.canOpenFileDialog).toBe(false);
+    expect(safe.readiness.canWriteEventStore).toBe(false);
+    expect(safe.readiness.canUseNativeBridge).toBe(false);
+    expect(safe.readiness.canIssuePermissionLease).toBe(false);
+    expect(safe.readiness.appCanExecute).toBe(false);
+    expect(serialized).not.toContain("rawScreenshot");
+    expect(serialized).not.toContain("rawOcr");
+    expect(serialized).not.toContain("apiKey");
+    expect(serialized).not.toContain("Authorization");
+  });
+
+  it("blocks unsafe Desktop Action Proposal drafts before App preview", async () => {
+    const rawScreenshotDraft = await readFile(
+      path.join(
+        repoRoot,
+        "runtime",
+        "test",
+        "fixtures",
+        "desktop-action-proposals",
+        "blocked-raw-screenshot.json"
+      ),
+      "utf8"
+    );
+    const rawScreenshot = buildDesktopActionProposalView({
+      proposalJsonText: rawScreenshotDraft,
+      sourceKind: "fixture"
+    });
+    const execution = buildDesktopActionProposalView({
+      proposalJsonText: JSON.stringify({
+        schemaVersion: "desktop_action_proposal.v1",
+        title: "Unsafe execute now",
+        intent: "unsafe_execution",
+        objectiveSummary: "Should be blocked.",
+        observerEvidenceRefs: [
+          {
+            evidenceRefId: "desktop-evidence-unsafe-1",
+            summary: "Evidence summary only."
+          }
+        ],
+        operations: [
+          {
+            actionKind: "click_target",
+            targetRef: {
+              targetId: "target-danger",
+              observerEvidenceRefId: "desktop-evidence-unsafe-1"
+            },
+            summary: "Unsafe execution fixture.",
+            expectedVisibleStateChange: "No execution."
+          }
+        ],
+        riskNotes: ["Unsafe fixture."],
+        executeNow: true,
+        clickNow: true
+      })
+    });
+    const secret = buildDesktopActionProposalView({
+      proposalJsonText: JSON.stringify({
+        schemaVersion: "desktop_action_proposal.v1",
+        title: "Unsafe secret target",
+        intent: "unsafe_secret",
+        objectiveSummary: "Should be blocked.",
+        observerEvidenceRefs: [
+          {
+            evidenceRefId: "desktop-evidence-secret-1",
+            summary: "Evidence summary only."
+          }
+        ],
+        operations: [
+          {
+            actionKind: "focus_window",
+            targetRef: {
+              targetId: "password-field-target",
+              observerEvidenceRefId: "desktop-evidence-secret-1"
+            },
+            summary: "Unsafe secret fixture.",
+            expectedVisibleStateChange: "No execution."
+          }
+        ],
+        riskNotes: ["Unsafe fixture."],
+        fakeSecretMarker: "sk-fake-desktop-action-secret-000000"
+      })
+    });
+    const serialized = JSON.stringify({
+      rawScreenshot,
+      execution,
+      secret
+    });
+
+    expect(rawScreenshot.status).toBe("blocked");
+    expect(rawScreenshot.readiness.canDisplayReadOnlyPreview).toBe(false);
+    expect(rawScreenshot.findings.map((finding) => finding.code)).toEqual(
+      expect.arrayContaining(["FORBIDDEN_FIELD"])
+    );
+    expect(execution.status).toBe("blocked");
+    expect(execution.findings.map((finding) => finding.code)).toEqual(
+      expect.arrayContaining(["FORBIDDEN_FIELD"])
+    );
+    expect(secret.status).toBe("blocked");
+    expect(secret.findings.map((finding) => finding.code)).toEqual(
+      expect.arrayContaining(["SECRET_MARKER"])
+    );
+    expect(serialized).not.toContain("RAW_SCREENSHOT_NOT_ALLOWED");
+    expect(serialized).not.toContain("sk-fake-desktop-action-secret");
+    expect(serialized).not.toContain("executeNow");
+    expect(serialized).not.toContain("clickNow");
+  });
+
+  it("renders the Desktop Action Proposal panel without desktop execution paths", async () => {
+    const appSource = await readFile(
+      path.join(appRoot, "src", "App.tsx"),
+      "utf8"
+    );
+    const viewSource = await readFile(
+      path.join(appRoot, "src", "desktop-action-proposal-view.ts"),
+      "utf8"
+    );
+
+    expect(appSource).toContain("Desktop Action Proposal");
+    expect(appSource).toContain("Proposal only / no desktop action");
+    expect(appSource).toContain(
+      "Models a future desktop action from Desktop Observer evidence."
+    );
+    expect(appSource).toContain(
+      "The App Shell does not click, type, use clipboard, open file"
+    );
+    expect(appSource).toContain("Preview Desktop Action Proposal");
+    expect(appSource).toContain("Clear Desktop Action Proposal");
+    expect(appSource).toContain("Execute Desktop Action (disabled)");
+    expect(appSource).toContain("Click Target (disabled)");
+    expect(appSource).toContain("Type Text (disabled)");
+    expect(appSource).toContain("Use Clipboard (disabled)");
+    expect(appSource).toContain("no_compress_zone ref");
+    expect(viewSource).toContain("app_desktop_action_proposal_surface");
+    expect(viewSource).toContain("contextAssemblyRef");
+    expect(viewSource).toContain("agentDossierEvidenceRef");
+    expect(viewSource).toContain("auditSurfaceSummary");
+    expect(viewSource).not.toContain("safeInvoke(");
+    expect(viewSource).not.toContain("invoke(");
+    expect(viewSource).not.toContain("fetch(");
+    expect(viewSource).not.toContain("observeDesktopMetadata(");
+    expect(viewSource).not.toContain("writeFile(");
+    expect(viewSource).not.toContain("readFile(");
+    expect(appSource).not.toContain("handleExecuteDesktopActionProposal");
+    expect(appSource).not.toContain("handleClickTarget");
+    expect(appSource).not.toContain("handleTypeText");
+    expect(appSource).not.toContain("handleUseClipboard");
+  });
+
+  it("documents the App Shell Desktop Action Proposal surface boundaries", async () => {
+    const doc = await readFile(
+      path.join(
+        repoRoot,
+        "docs",
+        "app-shell-desktop-action-proposal-surface-v0.23.md"
+      ),
+      "utf8"
+    );
+    const docsIndex = await readFile(
+      path.join(repoRoot, "docs", "README.md"),
+      "utf8"
+    );
+
+    expect(doc).toContain("App Shell Desktop Action Proposal Surface v0.23");
+    expect(doc).toContain("read-only");
+    expect(doc).toContain("no desktop action");
+    expect(doc).toContain("does not click, type, use");
+    expect(doc).toContain("clipboard, open file dialogs");
+    expect(doc).toContain("no EventStore write");
+    expect(doc).toContain("no native bridge");
+    expect(doc).toContain("summary-only");
+    expect(docsIndex).toContain(
+      "app-shell-desktop-action-proposal-surface-v0.23.md"
+    );
   });
 
   it("projects desktop observation summaries into context and agent evidence refs", () => {
