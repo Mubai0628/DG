@@ -1,3 +1,4 @@
+export * from "./approved-desktop-action-execution.js";
 export * from "./approved-desktop-action-receipt.js";
 export * from "./action-proposal-schema.js";
 export * from "./capability-integration.js";

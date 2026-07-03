@@ -23120,6 +23120,55 @@ describe("desktop source boundaries", () => {
     expect(combined).not.toContain("autonomous desktop agent is enabled");
   });
 
+  it("documents the runtime approved desktop action execution contract boundary", async () => {
+    const executionDoc = await readFile(
+      path.join(
+        repoRoot,
+        "docs",
+        "runtime-approved-desktop-action-execution-v0.24.md"
+      ),
+      "utf8"
+    );
+    const docsIndex = await readFile(
+      path.join(repoRoot, "docs", "README.md"),
+      "utf8"
+    );
+    const combined = `${executionDoc}\n${docsIndex}`;
+
+    expect(executionDoc).toContain(
+      "Runtime Approved Desktop Action Execution Contract v0.24"
+    );
+    expect(executionDoc).toContain("focus_observed_window");
+    expect(executionDoc).toContain("raise_observed_window");
+    expect(executionDoc).toContain("activate_observed_window");
+    expect(executionDoc).toContain("does not call");
+    expect(executionDoc).toContain("Tauri");
+    expect(executionDoc).toContain("does not invoke a native bridge");
+    expect(executionDoc).toContain("does not execute desktop actions");
+    expect(executionDoc).toContain("does not write events");
+    expect(executionDoc).toContain("explicit_approved_desktop_action");
+    expect(executionDoc).toContain("requires a ready P1C-002 receipt");
+    expect(executionDoc).toContain("target mismatch");
+    expect(executionDoc).toContain("stale target metadata");
+    expect(executionDoc).toContain("sensitive targets");
+    expect(executionDoc).toContain("click, type, select, drag/drop");
+    expect(executionDoc).toContain("EventStore write requests");
+    expect(executionDoc).toContain("eventPreview.notWritten: true");
+    expect(executionDoc).toContain("All broad execution flags remain false");
+    expect(docsIndex).toContain(
+      "runtime-approved-desktop-action-execution-v0.24.md"
+    );
+
+    expect(combined).not.toContain("arbitrary desktop action is enabled");
+    expect(combined).not.toContain("click/type/select execution is enabled");
+    expect(combined).not.toContain("clipboard write is enabled");
+    expect(combined).not.toContain("file dialog automation is enabled");
+    expect(combined).not.toContain(
+      "native bridge broad action execution is enabled"
+    );
+    expect(combined).not.toContain("autonomous desktop agent is enabled");
+  });
+
   it("documents the v0.22 post-release review and P1A desktop observer roadmap", async () => {
     const promptDoc = await readFile(
       path.join(repoRoot, "docs", "v0.23-desktop-observer-mvp-prompts.md"),
