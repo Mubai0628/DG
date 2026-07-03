@@ -1,0 +1,114 @@
+{
+  "fixtureId": "approved-desktop-action-smoke-v0.24",
+  "smokePath": [
+    "desktop_observer_metadata_fixture",
+    "desktop_action_proposal_focus_window",
+    "target_validation",
+    "risk_classifier",
+    "approval_receipt_typed_confirmation",
+    "fixed_tauri_command_summary",
+    "summary_event_preview",
+    "replay_summary",
+    "privacy_audit"
+  ],
+  "desktopObserverMetadataRef": {
+    "fixturePath": "app/test/fixtures/desktop-observer-smoke.json",
+    "observationId": "desktop-observer-smoke-observation",
+    "summaryOnly": true
+  },
+  "desktopActionProposalDraft": {
+    "schemaVersion": "desktop_action_proposal.v1",
+    "proposalId": "approved-desktop-action-smoke-focus",
+    "title": "Focus editor window smoke",
+    "intent": "focus_existing_window",
+    "objectiveSummary": "Bring the known editor window to foreground before a manual review.",
+    "observerEvidenceRefs": [
+      {
+        "evidenceRefId": "desktop-evidence-smoke-editor",
+        "observationId": "desktop-observer-smoke-observation",
+        "observedAt": "2026-07-03T05:00:00.000Z",
+        "summary": "Summary-only foreground editor metadata from the desktop observer smoke fixture.",
+        "source": "desktop_observation_summary",
+        "warningCodes": [],
+        "redactionCodes": ["TITLE_REDACTED"]
+      }
+    ],
+    "operations": [
+      {
+        "operationId": "approved-desktop-action-smoke-operation-focus",
+        "actionKind": "focus_window",
+        "targetRef": {
+          "targetId": "target-editor-window",
+          "windowIdHash": "win_hash_editor_smoke",
+          "appIdHash": "app_hash_editor_smoke",
+          "displayIdHash": "display_hash_primary",
+          "boundsSummary": "x:100 y:100 w:1200 h:800",
+          "role": "window",
+          "labelSummary": "Editor window summary",
+          "observerEvidenceRefId": "desktop-evidence-smoke-editor"
+        },
+        "summary": "Focus the observed editor window if the fixed command supports the platform.",
+        "rationale": "Only narrow focus/raise/activate actions can enter the approved desktop action path.",
+        "expectedVisibleStateChange": "The editor window becomes foreground on supported platforms."
+      }
+    ],
+    "riskNotes": [
+      "Focus-only smoke proposal; no click, type, clipboard, file dialog, remote control, or hidden capture."
+    ],
+    "assumptions": ["Observer metadata remains current."],
+    "createdAt": "2026-07-03T05:05:00.000Z"
+  },
+  "typedConfirmation": "FOCUS OBSERVED WINDOW",
+  "commandResult": {
+    "ok": true,
+    "status": "unsupported_platform",
+    "actionId": "approved-desktop-action-smoke-action",
+    "actionKind": "focus_observed_window",
+    "targetWindowRef": "target-editor-window",
+    "targetAppRef": "app_hash_editor_smoke",
+    "targetDisplayRef": "display_hash_primary",
+    "observerEvidenceId": "desktop-evidence-smoke-editor",
+    "desktopActionProposalId": "approved-desktop-action-smoke-focus",
+    "riskClassificationId": "risk-classification-focus_observed_window-D1_LOW",
+    "warningCodes": ["UNSUPPORTED_PLATFORM"],
+    "resultHash": "approved-desktop-action-smoke-result-hash",
+    "eventPreview": {
+      "type": "desktop_action.approved_result",
+      "actionId": "approved-desktop-action-smoke-action",
+      "actionKind": "focus_observed_window",
+      "targetWindowRef": "target-editor-window",
+      "targetAppRef": "app_hash_editor_smoke",
+      "targetDisplayRef": "display_hash_primary",
+      "observerEvidenceId": "desktop-evidence-smoke-editor",
+      "desktopActionProposalId": "approved-desktop-action-smoke-focus",
+      "riskClassificationId": "risk-classification-focus_observed_window-D1_LOW",
+      "status": "unsupported_platform",
+      "resultHash": "approved-desktop-action-smoke-result-hash",
+      "warningCodes": ["UNSUPPORTED_PLATFORM"],
+      "notWritten": true,
+      "summaryOnly": true
+    },
+    "summaryOnly": true,
+    "rawScreenshotPersisted": false,
+    "rawOcrTextPersisted": false,
+    "rawWindowContentIncluded": false,
+    "canClickTypeSelect": false,
+    "canWriteClipboard": false,
+    "canOpenFileDialog": false,
+    "canUseNativeBridge": false,
+    "canWriteEventStore": false,
+    "canExecuteGit": false,
+    "canExecuteShell": false,
+    "appCanExecute": false,
+    "safeMessage": "Unsupported platform is a safe summary-only outcome for this smoke."
+  },
+  "expected": {
+    "proposalStatus": "preview_ready",
+    "approvalStatus": "ready",
+    "commandStatus": "unsupported_platform",
+    "replayStatus": "projected",
+    "privacyAuditStatus": "audit_ready",
+    "eventSummaryOnly": true,
+    "unsupportedPlatformIsSafe": true
+  }
+}

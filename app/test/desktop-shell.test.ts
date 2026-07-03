@@ -2095,6 +2095,133 @@ describe("desktop command wrapper", () => {
     expect(viewSource).not.toContain("writeFile(");
   });
 
+  it("runs the approved desktop action smoke fixture through replay and privacy audit", async () => {
+    type ApprovedDesktopActionSmokeFixture = {
+      smokePath: string[];
+      desktopObserverMetadataRef: {
+        fixturePath: string;
+        observationId: string;
+        summaryOnly: true;
+      };
+      desktopActionProposalDraft: unknown;
+      typedConfirmation: string;
+      commandResult: ApprovedDesktopActionCommandResult;
+      expected: {
+        proposalStatus: "preview_ready";
+        approvalStatus: "ready";
+        commandStatus: "unsupported_platform";
+        replayStatus: "projected";
+        privacyAuditStatus: "audit_ready";
+        eventSummaryOnly: true;
+        unsupportedPlatformIsSafe: true;
+      };
+    };
+    const fixture = JSON.parse(
+      await readFile(
+        path.join(
+          appRoot,
+          "test",
+          "fixtures",
+          "approved-desktop-action-smoke.json"
+        ),
+        "utf8"
+      )
+    ) as ApprovedDesktopActionSmokeFixture;
+    const observerFixture = JSON.parse(
+      await readFile(
+        path.join(repoRoot, fixture.desktopObserverMetadataRef.fixturePath),
+        "utf8"
+      )
+    ) as {
+      observationSummary: { observationId: string; summaryOnly: true };
+      evidenceSummary: { summaryOnly: true };
+    };
+
+    const proposalView = buildDesktopActionProposalView({
+      proposalJsonText: JSON.stringify(fixture.desktopActionProposalDraft),
+      sourceKind: "fixture",
+      idGenerator: () => "approved-desktop-action-smoke-proposal-view"
+    });
+    const approvedView = buildApprovedDesktopActionView({
+      proposalView,
+      typedConfirmation: fixture.typedConfirmation
+    });
+    const replayView = buildDesktopActionReplayView({
+      commandResult: fixture.commandResult,
+      approvedDesktopActionView: approvedView
+    });
+    const serialized = JSON.stringify({
+      proposalView,
+      approvedView,
+      replayView
+    });
+
+    expect(fixture.smokePath).toEqual([
+      "desktop_observer_metadata_fixture",
+      "desktop_action_proposal_focus_window",
+      "target_validation",
+      "risk_classifier",
+      "approval_receipt_typed_confirmation",
+      "fixed_tauri_command_summary",
+      "summary_event_preview",
+      "replay_summary",
+      "privacy_audit"
+    ]);
+    expect(observerFixture.observationSummary.observationId).toBe(
+      fixture.desktopObserverMetadataRef.observationId
+    );
+    expect(observerFixture.observationSummary.summaryOnly).toBe(true);
+    expect(observerFixture.evidenceSummary.summaryOnly).toBe(true);
+    expect(proposalView.status).toBe(fixture.expected.proposalStatus);
+    expect(proposalView.targetSummary).toContain(
+      "focus_window:target-editor-window"
+    );
+    expect(proposalView.targetValidation?.status).toBe("validated");
+    expect(proposalView.riskClassification?.riskLevel).toBe("D1_LOW");
+    expect(proposalView.capabilitySummary).toContain("execute DISABLED");
+    expect(approvedView.status).toBe(fixture.expected.approvalStatus);
+    expect(approvedView.typedConfirmationAccepted).toBe(true);
+    expect(approvedView.commandRequest?.actionKind).toBe(
+      "focus_observed_window"
+    );
+    expect(fixture.commandResult.status).toBe(fixture.expected.commandStatus);
+    expect(fixture.commandResult.ok).toBe(true);
+    expect(fixture.commandResult.summaryOnly).toBe(true);
+    expect(fixture.commandResult.rawScreenshotPersisted).toBe(false);
+    expect(fixture.commandResult.rawOcrTextPersisted).toBe(false);
+    expect(fixture.commandResult.rawWindowContentIncluded).toBe(false);
+    expect(fixture.commandResult.canClickTypeSelect).toBe(false);
+    expect(fixture.commandResult.canWriteClipboard).toBe(false);
+    expect(fixture.commandResult.canOpenFileDialog).toBe(false);
+    expect(fixture.commandResult.canUseNativeBridge).toBe(false);
+    expect(fixture.commandResult.canWriteEventStore).toBe(false);
+    expect(replayView.status).toBe(fixture.expected.replayStatus);
+    expect(replayView.actionStatus).toBe("unsupported");
+    expect(replayView.event?.summaryOnly).toBe(
+      fixture.expected.eventSummaryOnly
+    );
+    expect(replayView.event?.notWritten).toBe(true);
+    expect(replayView.event?.rawScreenshotIncluded).toBe(false);
+    expect(replayView.event?.rawOcrTextIncluded).toBe(false);
+    expect(replayView.event?.clipboardContentIncluded).toBe(false);
+    expect(replayView.event?.apiKeyIncluded).toBe(false);
+    expect(replayView.replayProjection.privacyAudit.status).toBe(
+      fixture.expected.privacyAuditStatus
+    );
+    expect(replayView.readiness.canReplayDesktopAction).toBe(false);
+    expect(replayView.readiness.canExecuteDesktopAction).toBe(false);
+    expect(replayView.readiness.canWriteEventStore).toBe(false);
+    expect(replayView.readiness.canUseNativeBridge).toBe(false);
+    expect(replayView.readiness.appCanExecute).toBe(false);
+    expect(fixture.expected.unsupportedPlatformIsSafe).toBe(true);
+    expect(serialized).not.toContain("RAW_SCREENSHOT");
+    expect(serialized).not.toContain("RAW_OCR");
+    expect(serialized).not.toContain("CLIPBOARD_CONTENT");
+    expect(serialized).not.toContain("REMOTE_CONTROL");
+    expect(serialized).not.toContain("HIDDEN_CAPTURE");
+    expect(serialized).not.toContain("sk-fake");
+  });
+
   it("documents the App Shell Desktop Action Proposal surface boundaries", async () => {
     const doc = await readFile(
       path.join(
@@ -2162,6 +2289,55 @@ describe("desktop command wrapper", () => {
     expect(combined).toContain("no native bridge");
     expect(combined).not.toContain("desktop action execution is enabled");
     expect(combined).not.toContain("clipboard write is enabled");
+  });
+
+  it("documents the Approved Desktop Action smoke hardening path", async () => {
+    const smokeDoc = await readFile(
+      path.join(repoRoot, "docs", "approved-desktop-action-smoke-v0.24.md"),
+      "utf8"
+    );
+    const fixtureText = await readFile(
+      path.join(
+        appRoot,
+        "test",
+        "fixtures",
+        "approved-desktop-action-smoke.json"
+      ),
+      "utf8"
+    );
+    const docsIndex = await readFile(
+      path.join(repoRoot, "docs", "README.md"),
+      "utf8"
+    );
+    const combined = `${smokeDoc}\n${fixtureText}\n${docsIndex}`;
+
+    expect(smokeDoc).toContain("Approved Desktop Action Smoke v0.24");
+    expect(smokeDoc).toContain("Desktop Observer metadata fixture");
+    expect(smokeDoc).toContain("Desktop Action Proposal focus window");
+    expect(smokeDoc).toContain("Target validation");
+    expect(smokeDoc).toContain("Risk classifier");
+    expect(smokeDoc).toContain("Approval receipt typed confirmation");
+    expect(smokeDoc).toContain("Summary event preview");
+    expect(smokeDoc).toContain("Replay summary");
+    expect(smokeDoc).toContain("Privacy audit");
+    expect(smokeDoc).toContain("no click/type/select path");
+    expect(smokeDoc).toContain("no clipboard write");
+    expect(smokeDoc).toContain("no file dialog automation");
+    expect(smokeDoc).toContain("no raw screenshot persistence");
+    expect(smokeDoc).toContain("no OCR text persistence");
+    expect(smokeDoc).toContain("no native bridge broad action");
+    expect(smokeDoc).toContain("no remote control");
+    expect(smokeDoc).toContain("no hidden capture");
+    expect(smokeDoc).toContain("event payloads are summary-only");
+    expect(smokeDoc).toContain("unsupported_platform");
+    expect(fixtureText).toContain("approved-desktop-action-smoke-v0.24");
+    expect(fixtureText).toContain("summaryOnly");
+    expect(fixtureText).toContain("unsupported_platform");
+    expect(docsIndex).toContain("approved-desktop-action-smoke-v0.24.md");
+    expect(combined).not.toContain("broad desktop automation is enabled");
+    expect(combined).not.toContain("clipboard write is enabled");
+    expect(combined).not.toContain("remote control is enabled");
+    expect(combined).not.toContain("hidden capture is enabled");
   });
 
   it("projects desktop observation summaries into context and agent evidence refs", () => {
