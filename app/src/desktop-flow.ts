@@ -1525,8 +1525,7 @@ function validateApprovedDesktopActionCommandRequest(
     );
   }
   if (
-    request.typedConfirmation !==
-    approvedDesktopActionConfirmation(actionKind)
+    request.typedConfirmation !== approvedDesktopActionConfirmation(actionKind)
   ) {
     throw new Error("Approved desktop action confirmation is required");
   }
@@ -1534,7 +1533,9 @@ function validateApprovedDesktopActionCommandRequest(
     throw new Error("Approved desktop action receipt is required");
   }
   if (containsApprovedDesktopActionExecutionTrue(request.receipt)) {
-    throw new Error("Approved desktop action receipt attempted broad execution");
+    throw new Error(
+      "Approved desktop action receipt attempted broad execution"
+    );
   }
   if (containsForbiddenApprovedDesktopActionValue(request)) {
     throw new Error("Approved desktop action request contains unsafe fields");
@@ -2758,7 +2759,10 @@ function approvedDesktopActionConfirmation(
   }
 }
 
-function validateApprovedDesktopActionSafeRef(value: string, label: string): void {
+function validateApprovedDesktopActionSafeRef(
+  value: string,
+  label: string
+): void {
   if (
     typeof value !== "string" ||
     value.trim().length === 0 ||

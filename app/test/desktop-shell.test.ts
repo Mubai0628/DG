@@ -1954,9 +1954,7 @@ describe("desktop command wrapper", () => {
     expect(unsupported.status).toBe("blocked");
     expect(unsupported.commandRequest).toBeUndefined();
     expect(unsupported.findings.map((finding) => finding.code)).toEqual(
-      expect.arrayContaining([
-        "APPROVED_DESKTOP_ACTION_UNSUPPORTED_ACTION"
-      ])
+      expect.arrayContaining(["APPROVED_DESKTOP_ACTION_UNSUPPORTED_ACTION"])
     );
     expect(unsupported.readiness.canExecuteApprovedDesktopAction).toBe(false);
   });
@@ -1972,9 +1970,7 @@ describe("desktop command wrapper", () => {
     );
 
     expect(appSource).toContain("Approved Desktop Action");
-    expect(appSource).toContain(
-      "Human approved / narrow desktop action"
-    );
+    expect(appSource).toContain("Human approved / narrow desktop action");
     expect(appSource).toContain(
       "Executes only fixed, approved, low-risk desktop actions"
     );
@@ -23604,7 +23600,7 @@ describe("desktop source boundaries", () => {
       "p1c-approved-desktop-action-execution-roadmap.md"
     );
     expect(rootReadme).toContain(
-      "P1C starts the v0.25 Approved Desktop Action Execution MVP roadmap"
+      "P1C is prepared for the v0.25 Approved Desktop Action Execution MVP RC"
     );
 
     expect(combined).toContain("no desktop action");
@@ -23908,9 +23904,7 @@ describe("desktop source boundaries", () => {
       "App Shell Approved Desktop Action Surface v0.24"
     );
     expect(surfaceDoc).toContain("Approved Desktop Action");
-    expect(surfaceDoc).toContain(
-      "Human approved / narrow desktop action"
-    );
+    expect(surfaceDoc).toContain("Human approved / narrow desktop action");
     expect(surfaceDoc).toContain("executeApprovedDesktopAction");
     expect(surfaceDoc).toContain("fixed command");
     expect(surfaceDoc).toContain("exact typed confirmation");
@@ -23947,11 +23941,7 @@ describe("desktop source boundaries", () => {
       "utf8"
     );
     const replayDoc = await readFile(
-      path.join(
-        repoRoot,
-        "docs",
-        "app-shell-desktop-action-replay-v0.24.md"
-      ),
+      path.join(repoRoot, "docs", "app-shell-desktop-action-replay-v0.24.md"),
       "utf8"
     );
     const docsIndex = await readFile(
@@ -23994,6 +23984,129 @@ describe("desktop source boundaries", () => {
       "native bridge broad action execution is enabled"
     );
     expect(combined).not.toContain("autonomous desktop agent is enabled");
+  });
+
+  it("documents the v0.25 approved desktop action RC release boundary", async () => {
+    const releaseNotes = await readFile(
+      path.join(
+        repoRoot,
+        "docs",
+        "release-notes-v0.25.0-approved-desktop-action-execution-mvp-rc.1.md"
+      ),
+      "utf8"
+    );
+    const manualQa = await readFile(
+      path.join(repoRoot, "docs", "approved-desktop-action-manual-qa.md"),
+      "utf8"
+    );
+    const rcChecklist = await readFile(
+      path.join(repoRoot, "docs", "approved-desktop-action-rc-checklist.md"),
+      "utf8"
+    );
+    const docsIndex = await readFile(
+      path.join(repoRoot, "docs", "README.md"),
+      "utf8"
+    );
+    const rootReadme = await readFile(path.join(repoRoot, "README.md"), "utf8");
+    const appReadme = await readFile(
+      path.join(repoRoot, "app", "README.md"),
+      "utf8"
+    );
+    const appSource = await readFile(
+      path.join(appRoot, "src", "App.tsx"),
+      "utf8"
+    );
+    const combined = `${releaseNotes}\n${manualQa}\n${rcChecklist}\n${docsIndex}\n${rootReadme}\n${appReadme}\n${appSource}`;
+
+    expect(releaseNotes).toContain(
+      "v0.25.0-approved-desktop-action-execution-mvp-rc.1"
+    );
+    expect(releaseNotes).toContain(
+      "Approved desktop action execution MVP, narrow focus actions only"
+    );
+    expect(releaseNotes).toContain("Desktop Observer remains metadata-only.");
+    expect(releaseNotes).toContain(
+      "Desktop Action Proposal remains proposal-first."
+    );
+    expect(releaseNotes).toContain("focus_observed_window");
+    expect(releaseNotes).toContain("raise_observed_window");
+    expect(releaseNotes).toContain("activate_observed_window");
+    expect(releaseNotes).toContain(
+      "Human approval receipt and typed confirmation are required."
+    );
+    expect(releaseNotes).toContain("fixed Tauri command only");
+    expect(releaseNotes).toContain("unsupported_platform");
+    expect(releaseNotes).toContain("Desktop action events are summary-only");
+    expect(releaseNotes).toContain("no arbitrary desktop action");
+    expect(releaseNotes).toContain("no click/type/select");
+    expect(releaseNotes).toContain("no clipboard write");
+    expect(releaseNotes).toContain("no file dialog automation");
+    expect(releaseNotes).toContain("no native bridge broad action");
+    expect(releaseNotes).toContain("no autonomous desktop agent");
+    expect(releaseNotes).toContain("observer evidence required");
+    expect(releaseNotes).toContain("target metadata validation");
+    expect(releaseNotes).toContain("risk classification");
+    expect(releaseNotes).toContain("approval receipt");
+    expect(releaseNotes).toContain("typed confirmation");
+    expect(releaseNotes).toContain("privacy/redaction audit");
+    expect(releaseNotes).toContain("summary-only events");
+    expect(releaseNotes).toContain("no replay re-execution");
+    expect(releaseNotes).toContain(
+      "https://github.com/Mubai0628/DG/blob/v0.25.0-approved-desktop-action-execution-mvp-rc.1/docs/approved-desktop-action-manual-qa.md"
+    );
+
+    expect(manualQa).toContain("Convert Smoke");
+    expect(manualQa).toContain("Desktop Observer Metadata Smoke");
+    expect(manualQa).toContain("Desktop Action Proposal Focus Window");
+    expect(manualQa).toContain("Receipt Typed Confirmation");
+    expect(manualQa).toContain("Approved Action Execution");
+    expect(manualQa).toContain("unsupported_platform");
+    expect(manualQa).toContain("Event Log / Replay");
+    expect(manualQa).toContain("Privacy Audit");
+    expect(manualQa).toContain("no raw screenshot");
+    expect(manualQa).toContain("OCR");
+
+    expect(rcChecklist).toContain("pnpm verify:ci");
+    expect(rcChecklist).toContain("pnpm release:smoke");
+    expect(rcChecklist).toContain("pnpm app:qa:check");
+    expect(rcChecklist).toContain(
+      "v0.25.0-approved-desktop-action-execution-mvp-rc.1"
+    );
+    expect(rcChecklist).toContain(
+      "docs/release-notes-v0.25.0-approved-desktop-action-execution-mvp-rc.1.md"
+    );
+    expect(rcChecklist).toContain("Use full docs path links");
+
+    expect(appSource).toContain("Human approved / narrow desktop action");
+    expect(appSource).toContain("Click/type/select remains disabled");
+    expect(appSource).toContain("Write Clipboard (disabled)");
+    expect(appSource).toContain("Open File Dialog (disabled)");
+    expect(appSource).toContain("Summary replay / no re-execution");
+    expect(appSource).toContain("cannot execute desktop actions");
+    expect(docsIndex).toContain(
+      "release-notes-v0.25.0-approved-desktop-action-execution-mvp-rc.1.md"
+    );
+    expect(docsIndex).toContain("approved-desktop-action-manual-qa.md");
+    expect(docsIndex).toContain("approved-desktop-action-rc-checklist.md");
+    expect(rootReadme).toContain(
+      "release-notes-v0.25.0-approved-desktop-action-execution-mvp-rc.1.md"
+    );
+    expect(appReadme).toContain(
+      "v0.25 Approved Desktop Action Execution MVP RC"
+    );
+
+    expect(combined).not.toContain("arbitrary desktop action is enabled");
+    expect(combined).not.toContain("click/type/select execution is enabled");
+    expect(combined).not.toContain("clipboard write is enabled");
+    expect(combined).not.toContain("file dialog automation is enabled");
+    expect(combined).not.toContain("native bridge broad action is enabled");
+    expect(combined).not.toContain("remote control is enabled");
+    expect(combined).not.toContain("hidden capture is enabled");
+    expect(combined).not.toContain("autonomous desktop agent is enabled");
+    expect(appSource).not.toMatch(/>\s*Click Desktop\s*</);
+    expect(appSource).not.toMatch(/>\s*Type Text\s*</);
+    expect(appSource).not.toMatch(/>\s*Write Clipboard\s*</);
+    expect(appSource).not.toMatch(/>\s*Open File Dialog\s*</);
   });
 
   it("documents the v0.22 post-release review and P1A desktop observer roadmap", async () => {

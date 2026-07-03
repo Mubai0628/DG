@@ -619,8 +619,10 @@ export function DesktopShell(): JSX.Element {
     useState("");
   const [desktopActionProposalPreview, setDesktopActionProposalPreview] =
     useState<DesktopActionProposalView | undefined>();
-  const [approvedDesktopActionTypedConfirmation, setApprovedDesktopActionTypedConfirmation] =
-    useState("");
+  const [
+    approvedDesktopActionTypedConfirmation,
+    setApprovedDesktopActionTypedConfirmation
+  ] = useState("");
   const [approvedDesktopActionPreview, setApprovedDesktopActionPreview] =
     useState<ApprovedDesktopActionView | undefined>();
   const [approvedDesktopActionStatus, setApprovedDesktopActionStatus] =
@@ -6277,8 +6279,9 @@ export function DesktopShell(): JSX.Element {
             </div>
             <p className="fieldHelp">
               Executes only fixed, approved, low-risk desktop actions such as
-              focusing an observed window. No click, type, clipboard, file
-              dialog, or broad native bridge is enabled.
+              focusing an observed window. Click/type/select remains disabled;
+              no clipboard write, file dialog, or broad native bridge is
+              enabled.
             </p>
 
             <label>
@@ -6483,8 +6486,11 @@ export function DesktopShell(): JSX.Element {
             ) : null}
 
             <p className="fieldHelp">
-              {summarizeApprovedDesktopActionView(displayedApprovedDesktopAction)
-                .nextAction}
+              {
+                summarizeApprovedDesktopActionView(
+                  displayedApprovedDesktopAction
+                ).nextAction
+              }
             </p>
           </section>
 

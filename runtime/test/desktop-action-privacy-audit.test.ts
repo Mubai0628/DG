@@ -89,9 +89,7 @@ describe("approved desktop action privacy audit", () => {
 
     expect(audit.status).toBe("blocked");
     expect(audit.findings.map((finding) => finding.code)).toEqual(
-      expect.arrayContaining([
-        "APPROVED_DESKTOP_ACTION_EXECUTION_FIELD_TRUE"
-      ])
+      expect.arrayContaining(["APPROVED_DESKTOP_ACTION_EXECUTION_FIELD_TRUE"])
     );
   });
 });

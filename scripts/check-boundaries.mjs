@@ -547,7 +547,8 @@ function isDesktopActionProposalSchemaFile(file) {
     file === "runtime/src/desktop-action/capability-integration.ts" ||
     file === "runtime/src/desktop-action/privacy-redaction-audit.ts" ||
     file === "runtime/src/desktop-action/approved-desktop-action-receipt.ts" ||
-    file === "runtime/src/desktop-action/approved-desktop-action-execution.ts" ||
+    file ===
+      "runtime/src/desktop-action/approved-desktop-action-execution.ts" ||
     file === "runtime/src/desktop-action/desktop-action-privacy-audit.ts"
   );
 }

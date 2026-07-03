@@ -1,8 +1,6 @@
 import { stablePreviewHash } from "../models/stable-preview-hash.js";
 
-export type ApprovedDesktopActionPrivacyAuditStatus =
-  | "audit_ready"
-  | "blocked";
+export type ApprovedDesktopActionPrivacyAuditStatus = "audit_ready" | "blocked";
 
 export type ApprovedDesktopActionPrivacyAuditFinding = {
   findingId: string;
@@ -371,7 +369,8 @@ function finding(
     kind,
     severity: "blocker",
     code,
-    safeMessage: "Desktop action event and replay artifacts must be summary-only.",
+    safeMessage:
+      "Desktop action event and replay artifacts must be summary-only.",
     ...(path && path.length > 0 ? { path: safePath(path) } : {})
   };
 }

@@ -460,6 +460,9 @@ v0.17 Capability Host MVP references:
 - [v0.24 Desktop Action Proposal post-release review](docs/v0.24-desktop-action-proposal-postrelease-review.md)
 - [P1C Approved Desktop Action Execution roadmap](docs/p1c-approved-desktop-action-execution-roadmap.md)
 - [P1C-001 Approved Desktop Action Execution gate plan](docs/p1c-001-approved-desktop-action-execution-gate-plan.md)
+- [v0.25.0 Approved Desktop Action Execution MVP RC release notes](docs/release-notes-v0.25.0-approved-desktop-action-execution-mvp-rc.1.md)
+- [Approved Desktop Action manual QA](docs/approved-desktop-action-manual-qa.md)
+- [Approved Desktop Action RC checklist](docs/approved-desktop-action-rc-checklist.md)
 
 ## Current roadmap
 
@@ -547,12 +550,12 @@ preserving no real desktop action, no click/type/select execution, no clipboard
 write, no file dialog automation, no hidden background capture, no screen
 recording, no native bridge broad action, no remote control, and no dynamic
 agent desktop control.
-P1C starts the v0.25 Approved Desktop Action Execution MVP roadmap with an
-extremely narrow, human-approved observed-window focus lane only:
+P1C is prepared for the v0.25 Approved Desktop Action Execution MVP RC with an
+extremely narrow, human-approved observed-window action lane only:
 `focus_observed_window`, `raise_observed_window`, and
 `activate_observed_window`. It keeps click/type/select, clipboard write, file
 dialog automation, hidden background action, broad native bridge, remote
-control, and autonomous desktop agents deferred.
+control, autonomous desktop agents, and replay re-execution deferred.
 
 - [v0.2 App Shell RC post-release review](docs/v0.2-app-shell-rc-postrelease-review.md)
 - [P0G Coding Workflow roadmap](docs/p0g-coding-workflow-roadmap.md)

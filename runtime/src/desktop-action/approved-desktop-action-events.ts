@@ -231,7 +231,9 @@ export function buildApprovedDesktopActionEvent(
 export function projectApprovedDesktopActionReplay(
   events: ApprovedDesktopActionSummaryEvent[] = []
 ): ApprovedDesktopActionReplayProjection {
-  const privacyAudit = buildApprovedDesktopActionPrivacyAudit({ artifact: events });
+  const privacyAudit = buildApprovedDesktopActionPrivacyAudit({
+    artifact: events
+  });
   const replayHash = stablePreviewHash(
     JSON.stringify({
       source: "runtime_approved_desktop_action_replay_projection",

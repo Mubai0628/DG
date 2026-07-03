@@ -5,9 +5,7 @@ import {
   type ApprovedDesktopActionReplayProjection,
   type ApprovedDesktopActionSummaryEvent
 } from "../../runtime/src/desktop-action/index.js";
-import {
-  type ApprovedDesktopActionCommandResult
-} from "./desktop-flow.js";
+import { type ApprovedDesktopActionCommandResult } from "./desktop-flow.js";
 import type { ApprovedDesktopActionView } from "./approved-desktop-action-view.js";
 import { safeErrorMessage, safeText } from "./safety.js";
 
@@ -114,10 +112,14 @@ export function buildDesktopActionReplayView(
       event?.targetWindowRef ?? commandResult.targetWindowRef,
       "n/a"
     ),
-    targetAppRef: safeText(event?.targetAppRef ?? commandResult.targetAppRef, "n/a"),
+    targetAppRef: safeText(
+      event?.targetAppRef ?? commandResult.targetAppRef,
+      "n/a"
+    ),
     timestamp: safeText(event?.occurredAt, "n/a"),
     warningCodes: event?.warningCodes ?? [],
-    blockerCount: eventResult.blockerCount + replayProjection.privacyAudit.blockerCount,
+    blockerCount:
+      eventResult.blockerCount + replayProjection.privacyAudit.blockerCount,
     warningCount: eventResult.warningCount,
     replayHash: replayProjection.replayHash,
     readiness: replayProjection.readiness,

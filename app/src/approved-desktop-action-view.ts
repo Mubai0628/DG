@@ -302,9 +302,7 @@ type BuildViewOptions = {
   receipt?: ApprovedDesktopActionReceipt | undefined;
   executionPlan?: ApprovedDesktopActionExecutionResult | undefined;
   commandRequest?: ApprovedDesktopActionCommandRequest | undefined;
-  commandResultSummary?:
-    | ApprovedDesktopActionCommandResultSummary
-    | undefined;
+  commandResultSummary?: ApprovedDesktopActionCommandResultSummary | undefined;
   findings: ApprovedDesktopActionViewFinding[];
   blockerCount?: number | undefined;
   warningCount?: number | undefined;
@@ -318,12 +316,10 @@ function buildView(
 ): ApprovedDesktopActionView {
   const blockerCount =
     options.blockerCount ??
-    options.findings.filter((finding) => finding.severity === "blocker")
-      .length;
+    options.findings.filter((finding) => finding.severity === "blocker").length;
   const warningCount =
     options.warningCount ??
-    options.findings.filter((finding) => finding.severity === "warning")
-      .length;
+    options.findings.filter((finding) => finding.severity === "warning").length;
   const viewHash = stablePreviewHash(
     JSON.stringify({
       status: options.status,
@@ -347,7 +343,9 @@ function buildView(
   return {
     status: options.status,
     source: "app_approved_desktop_action_surface",
-    viewId: input.idGenerator?.() || `approved-desktop-action-${viewHash.slice(0, 12)}`,
+    viewId:
+      input.idGenerator?.() ||
+      `approved-desktop-action-${viewHash.slice(0, 12)}`,
     ...(options.derived?.proposalId
       ? { proposalId: options.derived.proposalId }
       : {}),
@@ -375,15 +373,20 @@ function buildView(
     typedConfirmationAccepted: options.typedConfirmationAccepted,
     ...(options.receipt ? { receipt: options.receipt } : {}),
     ...(options.receipt
-      ? { receiptSummary: summarizeApprovedDesktopActionReceipt(options.receipt) }
+      ? {
+          receiptSummary: summarizeApprovedDesktopActionReceipt(options.receipt)
+        }
       : {}),
     ...(options.executionPlan
       ? {
-          executionPlanSummary:
-            summarizeApprovedDesktopActionExecutionResult(options.executionPlan)
+          executionPlanSummary: summarizeApprovedDesktopActionExecutionResult(
+            options.executionPlan
+          )
         }
       : {}),
-    ...(options.commandRequest ? { commandRequest: options.commandRequest } : {}),
+    ...(options.commandRequest
+      ? { commandRequest: options.commandRequest }
+      : {}),
     ...(options.commandResultSummary
       ? { commandResultSummary: options.commandResultSummary }
       : {}),
@@ -447,8 +450,10 @@ function deriveCommandScope(
       safeRef(`app-${proposalHashPrefix ?? proposalView.proposalId}`, "app") ??
       "app-ref",
     targetDisplayRef:
-      safeRef(`display-${proposalHashPrefix ?? proposalView.proposalId}`, "display") ??
-      "display-ref",
+      safeRef(
+        `display-${proposalHashPrefix ?? proposalView.proposalId}`,
+        "display"
+      ) ?? "display-ref",
     observerEvidenceId:
       safeRef(proposalView.agentDossierEvidenceRef, "observer-evidence") ??
       `desktop-observer-evidence-${stablePreviewHash(proposalView.viewId).slice(0, 12)}`,
