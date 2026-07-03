@@ -186,8 +186,7 @@ const forbiddenFieldKeys = new Set(
     "nativeBridge",
     "click",
     "type",
-    "select",
-    "sendToModel"
+    "select"
   ].map((key) => key.toLowerCase())
 );
 

@@ -21608,11 +21608,19 @@ describe("desktop source boundaries", () => {
       ),
       "utf8"
     );
+    const summaryDoc = await readFile(
+      path.join(
+        repoRoot,
+        "docs",
+        "runtime-desktop-observation-summary-v0.22.md"
+      ),
+      "utf8"
+    );
     const docsIndex = await readFile(
       path.join(repoRoot, "docs", "README.md"),
       "utf8"
     );
-    const combined = `${adr}\n${threatModel}\n${implementationGate}\n${nextPlan}\n${profileDoc}\n${docsIndex}`;
+    const combined = `${adr}\n${threatModel}\n${implementationGate}\n${nextPlan}\n${profileDoc}\n${summaryDoc}\n${docsIndex}`;
 
     expect(adr).toContain("ADR 0011: Desktop Observer MVP");
     expect(adr).toContain("Proposed / Accepted for P1A design gate");
@@ -21676,6 +21684,19 @@ describe("desktop source boundaries", () => {
     expect(profileDoc).toContain("No Tauri command");
     expect(profileDoc).toContain("No desktop action");
 
+    expect(summaryDoc).toContain("Runtime Desktop Observation Summary v0.22");
+    expect(summaryDoc).toContain("summary-only desktop observation metadata");
+    expect(summaryDoc).toContain("does not call the operating system");
+    expect(summaryDoc).toContain(
+      "does not call the operating system, call Tauri"
+    );
+    expect(summaryDoc).toContain("raw screenshots");
+    expect(summaryDoc).toContain("raw OCR text");
+    expect(summaryDoc).toContain("raw clipboard fields");
+    expect(summaryDoc).toContain("send-to-model flags");
+    expect(summaryDoc).toContain("No screenshot capture");
+    expect(summaryDoc).toContain("No desktop action");
+
     expect(docsIndex).toContain("adr/0011-desktop-observer-mvp.md");
     expect(docsIndex).toContain("desktop-observer-threat-model-v0.22.md");
     expect(docsIndex).toContain(
@@ -21685,6 +21706,7 @@ describe("desktop source boundaries", () => {
       "p1a-002-desktop-observation-profile-schema-plan.md"
     );
     expect(docsIndex).toContain("runtime-desktop-observation-profile-v0.22.md");
+    expect(docsIndex).toContain("runtime-desktop-observation-summary-v0.22.md");
     expect(combined).not.toContain("desktop action automation is enabled");
     expect(combined).not.toContain("click/type/select is enabled");
     expect(combined).not.toContain("raw screenshot persistence is enabled");
