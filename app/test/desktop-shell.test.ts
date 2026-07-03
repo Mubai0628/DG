@@ -22600,7 +22600,9 @@ describe("desktop source boundaries", () => {
     expect(combined).not.toContain("desktop action execution is enabled");
     expect(combined).not.toContain("click/type/select execution is enabled");
     expect(combined).not.toContain("clipboard write is enabled");
-    expect(combined).not.toContain("native bridge broad action is enabled");
+    expect(combined).not.toContain(
+      "native bridge broad action execution is enabled"
+    );
   });
 
   it("documents the P1B desktop action proposal ADR and implementation gate", async () => {
@@ -22710,7 +22712,9 @@ describe("desktop source boundaries", () => {
     expect(combined).not.toContain("click/type/select is enabled");
     expect(combined).not.toContain("clipboard write is enabled");
     expect(combined).not.toContain("file dialog automation is enabled");
-    expect(combined).not.toContain("native bridge broad action is enabled");
+    expect(combined).not.toContain(
+      "native bridge broad action execution is enabled"
+    );
   });
 
   it("documents the v0.24 desktop action proposal mvp rc without enabling action", async () => {
@@ -22811,7 +22815,140 @@ describe("desktop source boundaries", () => {
     expect(combined).not.toContain("desktop action execution is enabled");
     expect(combined).not.toContain("click/type/select execution is enabled");
     expect(combined).not.toContain("clipboard write is enabled");
-    expect(combined).not.toContain("native bridge broad action is enabled");
+    expect(combined).not.toContain(
+      "native bridge broad action execution is enabled"
+    );
+  });
+
+  it("documents the v0.24 post-release review and P1C approved desktop action roadmap", async () => {
+    const promptDoc = await readFile(
+      path.join(
+        repoRoot,
+        "docs",
+        "v0.25-approved-desktop-action-execution-mvp-prompts.md"
+      ),
+      "utf8"
+    );
+    const review = await readFile(
+      path.join(
+        repoRoot,
+        "docs",
+        "v0.24-desktop-action-proposal-postrelease-review.md"
+      ),
+      "utf8"
+    );
+    const roadmap = await readFile(
+      path.join(
+        repoRoot,
+        "docs",
+        "p1c-approved-desktop-action-execution-roadmap.md"
+      ),
+      "utf8"
+    );
+    const plan = await readFile(
+      path.join(
+        repoRoot,
+        "docs",
+        "p1c-001-approved-desktop-action-execution-gate-plan.md"
+      ),
+      "utf8"
+    );
+    const docsIndex = await readFile(
+      path.join(repoRoot, "docs", "README.md"),
+      "utf8"
+    );
+    const rootReadme = await readFile(path.join(repoRoot, "README.md"), "utf8");
+    const combined = `${promptDoc}\n${review}\n${roadmap}\n${plan}\n${docsIndex}\n${rootReadme}`;
+
+    expect(promptDoc).toContain("v0.25 Approved Desktop Action Execution MVP");
+    expect(promptDoc).toContain("focus_observed_window");
+    expect(promptDoc).toContain("raise_observed_window");
+    expect(promptDoc).toContain("activate_observed_window");
+    expect(promptDoc).toContain("DW-P1C-008");
+
+    expect(review).toContain("v0.24.0-desktop-action-proposal-mvp-rc.1");
+    expect(review).toContain("Desktop Action Proposal MVP, no desktop action");
+    expect(review).toContain("Desktop Observer metadata evidence");
+    expect(review).toContain("Desktop Action Proposal schema");
+    expect(review).toContain("target/window/app/screen metadata validation");
+    expect(review).toContain("action risk classifier");
+    expect(review).toContain("dry-run/simulated result");
+    expect(review).toContain("broker planning integration");
+    expect(review).toContain("App read-only action proposal surface");
+    expect(review).toContain("privacy/redaction audit");
+    expect(review).toContain("Real desktop action");
+    expect(review).toContain("Click/type/select execution");
+    expect(review).toContain("Clipboard write");
+    expect(review).toContain("File dialog automation");
+    expect(review).toContain("Native bridge broad action");
+    expect(review).toContain("Remote control");
+    expect(review).toContain("Hidden background capture");
+    expect(review).toContain("Dynamic agent desktop control");
+
+    expect(roadmap).toContain(
+      "P1C Approved Desktop Action Execution MVP Roadmap"
+    );
+    expect(roadmap).toContain(
+      "Open an extremely narrow, human-approved desktop action execution path"
+    );
+    expect(roadmap).toContain("focus_observed_window");
+    expect(roadmap).toContain("raise_observed_window");
+    expect(roadmap).toContain("activate_observed_window");
+    expect(roadmap).toContain("No click/type/select in v0.25");
+    expect(roadmap).toContain("No clipboard write");
+    expect(roadmap).toContain("No file dialog automation");
+    expect(roadmap).toContain("No native bridge broad action");
+    expect(roadmap).toContain("All action results must be summary-only");
+    expect(roadmap).toContain("Desktop action events / replay / privacy audit");
+
+    expect(plan).toContain(
+      "P1C-001 Approved Desktop Action Execution Gate Plan"
+    );
+    expect(plan).toContain("docs/tests only");
+    expect(plan).toContain("No runtime execution implementation");
+    expect(plan).toContain("No App execution implementation");
+    expect(plan).toContain("No Tauri command");
+    expect(plan).toContain("No real desktop action");
+    expect(plan).toContain("No click/type/select/drag/drop");
+    expect(plan).toContain("No clipboard write");
+    expect(plan).toContain("No file dialog automation");
+    expect(plan).toContain("No broad native bridge");
+    expect(plan).toContain("unsupported_platform");
+
+    expect(docsIndex).toContain(
+      "v0.25-approved-desktop-action-execution-mvp-prompts.md"
+    );
+    expect(docsIndex).toContain(
+      "v0.24-desktop-action-proposal-postrelease-review.md"
+    );
+    expect(docsIndex).toContain(
+      "p1c-approved-desktop-action-execution-roadmap.md"
+    );
+    expect(docsIndex).toContain(
+      "p1c-001-approved-desktop-action-execution-gate-plan.md"
+    );
+    expect(rootReadme).toContain(
+      "v0.25-approved-desktop-action-execution-mvp-prompts.md"
+    );
+    expect(rootReadme).toContain(
+      "v0.24-desktop-action-proposal-postrelease-review.md"
+    );
+    expect(rootReadme).toContain(
+      "p1c-approved-desktop-action-execution-roadmap.md"
+    );
+    expect(rootReadme).toContain(
+      "P1C starts the v0.25 Approved Desktop Action Execution MVP roadmap"
+    );
+
+    expect(combined).toContain("no desktop action");
+    expect(combined).not.toContain("arbitrary desktop action is enabled");
+    expect(combined).not.toContain("click/type/select execution is enabled");
+    expect(combined).not.toContain("clipboard write is enabled");
+    expect(combined).not.toContain("file dialog automation is enabled");
+    expect(combined).not.toContain(
+      "native bridge broad action execution is enabled"
+    );
+    expect(combined).not.toContain("autonomous desktop agent is enabled");
   });
 
   it("documents the v0.22 post-release review and P1A desktop observer roadmap", async () => {
@@ -23169,7 +23306,9 @@ describe("desktop source boundaries", () => {
     expect(combined).not.toContain("click/type/select is enabled");
     expect(combined).not.toContain("raw screenshot persistence is enabled");
     expect(combined).not.toContain("raw OCR persistence is enabled");
-    expect(combined).not.toContain("native bridge broad action is enabled");
+    expect(combined).not.toContain(
+      "native bridge broad action execution is enabled"
+    );
   });
 
   it("documents the P0S-001 MVP hardening recovery design gate", async () => {
