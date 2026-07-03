@@ -434,6 +434,7 @@ v0.17 Capability Host MVP references:
 - [Plugin / Skill Sandbox RC checklist](docs/plugin-skill-sandbox-rc-checklist.md)
 - [v0.22 Fixed Multi-Agent Execution MVP prompts](docs/v0.22-fixed-multi-agent-execution-mvp-prompts.md)
 - [v0.23 Desktop Observer MVP prompts](docs/v0.23-desktop-observer-mvp-prompts.md)
+- [v0.24 Desktop Action Proposal MVP prompts](docs/v0.24-desktop-action-proposal-mvp-prompts.md)
 - [v0.21 Plugin / Skill Sandbox post-release review](docs/v0.21-plugin-skill-sandbox-postrelease-review.md)
 - [P0Z Fixed Multi-Agent Execution roadmap](docs/p0z-fixed-multi-agent-execution-roadmap.md)
 - [P0Z-001 Fixed Multi-Agent Execution plan](docs/p0z-001-fixed-multi-agent-execution-plan.md)
@@ -449,6 +450,9 @@ v0.17 Capability Host MVP references:
 - [v0.23.0 Desktop Observer MVP RC release notes](docs/release-notes-v0.23.0-desktop-observer-mvp-rc.1.md)
 - [Desktop Observer manual QA](docs/desktop-observer-manual-qa.md)
 - [Desktop Observer RC checklist](docs/desktop-observer-rc-checklist.md)
+- [v0.23 Desktop Observer post-release review](docs/v0.23-desktop-observer-postrelease-review.md)
+- [P1B Desktop Action Proposal roadmap](docs/p1b-desktop-action-proposal-roadmap.md)
+- [P1B-001 Desktop Action Proposal gate plan](docs/p1b-001-desktop-action-proposal-gate-plan.md)
 
 ## Current roadmap
 
@@ -528,6 +532,13 @@ screenshot or OCR persistence by default, no native bridge broad action, and no
 automatic model send.
 The v0.23 Desktop Observer MVP RC packages this observer path with release
 notes, manual QA, RC checklist, full-gate guidance, and prerelease commands.
+P1B starts the Desktop Action Proposal MVP, no execution roadmap. It models
+future desktop actions as proposals with target metadata validation, risk
+classification, approval draft, dry-run simulation, Capability Broker planning
+refs, App read-only display, and privacy audit while preserving no real desktop
+action, no click/type/select execution, no clipboard write, no file dialog
+automation, no hidden background capture, no screen recording, no native bridge
+broad action, no remote control, and no dynamic agent desktop control.
 
 - [v0.2 App Shell RC post-release review](docs/v0.2-app-shell-rc-postrelease-review.md)
 - [P0G Coding Workflow roadmap](docs/p0g-coding-workflow-roadmap.md)
