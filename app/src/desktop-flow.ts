@@ -605,6 +605,69 @@ export type DesktopObservationCommandResult = {
   safeMessage: string;
 };
 
+export type ApprovedDesktopActionKind =
+  | "focus_observed_window"
+  | "raise_observed_window"
+  | "activate_observed_window";
+
+export type ApprovedDesktopActionCommandRequest = {
+  receipt: Record<string, unknown>;
+  actionKind: ApprovedDesktopActionKind | string;
+  targetWindowRef: string;
+  targetAppRef: string;
+  targetDisplayRef?: string | undefined;
+  observerEvidenceId: string;
+  desktopActionProposalId: string;
+  riskClassificationId: string;
+  typedConfirmation: string;
+};
+
+export type ApprovedDesktopActionCommandEventPreview = {
+  type: "desktop_action.approved_result";
+  actionId: string;
+  actionKind: ApprovedDesktopActionKind;
+  targetWindowRef: string;
+  targetAppRef: string;
+  targetDisplayRef?: string | undefined;
+  observerEvidenceId: string;
+  desktopActionProposalId: string;
+  riskClassificationId: string;
+  status: "executed" | "unsupported_platform" | "blocked";
+  resultHash: string;
+  warningCodes: string[];
+  notWritten: true;
+  summaryOnly: true;
+};
+
+export type ApprovedDesktopActionCommandResult = {
+  ok: true;
+  status: "executed" | "unsupported_platform" | "blocked";
+  actionId: string;
+  actionKind: ApprovedDesktopActionKind;
+  targetWindowRef: string;
+  targetAppRef: string;
+  targetDisplayRef?: string | undefined;
+  observerEvidenceId: string;
+  desktopActionProposalId: string;
+  riskClassificationId: string;
+  warningCodes: string[];
+  resultHash: string;
+  eventPreview: ApprovedDesktopActionCommandEventPreview;
+  summaryOnly: true;
+  rawScreenshotPersisted: false;
+  rawOcrTextPersisted: false;
+  rawWindowContentIncluded: false;
+  canClickTypeSelect: false;
+  canWriteClipboard: false;
+  canOpenFileDialog: false;
+  canUseNativeBridge: false;
+  canWriteEventStore: false;
+  canExecuteGit: false;
+  canExecuteShell: false;
+  appCanExecute: false;
+  safeMessage: string;
+};
+
 export const allowedDesktopCommands = [
   "get_app_version",
   "apply_approved_user_workspace_patch",
@@ -625,6 +688,7 @@ export const allowedDesktopCommands = [
   "run_git_read_lane",
   "run_shell_verification_lane",
   "observe_desktop_metadata",
+  "execute_approved_desktop_action",
   "run_web_table_to_csv_flow"
 ] as const;
 
@@ -946,6 +1010,18 @@ export async function observeDesktopMetadata(
   );
 }
 
+export async function executeApprovedDesktopAction(
+  request: ApprovedDesktopActionCommandRequest,
+  invokeImpl?: TauriInvoke
+): Promise<ApprovedDesktopActionCommandResult> {
+  validateApprovedDesktopActionCommandRequest(request);
+  return invokeAllowedCommand<ApprovedDesktopActionCommandResult>(
+    "execute_approved_desktop_action",
+    { request },
+    invokeImpl
+  );
+}
+
 export async function invokeAllowedCommand<T>(
   command: string,
   args: Record<string, unknown>,
@@ -1008,6 +1084,8 @@ function normalizeAllowedCommandResponse(
       return normalizeShellVerificationLaneResult(raw);
     case "observe_desktop_metadata":
       return normalizeDesktopObservationCommandResult(raw);
+    case "execute_approved_desktop_action":
+      return normalizeApprovedDesktopActionCommandResult(raw);
     case "apply_approved_user_workspace_patch":
       return normalizeApprovedApplyResult(raw);
     case "rollback_approved_user_workspace_patch":
@@ -1423,6 +1501,46 @@ function validateDesktopObservationCommandRequest(
   }
 }
 
+function validateApprovedDesktopActionCommandRequest(
+  request: ApprovedDesktopActionCommandRequest
+): void {
+  if (!isApprovedDesktopActionKind(request.actionKind)) {
+    throw new Error("Approved desktop action kind is not allowlisted");
+  }
+  const actionKind = request.actionKind;
+  const requiredRefs: Array<[string, string]> = [
+    ["targetWindowRef", request.targetWindowRef],
+    ["targetAppRef", request.targetAppRef],
+    ["observerEvidenceId", request.observerEvidenceId],
+    ["desktopActionProposalId", request.desktopActionProposalId],
+    ["riskClassificationId", request.riskClassificationId]
+  ];
+  for (const [label, value] of requiredRefs) {
+    validateApprovedDesktopActionSafeRef(value, label);
+  }
+  if (request.targetDisplayRef !== undefined) {
+    validateApprovedDesktopActionSafeRef(
+      request.targetDisplayRef,
+      "targetDisplayRef"
+    );
+  }
+  if (
+    request.typedConfirmation !==
+    approvedDesktopActionConfirmation(actionKind)
+  ) {
+    throw new Error("Approved desktop action confirmation is required");
+  }
+  if (!isRecord(request.receipt)) {
+    throw new Error("Approved desktop action receipt is required");
+  }
+  if (containsApprovedDesktopActionExecutionTrue(request.receipt)) {
+    throw new Error("Approved desktop action receipt attempted broad execution");
+  }
+  if (containsForbiddenApprovedDesktopActionValue(request)) {
+    throw new Error("Approved desktop action request contains unsafe fields");
+  }
+}
+
 function normalizeDesktopObservationCommandResult(
   raw: unknown
 ): DesktopObservationCommandResult {
@@ -1506,6 +1624,120 @@ function normalizeDesktopObservationCommandResult(
     canExecuteShell: false,
     appCanExecute: false,
     resultHash: safeErrorMessage(record.resultHash),
+    safeMessage: safeErrorMessage(record.safeMessage)
+  };
+}
+
+function normalizeApprovedDesktopActionCommandResult(
+  raw: unknown
+): ApprovedDesktopActionCommandResult {
+  const record = isRecord(raw) ? raw : {};
+  const eventPreview = isRecord(record.eventPreview) ? record.eventPreview : {};
+  if (
+    record.ok !== true ||
+    !isApprovedDesktopActionResultStatus(record.status) ||
+    typeof record.actionId !== "string" ||
+    !isApprovedDesktopActionKind(record.actionKind) ||
+    typeof record.targetWindowRef !== "string" ||
+    typeof record.targetAppRef !== "string" ||
+    typeof record.observerEvidenceId !== "string" ||
+    typeof record.desktopActionProposalId !== "string" ||
+    typeof record.riskClassificationId !== "string" ||
+    !Array.isArray(record.warningCodes) ||
+    typeof record.resultHash !== "string" ||
+    eventPreview.type !== "desktop_action.approved_result" ||
+    typeof eventPreview.actionId !== "string" ||
+    !isApprovedDesktopActionKind(eventPreview.actionKind) ||
+    typeof eventPreview.targetWindowRef !== "string" ||
+    typeof eventPreview.targetAppRef !== "string" ||
+    typeof eventPreview.observerEvidenceId !== "string" ||
+    typeof eventPreview.desktopActionProposalId !== "string" ||
+    typeof eventPreview.riskClassificationId !== "string" ||
+    !isApprovedDesktopActionResultStatus(eventPreview.status) ||
+    typeof eventPreview.resultHash !== "string" ||
+    !Array.isArray(eventPreview.warningCodes) ||
+    eventPreview.notWritten !== true ||
+    eventPreview.summaryOnly !== true ||
+    record.summaryOnly !== true ||
+    record.rawScreenshotPersisted !== false ||
+    record.rawOcrTextPersisted !== false ||
+    record.rawWindowContentIncluded !== false ||
+    record.canClickTypeSelect !== false ||
+    record.canWriteClipboard !== false ||
+    record.canOpenFileDialog !== false ||
+    record.canUseNativeBridge !== false ||
+    record.canWriteEventStore !== false ||
+    record.canExecuteGit !== false ||
+    record.canExecuteShell !== false ||
+    record.appCanExecute !== false ||
+    typeof record.safeMessage !== "string"
+  ) {
+    throw normalizeDesktopCommandError({
+      errorCode: "INVALID_RESPONSE",
+      safeMessage: "Approved desktop action response was invalid",
+      stage: "normalize_response"
+    });
+  }
+  if (containsForbiddenApprovedDesktopActionValue(record)) {
+    throw normalizeDesktopCommandError({
+      errorCode: "INVALID_RESPONSE",
+      safeMessage: "Approved desktop action response contained unsafe fields",
+      stage: "normalize_response"
+    });
+  }
+  const warningCodes = record.warningCodes.filter(
+    (value): value is string => typeof value === "string"
+  );
+  const eventWarningCodes = eventPreview.warningCodes.filter(
+    (value): value is string => typeof value === "string"
+  );
+  return {
+    ok: true,
+    status: record.status,
+    actionId: safeErrorMessage(record.actionId),
+    actionKind: record.actionKind,
+    targetWindowRef: safeErrorMessage(record.targetWindowRef),
+    targetAppRef: safeErrorMessage(record.targetAppRef),
+    ...(typeof record.targetDisplayRef === "string"
+      ? { targetDisplayRef: safeErrorMessage(record.targetDisplayRef) }
+      : {}),
+    observerEvidenceId: safeErrorMessage(record.observerEvidenceId),
+    desktopActionProposalId: safeErrorMessage(record.desktopActionProposalId),
+    riskClassificationId: safeErrorMessage(record.riskClassificationId),
+    warningCodes,
+    resultHash: safeErrorMessage(record.resultHash),
+    eventPreview: {
+      type: "desktop_action.approved_result",
+      actionId: safeErrorMessage(eventPreview.actionId),
+      actionKind: eventPreview.actionKind,
+      targetWindowRef: safeErrorMessage(eventPreview.targetWindowRef),
+      targetAppRef: safeErrorMessage(eventPreview.targetAppRef),
+      ...(typeof eventPreview.targetDisplayRef === "string"
+        ? { targetDisplayRef: safeErrorMessage(eventPreview.targetDisplayRef) }
+        : {}),
+      observerEvidenceId: safeErrorMessage(eventPreview.observerEvidenceId),
+      desktopActionProposalId: safeErrorMessage(
+        eventPreview.desktopActionProposalId
+      ),
+      riskClassificationId: safeErrorMessage(eventPreview.riskClassificationId),
+      status: eventPreview.status,
+      resultHash: safeErrorMessage(eventPreview.resultHash),
+      warningCodes: eventWarningCodes,
+      notWritten: true,
+      summaryOnly: true
+    },
+    summaryOnly: true,
+    rawScreenshotPersisted: false,
+    rawOcrTextPersisted: false,
+    rawWindowContentIncluded: false,
+    canClickTypeSelect: false,
+    canWriteClipboard: false,
+    canOpenFileDialog: false,
+    canUseNativeBridge: false,
+    canWriteEventStore: false,
+    canExecuteGit: false,
+    canExecuteShell: false,
+    appCanExecute: false,
     safeMessage: safeErrorMessage(record.safeMessage)
   };
 }
@@ -2493,6 +2725,51 @@ function validateLiveProposalRelativePath(pathRef: string): void {
   }
 }
 
+function isApprovedDesktopActionKind(
+  value: unknown
+): value is ApprovedDesktopActionKind {
+  return (
+    value === "focus_observed_window" ||
+    value === "raise_observed_window" ||
+    value === "activate_observed_window"
+  );
+}
+
+function isApprovedDesktopActionResultStatus(
+  value: unknown
+): value is ApprovedDesktopActionCommandResult["status"] {
+  return (
+    value === "executed" ||
+    value === "unsupported_platform" ||
+    value === "blocked"
+  );
+}
+
+function approvedDesktopActionConfirmation(
+  actionKind: ApprovedDesktopActionKind
+): string {
+  switch (actionKind) {
+    case "focus_observed_window":
+      return "FOCUS OBSERVED WINDOW";
+    case "raise_observed_window":
+      return "RAISE OBSERVED WINDOW";
+    case "activate_observed_window":
+      return "ACTIVATE OBSERVED WINDOW";
+  }
+}
+
+function validateApprovedDesktopActionSafeRef(value: string, label: string): void {
+  if (
+    typeof value !== "string" ||
+    value.trim().length === 0 ||
+    value.length > 160 ||
+    /[\0\r\n"'<>|;`$]/.test(value) ||
+    containsUnsafeDesktopObservationText(value)
+  ) {
+    throw new Error(`Approved desktop action ${label} is unsafe`);
+  }
+}
+
 function containsForbiddenLiveProposalValue(value: unknown): boolean {
   if (Array.isArray(value)) {
     return value.some(containsForbiddenLiveProposalValue);
@@ -2513,6 +2790,54 @@ function containsForbiddenLiveProposalValue(value: unknown): boolean {
   }
   if (typeof value === "string") {
     return containsUnsafeLiveProposalText(value);
+  }
+  return false;
+}
+
+function containsForbiddenApprovedDesktopActionValue(value: unknown): boolean {
+  if (Array.isArray(value)) {
+    return value.some(containsForbiddenApprovedDesktopActionValue);
+  }
+  if (isRecord(value)) {
+    for (const [key, nested] of Object.entries(value)) {
+      const lowerKey = key.toLowerCase();
+      if (approvedDesktopActionForbiddenFieldNames.has(lowerKey)) {
+        return true;
+      }
+      if (
+        approvedDesktopActionExecutionFieldNames.has(lowerKey) &&
+        nested === true
+      ) {
+        return true;
+      }
+      if (containsForbiddenApprovedDesktopActionValue(nested)) {
+        return true;
+      }
+    }
+    return false;
+  }
+  if (typeof value === "string") {
+    return containsUnsafeDesktopObservationText(value);
+  }
+  return false;
+}
+
+function containsApprovedDesktopActionExecutionTrue(value: unknown): boolean {
+  if (Array.isArray(value)) {
+    return value.some(containsApprovedDesktopActionExecutionTrue);
+  }
+  if (isRecord(value)) {
+    for (const [key, nested] of Object.entries(value)) {
+      if (
+        approvedDesktopActionExecutionFieldNames.has(key.toLowerCase()) &&
+        nested === true
+      ) {
+        return true;
+      }
+      if (containsApprovedDesktopActionExecutionTrue(nested)) {
+        return true;
+      }
+    }
   }
   return false;
 }
@@ -2737,6 +3062,79 @@ const desktopObservationExecutionFieldNames = new Set(
     "canExecuteShell",
     "canIssuePermissionLease",
     "appCanExecute"
+  ].map((key) => key.toLowerCase())
+);
+
+const approvedDesktopActionForbiddenFieldNames = new Set(
+  [
+    ["raw", "Prompt"].join(""),
+    "promptText",
+    ["raw", "Response"].join(""),
+    "responseText",
+    "reasoningContent",
+    "reasoning_content",
+    ["raw", "Source"].join(""),
+    ["raw", "Diff"].join(""),
+    ["raw", "Patch"].join(""),
+    ["raw", "Dom"].join(""),
+    ["raw", "Csv"].join(""),
+    ["raw", "Screenshot"].join(""),
+    "screenshotBytes",
+    "screenshotBase64",
+    "pixelBuffer",
+    ["raw", "Ocr"].join(""),
+    ["raw", "OcrText"].join(""),
+    "ocrText",
+    ["raw", "WindowContent"].join(""),
+    "windowContent",
+    "clipboard",
+    "clipboardText",
+    "apiKey",
+    "apiKeyValue",
+    "Authorization",
+    "bearer",
+    "token",
+    "secret",
+    "env",
+    "stdout",
+    "stderr",
+    "command",
+    ["shell", "Command"].join(""),
+    ["git", "Command"].join(""),
+    "tauriCommand",
+    "eventStoreWrite",
+    "applyNow",
+    "rollbackNow",
+    "permissionLease",
+    "nativeBridge",
+    "click",
+    "select",
+    "dragDrop",
+    "tools",
+    "tool_choice"
+  ].map((key) => key.toLowerCase())
+);
+
+const approvedDesktopActionExecutionFieldNames = new Set(
+  [
+    "canCallTauriCommand",
+    "canExecuteDesktopAction",
+    "canClick",
+    "canType",
+    "canSelect",
+    "canDragDrop",
+    "canUseClipboard",
+    "canOpenFileDialog",
+    "canWriteEventStore",
+    "canUseNativeBridge",
+    "canExecuteGit",
+    "canExecuteShell",
+    "appCanExecute",
+    "allowDesktopAction",
+    "allowClickTypeSelect",
+    "allowClipboardWrite",
+    "allowFileDialogAutomation",
+    "allowNativeBridge"
   ].map((key) => key.toLowerCase())
 );
 

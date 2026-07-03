@@ -10,6 +10,7 @@ import {
   applyApprovedUserWorkspacePatch,
   callMcpReadonlyTool,
   commitProjectKnowledgeCandidate,
+  executeApprovedDesktopAction,
   expireProjectKnowledgeEntry,
   generateLiveDeepSeekPatchProposal,
   invokeAllowedCommand,
@@ -29,6 +30,8 @@ import {
   runGitReadLane,
   runShellVerificationLane,
   safeInvoke,
+  type ApprovedDesktopActionCommandRequest,
+  type ApprovedDesktopActionCommandResult,
   type ApprovedUserWorkspaceApplyResult,
   type ApprovedUserWorkspaceRollbackResult,
   type DesktopObservationCommandRequest,
@@ -959,6 +962,9 @@ describe("desktop command wrapper", () => {
     expect(isAllowedDesktopCommand("project_knowledge_revoke")).toBe(true);
     expect(isAllowedDesktopCommand("project_knowledge_expire")).toBe(true);
     expect(isAllowedDesktopCommand("observe_desktop_metadata")).toBe(true);
+    expect(isAllowedDesktopCommand("execute_approved_desktop_action")).toBe(
+      true
+    );
     expect(isAllowedDesktopCommand("run_web_table_to_csv_flow")).toBe(true);
   });
 
@@ -1062,6 +1068,129 @@ describe("desktop command wrapper", () => {
     expect(result.appCanExecute).toBe(false);
   });
 
+  it("calls approved desktop action only through the fixed command wrapper", async () => {
+    const receipt = {
+      status: "ready",
+      receiptId: "approved-desktop-action-receipt-test",
+      actionKind: "focus_observed_window",
+      scope: {
+        receiptId: "approved-desktop-action-receipt-test",
+        actionKind: "focus_observed_window",
+        observerEvidenceId: "desktop-observer-evidence-test",
+        desktopActionProposalId: "desktop-action-proposal-test",
+        targetWindowRef: "window-ref-hash-test",
+        targetAppRef: "app-ref-hash-test",
+        targetDisplayRef: "display-ref-hash-test",
+        riskClassificationId: "desktop-action-risk-test",
+        allowedActionKinds: ["focus_observed_window"],
+        expiresAt: "2099-01-01T00:00:00.000Z",
+        typedConfirmation: "FOCUS OBSERVED WINDOW",
+        receiptHash: "receipt-hash-test"
+      },
+      typedConfirmationAccepted: true,
+      blockerCount: 0,
+      warningCount: 0,
+      findingCount: 0,
+      readiness: {
+        canEnterApprovedDesktopActionCommand: true,
+        canExecuteDesktopAction: false,
+        canClick: false,
+        canType: false,
+        canSelect: false,
+        canDragDrop: false,
+        canUseClipboard: false,
+        canOpenFileDialog: false,
+        canWriteEventStore: false,
+        canUseNativeBridge: false,
+        canExecuteGit: false,
+        canExecuteShell: false,
+        appCanExecute: false
+      },
+      summaryOnly: true,
+      source: "runtime_approved_desktop_action_receipt"
+    };
+    const request: ApprovedDesktopActionCommandRequest = {
+      receipt,
+      actionKind: "focus_observed_window",
+      targetWindowRef: "window-ref-hash-test",
+      targetAppRef: "app-ref-hash-test",
+      targetDisplayRef: "display-ref-hash-test",
+      observerEvidenceId: "desktop-observer-evidence-test",
+      desktopActionProposalId: "desktop-action-proposal-test",
+      riskClassificationId: "desktop-action-risk-test",
+      typedConfirmation: "FOCUS OBSERVED WINDOW"
+    };
+    const invoke: TauriInvoke = async <T>(
+      command: string,
+      args?: Record<string, unknown>
+    ): Promise<T> => {
+      expect(command).toBe("execute_approved_desktop_action");
+      expect(args).toMatchObject({ request });
+      const result = {
+        ok: true,
+        status: "unsupported_platform",
+        actionId: "approved-desktop-action-test",
+        actionKind: "focus_observed_window",
+        targetWindowRef: "window-ref-hash-test",
+        targetAppRef: "app-ref-hash-test",
+        targetDisplayRef: "display-ref-hash-test",
+        observerEvidenceId: "desktop-observer-evidence-test",
+        desktopActionProposalId: "desktop-action-proposal-test",
+        riskClassificationId: "desktop-action-risk-test",
+        warningCodes: ["UNSUPPORTED_PLATFORM"],
+        resultHash: "approved-desktop-action-result-hash",
+        eventPreview: {
+          type: "desktop_action.approved_result",
+          actionId: "approved-desktop-action-test",
+          actionKind: "focus_observed_window",
+          targetWindowRef: "window-ref-hash-test",
+          targetAppRef: "app-ref-hash-test",
+          targetDisplayRef: "display-ref-hash-test",
+          observerEvidenceId: "desktop-observer-evidence-test",
+          desktopActionProposalId: "desktop-action-proposal-test",
+          riskClassificationId: "desktop-action-risk-test",
+          status: "unsupported_platform",
+          resultHash: "approved-desktop-action-result-hash",
+          warningCodes: ["UNSUPPORTED_PLATFORM"],
+          notWritten: true,
+          summaryOnly: true
+        },
+        summaryOnly: true,
+        rawScreenshotPersisted: false,
+        rawOcrTextPersisted: false,
+        rawWindowContentIncluded: false,
+        canClickTypeSelect: false,
+        canWriteClipboard: false,
+        canOpenFileDialog: false,
+        canUseNativeBridge: false,
+        canWriteEventStore: false,
+        canExecuteGit: false,
+        canExecuteShell: false,
+        appCanExecute: false,
+        safeMessage:
+          "Approved desktop action command is fixed and summary-only."
+      } satisfies ApprovedDesktopActionCommandResult;
+      return result as T;
+    };
+
+    const result = await executeApprovedDesktopAction(request, invoke);
+
+    expect(result.status).toBe("unsupported_platform");
+    expect(result.eventPreview.notWritten).toBe(true);
+    expect(result.summaryOnly).toBe(true);
+    expect(result.rawScreenshotPersisted).toBe(false);
+    expect(result.rawOcrTextPersisted).toBe(false);
+    expect(result.rawWindowContentIncluded).toBe(false);
+    expect(result.canClickTypeSelect).toBe(false);
+    expect(result.canWriteClipboard).toBe(false);
+    expect(result.canOpenFileDialog).toBe(false);
+    expect(result.canUseNativeBridge).toBe(false);
+    expect(result.canWriteEventStore).toBe(false);
+    expect(result.canExecuteGit).toBe(false);
+    expect(result.canExecuteShell).toBe(false);
+    expect(result.appCanExecute).toBe(false);
+  });
+
   it("blocks unsafe desktop observation wrapper inputs and responses", async () => {
     const safeCapturePolicy = {
       allowDesktopAction: false,
@@ -1150,6 +1279,103 @@ describe("desktop command wrapper", () => {
     });
   });
 
+  it("blocks unsafe approved desktop action wrapper inputs and responses", async () => {
+    const safeRequest: ApprovedDesktopActionCommandRequest = {
+      receipt: {
+        status: "ready",
+        typedConfirmationAccepted: true,
+        summaryOnly: true,
+        readiness: {
+          canEnterApprovedDesktopActionCommand: true,
+          canExecuteDesktopAction: false
+        }
+      },
+      actionKind: "focus_observed_window",
+      targetWindowRef: "window-ref-hash-test",
+      targetAppRef: "app-ref-hash-test",
+      targetDisplayRef: "display-ref-hash-test",
+      observerEvidenceId: "desktop-observer-evidence-test",
+      desktopActionProposalId: "desktop-action-proposal-test",
+      riskClassificationId: "desktop-action-risk-test",
+      typedConfirmation: "FOCUS OBSERVED WINDOW"
+    };
+
+    await expect(
+      executeApprovedDesktopAction(
+        {
+          ...safeRequest,
+          actionKind: "click_target"
+        },
+        async () => ({}) as never
+      )
+    ).rejects.toThrow("not allowlisted");
+
+    await expect(
+      executeApprovedDesktopAction(
+        {
+          ...safeRequest,
+          receipt: {
+            ...safeRequest.receipt,
+            readiness: {
+              canExecuteDesktopAction: true
+            }
+          }
+        },
+        async () => ({}) as never
+      )
+    ).rejects.toThrow("broad execution");
+
+    await expect(
+      executeApprovedDesktopAction(
+        safeRequest,
+        async () =>
+          ({
+            ok: true,
+            status: "unsupported_platform",
+            actionId: "approved-desktop-action-test",
+            actionKind: "focus_observed_window",
+            targetWindowRef: "window-ref-hash-test",
+            targetAppRef: "app-ref-hash-test",
+            observerEvidenceId: "desktop-observer-evidence-test",
+            desktopActionProposalId: "desktop-action-proposal-test",
+            riskClassificationId: "desktop-action-risk-test",
+            warningCodes: ["UNSUPPORTED_PLATFORM"],
+            resultHash: "approved-desktop-action-result-hash",
+            eventPreview: {
+              type: "desktop_action.approved_result",
+              actionId: "approved-desktop-action-test",
+              actionKind: "focus_observed_window",
+              targetWindowRef: "window-ref-hash-test",
+              targetAppRef: "app-ref-hash-test",
+              observerEvidenceId: "desktop-observer-evidence-test",
+              desktopActionProposalId: "desktop-action-proposal-test",
+              riskClassificationId: "desktop-action-risk-test",
+              status: "unsupported_platform",
+              resultHash: "approved-desktop-action-result-hash",
+              warningCodes: ["UNSUPPORTED_PLATFORM"],
+              notWritten: true,
+              summaryOnly: true
+            },
+            summaryOnly: true,
+            rawScreenshotPersisted: true,
+            rawOcrTextPersisted: false,
+            rawWindowContentIncluded: false,
+            canClickTypeSelect: false,
+            canWriteClipboard: false,
+            canOpenFileDialog: false,
+            canUseNativeBridge: false,
+            canWriteEventStore: false,
+            canExecuteGit: false,
+            canExecuteShell: false,
+            appCanExecute: false,
+            safeMessage: "Approved desktop action command summary."
+          }) as never
+      )
+    ).rejects.toMatchObject({
+      errorCode: "INVALID_RESPONSE"
+    });
+  });
+
   it("keeps desktop observation command fixed without desktop action UI", async () => {
     const appSource = await readFile(
       path.join(appRoot, "src", "App.tsx"),
@@ -1176,6 +1402,41 @@ describe("desktop command wrapper", () => {
     expect(appSource).toContain("Send Screen to Model (disabled)");
     expect(appSource).not.toContain("Select Desktop");
     expect(appSource).not.toContain("Write Clipboard");
+  });
+
+  it("keeps approved desktop action command fixed without a generic native bridge", async () => {
+    const appSource = await readFile(
+      path.join(appRoot, "src", "App.tsx"),
+      "utf8"
+    );
+    const flowSource = await readFile(
+      path.join(appRoot, "src", "desktop-flow.ts"),
+      "utf8"
+    );
+    const mainSource = await readFile(
+      path.join(appRoot, "src-tauri", "src", "main.rs"),
+      "utf8"
+    );
+    const commandsSource = await readFile(
+      path.join(appRoot, "src-tauri", "src", "commands.rs"),
+      "utf8"
+    );
+
+    expect(flowSource).toContain("execute_approved_desktop_action");
+    expect(flowSource).toContain("executeApprovedDesktopAction");
+    expect(mainSource).toContain("commands::execute_approved_desktop_action");
+    expect(commandsSource).toContain("execute_approved_desktop_action");
+    expect(commandsSource).toContain("unsupported_platform");
+    expect(commandsSource).toContain("APPROVED_DESKTOP_ACTION_BLOCKED");
+    expect(commandsSource).toContain("focus_observed_window");
+    expect(commandsSource).toContain("raise_observed_window");
+    expect(commandsSource).toContain("activate_observed_window");
+    expect(commandsSource).not.toContain("Command::new(command)");
+    expect(commandsSource).not.toContain("native_bridge_execute");
+    expect(flowSource).not.toContain("desktopActionInvoke");
+    expect(flowSource).not.toContain("nativeBridgeExecute");
+    expect(appSource).not.toContain("execute_approved_desktop_action");
+    expect(appSource).not.toContain("executeApprovedDesktopAction(");
   });
 
   it("builds the App screenshot redaction boundary as summary-only metadata", () => {
@@ -23157,6 +23418,55 @@ describe("desktop source boundaries", () => {
     expect(executionDoc).toContain("All broad execution flags remain false");
     expect(docsIndex).toContain(
       "runtime-approved-desktop-action-execution-v0.24.md"
+    );
+
+    expect(combined).not.toContain("arbitrary desktop action is enabled");
+    expect(combined).not.toContain("click/type/select execution is enabled");
+    expect(combined).not.toContain("clipboard write is enabled");
+    expect(combined).not.toContain("file dialog automation is enabled");
+    expect(combined).not.toContain(
+      "native bridge broad action execution is enabled"
+    );
+    expect(combined).not.toContain("autonomous desktop agent is enabled");
+  });
+
+  it("documents the App Tauri approved desktop action command boundary", async () => {
+    const commandDoc = await readFile(
+      path.join(
+        repoRoot,
+        "docs",
+        "app-tauri-approved-desktop-action-command-v0.24.md"
+      ),
+      "utf8"
+    );
+    const docsIndex = await readFile(
+      path.join(repoRoot, "docs", "README.md"),
+      "utf8"
+    );
+    const combined = `${commandDoc}\n${docsIndex}`;
+
+    expect(commandDoc).toContain(
+      "App Tauri Approved Desktop Action Command v0.24"
+    );
+    expect(commandDoc).toContain("execute_approved_desktop_action");
+    expect(commandDoc).toContain("executeApprovedDesktopAction");
+    expect(commandDoc).toContain("focus_observed_window");
+    expect(commandDoc).toContain("raise_observed_window");
+    expect(commandDoc).toContain("activate_observed_window");
+    expect(commandDoc).toContain("unsupported_platform");
+    expect(commandDoc).toContain("does not expose a generic native bridge");
+    expect(commandDoc).toContain("does not accept arbitrary desktop actions");
+    expect(commandDoc).toContain("click/type/select/drag/drop");
+    expect(commandDoc).toContain("clipboard write");
+    expect(commandDoc).toContain("file dialog automation");
+    expect(commandDoc).toContain("eventPreview.notWritten: true");
+    expect(commandDoc).toContain("raw screenshot");
+    expect(commandDoc).toContain("raw OCR");
+    expect(commandDoc).toContain("API keys");
+    expect(commandDoc).toContain("no EventStore write");
+    expect(commandDoc).toContain("no App execution");
+    expect(docsIndex).toContain(
+      "app-tauri-approved-desktop-action-command-v0.24.md"
     );
 
     expect(combined).not.toContain("arbitrary desktop action is enabled");

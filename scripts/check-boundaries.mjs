@@ -387,7 +387,8 @@ function checkMvpHardeningBoundaries(root, file, text) {
   const approvedExecutionCommands = [
     "apply_approved_user_workspace_patch",
     "rollback_approved_user_workspace_patch",
-    "record_approved_user_workspace_execution_event"
+    "record_approved_user_workspace_execution_event",
+    "execute_approved_desktop_action"
   ];
   const sourceCanUseReadinessFlags =
     rel.startsWith("app/src/") || rel.startsWith("runtime/src/");
