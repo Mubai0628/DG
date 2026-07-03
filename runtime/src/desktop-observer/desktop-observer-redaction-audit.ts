@@ -117,9 +117,7 @@ const rawScreenshotKeys = new Set(
 );
 
 const ocrKeys = new Set(
-  [raw + "Ocr", raw + "OcrText", "ocr" + "Text"].map((key) =>
-    key.toLowerCase()
-  )
+  [raw + "Ocr", raw + "OcrText", "ocr" + "Text"].map((key) => key.toLowerCase())
 );
 
 const rawPromptSourceDiffKeys = new Set(
@@ -156,9 +154,7 @@ const clipboardContentKeys = new Set(
 );
 
 const modelSendKeys = new Set(
-  ["sendToModel", "modelSent", "canSendToModel"].map((key) =>
-    key.toLowerCase()
-  )
+  ["sendToModel", "modelSent", "canSendToModel"].map((key) => key.toLowerCase())
 );
 
 const desktopActionKeys = new Set(
@@ -295,7 +291,10 @@ export function buildDesktopObserverRedactionAudit(
     hiddenCaptureDetected: hasKind(findings, "hidden_capture"),
     windowTitlesIncluded: hasCode(findings, "window_titles_included"),
     processNamesIncluded: hasCode(findings, "process_names_included"),
-    screenshotMetadataIncluded: hasCode(findings, "screenshot_metadata_included"),
+    screenshotMetadataIncluded: hasCode(
+      findings,
+      "screenshot_metadata_included"
+    ),
     multipleDisplaysDetected: hasCode(findings, "multiple_displays_detected"),
     unknownAppNamesDetected: hasCode(findings, "unknown_app_names_detected"),
     findings,
@@ -305,7 +304,8 @@ export function buildDesktopObserverRedactionAudit(
     auditHash,
     summaryOnly: true,
     readiness: {
-      canUseSummaryAsEvidence: blockerCount === 0 && input !== undefined && input !== null,
+      canUseSummaryAsEvidence:
+        blockerCount === 0 && input !== undefined && input !== null,
       canPersistRawScreenshot: false,
       canPersistOcrText: false,
       canSendToModel: false,
@@ -361,7 +361,9 @@ function scanValue(value: unknown, path: string, addFinding: AddFinding): void {
     return;
   }
   if (Array.isArray(value)) {
-    value.forEach((item, index) => scanValue(item, `${path}[${index}]`, addFinding));
+    value.forEach((item, index) =>
+      scanValue(item, `${path}[${index}]`, addFinding)
+    );
     return;
   }
   if (!isRecord(value)) {
@@ -566,7 +568,9 @@ function hasCode(
 }
 
 function uniqueCodes(values: readonly string[]): string[] {
-  return Array.from(new Set(values.filter((value) => /^[a-z0-9_.-]+$/i.test(value))));
+  return Array.from(
+    new Set(values.filter((value) => /^[a-z0-9_.-]+$/i.test(value)))
+  );
 }
 
 function isTrue(value: unknown): boolean {

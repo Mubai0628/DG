@@ -1110,37 +1110,39 @@ describe("desktop command wrapper", () => {
     ).rejects.toThrow("unsafe fields");
 
     await expect(
-      observeDesktopMetadata(safeRequest, async () =>
-        ({
-          ok: true,
-          status: "warning",
-          requestId: "desktop-observation-request-test",
-          observationId: "desktop-observation-test",
-          windowCount: 0,
-          appCount: 0,
-          displayCount: 0,
-          screenshotMetadataIncluded: false,
-          windows: [],
-          apps: [],
-          displays: [],
-          warningCodes: [],
-          summaryOnly: true,
-          rawScreenshotPersisted: true,
-          rawOcrTextPersisted: false,
-          rawClipboardIncluded: false,
-          canDesktopAction: false,
-          canClickTypeSelect: false,
-          canWriteClipboard: false,
-          canSendToModel: false,
-          canWriteEventStore: false,
-          canApplyPatch: false,
-          canRollback: false,
-          canExecuteGit: false,
-          canExecuteShell: false,
-          appCanExecute: false,
-          resultHash: "desktop-observation-result-hash",
-          safeMessage: "Desktop observation metadata summarized."
-        }) as never
+      observeDesktopMetadata(
+        safeRequest,
+        async () =>
+          ({
+            ok: true,
+            status: "warning",
+            requestId: "desktop-observation-request-test",
+            observationId: "desktop-observation-test",
+            windowCount: 0,
+            appCount: 0,
+            displayCount: 0,
+            screenshotMetadataIncluded: false,
+            windows: [],
+            apps: [],
+            displays: [],
+            warningCodes: [],
+            summaryOnly: true,
+            rawScreenshotPersisted: true,
+            rawOcrTextPersisted: false,
+            rawClipboardIncluded: false,
+            canDesktopAction: false,
+            canClickTypeSelect: false,
+            canWriteClipboard: false,
+            canSendToModel: false,
+            canWriteEventStore: false,
+            canApplyPatch: false,
+            canRollback: false,
+            canExecuteGit: false,
+            canExecuteShell: false,
+            appCanExecute: false,
+            resultHash: "desktop-observation-result-hash",
+            safeMessage: "Desktop observation metadata summarized."
+          }) as never
       )
     ).rejects.toMatchObject({
       errorCode: "INVALID_RESPONSE"
@@ -1253,8 +1255,8 @@ describe("desktop command wrapper", () => {
     );
 
     expect(viewSource).toContain("buildScreenshotMetadataBoundary");
-    expect(viewSource).not.toContain("type=\"file\"");
-    expect(viewSource).not.toContain("type=\"password\"");
+    expect(viewSource).not.toContain('type="file"');
+    expect(viewSource).not.toContain('type="password"');
     expect(viewSource).not.toContain("rawScreenshot");
     expect(viewSource).not.toContain("screenshotBase64");
     expect(viewSource).not.toContain("fetch(");
@@ -1409,8 +1411,8 @@ describe("desktop command wrapper", () => {
     expect(viewSource).not.toContain("safeInvoke(");
     expect(viewSource).not.toContain("invoke(");
     expect(viewSource).not.toContain("fetch(");
-    expect(viewSource).not.toContain("type=\"file\"");
-    expect(viewSource).not.toContain("type=\"password\"");
+    expect(viewSource).not.toContain('type="file"');
+    expect(viewSource).not.toContain('type="password"');
     expect(viewSource).not.toContain("modelSent: true");
   });
 
@@ -1504,9 +1506,7 @@ describe("desktop command wrapper", () => {
     });
     expect(desktopSegments).toHaveLength(2);
     expect(
-      desktopSegments.some(
-        (segment) => segment.placement === "volatile_tail"
-      )
+      desktopSegments.some((segment) => segment.placement === "volatile_tail")
     ).toBe(true);
     expect(
       desktopSegments.some(
@@ -1514,13 +1514,11 @@ describe("desktop command wrapper", () => {
       )
     ).toBe(true);
     expect(
-      desktopSegments.some(
-        (segment) => segment.placement === "frozen_prefix"
-      )
+      desktopSegments.some((segment) => segment.placement === "frozen_prefix")
     ).toBe(false);
-    expect(
-      agentRoute.steps.flatMap((step) => step.evidenceRefs)
-    ).toEqual(expect.arrayContaining(evidenceRefs.map((ref) => ref.refId)));
+    expect(agentRoute.steps.flatMap((step) => step.evidenceRefs)).toEqual(
+      expect.arrayContaining(evidenceRefs.map((ref) => ref.refId))
+    );
     expect(serialized).not.toContain("Sensitive Window Title");
     expect(serialized).not.toContain("rawScreenshotPath");
     expect(serialized).not.toContain("ocrText");
@@ -1599,7 +1597,9 @@ describe("desktop command wrapper", () => {
     expect(report.ocrTextDetected).toBe(false);
     expect(report.apiKeyMarkerDetected).toBe(false);
     expect(appSource).toContain("Redaction audit");
-    expect(appSource).toContain("displayedDesktopObserver.redactionAudit.status");
+    expect(appSource).toContain(
+      "displayedDesktopObserver.redactionAudit.status"
+    );
     expect(appSource).not.toContain("Run Desktop Audit");
     expect(fixtureText).not.toContain("rawPrompt");
     expect(fixtureText).not.toContain("rawResponse");
@@ -22128,6 +22128,117 @@ describe("desktop source boundaries", () => {
     expect(combined).not.toContain("auto-apply is enabled");
   });
 
+  it("documents the v0.23 desktop observer mvp rc without enabling desktop action", async () => {
+    const appSource = await readFile(
+      path.join(appRoot, "src", "App.tsx"),
+      "utf8"
+    );
+    const releaseNotes = await readFile(
+      path.join(
+        repoRoot,
+        "docs",
+        "release-notes-v0.23.0-desktop-observer-mvp-rc.1.md"
+      ),
+      "utf8"
+    );
+    const manualQa = await readFile(
+      path.join(repoRoot, "docs", "desktop-observer-manual-qa.md"),
+      "utf8"
+    );
+    const rcChecklist = await readFile(
+      path.join(repoRoot, "docs", "desktop-observer-rc-checklist.md"),
+      "utf8"
+    );
+    const docsIndex = await readFile(
+      path.join(repoRoot, "docs", "README.md"),
+      "utf8"
+    );
+    const rootReadme = await readFile(path.join(repoRoot, "README.md"), "utf8");
+    const appReadme = await readFile(path.join(appRoot, "README.md"), "utf8");
+    const combined = `${releaseNotes}\n${manualQa}\n${rcChecklist}\n${docsIndex}\n${rootReadme}\n${appReadme}\n${appSource}`;
+
+    expect(releaseNotes).toContain("v0.23.0-desktop-observer-mvp-rc.1");
+    expect(releaseNotes).toContain("Desktop Observer MVP, no desktop action");
+    expect(releaseNotes).toContain(
+      "web_table_to_csv Convert remains the real conversion flow"
+    );
+    expect(releaseNotes).toContain(
+      "App-side approved execution remains human-approved and rollbackable"
+    );
+    expect(releaseNotes).toContain(
+      "Git/shell verification safe lanes remain fixed and summary-only"
+    );
+    expect(releaseNotes).toContain(
+      "MCP read-only tool execution remains approved/read-only/bounded"
+    );
+    expect(releaseNotes).toContain(
+      "Desktop Observer can summarize user-triggered window/app/display metadata"
+    );
+    expect(releaseNotes).toContain(
+      "Desktop observation evidence can enter context/agent dossiers as summary refs"
+    );
+    expect(releaseNotes).toContain("No desktop action is enabled");
+    expect(releaseNotes).toContain("no click/type/select");
+    expect(releaseNotes).toContain("no clipboard write");
+    expect(releaseNotes).toContain("no hidden background capture");
+    expect(releaseNotes).toContain("no raw screenshot persistence by default");
+    expect(releaseNotes).toContain("no OCR persistence by default");
+    expect(releaseNotes).toContain("redaction/privacy audit");
+    expect(releaseNotes).toContain("summary-only context evidence");
+    expect(releaseNotes).toContain("docs/desktop-observer-manual-qa.md");
+    expect(releaseNotes).toContain("docs/desktop-observer-rc-checklist.md");
+
+    expect(manualQa).toContain("Convert Smoke");
+    expect(manualQa).toContain("Desktop Observer panel is visible");
+    expect(manualQa).toContain("Preview Desktop Observation Profile");
+    expect(manualQa).toContain("Observe Desktop Metadata");
+    expect(manualQa).toContain("no click/type/select controls are enabled");
+    expect(manualQa).toContain("raw screenshot capture is disabled");
+    expect(manualQa).toContain("send-to-model is disabled");
+    expect(manualQa).toContain("Refresh events still works");
+    expect(manualQa).toContain("Approved apply still requires human approval");
+    expect(manualQa).toContain("No native bridge / desktop action");
+
+    expect(rcChecklist).toContain("Local Scoped Command Gate");
+    expect(rcChecklist).toContain("Full Stage-End Command Gate");
+    expect(rcChecklist).toContain("Visual Smoke Gate");
+    expect(rcChecklist).toContain("GitHub Actions");
+    expect(rcChecklist).toContain("git tag v0.23.0-desktop-observer-mvp-rc.1");
+    expect(rcChecklist).toContain(
+      "gh release create v0.23.0-desktop-observer-mvp-rc.1"
+    );
+    expect(rcChecklist).toContain("Rollback Guidance");
+    expect(rcChecklist).toContain("full docs path links");
+
+    expect(appSource).toContain("Desktop Observer");
+    expect(appSource).toContain("Read-only / no desktop action");
+    expect(appSource).toContain("Preview Desktop Observation Profile");
+    expect(appSource).toContain("Observe Desktop Metadata");
+    expect(appSource).toContain("Click Desktop (disabled)");
+    expect(appSource).toContain("Type into Desktop (disabled)");
+    expect(appSource).toContain("Capture Raw Screenshot (disabled)");
+    expect(appSource).toContain("Send Screen to Model (disabled)");
+    expect(appSource).toContain("Redaction audit");
+    expect(appSource).not.toMatch(/>\s*Click Desktop\s*</);
+    expect(appSource).not.toMatch(/>\s*Type into Desktop\s*</);
+    expect(appSource).not.toMatch(/>\s*Capture Raw Screenshot\s*</);
+    expect(appSource).not.toMatch(/>\s*Send Screen to Model\s*</);
+
+    expect(docsIndex).toContain(
+      "release-notes-v0.23.0-desktop-observer-mvp-rc.1.md"
+    );
+    expect(docsIndex).toContain("desktop-observer-manual-qa.md");
+    expect(docsIndex).toContain("desktop-observer-rc-checklist.md");
+    expect(rootReadme).toContain(
+      "release-notes-v0.23.0-desktop-observer-mvp-rc.1.md"
+    );
+    expect(appReadme).toContain("v0.23 Desktop Observer MVP RC");
+    expect(combined).not.toContain("The App Shell can perform desktop action");
+    expect(combined).not.toContain("click/type/select is enabled");
+    expect(combined).not.toContain("raw screenshot persistence is enabled");
+    expect(combined).not.toContain("send-to-model is enabled");
+  });
+
   it("documents the v0.22 post-release review and P1A desktop observer roadmap", async () => {
     const promptDoc = await readFile(
       path.join(repoRoot, "docs", "v0.23-desktop-observer-mvp-prompts.md"),
@@ -22299,19 +22410,11 @@ describe("desktop source boundaries", () => {
       "utf8"
     );
     const evidenceRefsDoc = await readFile(
-      path.join(
-        repoRoot,
-        "docs",
-        "desktop-observer-evidence-refs-v0.22.md"
-      ),
+      path.join(repoRoot, "docs", "desktop-observer-evidence-refs-v0.22.md"),
       "utf8"
     );
     const redactionAuditDoc = await readFile(
-      path.join(
-        repoRoot,
-        "docs",
-        "desktop-observer-redaction-audit-v0.22.md"
-      ),
+      path.join(repoRoot, "docs", "desktop-observer-redaction-audit-v0.22.md"),
       "utf8"
     );
     const smokeDoc = await readFile(
@@ -22426,9 +22529,7 @@ describe("desktop source boundaries", () => {
     expect(redactionDoc).toContain("modelSent: false");
     expect(redactionDoc).toContain("P1A-006");
 
-    expect(surfaceDoc).toContain(
-      "App Shell Desktop Observer Surface v0.22"
-    );
+    expect(surfaceDoc).toContain("App Shell Desktop Observer Surface v0.22");
     expect(surfaceDoc).toContain("read-only Desktop Observer surface");
     expect(surfaceDoc).toContain("Read-only / no desktop action");
     expect(surfaceDoc).toContain("Observe Desktop Metadata");

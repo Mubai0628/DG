@@ -216,7 +216,10 @@ export function buildScreenshotMetadataBoundary(
       "$.captureMode"
     );
   }
-  if (record?.rawPersisted === true || record?.rawScreenshotPersisted === true) {
+  if (
+    record?.rawPersisted === true ||
+    record?.rawScreenshotPersisted === true
+  ) {
     addFinding(
       "blocker",
       "raw_screenshot_persisted",
@@ -523,9 +526,7 @@ function readNumber(value: unknown): number | undefined {
 }
 
 function readInteger(value: unknown): number | undefined {
-  return typeof value === "number" &&
-    Number.isInteger(value) &&
-    value >= 0
+  return typeof value === "number" && Number.isInteger(value) && value >= 0
     ? value
     : undefined;
 }

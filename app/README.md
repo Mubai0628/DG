@@ -217,6 +217,12 @@ Current scope:
   approval, summary-only events, no dynamic bidding, no arbitrary agent
   creation, no direct agent tool execution, no arbitrary Git/shell, no native
   bridge, and no desktop action
+- prepare the v0.23 Desktop Observer MVP RC with user-triggered metadata-only
+  observation summaries, screenshot metadata boundaries, context/agent evidence
+  refs, redaction audit, smoke coverage, release notes, manual QA, and RC
+  checklist while preserving no desktop action, no click/type/select, no
+  clipboard write, no hidden capture, no raw screenshot or OCR persistence by
+  default, and no model auto-send
 - prepare the v0.19 MCP Tool Invocation Proposal RC with proposal schema,
   input risk classification, simulated result summaries, broker planning,
   read-only App proposal surface, redaction audit, and smoke hardening while

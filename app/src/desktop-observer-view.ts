@@ -331,7 +331,8 @@ export function desktopObserverEvidenceRefs(
 
   if (view.screenshotBoundary !== undefined) {
     const boundaryHash = safeHashPrefix(
-      view.screenshotBoundary.boundaryHash ?? view.screenshotBoundary.hashPrefix,
+      view.screenshotBoundary.boundaryHash ??
+        view.screenshotBoundary.hashPrefix,
       view.screenshotBoundary.boundaryId ?? view.observationId
     );
     const boundaryCodes = uniqueCodes([
@@ -444,11 +445,7 @@ function readRedactionCodes(value: unknown): string[] {
   );
 }
 
-function safeRecordText(
-  value: unknown,
-  key: string,
-  fallback: string
-): string {
+function safeRecordText(value: unknown, key: string, fallback: string): string {
   if (!isRecord(value)) {
     return fallback;
   }
@@ -462,10 +459,15 @@ function safeCode(value: string): string {
 }
 
 function uniqueCodes(values: readonly string[]): string[] {
-  return Array.from(new Set(values.map(safeCode).filter((code) => code.length > 0)));
+  return Array.from(
+    new Set(values.map(safeCode).filter((code) => code.length > 0))
+  );
 }
 
-function safeHashPrefix(value: string | undefined, fallbackSeed: string): string {
+function safeHashPrefix(
+  value: string | undefined,
+  fallbackSeed: string
+): string {
   const safeValue = safeText(value ?? "", "");
   if (/^[A-Za-z0-9_.-]{6,128}$/.test(safeValue)) {
     return safeValue.slice(0, 16);

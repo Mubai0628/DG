@@ -198,7 +198,10 @@ function appStepFromRuntimeStep(
     contextRefs: step.contextRefs,
     memoryRefs: step.memoryRefs,
     evidenceRefs: uniqueRefIds([...step.evidenceRefs, ...desktopEvidenceRefs]),
-    warningCodes: uniqueStrings([...step.warningCodes, ...desktopEvidenceWarnings]),
+    warningCodes: uniqueStrings([
+      ...step.warningCodes,
+      ...desktopEvidenceWarnings
+    ]),
     dossierPreviewHash: step.dossierPreviewHash
   };
 }
@@ -284,7 +287,9 @@ function desktopEvidenceRefIds(
 ): string[] {
   return uniqueRefIds(
     (refs ?? [])
-      .filter((ref) => ref.summaryOnly === true && ref.source === "desktop_observer")
+      .filter(
+        (ref) => ref.summaryOnly === true && ref.source === "desktop_observer"
+      )
       .map((ref) => safeErrorMessage(safeText(ref.refId, "")))
   );
 }

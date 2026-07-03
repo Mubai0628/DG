@@ -301,9 +301,7 @@ export function validateContextAssemblyPreviewInput(
       input.patchSurface?.items.map((item) => item.label).join(" ")
     ),
     ...unsafeWarningCodes(
-      input.desktopObservationEvidenceRefs
-        ?.map((ref) => ref.summary)
-        .join(" ")
+      input.desktopObservationEvidenceRefs?.map((ref) => ref.summary).join(" ")
     ),
     ...rawKeyWarnings(input.runDraft),
     ...rawKeyWarnings(input.workspaceIndexBridge),

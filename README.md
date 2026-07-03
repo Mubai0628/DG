@@ -446,6 +446,9 @@ v0.17 Capability Host MVP references:
 - [v0.22 Fixed Multi-Agent Execution post-release review](docs/v0.22-fixed-multi-agent-execution-postrelease-review.md)
 - [P1A Desktop Observer MVP roadmap](docs/p1a-desktop-observer-mvp-roadmap.md)
 - [P1A-001 Desktop Observer gate plan](docs/p1a-001-desktop-observer-gate-plan.md)
+- [v0.23.0 Desktop Observer MVP RC release notes](docs/release-notes-v0.23.0-desktop-observer-mvp-rc.1.md)
+- [Desktop Observer manual QA](docs/desktop-observer-manual-qa.md)
+- [Desktop Observer RC checklist](docs/desktop-observer-rc-checklist.md)
 
 ## Current roadmap
 
@@ -523,6 +526,8 @@ coverage while preserving no click/type/select, no clipboard write, no file
 dialog automation, no hidden background capture, no screen recording, no raw
 screenshot or OCR persistence by default, no native bridge broad action, and no
 automatic model send.
+The v0.23 Desktop Observer MVP RC packages this observer path with release
+notes, manual QA, RC checklist, full-gate guidance, and prerelease commands.
 
 - [v0.2 App Shell RC post-release review](docs/v0.2-app-shell-rc-postrelease-review.md)
 - [P0G Coding Workflow roadmap](docs/p0g-coding-workflow-roadmap.md)

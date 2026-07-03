@@ -5780,8 +5780,8 @@ export function DesktopShell(): JSX.Element {
             <p className="fieldHelp">
               Observes foreground/window/display metadata on explicit user
               request. The App Shell cannot click, type, select, control
-              windows, write clipboard, persist raw screenshots, or send
-              desktop observations to a model automatically.
+              windows, write clipboard, persist raw screenshots, or send desktop
+              observations to a model automatically.
             </p>
 
             <div className="buttonRow">
@@ -5877,16 +5877,15 @@ export function DesktopShell(): JSX.Element {
               </div>
               <div>
                 <dt>Evidence refs</dt>
-                <dd>
-                  {desktopObservationEvidenceRefs.length} summary-only
-                </dd>
+                <dd>{desktopObservationEvidenceRefs.length} summary-only</dd>
               </div>
               <div>
                 <dt>Redaction audit</dt>
                 <dd>
                   {displayedDesktopObserver.redactionAudit.status} / blockers{" "}
                   {displayedDesktopObserver.redactionAudit.blockerCount} /
-                  warnings {displayedDesktopObserver.redactionAudit.warningCount}
+                  warnings{" "}
+                  {displayedDesktopObserver.redactionAudit.warningCount}
                 </dd>
               </div>
               <div>
@@ -5940,7 +5939,10 @@ export function DesktopShell(): JSX.Element {
             ) : null}
 
             <p className="fieldHelp">
-              {summarizeDesktopObserverView(displayedDesktopObserver).nextAction}
+              {
+                summarizeDesktopObserverView(displayedDesktopObserver)
+                  .nextAction
+              }
             </p>
           </section>
 
