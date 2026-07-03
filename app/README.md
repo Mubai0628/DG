@@ -230,6 +230,11 @@ Current scope:
   preserving no desktop action, no click/type/select, no clipboard write, no
   file dialog automation, no native bridge, no remote control, and no dynamic
   agent desktop control
+- continue the v0.25 Approved Desktop Action Execution MVP with a human
+  approved App surface that calls only the fixed approved desktop action
+  command for observed-window focus/raise/activate summaries while generic
+  native bridge, click/type/clipboard/file dialog automation, and EventStore
+  writes remain disabled
 - prepare the v0.19 MCP Tool Invocation Proposal RC with proposal schema,
   input risk classification, simulated result summaries, broker planning,
   read-only App proposal surface, redaction audit, and smoke hardening while

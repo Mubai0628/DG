@@ -513,7 +513,11 @@ function isDesktopObserverAppSurfaceCopy(file, line, ruleId) {
     return (
       line.includes("write clipboard") ||
       line.includes("use clipboard") ||
-      line.includes("Use Clipboard (disabled)")
+      line.includes("Use Clipboard (disabled)") ||
+      line.includes("Write Clipboard (disabled)") ||
+      line.includes("clipboard, file") ||
+      line.includes("canWriteClipboard") ||
+      line.includes("no clipboard")
     );
   }
   if (file === "app/src/desktop-observer-view.ts") {

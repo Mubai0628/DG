@@ -115,6 +115,7 @@ import {
   desktopObserverEvidenceRefs
 } from "../src/desktop-observer-view.js";
 import { buildDesktopActionProposalView } from "../src/desktop-action-proposal-view.js";
+import { buildApprovedDesktopActionView } from "../src/approved-desktop-action-view.js";
 import { buildScreenshotRedactionBoundaryView } from "../src/screenshot-redaction-boundary-view.js";
 import { buildMcpMetadataRedactionAuditView } from "../src/mcp-metadata-redaction-audit-view.js";
 import { buildMcpReadonlyConnectionView } from "../src/mcp-readonly-connection-view.js";
@@ -1401,7 +1402,7 @@ describe("desktop command wrapper", () => {
     expect(appSource).toContain("Capture Raw Screenshot (disabled)");
     expect(appSource).toContain("Send Screen to Model (disabled)");
     expect(appSource).not.toContain("Select Desktop");
-    expect(appSource).not.toContain("Write Clipboard");
+    expect(appSource).toContain("Write Clipboard (disabled)");
   });
 
   it("keeps approved desktop action command fixed without a generic native bridge", async () => {
@@ -1436,7 +1437,7 @@ describe("desktop command wrapper", () => {
     expect(flowSource).not.toContain("desktopActionInvoke");
     expect(flowSource).not.toContain("nativeBridgeExecute");
     expect(appSource).not.toContain("execute_approved_desktop_action");
-    expect(appSource).not.toContain("executeApprovedDesktopAction(");
+    expect(appSource).toContain("executeApprovedDesktopAction(request)");
   });
 
   it("builds the App screenshot redaction boundary as summary-only metadata", () => {
@@ -1863,6 +1864,141 @@ describe("desktop command wrapper", () => {
     expect(appSource).not.toContain("handleClickTarget");
     expect(appSource).not.toContain("handleTypeText");
     expect(appSource).not.toContain("handleUseClipboard");
+  });
+
+  it("builds the Approved Desktop Action surface behind receipt and typed confirmation gates", async () => {
+    const safeDraft = await readFile(
+      path.join(
+        repoRoot,
+        "runtime",
+        "test",
+        "fixtures",
+        "desktop-action-proposals",
+        "safe-focus-window.json"
+      ),
+      "utf8"
+    );
+    const proposalView = buildDesktopActionProposalView({
+      proposalJsonText: safeDraft,
+      sourceKind: "fixture"
+    });
+    const empty = buildApprovedDesktopActionView();
+    const needsConfirmation = buildApprovedDesktopActionView({
+      proposalView,
+      typedConfirmation: ""
+    });
+    const ready = buildApprovedDesktopActionView({
+      proposalView,
+      typedConfirmation: "FOCUS OBSERVED WINDOW"
+    });
+    const serialized = JSON.stringify(ready);
+
+    expect(empty.status).toBe("empty");
+    expect(empty.readiness.canBuildReceipt).toBe(false);
+    expect(empty.readiness.canExecuteApprovedDesktopAction).toBe(false);
+    expect(needsConfirmation.status).toBe("needs_confirmation");
+    expect(needsConfirmation.receipt?.status).toBe("blocked");
+    expect(needsConfirmation.commandRequest).toBeUndefined();
+    expect(ready.status).toBe("ready");
+    expect(ready.actionKind).toBe("focus_observed_window");
+    expect(ready.typedConfirmationRequired).toBe("FOCUS OBSERVED WINDOW");
+    expect(ready.typedConfirmationAccepted).toBe(true);
+    expect(ready.receipt?.status).toBe("ready");
+    expect(ready.commandRequest?.actionKind).toBe("focus_observed_window");
+    expect(ready.commandRequest?.typedConfirmation).toBe(
+      "FOCUS OBSERVED WINDOW"
+    );
+    expect(ready.readiness.canBuildReceipt).toBe(true);
+    expect(ready.readiness.canExecuteApprovedDesktopAction).toBe(true);
+    expect(ready.readiness.canClick).toBe(false);
+    expect(ready.readiness.canType).toBe(false);
+    expect(ready.readiness.canWriteClipboard).toBe(false);
+    expect(ready.readiness.canOpenFileDialog).toBe(false);
+    expect(ready.readiness.canWriteEventStore).toBe(false);
+    expect(ready.readiness.canUseNativeBridge).toBe(false);
+    expect(ready.readiness.canExecuteGit).toBe(false);
+    expect(ready.readiness.canExecuteShell).toBe(false);
+    expect(ready.readiness.appCanExecute).toBe(false);
+    expect(serialized).not.toContain("rawScreenshot");
+    expect(serialized).not.toContain("rawOcr");
+    expect(serialized).not.toContain("RAW_SCREENSHOT");
+    expect(serialized).not.toContain("apiKey");
+    expect(serialized).not.toContain("Authorization");
+  });
+
+  it("blocks unsupported Approved Desktop Action kinds before fixed command requests", async () => {
+    const safeDraft = await readFile(
+      path.join(
+        repoRoot,
+        "runtime",
+        "test",
+        "fixtures",
+        "desktop-action-proposals",
+        "safe-focus-window.json"
+      ),
+      "utf8"
+    );
+    const proposalView = buildDesktopActionProposalView({
+      proposalJsonText: safeDraft,
+      sourceKind: "fixture"
+    });
+    const unsupported = buildApprovedDesktopActionView({
+      proposalView: {
+        ...proposalView,
+        targetSummary: "click_target:target-editor-window"
+      },
+      typedConfirmation: "FOCUS OBSERVED WINDOW"
+    });
+
+    expect(unsupported.status).toBe("blocked");
+    expect(unsupported.commandRequest).toBeUndefined();
+    expect(unsupported.findings.map((finding) => finding.code)).toEqual(
+      expect.arrayContaining([
+        "APPROVED_DESKTOP_ACTION_UNSUPPORTED_ACTION"
+      ])
+    );
+    expect(unsupported.readiness.canExecuteApprovedDesktopAction).toBe(false);
+  });
+
+  it("renders the Approved Desktop Action App surface through the fixed wrapper only", async () => {
+    const appSource = await readFile(
+      path.join(appRoot, "src", "App.tsx"),
+      "utf8"
+    );
+    const viewSource = await readFile(
+      path.join(appRoot, "src", "approved-desktop-action-view.ts"),
+      "utf8"
+    );
+
+    expect(appSource).toContain("Approved Desktop Action");
+    expect(appSource).toContain(
+      "Human approved / narrow desktop action"
+    );
+    expect(appSource).toContain(
+      "Executes only fixed, approved, low-risk desktop actions"
+    );
+    expect(appSource).toContain("Build approval receipt");
+    expect(appSource).toContain("Execute approved desktop action");
+    expect(appSource).toContain("Clear Approved Desktop Action");
+    expect(appSource).toContain("Click Desktop (disabled)");
+    expect(appSource).toContain("Type Text (disabled)");
+    expect(appSource).toContain("Write Clipboard (disabled)");
+    expect(appSource).toContain("Open File Dialog (disabled)");
+    expect(appSource).toContain("executeApprovedDesktopAction(request)");
+    expect(appSource).not.toContain("execute_approved_desktop_action");
+    expect(appSource).not.toContain("safeInvoke(");
+    expect(appSource).not.toContain("invoke(");
+    expect(viewSource).toContain("app_approved_desktop_action_surface");
+    expect(viewSource).toContain("buildApprovedDesktopActionReceipt");
+    expect(viewSource).toContain("buildApprovedDesktopActionExecutionPlan");
+    expect(viewSource).not.toContain("safeInvoke(");
+    expect(viewSource).not.toContain("invoke(");
+    expect(viewSource).not.toContain("fetch(");
+    expect(viewSource).not.toContain("writeFile(");
+    expect(viewSource).not.toContain("readFile(");
+    expect(viewSource).not.toContain("rawScreenshot");
+    expect(viewSource).not.toContain("rawOcr");
+    expect(viewSource).not.toContain("ocrText");
   });
 
   it("documents the App Shell Desktop Action Proposal surface boundaries", async () => {
@@ -14648,7 +14784,7 @@ describe("desktop source boundaries", () => {
     expect(appSource).not.toContain("handleApprove");
     expect(appSource).not.toContain("handleApplyUserWorkspace");
     expect(appSource).not.toContain("handleGenericApply");
-    expect(appSource).not.toContain("handleExecute");
+    expect(appSource).toContain("handleExecuteApprovedDesktopAction");
     expect(appSource).not.toContain("handleCommitMemory");
     expect(appSource).not.toContain("handleRevokeMemory");
     expect(appSource).not.toContain("handleExpireMemory");
@@ -23468,6 +23604,58 @@ describe("desktop source boundaries", () => {
     expect(docsIndex).toContain(
       "app-tauri-approved-desktop-action-command-v0.24.md"
     );
+
+    expect(combined).not.toContain("arbitrary desktop action is enabled");
+    expect(combined).not.toContain("click/type/select execution is enabled");
+    expect(combined).not.toContain("clipboard write is enabled");
+    expect(combined).not.toContain("file dialog automation is enabled");
+    expect(combined).not.toContain(
+      "native bridge broad action execution is enabled"
+    );
+    expect(combined).not.toContain("autonomous desktop agent is enabled");
+  });
+
+  it("documents the App Shell approved desktop action surface boundary", async () => {
+    const surfaceDoc = await readFile(
+      path.join(
+        repoRoot,
+        "docs",
+        "app-shell-approved-desktop-action-surface-v0.24.md"
+      ),
+      "utf8"
+    );
+    const docsIndex = await readFile(
+      path.join(repoRoot, "docs", "README.md"),
+      "utf8"
+    );
+    const appReadme = await readFile(
+      path.join(repoRoot, "app", "README.md"),
+      "utf8"
+    );
+    const combined = `${surfaceDoc}\n${docsIndex}\n${appReadme}`;
+
+    expect(surfaceDoc).toContain(
+      "App Shell Approved Desktop Action Surface v0.24"
+    );
+    expect(surfaceDoc).toContain("Approved Desktop Action");
+    expect(surfaceDoc).toContain(
+      "Human approved / narrow desktop action"
+    );
+    expect(surfaceDoc).toContain("executeApprovedDesktopAction");
+    expect(surfaceDoc).toContain("fixed command");
+    expect(surfaceDoc).toContain("exact typed confirmation");
+    expect(surfaceDoc).toContain("No generic Tauri invoke");
+    expect(surfaceDoc).toContain("No generic native bridge");
+    expect(surfaceDoc).toContain("No click, type, select, drag, drop");
+    expect(surfaceDoc).toContain("No raw screenshot");
+    expect(surfaceDoc).toContain("No EventStore write");
+    expect(surfaceDoc).toContain("P1C-006 will add summary event");
+    expect(docsIndex).toContain(
+      "app-shell-approved-desktop-action-surface-v0.24.md"
+    );
+    expect(appReadme).toContain("v0.25 Approved Desktop Action Execution MVP");
+    expect(appReadme).toContain("fixed approved desktop action");
+    expect(appReadme).toContain("command for observed-window");
 
     expect(combined).not.toContain("arbitrary desktop action is enabled");
     expect(combined).not.toContain("click/type/select execution is enabled");
