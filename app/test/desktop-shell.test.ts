@@ -1633,6 +1633,52 @@ describe("desktop command wrapper", () => {
     );
   });
 
+  it("documents the Desktop Action Proposal privacy audit smoke boundaries", async () => {
+    const runtimeDoc = await readFile(
+      path.join(
+        repoRoot,
+        "docs",
+        "runtime-desktop-action-privacy-redaction-audit-v0.23.md"
+      ),
+      "utf8"
+    );
+    const smokeDoc = await readFile(
+      path.join(
+        repoRoot,
+        "docs",
+        "desktop-action-proposal-smoke-v0.23.md"
+      ),
+      "utf8"
+    );
+    const docsIndex = await readFile(
+      path.join(repoRoot, "docs", "README.md"),
+      "utf8"
+    );
+    const combined = `${runtimeDoc}\n${smokeDoc}\n${docsIndex}`;
+
+    expect(runtimeDoc).toContain(
+      "Runtime Desktop Action Privacy Redaction Audit v0.23"
+    );
+    expect(runtimeDoc).toContain("audit-only");
+    expect(runtimeDoc).toContain("raw screenshot");
+    expect(runtimeDoc).toContain("raw OCR");
+    expect(runtimeDoc).toContain("clipboard content");
+    expect(runtimeDoc).toContain("API key markers");
+    expect(runtimeDoc).toContain("all remain false");
+    expect(smokeDoc).toContain("Desktop Action Proposal Smoke v0.23");
+    expect(smokeDoc).toContain("proposal-only");
+    expect(smokeDoc).toContain("privacy/redaction audit");
+    expect(smokeDoc).toContain("not a manual desktop automation test");
+    expect(docsIndex).toContain(
+      "runtime-desktop-action-privacy-redaction-audit-v0.23.md"
+    );
+    expect(docsIndex).toContain("desktop-action-proposal-smoke-v0.23.md");
+    expect(combined).toContain("no desktop action");
+    expect(combined).toContain("no native bridge");
+    expect(combined).not.toContain("desktop action execution is enabled");
+    expect(combined).not.toContain("clipboard write is enabled");
+  });
+
   it("projects desktop observation summaries into context and agent evidence refs", () => {
     const desktopObserver = buildDesktopObserverView({
       observeStatus: "observed",

@@ -1,0 +1,51 @@
+{
+  "proposal": {
+    "schemaVersion": "desktop_action_proposal.v1",
+    "proposalId": "desktop-action-proposal-smoke-safe",
+    "title": "Smoke focus editor window",
+    "intent": "focus_existing_window",
+    "objectiveSummary": "Preview a future focus action against a known editor window.",
+    "observerEvidenceRefs": [
+      {
+        "evidenceRefId": "desktop-action-smoke-evidence-1",
+        "observationId": "desktop-observation-smoke-1",
+        "observedAt": "2026-07-03T05:00:00.000Z",
+        "summary": "Editor window metadata summary.",
+        "source": "desktop_observation_summary",
+        "warningCodes": [],
+        "redactionCodes": ["WINDOW_TITLE_REDACTED"]
+      }
+    ],
+    "operations": [
+      {
+        "operationId": "desktop-action-smoke-operation-1",
+        "actionKind": "focus_window",
+        "targetRef": {
+          "targetId": "target-editor-window-smoke",
+          "windowIdHash": "win_hash_smoke_editor",
+          "appIdHash": "app_hash_smoke_editor",
+          "displayIdHash": "display_hash_primary",
+          "boundsSummary": "x:100 y:100 w:1200 h:800",
+          "role": "window",
+          "labelSummary": "Editor window summary",
+          "observerEvidenceRefId": "desktop-action-smoke-evidence-1"
+        },
+        "summary": "Future focus-window proposal only.",
+        "rationale": "Smoke fixture verifies summary-only privacy audit.",
+        "expectedVisibleStateChange": "Editor window would become foreground in a future approved execution phase."
+      }
+    ],
+    "riskNotes": [
+      "Focus-only proposal; P1B does not execute desktop actions."
+    ],
+    "assumptions": ["Observer evidence remains current."],
+    "createdAt": "2026-07-03T05:05:00.000Z"
+  },
+  "appSummary": {
+    "surface": "desktop_action_proposal",
+    "status": "preview_ready",
+    "summaryOnly": true,
+    "redactionCodes": ["APP_RAW_DESKTOP_INPUT_NOT_DISPLAYED"],
+    "executionControlsEnabled": false
+  }
+}
