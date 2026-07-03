@@ -107,6 +107,7 @@ import {
   parseLiveProposalEvaluationSummaryJson
 } from "../src/live-proposal-evaluation-summary-view.js";
 import { buildLiveProposalEvaluationTelemetryAuditView } from "../src/live-proposal-evaluation-telemetry-audit-view.js";
+import { buildScreenshotRedactionBoundaryView } from "../src/screenshot-redaction-boundary-view.js";
 import { buildMcpMetadataRedactionAuditView } from "../src/mcp-metadata-redaction-audit-view.js";
 import { buildMcpReadonlyConnectionView } from "../src/mcp-readonly-connection-view.js";
 import { buildMcpReadonlyToolExecutionView } from "../src/mcp-readonly-tool-execution-view.js";
@@ -1165,6 +1166,95 @@ describe("desktop command wrapper", () => {
     expect(appSource).not.toContain("Type Desktop");
     expect(appSource).not.toContain("Select Desktop");
     expect(appSource).not.toContain("Write Clipboard");
+  });
+
+  it("builds the App screenshot redaction boundary as summary-only metadata", () => {
+    const view = buildScreenshotRedactionBoundaryView({
+      metadata: {
+        boundaryId: "screenshot-boundary-app",
+        width: 1440,
+        height: 900,
+        displayCount: 1,
+        hashPrefix: "appmetadatahash",
+        captureMode: "metadata_only",
+        rawPersisted: false,
+        ocrPersisted: false,
+        modelSent: false,
+        redactionCodes: ["metadata_only", "window_titles_redacted"]
+      }
+    });
+
+    expect(view.status).toBe("boundary_ready");
+    expect(view.summaryOnly).toBe(true);
+    expect(view.width).toBe(1440);
+    expect(view.height).toBe(900);
+    expect(view.pixelCountEstimate).toBe(1440 * 900);
+    expect(view.rawPersisted).toBe(false);
+    expect(view.ocrPersisted).toBe(false);
+    expect(view.modelSent).toBe(false);
+    expect(view.readiness.canDisplayBoundary).toBe(true);
+    expect(view.readiness.canPersistRawImage).toBe(false);
+    expect(view.readiness.canPersistOcrText).toBe(false);
+    expect(view.readiness.canSendToModel).toBe(false);
+    expect(view.readiness.canCaptureRawImage).toBe(false);
+    expect(view.readiness.canDesktopAction).toBe(false);
+    expect(view.readiness.canClickTypeSelect).toBe(false);
+    expect(view.readiness.canWriteClipboard).toBe(false);
+    expect(view.readiness.canWriteEventStore).toBe(false);
+    expect(view.readiness.canApplyPatch).toBe(false);
+    expect(view.readiness.canRollback).toBe(false);
+    expect(view.readiness.canExecuteGit).toBe(false);
+    expect(view.readiness.canExecuteShell).toBe(false);
+    expect(view.readiness.appCanExecute).toBe(false);
+  });
+
+  it("blocks unsafe App screenshot boundary inputs without echoing raw values", () => {
+    const view = buildScreenshotRedactionBoundaryView({
+      metadata: {
+        width: 1440,
+        height: 900,
+        displayCount: 1,
+        captureMode: "metadata_only",
+        screenshotBase64: "data:image/png;base64,AAAA",
+        ocrText: "private visible text",
+        modelSent: true,
+        hashPrefix: "sk-fake-screenshot-boundary-key-000000"
+      }
+    });
+    const serialized = JSON.stringify(view);
+
+    expect(view.status).toBe("blocked");
+    expect(view.blockerCodes).toContain("forbidden_field");
+    expect(view.blockerCodes).toContain("model_sent");
+    expect(view.readiness.canDisplayBoundary).toBe(false);
+    expect(view.rawPersisted).toBe(false);
+    expect(view.ocrPersisted).toBe(false);
+    expect(view.modelSent).toBe(false);
+    expect(serialized).not.toContain("AAAA");
+    expect(serialized).not.toContain("private visible text");
+    expect(serialized).not.toContain("sk-fake-screenshot-boundary-key-000000");
+  });
+
+  it("keeps the App screenshot redaction boundary free of raw input and model send paths", async () => {
+    const appSource = await readFile(
+      path.join(appRoot, "src", "App.tsx"),
+      "utf8"
+    );
+    const viewSource = await readFile(
+      path.join(appRoot, "src", "screenshot-redaction-boundary-view.ts"),
+      "utf8"
+    );
+
+    expect(viewSource).toContain("buildScreenshotMetadataBoundary");
+    expect(viewSource).not.toContain("type=\"file\"");
+    expect(viewSource).not.toContain("type=\"password\"");
+    expect(viewSource).not.toContain("rawScreenshot");
+    expect(viewSource).not.toContain("screenshotBase64");
+    expect(viewSource).not.toContain("fetch(");
+    expect(viewSource).not.toContain("invoke(");
+    expect(viewSource).not.toContain("modelSent: true");
+    expect(appSource).not.toContain("Persist Raw Screenshot");
+    expect(appSource).not.toContain("Send Screenshot To Model");
   });
 
   it("calls MCP readonly discovery only through the fixed wrapper", async () => {
@@ -21840,11 +21930,19 @@ describe("desktop source boundaries", () => {
       ),
       "utf8"
     );
+    const redactionDoc = await readFile(
+      path.join(
+        repoRoot,
+        "docs",
+        "runtime-screenshot-redaction-boundary-v0.22.md"
+      ),
+      "utf8"
+    );
     const docsIndex = await readFile(
       path.join(repoRoot, "docs", "README.md"),
       "utf8"
     );
-    const combined = `${adr}\n${threatModel}\n${implementationGate}\n${nextPlan}\n${profileDoc}\n${summaryDoc}\n${commandDoc}\n${docsIndex}`;
+    const combined = `${adr}\n${threatModel}\n${implementationGate}\n${nextPlan}\n${profileDoc}\n${summaryDoc}\n${commandDoc}\n${redactionDoc}\n${docsIndex}`;
 
     expect(adr).toContain("ADR 0011: Desktop Observer MVP");
     expect(adr).toContain("Proposed / Accepted for P1A design gate");
@@ -21934,6 +22032,20 @@ describe("desktop source boundaries", () => {
       "no sending desktop observation to model automatically"
     );
 
+    expect(redactionDoc).toContain(
+      "Runtime Screenshot Redaction Boundary v0.22"
+    );
+    expect(redactionDoc).toContain("summary-only contract");
+    expect(redactionDoc).toContain("No screenshot capture implementation");
+    expect(redactionDoc).toContain("No OCR");
+    expect(redactionDoc).toContain("No raw screenshot storage");
+    expect(redactionDoc).toContain("No model send");
+    expect(redactionDoc).toContain("No desktop action");
+    expect(redactionDoc).toContain("rawPersisted: false");
+    expect(redactionDoc).toContain("ocrPersisted: false");
+    expect(redactionDoc).toContain("modelSent: false");
+    expect(redactionDoc).toContain("P1A-006");
+
     expect(docsIndex).toContain("adr/0011-desktop-observer-mvp.md");
     expect(docsIndex).toContain("desktop-observer-threat-model-v0.22.md");
     expect(docsIndex).toContain(
@@ -21945,6 +22057,9 @@ describe("desktop source boundaries", () => {
     expect(docsIndex).toContain("runtime-desktop-observation-profile-v0.22.md");
     expect(docsIndex).toContain("runtime-desktop-observation-summary-v0.22.md");
     expect(docsIndex).toContain("app-tauri-desktop-observer-command-v0.22.md");
+    expect(docsIndex).toContain(
+      "runtime-screenshot-redaction-boundary-v0.22.md"
+    );
     expect(combined).not.toContain("desktop action automation is enabled");
     expect(combined).not.toContain("click/type/select is enabled");
     expect(combined).not.toContain("raw screenshot persistence is enabled");

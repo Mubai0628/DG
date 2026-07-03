@@ -501,7 +501,8 @@ function isDesktopObserverCommandDenylist(file, line, ruleId) {
 function isDesktopObserverSchemaFile(file) {
   return (
     file === "runtime/src/desktop-observer/desktop-observation-profile.ts" ||
-    file === "runtime/src/desktop-observer/desktop-observation-summary.ts"
+    file === "runtime/src/desktop-observer/desktop-observation-summary.ts" ||
+    file === "runtime/src/desktop-observer/screenshot-redaction-boundary.ts"
   );
 }
 

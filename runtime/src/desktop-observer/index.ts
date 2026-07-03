@@ -4,6 +4,10 @@ export {
   summarizeDesktopObservation,
   validateDesktopObservationInput
 } from "./desktop-observation-summary.js";
+export {
+  buildScreenshotMetadataBoundary,
+  summarizeScreenshotMetadataBoundary
+} from "./screenshot-redaction-boundary.js";
 export type {
   DesktopAppSummary,
   DesktopDisplaySummary,
@@ -18,3 +22,12 @@ export type {
   DesktopScreenshotMetadataSummary,
   DesktopWindowSummary
 } from "./desktop-observation-summary.js";
+export type {
+  ScreenshotMetadataBoundary,
+  ScreenshotMetadataBoundaryInput,
+  ScreenshotMetadataBoundaryReadiness,
+  ScreenshotMetadataBoundaryStatus,
+  ScreenshotMetadataBoundarySummary,
+  ScreenshotRedactionFinding,
+  ScreenshotRedactionSeverity
+} from "./screenshot-redaction-boundary.js";
