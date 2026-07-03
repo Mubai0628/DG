@@ -378,6 +378,7 @@ foundation.
 - [Runtime Desktop Target Metadata Validation v0.23](runtime-desktop-target-metadata-validation-v0.23.md)
 - [Runtime Desktop Action Risk Classifier v0.23](runtime-desktop-action-risk-classifier-v0.23.md)
 - [Runtime Desktop Action Simulated Result v0.23](runtime-desktop-action-simulated-result-v0.23.md)
+- [Runtime Desktop Action Capability Integration v0.23](runtime-desktop-action-capability-integration-v0.23.md)
 - [Runtime Memory Recall Preview v0.3](runtime-memory-recall-preview-v0.3.md)
 - [v0.4.0 Controlled Creation Preview RC release notes](release-notes-v0.4.0-controlled-creation-preview-rc.1.md)
 - [App Shell Controlled Creation manual QA](app-shell-controlled-creation-manual-qa.md)
