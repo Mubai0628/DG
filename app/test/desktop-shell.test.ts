@@ -20714,7 +20714,7 @@ describe("desktop source boundaries", () => {
     expect(docsIndex).toContain("p0z-fixed-multi-agent-execution-roadmap.md");
     expect(docsIndex).toContain("p0z-001-fixed-multi-agent-execution-plan.md");
     expect(rootReadme).toContain("complete / prepared");
-    expect(rootReadme).toContain("P0Z starts the Fixed Multi-Agent Execution");
+    expect(rootReadme).toContain("P0Z is complete for the v0.22 RC");
     expect(combined).toContain("no native bridge");
     expect(combined).toContain("no desktop action");
     expect(combined).not.toContain("dynamic bidding is enabled");
@@ -21468,6 +21468,111 @@ describe("desktop source boundaries", () => {
     expect(combined).not.toContain("arbitrary agent creation is enabled");
     expect(combined).not.toContain("agents can directly execute tools");
     expect(combined).not.toContain("auto-apply is enabled");
+  });
+
+  it("documents the v0.22 post-release review and P1A desktop observer roadmap", async () => {
+    const promptDoc = await readFile(
+      path.join(repoRoot, "docs", "v0.23-desktop-observer-mvp-prompts.md"),
+      "utf8"
+    );
+    const review = await readFile(
+      path.join(
+        repoRoot,
+        "docs",
+        "v0.22-fixed-multi-agent-execution-postrelease-review.md"
+      ),
+      "utf8"
+    );
+    const roadmap = await readFile(
+      path.join(repoRoot, "docs", "p1a-desktop-observer-mvp-roadmap.md"),
+      "utf8"
+    );
+    const plan = await readFile(
+      path.join(repoRoot, "docs", "p1a-001-desktop-observer-gate-plan.md"),
+      "utf8"
+    );
+    const docsIndex = await readFile(
+      path.join(repoRoot, "docs", "README.md"),
+      "utf8"
+    );
+    const rootReadme = await readFile(path.join(repoRoot, "README.md"), "utf8");
+    const combined = `${promptDoc}\n${review}\n${roadmap}\n${plan}\n${docsIndex}\n${rootReadme}`;
+
+    expect(promptDoc).toContain("v0.23 — Desktop Observer MVP");
+    expect(promptDoc).toContain("Desktop Observer MVP, no action");
+    expect(promptDoc).toContain("DW-P1A-009");
+
+    expect(review).toContain("v0.22.0-fixed-multi-agent-execution-mvp-rc.1");
+    expect(review).toContain(
+      "Fixed multi-agent execution MVP, no dynamic bidding"
+    );
+    expect(review).toContain("Convert");
+    expect(review).toContain("Event Log / Replay");
+    expect(review).toContain("Record Draft Event");
+    expect(review).toContain("App approved execution");
+    expect(review).toContain("Git/shell safe lanes");
+    expect(review).toContain("Production project knowledge");
+    expect(review).toContain("MCP read-only tools");
+    expect(review).toContain("Plugin/skill metadata sandbox");
+    expect(review).toContain("Fixed multi-agent execution");
+    expect(review).toContain("desktop observer/action");
+    expect(review).toContain("desktop click/type/select");
+    expect(review).toContain("native bridge broad action");
+    expect(review).toContain("desktop action automation");
+    expect(review).toContain("dynamic agent bidding");
+    expect(review).toContain("arbitrary tool use");
+
+    expect(roadmap).toContain("P1A Desktop Observer MVP Roadmap");
+    expect(roadmap).toContain("Observer MVP, no action");
+    expect(roadmap).toContain("user-triggered observation only");
+    expect(roadmap).toContain("summary-only window/app/display metadata");
+    expect(roadmap).toContain(
+      "optional screenshot metadata/redaction boundary"
+    );
+    expect(roadmap).toContain("App read-only Desktop Observer surface");
+    expect(roadmap).toContain("observation summary becomes evidence refs");
+    expect(roadmap).toContain("privacy/redaction audit");
+    expect(roadmap).toContain("no desktop action");
+    expect(roadmap).toContain("no raw screenshot persistence by default");
+
+    expect(plan).toContain("P1A-001 Desktop Observer Gate Plan");
+    expect(plan).toContain("No Tauri command");
+    expect(plan).toContain("No desktop observation code");
+    expect(plan).toContain("No screenshot capture");
+    expect(plan).toContain("No App UI");
+    expect(plan).toContain("No desktop action");
+    expect(plan).toContain("No click/type/select");
+    expect(plan).toContain("No clipboard write");
+    expect(plan).toContain("No raw screenshot persistence by default");
+    expect(plan).toContain("No raw OCR text persistence by default");
+    expect(plan).toContain(
+      "No sending desktop observation to a model automatically"
+    );
+
+    expect(docsIndex).toContain("v0.23-desktop-observer-mvp-prompts.md");
+    expect(docsIndex).toContain(
+      "v0.22-fixed-multi-agent-execution-postrelease-review.md"
+    );
+    expect(docsIndex).toContain("p1a-desktop-observer-mvp-roadmap.md");
+    expect(docsIndex).toContain("p1a-001-desktop-observer-gate-plan.md");
+    expect(rootReadme).toContain("v0.23-desktop-observer-mvp-prompts.md");
+    expect(rootReadme).toContain(
+      "v0.22-fixed-multi-agent-execution-postrelease-review.md"
+    );
+    expect(rootReadme).toContain("p1a-desktop-observer-mvp-roadmap.md");
+    expect(rootReadme).toContain("p1a-001-desktop-observer-gate-plan.md");
+    expect(rootReadme).toContain("P0Z is complete for the v0.22 RC");
+    expect(rootReadme).toContain("P1A starts the Desktop Observer MVP");
+    expect(rootReadme).toContain("no action roadmap");
+
+    expect(combined).toContain("No desktop action is enabled");
+    expect(combined).not.toContain("The App Shell can click");
+    expect(combined).not.toContain("The App Shell can type");
+    expect(combined).not.toContain("click/type/select is enabled");
+    expect(combined).not.toContain("raw screenshot persistence is enabled");
+    expect(combined).not.toContain(
+      "send desktop observation to model automatically is enabled"
+    );
   });
 
   it("documents the P0S-001 MVP hardening recovery design gate", async () => {

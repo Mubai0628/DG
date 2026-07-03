@@ -433,6 +433,7 @@ v0.17 Capability Host MVP references:
 - [Plugin / Skill Sandbox manual QA](docs/plugin-skill-sandbox-manual-qa.md)
 - [Plugin / Skill Sandbox RC checklist](docs/plugin-skill-sandbox-rc-checklist.md)
 - [v0.22 Fixed Multi-Agent Execution MVP prompts](docs/v0.22-fixed-multi-agent-execution-mvp-prompts.md)
+- [v0.23 Desktop Observer MVP prompts](docs/v0.23-desktop-observer-mvp-prompts.md)
 - [v0.21 Plugin / Skill Sandbox post-release review](docs/v0.21-plugin-skill-sandbox-postrelease-review.md)
 - [P0Z Fixed Multi-Agent Execution roadmap](docs/p0z-fixed-multi-agent-execution-roadmap.md)
 - [P0Z-001 Fixed Multi-Agent Execution plan](docs/p0z-001-fixed-multi-agent-execution-plan.md)
@@ -442,6 +443,9 @@ v0.17 Capability Host MVP references:
 - [v0.22.0 Fixed Multi-Agent Execution MVP RC release notes](docs/release-notes-v0.22.0-fixed-multi-agent-execution-mvp-rc.1.md)
 - [Fixed Multi-Agent Execution manual QA](docs/fixed-multi-agent-execution-manual-qa.md)
 - [Fixed Multi-Agent Execution RC checklist](docs/fixed-multi-agent-execution-rc-checklist.md)
+- [v0.22 Fixed Multi-Agent Execution post-release review](docs/v0.22-fixed-multi-agent-execution-postrelease-review.md)
+- [P1A Desktop Observer MVP roadmap](docs/p1a-desktop-observer-mvp-roadmap.md)
+- [P1A-001 Desktop Observer gate plan](docs/p1a-001-desktop-observer-gate-plan.md)
 
 ## Current roadmap
 
@@ -506,14 +510,19 @@ governance, App read-only metadata surfaces, broker descriptor previews,
 built-in safe skill simulation, and redaction audit coverage while preserving no
 arbitrary plugin code execution, no arbitrary skill runtime, no plugin install
 execution, no native bridge, no desktop action, no arbitrary shell/process
-spawn, and no broad PermissionLease. P0Z starts the Fixed Multi-Agent Execution
-MVP roadmap with fixed orchestrator/coder/reviewer/verifier roles, fixed routes,
-summary-only handoff dossiers, Capability Broker gated planning, human approval
-for apply, and replayable summary events while preserving no dynamic bidding, no
-arbitrary agent creation, no hidden raw prompt sharing, no direct agent tool
-execution, no native bridge, and no desktop action. The fixed multi-agent E2E
-smoke keeps the docs-only task summary-only with human-approved apply and
-rollback boundaries plus replayed role timelines.
+spawn, and no broad PermissionLease. P0Z is complete for the v0.22 RC with
+fixed orchestrator/coder/reviewer/verifier roles, fixed routes, summary-only
+handoff dossiers, Capability Broker gated planning, human approval for apply,
+and replayable summary events while preserving no dynamic bidding, no arbitrary
+agent creation, no hidden raw prompt sharing, no direct agent tool execution,
+no native bridge, and no desktop action. P1A starts the Desktop Observer MVP,
+no action roadmap with user-triggered, summary-only foreground/window/app/
+display metadata, optional screenshot metadata/redaction boundaries, App
+read-only observer surfaces, context/agent evidence refs, and privacy audit
+coverage while preserving no click/type/select, no clipboard write, no file
+dialog automation, no hidden background capture, no screen recording, no raw
+screenshot or OCR persistence by default, no native bridge broad action, and no
+automatic model send.
 
 - [v0.2 App Shell RC post-release review](docs/v0.2-app-shell-rc-postrelease-review.md)
 - [P0G Coding Workflow roadmap](docs/p0g-coding-workflow-roadmap.md)
