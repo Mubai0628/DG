@@ -213,6 +213,10 @@ import {
   type ApprovedDesktopActionView
 } from "./approved-desktop-action-view.js";
 import {
+  buildDesktopActionReplayView,
+  type DesktopActionReplayView
+} from "./desktop-action-replay-view.js";
+import {
   buildMcpReadonlyConnectionView,
   summarizeMcpReadonlyConnectionView,
   type McpReadonlyConnectionView
@@ -1099,6 +1103,14 @@ export function DesktopShell(): JSX.Element {
   );
   const displayedApprovedDesktopAction =
     approvedDesktopActionPreview ?? approvedDesktopActionCandidate;
+  const desktopActionReplayView = useMemo<DesktopActionReplayView>(
+    () =>
+      buildDesktopActionReplayView({
+        commandResult: approvedDesktopActionResult,
+        approvedDesktopActionView: displayedApprovedDesktopAction
+      }),
+    [approvedDesktopActionResult, displayedApprovedDesktopAction]
+  );
   const runDraftCandidate = useMemo<AppRunDraftView>(
     () =>
       buildRunDraftView({
@@ -6474,6 +6486,93 @@ export function DesktopShell(): JSX.Element {
               {summarizeApprovedDesktopActionView(displayedApprovedDesktopAction)
                 .nextAction}
             </p>
+          </section>
+
+          <section className="eventPanel" aria-label="Desktop Action Replay">
+            <div className="panelHeader">
+              <h2>Desktop Action Replay</h2>
+              <span className="muted">Summary replay / no re-execution</span>
+            </div>
+            <p className="fieldHelp">
+              Projects approved desktop action summary events into a replay
+              surface. Replay can show status, action kind, target refs,
+              timestamp, and warning codes, but cannot execute desktop actions
+              or write events.
+            </p>
+
+            {desktopActionReplayView.status === "blocked" ? (
+              <div className="errorBox">
+                <strong>Desktop Action Replay blocked</strong>
+                <p>{desktopActionReplayView.nextAction}</p>
+              </div>
+            ) : null}
+
+            <dl className="summaryGrid compact">
+              <div>
+                <dt>Status</dt>
+                <dd>{desktopActionReplayView.status}</dd>
+              </div>
+              <div>
+                <dt>Action status</dt>
+                <dd>{desktopActionReplayView.actionStatus}</dd>
+              </div>
+              <div>
+                <dt>Action kind</dt>
+                <dd>{desktopActionReplayView.actionKind}</dd>
+              </div>
+              <div>
+                <dt>Target refs</dt>
+                <dd>
+                  {desktopActionReplayView.targetWindowRef} /{" "}
+                  {desktopActionReplayView.targetAppRef}
+                </dd>
+              </div>
+              <div>
+                <dt>Timestamp</dt>
+                <dd>{desktopActionReplayView.timestamp}</dd>
+              </div>
+              <div>
+                <dt>Warnings</dt>
+                <dd>
+                  {desktopActionReplayView.warningCodes.length > 0
+                    ? desktopActionReplayView.warningCodes.join(", ")
+                    : "none"}
+                </dd>
+              </div>
+              <div>
+                <dt>Privacy audit</dt>
+                <dd>
+                  {desktopActionReplayView.replayProjection.privacyAudit.status}{" "}
+                  / blockers{" "}
+                  {
+                    desktopActionReplayView.replayProjection.privacyAudit
+                      .blockerCount
+                  }
+                </dd>
+              </div>
+              <div>
+                <dt>Replay execution</dt>
+                <dd>
+                  {desktopActionReplayView.readiness.canReplayDesktopAction
+                    ? "enabled"
+                    : "disabled"}
+                </dd>
+              </div>
+              <div>
+                <dt>Event write</dt>
+                <dd>
+                  {desktopActionReplayView.readiness.canWriteEventStore
+                    ? "enabled"
+                    : "disabled"}
+                </dd>
+              </div>
+              <div>
+                <dt>Hash</dt>
+                <dd>{desktopActionReplayView.replayHash.substring(0, 12)}</dd>
+              </div>
+            </dl>
+
+            <p className="fieldHelp">{desktopActionReplayView.nextAction}</p>
           </section>
 
           <section

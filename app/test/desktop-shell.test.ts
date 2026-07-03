@@ -116,6 +116,7 @@ import {
 } from "../src/desktop-observer-view.js";
 import { buildDesktopActionProposalView } from "../src/desktop-action-proposal-view.js";
 import { buildApprovedDesktopActionView } from "../src/approved-desktop-action-view.js";
+import { buildDesktopActionReplayView } from "../src/desktop-action-replay-view.js";
 import { buildScreenshotRedactionBoundaryView } from "../src/screenshot-redaction-boundary-view.js";
 import { buildMcpMetadataRedactionAuditView } from "../src/mcp-metadata-redaction-audit-view.js";
 import { buildMcpReadonlyConnectionView } from "../src/mcp-readonly-connection-view.js";
@@ -1999,6 +2000,99 @@ describe("desktop command wrapper", () => {
     expect(viewSource).not.toContain("rawScreenshot");
     expect(viewSource).not.toContain("rawOcr");
     expect(viewSource).not.toContain("ocrText");
+  });
+
+  it("builds the Desktop Action Replay App surface as summary-only projection", async () => {
+    const commandResult = {
+      ok: true,
+      status: "unsupported_platform",
+      actionId: "approved-desktop-action-test",
+      actionKind: "focus_observed_window",
+      targetWindowRef: "target-editor-window",
+      targetAppRef: "target-editor-app",
+      targetDisplayRef: "display-primary",
+      observerEvidenceId: "desktop-observer-evidence-test",
+      desktopActionProposalId: "desktop-action-proposal-test",
+      riskClassificationId: "desktop-action-risk-test",
+      warningCodes: ["UNSUPPORTED_PLATFORM"],
+      resultHash: "approved-desktop-action-result-hash",
+      eventPreview: {
+        type: "desktop_action.approved_result",
+        actionId: "approved-desktop-action-test",
+        actionKind: "focus_observed_window",
+        targetWindowRef: "target-editor-window",
+        targetAppRef: "target-editor-app",
+        targetDisplayRef: "display-primary",
+        observerEvidenceId: "desktop-observer-evidence-test",
+        desktopActionProposalId: "desktop-action-proposal-test",
+        riskClassificationId: "desktop-action-risk-test",
+        status: "unsupported_platform",
+        resultHash: "approved-desktop-action-result-hash",
+        warningCodes: ["UNSUPPORTED_PLATFORM"],
+        notWritten: true,
+        summaryOnly: true
+      },
+      summaryOnly: true,
+      rawScreenshotPersisted: false,
+      rawOcrTextPersisted: false,
+      rawWindowContentIncluded: false,
+      canClickTypeSelect: false,
+      canWriteClipboard: false,
+      canOpenFileDialog: false,
+      canUseNativeBridge: false,
+      canWriteEventStore: false,
+      canExecuteGit: false,
+      canExecuteShell: false,
+      appCanExecute: false,
+      safeMessage: "Approved desktop action command is summary-only."
+    } satisfies ApprovedDesktopActionCommandResult;
+    const replay = buildDesktopActionReplayView({ commandResult });
+    const serialized = JSON.stringify(replay);
+
+    expect(replay.status).toBe("projected");
+    expect(replay.actionStatus).toBe("unsupported");
+    expect(replay.actionKind).toBe("focus_observed_window");
+    expect(replay.targetWindowRef).toBe("target-editor-window");
+    expect(replay.warningCodes).toEqual(["UNSUPPORTED_PLATFORM"]);
+    expect(replay.replayProjection.eventCount).toBe(1);
+    expect(replay.replayProjection.unsupportedCount).toBe(1);
+    expect(replay.replayProjection.privacyAudit.status).toBe("audit_ready");
+    expect(replay.readiness.canDisplayReplay).toBe(true);
+    expect(replay.readiness.canReplayDesktopAction).toBe(false);
+    expect(replay.readiness.canExecuteDesktopAction).toBe(false);
+    expect(replay.readiness.canWriteEventStore).toBe(false);
+    expect(replay.readiness.canUseNativeBridge).toBe(false);
+    expect(replay.readiness.appCanExecute).toBe(false);
+    expect(serialized).not.toContain("RAW_SCREENSHOT");
+    expect(serialized).not.toContain("RAW_OCR");
+    expect(serialized).not.toContain("CLIPBOARD_CONTENT");
+    expect(serialized).not.toContain("sk-fake");
+  });
+
+  it("renders the Desktop Action Replay panel without replay execution", async () => {
+    const appSource = await readFile(
+      path.join(appRoot, "src", "App.tsx"),
+      "utf8"
+    );
+    const viewSource = await readFile(
+      path.join(appRoot, "src", "desktop-action-replay-view.ts"),
+      "utf8"
+    );
+
+    expect(appSource).toContain("Desktop Action Replay");
+    expect(appSource).toContain("Summary replay / no re-execution");
+    expect(appSource).toContain("Replay can show status");
+    expect(appSource).toContain("cannot execute desktop actions");
+    expect(appSource).toContain("Privacy audit");
+    expect(appSource).not.toContain("handleReplayDesktopAction");
+    expect(appSource).not.toContain("replayDesktopAction(");
+    expect(viewSource).toContain("app_desktop_action_replay_surface");
+    expect(viewSource).toContain("buildApprovedDesktopActionEvent");
+    expect(viewSource).toContain("projectApprovedDesktopActionReplay");
+    expect(viewSource).not.toContain("safeInvoke(");
+    expect(viewSource).not.toContain("invoke(");
+    expect(viewSource).not.toContain("fetch(");
+    expect(viewSource).not.toContain("writeFile(");
   });
 
   it("documents the App Shell Desktop Action Proposal surface boundaries", async () => {
@@ -23656,6 +23750,65 @@ describe("desktop source boundaries", () => {
     expect(appReadme).toContain("v0.25 Approved Desktop Action Execution MVP");
     expect(appReadme).toContain("fixed approved desktop action");
     expect(appReadme).toContain("command for observed-window");
+
+    expect(combined).not.toContain("arbitrary desktop action is enabled");
+    expect(combined).not.toContain("click/type/select execution is enabled");
+    expect(combined).not.toContain("clipboard write is enabled");
+    expect(combined).not.toContain("file dialog automation is enabled");
+    expect(combined).not.toContain(
+      "native bridge broad action execution is enabled"
+    );
+    expect(combined).not.toContain("autonomous desktop agent is enabled");
+  });
+
+  it("documents the approved desktop action events and replay boundary", async () => {
+    const eventsDoc = await readFile(
+      path.join(
+        repoRoot,
+        "docs",
+        "runtime-approved-desktop-action-events-v0.24.md"
+      ),
+      "utf8"
+    );
+    const replayDoc = await readFile(
+      path.join(
+        repoRoot,
+        "docs",
+        "app-shell-desktop-action-replay-v0.24.md"
+      ),
+      "utf8"
+    );
+    const docsIndex = await readFile(
+      path.join(repoRoot, "docs", "README.md"),
+      "utf8"
+    );
+    const combined = `${eventsDoc}\n${replayDoc}\n${docsIndex}`;
+
+    expect(eventsDoc).toContain("Runtime Approved Desktop Action Events v0.24");
+    expect(eventsDoc).toContain("desktop.action.approved");
+    expect(eventsDoc).toContain("desktop.action.executed");
+    expect(eventsDoc).toContain("desktop.action.blocked");
+    expect(eventsDoc).toContain("desktop.action.unsupported");
+    expect(eventsDoc).toContain("summaryOnly: true");
+    expect(eventsDoc).toContain("notWritten: true");
+    expect(eventsDoc).toContain("rawScreenshotIncluded: false");
+    expect(eventsDoc).toContain("rawOcrTextIncluded: false");
+    expect(eventsDoc).toContain("clipboardContentIncluded: false");
+    expect(eventsDoc).toContain("apiKeyIncluded: false");
+    expect(eventsDoc).toContain("cannot re-execute a desktop action");
+    expect(eventsDoc).toContain("cannot write EventStore");
+
+    expect(replayDoc).toContain("App Shell Desktop Action Replay v0.24");
+    expect(replayDoc).toContain("does not write events");
+    expect(replayDoc).toContain("does not re-execute");
+    expect(replayDoc).toContain("No replay re-execution");
+    expect(replayDoc).toContain("No raw screenshot display");
+    expect(replayDoc).toContain("No OCR text display");
+    expect(replayDoc).toContain("No API key");
+    expect(docsIndex).toContain(
+      "runtime-approved-desktop-action-events-v0.24.md"
+    );
+    expect(docsIndex).toContain("app-shell-desktop-action-replay-v0.24.md");
 
     expect(combined).not.toContain("arbitrary desktop action is enabled");
     expect(combined).not.toContain("click/type/select execution is enabled");

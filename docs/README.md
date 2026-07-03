@@ -397,6 +397,8 @@ foundation.
 - [Runtime Approved Desktop Action Execution Contract v0.24](runtime-approved-desktop-action-execution-v0.24.md)
 - [App Tauri Approved Desktop Action Command v0.24](app-tauri-approved-desktop-action-command-v0.24.md)
 - [App Shell Approved Desktop Action Surface v0.24](app-shell-approved-desktop-action-surface-v0.24.md)
+- [Runtime Approved Desktop Action Events v0.24](runtime-approved-desktop-action-events-v0.24.md)
+- [App Shell Desktop Action Replay v0.24](app-shell-desktop-action-replay-v0.24.md)
 - [Runtime Memory Recall Preview v0.3](runtime-memory-recall-preview-v0.3.md)
 - [v0.4.0 Controlled Creation Preview RC release notes](release-notes-v0.4.0-controlled-creation-preview-rc.1.md)
 - [App Shell Controlled Creation manual QA](app-shell-controlled-creation-manual-qa.md)
