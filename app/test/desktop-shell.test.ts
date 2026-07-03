@@ -21575,6 +21575,104 @@ describe("desktop source boundaries", () => {
     );
   });
 
+  it("documents the P1A desktop observer ADR and implementation gate", async () => {
+    const adr = await readFile(
+      path.join(repoRoot, "docs", "adr", "0011-desktop-observer-mvp.md"),
+      "utf8"
+    );
+    const threatModel = await readFile(
+      path.join(repoRoot, "docs", "desktop-observer-threat-model-v0.22.md"),
+      "utf8"
+    );
+    const implementationGate = await readFile(
+      path.join(
+        repoRoot,
+        "docs",
+        "desktop-observer-implementation-gate-v0.22.md"
+      ),
+      "utf8"
+    );
+    const nextPlan = await readFile(
+      path.join(
+        repoRoot,
+        "docs",
+        "p1a-002-desktop-observation-profile-schema-plan.md"
+      ),
+      "utf8"
+    );
+    const docsIndex = await readFile(
+      path.join(repoRoot, "docs", "README.md"),
+      "utf8"
+    );
+    const combined = `${adr}\n${threatModel}\n${implementationGate}\n${nextPlan}\n${docsIndex}`;
+
+    expect(adr).toContain("ADR 0011: Desktop Observer MVP");
+    expect(adr).toContain("Proposed / Accepted for P1A design gate");
+    expect(adr).toContain("Desktop Observer is observation-only");
+    expect(adr).toContain("Observation must be explicit user-triggered only");
+    expect(adr).toContain("Raw screenshots");
+    expect(adr).toContain("raw OCR text");
+    expect(adr).toContain("Desktop observation must not be sent to a model");
+    expect(adr).toContain("No Tauri command in P1A-001");
+    expect(adr).toContain("No desktop observation code in P1A-001");
+    expect(adr).toContain("No screenshot capture in P1A-001");
+    expect(adr).toContain("No App UI in P1A-001");
+
+    expect(threatModel).toContain("Desktop Observer Threat Model v0.22");
+    expect(threatModel).toContain("Private Window Titles");
+    expect(threatModel).toContain("Browser Tabs");
+    expect(threatModel).toContain("Clipboard Leakage");
+    expect(threatModel).toContain("OCR Leakage");
+    expect(threatModel).toContain("Background Capture");
+    expect(threatModel).toContain("Prompt Injection from Visible Screen Text");
+    expect(threatModel).toContain("Covert Data Exfiltration");
+
+    expect(implementationGate).toContain(
+      "Desktop Observer Implementation Gate v0.22"
+    );
+    expect(implementationGate).toContain(
+      "Do not implement desktop action in P1A"
+    );
+    expect(implementationGate).toContain("Do not implement click/type/select");
+    expect(implementationGate).toContain(
+      "not persist raw screenshots by default"
+    );
+    expect(implementationGate).toContain(
+      "Do not send desktop observation to model automatically"
+    );
+    expect(implementationGate).toContain("Profile Safety");
+    expect(implementationGate).toContain("User-trigger Safety");
+    expect(implementationGate).toContain("Tauri Command Allowlist");
+    expect(implementationGate).toContain("Screenshot / Redaction Safety");
+    expect(implementationGate).toContain("Context / Agent Evidence Safety");
+
+    expect(nextPlan).toContain(
+      "P1A-002 Desktop Observation Profile Schema Plan"
+    );
+    expect(nextPlan).toContain("No desktop observation");
+    expect(nextPlan).toContain("No Tauri command");
+    expect(nextPlan).toContain("No screenshot capture");
+    expect(nextPlan).toContain("No App UI");
+    expect(nextPlan).toContain("No desktop action");
+    expect(nextPlan).toContain("No raw screenshot persistence");
+    expect(nextPlan).toContain("No raw OCR text persistence");
+    expect(nextPlan).toContain("No model auto-send");
+
+    expect(docsIndex).toContain("adr/0011-desktop-observer-mvp.md");
+    expect(docsIndex).toContain("desktop-observer-threat-model-v0.22.md");
+    expect(docsIndex).toContain(
+      "desktop-observer-implementation-gate-v0.22.md"
+    );
+    expect(docsIndex).toContain(
+      "p1a-002-desktop-observation-profile-schema-plan.md"
+    );
+    expect(combined).not.toContain("desktop action automation is enabled");
+    expect(combined).not.toContain("click/type/select is enabled");
+    expect(combined).not.toContain("raw screenshot persistence is enabled");
+    expect(combined).not.toContain("raw OCR persistence is enabled");
+    expect(combined).not.toContain("native bridge broad action is enabled");
+  });
+
   it("documents the P0S-001 MVP hardening recovery design gate", async () => {
     const adr = await readFile(
       path.join(repoRoot, "docs", "adr", "0011-mvp-hardening-recovery.md"),
