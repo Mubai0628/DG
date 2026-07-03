@@ -23072,6 +23072,54 @@ describe("desktop source boundaries", () => {
     expect(combined).not.toContain("autonomous desktop agent is enabled");
   });
 
+  it("documents the runtime approved desktop action receipt boundary", async () => {
+    const receiptDoc = await readFile(
+      path.join(
+        repoRoot,
+        "docs",
+        "runtime-approved-desktop-action-receipt-v0.24.md"
+      ),
+      "utf8"
+    );
+    const docsIndex = await readFile(
+      path.join(repoRoot, "docs", "README.md"),
+      "utf8"
+    );
+    const combined = `${receiptDoc}\n${docsIndex}`;
+
+    expect(receiptDoc).toContain(
+      "Runtime Approved Desktop Action Receipt v0.24"
+    );
+    expect(receiptDoc).toContain("focus_observed_window");
+    expect(receiptDoc).toContain("raise_observed_window");
+    expect(receiptDoc).toContain("activate_observed_window");
+    expect(receiptDoc).toContain("FOCUS OBSERVED WINDOW");
+    expect(receiptDoc).toContain("RAISE OBSERVED WINDOW");
+    expect(receiptDoc).toContain("ACTIVATE OBSERVED WINDOW");
+    expect(receiptDoc).toContain("not a broad `PermissionLease`");
+    expect(receiptDoc).toContain("does not execute");
+    expect(receiptDoc).toContain("desktop actions");
+    expect(receiptDoc).toContain("click, type, select, drag/drop");
+    expect(receiptDoc).toContain("clipboard");
+    expect(receiptDoc).toContain("file-dialog");
+    expect(receiptDoc).toContain("raw screenshot");
+    expect(receiptDoc).toContain("API key");
+    expect(receiptDoc).toContain("All execution flags remain false");
+    expect(receiptDoc).toContain("Receipt readiness does not mean the App");
+    expect(docsIndex).toContain(
+      "runtime-approved-desktop-action-receipt-v0.24.md"
+    );
+
+    expect(combined).not.toContain("arbitrary desktop action is enabled");
+    expect(combined).not.toContain("click/type/select execution is enabled");
+    expect(combined).not.toContain("clipboard write is enabled");
+    expect(combined).not.toContain("file dialog automation is enabled");
+    expect(combined).not.toContain(
+      "native bridge broad action execution is enabled"
+    );
+    expect(combined).not.toContain("autonomous desktop agent is enabled");
+  });
+
   it("documents the v0.22 post-release review and P1A desktop observer roadmap", async () => {
     const promptDoc = await readFile(
       path.join(repoRoot, "docs", "v0.23-desktop-observer-mvp-prompts.md"),
