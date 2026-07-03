@@ -1,7 +1,9 @@
 import {
   buildDesktopObservationProfile,
+  buildDesktopObserverRedactionAudit,
   type DesktopObservationProfileInput,
-  type DesktopObservationProfileSummary
+  type DesktopObservationProfileSummary,
+  type DesktopObserverRedactionAuditReport
 } from "../../runtime/src/desktop-observer/index.js";
 
 import {
@@ -53,6 +55,7 @@ export type DesktopObserverView = {
   screenshotBoundary?: ScreenshotRedactionBoundaryView | undefined;
   warningCount: number;
   blockerCount: number;
+  redactionAudit: DesktopObserverRedactionAuditReport;
   resultHash?: string | undefined;
   safeMessage: string;
   readiness: DesktopObserverViewReadiness;
@@ -147,6 +150,50 @@ export function buildDesktopObserverView(
     profileResult.warningCount +
     (observation?.warningCodes.length ?? 0) +
     (screenshotBoundary?.warningCount ?? 0);
+  const redactionAudit = buildDesktopObserverRedactionAudit({
+    profileSummary,
+    observationSummary:
+      observation === undefined
+        ? undefined
+        : {
+            observationId: observation.observationId,
+            windowCount: observation.windowCount,
+            appCount: observation.appCount,
+            displayCount: observation.displayCount,
+            screenshotMetadataIncluded: observation.screenshotMetadataIncluded,
+            warningCodes: observation.warningCodes,
+            summaryOnly: observation.summaryOnly,
+            rawScreenshotPersisted: observation.rawScreenshotPersisted,
+            rawOcrTextPersisted: observation.rawOcrTextPersisted,
+            rawClipboardIncluded: observation.rawClipboardIncluded,
+            canDesktopAction: observation.canDesktopAction,
+            canClickTypeSelect: observation.canClickTypeSelect,
+            canWriteClipboard: observation.canWriteClipboard,
+            canSendToModel: observation.canSendToModel,
+            canWriteEventStore: observation.canWriteEventStore,
+            canApplyPatch: observation.canApplyPatch,
+            canRollback: observation.canRollback,
+            canExecuteGit: observation.canExecuteGit,
+            canExecuteShell: observation.canExecuteShell,
+            appCanExecute: observation.appCanExecute
+          },
+    screenshotBoundary:
+      screenshotBoundary === undefined
+        ? undefined
+        : {
+            status: screenshotBoundary.status,
+            displayCount: screenshotBoundary.displayCount,
+            captureMode: screenshotBoundary.captureMode,
+            rawPersisted: screenshotBoundary.rawPersisted,
+            ocrPersisted: screenshotBoundary.ocrPersisted,
+            modelSent: screenshotBoundary.modelSent,
+            redactionCodes: screenshotBoundary.redactionCodes,
+            warningCodes: screenshotBoundary.warningCodes,
+            blockerCodes: screenshotBoundary.blockerCodes,
+            summaryOnly: screenshotBoundary.summaryOnly
+          },
+    source: "app_desktop_observer_surface"
+  });
   const safeRequest: DesktopObservationCommandRequest | undefined =
     profileResult.profile === undefined
       ? undefined
@@ -184,6 +231,7 @@ export function buildDesktopObserverView(
     screenshotBoundary,
     warningCount,
     blockerCount,
+    redactionAudit,
     resultHash: observation?.resultHash,
     safeMessage:
       input.observeError !== undefined
@@ -225,6 +273,7 @@ export function summarizeDesktopObserverView(view: DesktopObserverView): {
   displayCount: number;
   warningCount: number;
   blockerCount: number;
+  redactionAuditStatus: string;
   resultHash?: string | undefined;
   nextAction: string;
 } {
@@ -237,6 +286,7 @@ export function summarizeDesktopObserverView(view: DesktopObserverView): {
     displayCount: view.displayCount,
     warningCount: view.warningCount,
     blockerCount: view.blockerCount,
+    redactionAuditStatus: view.redactionAudit.status,
     resultHash: view.resultHash,
     nextAction: view.nextAction
   };

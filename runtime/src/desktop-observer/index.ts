@@ -8,6 +8,10 @@ export {
   buildScreenshotMetadataBoundary,
   summarizeScreenshotMetadataBoundary
 } from "./screenshot-redaction-boundary.js";
+export {
+  buildDesktopObserverRedactionAudit,
+  summarizeDesktopObserverRedactionAudit
+} from "./desktop-observer-redaction-audit.js";
 export type {
   DesktopAppSummary,
   DesktopDisplaySummary,
@@ -31,3 +35,13 @@ export type {
   ScreenshotRedactionFinding,
   ScreenshotRedactionSeverity
 } from "./screenshot-redaction-boundary.js";
+export type {
+  DesktopObserverRedactionAuditFinding,
+  DesktopObserverRedactionAuditFindingKind,
+  DesktopObserverRedactionAuditInput,
+  DesktopObserverRedactionAuditReadiness,
+  DesktopObserverRedactionAuditReport,
+  DesktopObserverRedactionAuditSeverity,
+  DesktopObserverRedactionAuditStatus,
+  DesktopObserverRedactionAuditSummary
+} from "./desktop-observer-redaction-audit.js";

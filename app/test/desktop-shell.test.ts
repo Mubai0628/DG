@@ -240,6 +240,7 @@ import {
   type WorkspaceEventSummary
 } from "../src/safety.js";
 import {
+  buildDesktopObserverRedactionAudit,
   buildStaticAgentRoutePreview,
   runWebTableToCsvFlow,
   createBridgeProposalPreview,
@@ -1576,6 +1577,36 @@ describe("desktop command wrapper", () => {
       expect.arrayContaining(["forbidden_field"])
     );
     expect(desktopObserverEvidenceRefs(blocked)).toEqual([]);
+  });
+
+  it("renders Desktop Observer redaction audit as read-only smoke summary", async () => {
+    const appSource = await readFile(
+      path.join(appRoot, "src", "App.tsx"),
+      "utf8"
+    );
+    const fixtureText = await readFile(
+      path.join(appRoot, "test", "fixtures", "desktop-observer-smoke.json"),
+      "utf8"
+    );
+    const fixture = JSON.parse(fixtureText) as unknown;
+    const report = buildDesktopObserverRedactionAudit(fixture);
+
+    expect(report.status).toBe("audit_ready");
+    expect(report.blockerCount).toBe(0);
+    expect(report.summaryOnly).toBe(true);
+    expect(report.rawPromptSourceDiffDetected).toBe(false);
+    expect(report.rawScreenshotDetected).toBe(false);
+    expect(report.ocrTextDetected).toBe(false);
+    expect(report.apiKeyMarkerDetected).toBe(false);
+    expect(appSource).toContain("Redaction audit");
+    expect(appSource).toContain("displayedDesktopObserver.redactionAudit.status");
+    expect(appSource).not.toContain("Run Desktop Audit");
+    expect(fixtureText).not.toContain("rawPrompt");
+    expect(fixtureText).not.toContain("rawResponse");
+    expect(fixtureText).not.toContain("reasoning_content");
+    expect(fixtureText).not.toContain("ocrText");
+    expect(fixtureText).not.toContain("apiKey");
+    expect(fixtureText).not.toContain("Authorization");
   });
 
   it("calls MCP readonly discovery only through the fixed wrapper", async () => {
@@ -22275,11 +22306,23 @@ describe("desktop source boundaries", () => {
       ),
       "utf8"
     );
+    const redactionAuditDoc = await readFile(
+      path.join(
+        repoRoot,
+        "docs",
+        "desktop-observer-redaction-audit-v0.22.md"
+      ),
+      "utf8"
+    );
+    const smokeDoc = await readFile(
+      path.join(repoRoot, "docs", "desktop-observer-smoke-v0.22.md"),
+      "utf8"
+    );
     const docsIndex = await readFile(
       path.join(repoRoot, "docs", "README.md"),
       "utf8"
     );
-    const combined = `${adr}\n${threatModel}\n${implementationGate}\n${nextPlan}\n${profileDoc}\n${summaryDoc}\n${commandDoc}\n${redactionDoc}\n${surfaceDoc}\n${evidenceRefsDoc}\n${docsIndex}`;
+    const combined = `${adr}\n${threatModel}\n${implementationGate}\n${nextPlan}\n${profileDoc}\n${summaryDoc}\n${commandDoc}\n${redactionDoc}\n${surfaceDoc}\n${evidenceRefsDoc}\n${redactionAuditDoc}\n${smokeDoc}\n${docsIndex}`;
 
     expect(adr).toContain("ADR 0011: Desktop Observer MVP");
     expect(adr).toContain("Proposed / Accepted for P1A design gate");
@@ -22409,6 +22452,25 @@ describe("desktop source boundaries", () => {
     expect(evidenceRefsDoc).toContain("No desktop action");
     expect(evidenceRefsDoc).toContain("No automatic model send");
 
+    expect(redactionAuditDoc).toContain(
+      "Desktop Observer Redaction Audit v0.22"
+    );
+    expect(redactionAuditDoc).toContain("summary-only");
+    expect(redactionAuditDoc).toContain("raw screenshot fields or markers");
+    expect(redactionAuditDoc).toContain("OCR text fields or markers");
+    expect(redactionAuditDoc).toContain("sendToModel: true");
+    expect(redactionAuditDoc).toContain("hidden capture");
+    expect(redactionAuditDoc).toContain("No automatic model send");
+    expect(redactionAuditDoc).toContain("No EventStore write");
+
+    expect(smokeDoc).toContain("Desktop Observer Smoke v0.22");
+    expect(smokeDoc).toContain("desktop-observer-smoke.json");
+    expect(smokeDoc).toContain("summary-only");
+    expect(smokeDoc).toContain("does not contain raw prompts");
+    expect(smokeDoc).toContain("OCR text");
+    expect(smokeDoc).toContain("API keys");
+    expect(smokeDoc).toContain("No model call");
+
     expect(docsIndex).toContain("adr/0011-desktop-observer-mvp.md");
     expect(docsIndex).toContain("desktop-observer-threat-model-v0.22.md");
     expect(docsIndex).toContain(
@@ -22425,6 +22487,8 @@ describe("desktop source boundaries", () => {
     );
     expect(docsIndex).toContain("app-shell-desktop-observer-surface-v0.22.md");
     expect(docsIndex).toContain("desktop-observer-evidence-refs-v0.22.md");
+    expect(docsIndex).toContain("desktop-observer-redaction-audit-v0.22.md");
+    expect(docsIndex).toContain("desktop-observer-smoke-v0.22.md");
     expect(combined).not.toContain("desktop action automation is enabled");
     expect(combined).not.toContain("click/type/select is enabled");
     expect(combined).not.toContain("raw screenshot persistence is enabled");

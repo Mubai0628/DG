@@ -5882,6 +5882,14 @@ export function DesktopShell(): JSX.Element {
                 </dd>
               </div>
               <div>
+                <dt>Redaction audit</dt>
+                <dd>
+                  {displayedDesktopObserver.redactionAudit.status} / blockers{" "}
+                  {displayedDesktopObserver.redactionAudit.blockerCount} /
+                  warnings {displayedDesktopObserver.redactionAudit.warningCount}
+                </dd>
+              </div>
+              <div>
                 <dt>Blockers / warnings</dt>
                 <dd>
                   {displayedDesktopObserver.blockerCount} /{" "}

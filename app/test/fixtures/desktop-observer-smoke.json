@@ -1,0 +1,28 @@
+{
+  "profileSummary": {
+    "profileId": "desktop-observer-smoke-profile",
+    "status": "ready",
+    "includeWindowTitles": false,
+    "includeProcessNames": false,
+    "includeDisplayMetadata": true,
+    "includeScreenshotMetadata": false,
+    "summaryOnly": true
+  },
+  "observationSummary": {
+    "observationId": "desktop-observer-smoke-observation",
+    "windowCount": 1,
+    "appCount": 1,
+    "displayCount": 1,
+    "screenshotMetadataIncluded": false,
+    "warningCodes": [],
+    "summaryOnly": true
+  },
+  "evidenceSummary": {
+    "kind": "desktop_observation_summary",
+    "placement": "volatile_tail",
+    "hashPrefix": "desktopobserver",
+    "redactionCodes": [],
+    "summaryOnly": true,
+    "source": "desktop_observer"
+  }
+}
