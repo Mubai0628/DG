@@ -18,6 +18,7 @@ import {
   loadWorkspaceEventSummary,
   liveProposalAllowedKeySourceRef,
   recordLiveProposalSummaryEvent,
+  observeDesktopMetadata,
   recordVerificationLaneEvent,
   recordApprovedUserWorkspaceExecutionEvent,
   recordControlRunDraftEvent,
@@ -30,6 +31,8 @@ import {
   safeInvoke,
   type ApprovedUserWorkspaceApplyResult,
   type ApprovedUserWorkspaceRollbackResult,
+  type DesktopObservationCommandRequest,
+  type DesktopObservationCommandResult,
   type GitReadLaneResult,
   type LiveDeepSeekPatchProposalCommandRequest,
   type LiveDeepSeekPatchProposalCommandResult,
@@ -948,7 +951,220 @@ describe("desktop command wrapper", () => {
     );
     expect(isAllowedDesktopCommand("project_knowledge_revoke")).toBe(true);
     expect(isAllowedDesktopCommand("project_knowledge_expire")).toBe(true);
+    expect(isAllowedDesktopCommand("observe_desktop_metadata")).toBe(true);
     expect(isAllowedDesktopCommand("run_web_table_to_csv_flow")).toBe(true);
+  });
+
+  it("calls desktop observation only through the fixed metadata wrapper", async () => {
+    const invoke: TauriInvoke = async <T>(
+      command: string,
+      args?: Record<string, unknown>
+    ): Promise<T> => {
+      expect(command).toBe("observe_desktop_metadata");
+      expect(args).toMatchObject({
+        request: {
+          requestId: "desktop-observation-request-test",
+          userTriggered: true,
+          includeForegroundWindow: true,
+          includeWindowList: true,
+          includeDisplayMetadata: true,
+          includeScreenshotMetadata: true
+        }
+      });
+      const result = {
+        ok: true,
+        status: "warning",
+        requestId: "desktop-observation-request-test",
+        observationId: "desktop-observation-test",
+        profileId: "desktop-observer-profile-test",
+        windowCount: 0,
+        appCount: 0,
+        displayCount: 1,
+        screenshotMetadataIncluded: true,
+        windows: [],
+        apps: [],
+        displays: [
+          {
+            displayIdHash: "display-hash",
+            sizeSummary: "metadata unavailable",
+            primary: true,
+            redactionCodes: ["DISPLAY_METADATA_FALLBACK"]
+          }
+        ],
+        screenshotMetadata: {
+          width: 0,
+          height: 0,
+          redactionCodes: ["RAW_SCREENSHOT_NOT_CAPTURED"],
+          rawScreenshotPersisted: false
+        },
+        warningCodes: ["SCREENSHOT_CAPTURE_NOT_PERFORMED"],
+        summaryOnly: true,
+        rawScreenshotPersisted: false,
+        rawOcrTextPersisted: false,
+        rawClipboardIncluded: false,
+        canDesktopAction: false,
+        canClickTypeSelect: false,
+        canWriteClipboard: false,
+        canSendToModel: false,
+        canWriteEventStore: false,
+        canApplyPatch: false,
+        canRollback: false,
+        canExecuteGit: false,
+        canExecuteShell: false,
+        appCanExecute: false,
+        resultHash: "desktop-observation-result-hash",
+        safeMessage: "Desktop observation metadata summarized without action."
+      } satisfies DesktopObservationCommandResult;
+      return result as T;
+    };
+
+    const result = await observeDesktopMetadata(
+      {
+        requestId: "desktop-observation-request-test",
+        userTriggered: true,
+        includeForegroundWindow: true,
+        includeWindowList: true,
+        includeDisplayMetadata: true,
+        includeScreenshotMetadata: true,
+        profile: {
+          profileId: "desktop-observer-profile-test",
+          observationMode: "metadata_only",
+          capturePolicy: {
+            allowDesktopAction: false,
+            allowClickTypeSelect: false,
+            allowClipboardWrite: false,
+            allowRawScreenshotPersistence: false,
+            allowRawOcrTextPersistence: false,
+            sendToModel: false
+          },
+          source: "runtime_desktop_observation_profile"
+        }
+      },
+      invoke
+    );
+
+    expect(result.summaryOnly).toBe(true);
+    expect(result.rawScreenshotPersisted).toBe(false);
+    expect(result.rawOcrTextPersisted).toBe(false);
+    expect(result.rawClipboardIncluded).toBe(false);
+    expect(result.canDesktopAction).toBe(false);
+    expect(result.canClickTypeSelect).toBe(false);
+    expect(result.canWriteClipboard).toBe(false);
+    expect(result.canSendToModel).toBe(false);
+    expect(result.canWriteEventStore).toBe(false);
+    expect(result.appCanExecute).toBe(false);
+  });
+
+  it("blocks unsafe desktop observation wrapper inputs and responses", async () => {
+    const safeCapturePolicy = {
+      allowDesktopAction: false,
+      allowClickTypeSelect: false,
+      allowClipboardWrite: false,
+      allowRawScreenshotPersistence: false,
+      allowRawOcrTextPersistence: false,
+      sendToModel: false
+    };
+    const safeRequest: DesktopObservationCommandRequest = {
+      requestId: "desktop-observation-request-test",
+      userTriggered: true,
+      includeForegroundWindow: true,
+      includeWindowList: true,
+      includeDisplayMetadata: true,
+      includeScreenshotMetadata: false,
+      profile: {
+        profileId: "desktop-observer-profile-test",
+        observationMode: "metadata_only",
+        capturePolicy: safeCapturePolicy
+      }
+    };
+    await expect(
+      observeDesktopMetadata(
+        {
+          ...safeRequest,
+          userTriggered: false
+        } as never,
+        async () => ({}) as never
+      )
+    ).rejects.toThrow("user-triggered");
+
+    await expect(
+      observeDesktopMetadata(
+        {
+          ...safeRequest,
+          profile: {
+            ...safeRequest.profile,
+            capturePolicy: {
+              ...safeCapturePolicy,
+              allowDesktopAction: true
+            }
+          }
+        } as never,
+        async () => ({}) as never
+      )
+    ).rejects.toThrow("unsafe fields");
+
+    await expect(
+      observeDesktopMetadata(safeRequest, async () =>
+        ({
+          ok: true,
+          status: "warning",
+          requestId: "desktop-observation-request-test",
+          observationId: "desktop-observation-test",
+          windowCount: 0,
+          appCount: 0,
+          displayCount: 0,
+          screenshotMetadataIncluded: false,
+          windows: [],
+          apps: [],
+          displays: [],
+          warningCodes: [],
+          summaryOnly: true,
+          rawScreenshotPersisted: true,
+          rawOcrTextPersisted: false,
+          rawClipboardIncluded: false,
+          canDesktopAction: false,
+          canClickTypeSelect: false,
+          canWriteClipboard: false,
+          canSendToModel: false,
+          canWriteEventStore: false,
+          canApplyPatch: false,
+          canRollback: false,
+          canExecuteGit: false,
+          canExecuteShell: false,
+          appCanExecute: false,
+          resultHash: "desktop-observation-result-hash",
+          safeMessage: "Desktop observation metadata summarized."
+        }) as never
+      )
+    ).rejects.toMatchObject({
+      errorCode: "INVALID_RESPONSE"
+    });
+  });
+
+  it("keeps desktop observation command fixed without desktop action UI", async () => {
+    const appSource = await readFile(
+      path.join(appRoot, "src", "App.tsx"),
+      "utf8"
+    );
+    const flowSource = await readFile(
+      path.join(appRoot, "src", "desktop-flow.ts"),
+      "utf8"
+    );
+    const mainSource = await readFile(
+      path.join(appRoot, "src-tauri", "src", "main.rs"),
+      "utf8"
+    );
+
+    expect(flowSource).toContain("observe_desktop_metadata");
+    expect(flowSource).toContain("observeDesktopMetadata");
+    expect(mainSource).toContain("commands::observe_desktop_metadata");
+    expect(flowSource).not.toContain("observe_desktop_action");
+    expect(flowSource).not.toContain("desktopActionInvoke");
+    expect(appSource).not.toContain("observe_desktop_metadata");
+    expect(appSource).not.toContain("Click Desktop");
+    expect(appSource).not.toContain("Type Desktop");
+    expect(appSource).not.toContain("Select Desktop");
+    expect(appSource).not.toContain("Write Clipboard");
   });
 
   it("calls MCP readonly discovery only through the fixed wrapper", async () => {
@@ -21616,11 +21832,19 @@ describe("desktop source boundaries", () => {
       ),
       "utf8"
     );
+    const commandDoc = await readFile(
+      path.join(
+        repoRoot,
+        "docs",
+        "app-tauri-desktop-observer-command-v0.22.md"
+      ),
+      "utf8"
+    );
     const docsIndex = await readFile(
       path.join(repoRoot, "docs", "README.md"),
       "utf8"
     );
-    const combined = `${adr}\n${threatModel}\n${implementationGate}\n${nextPlan}\n${profileDoc}\n${summaryDoc}\n${docsIndex}`;
+    const combined = `${adr}\n${threatModel}\n${implementationGate}\n${nextPlan}\n${profileDoc}\n${summaryDoc}\n${commandDoc}\n${docsIndex}`;
 
     expect(adr).toContain("ADR 0011: Desktop Observer MVP");
     expect(adr).toContain("Proposed / Accepted for P1A design gate");
@@ -21697,6 +21921,19 @@ describe("desktop source boundaries", () => {
     expect(summaryDoc).toContain("No screenshot capture");
     expect(summaryDoc).toContain("No desktop action");
 
+    expect(commandDoc).toContain("App / Tauri Desktop Observer Command v0.22");
+    expect(commandDoc).toContain("observe_desktop_metadata");
+    expect(commandDoc).toContain("metadata-only desktop observation summaries");
+    expect(commandDoc).toContain("userTriggered: true");
+    expect(commandDoc).toContain("no desktop action");
+    expect(commandDoc).toContain("no click/type/select");
+    expect(commandDoc).toContain("no clipboard write");
+    expect(commandDoc).toContain("no raw screenshot persistence");
+    expect(commandDoc).toContain("no EventStore write");
+    expect(commandDoc).toContain(
+      "no sending desktop observation to model automatically"
+    );
+
     expect(docsIndex).toContain("adr/0011-desktop-observer-mvp.md");
     expect(docsIndex).toContain("desktop-observer-threat-model-v0.22.md");
     expect(docsIndex).toContain(
@@ -21707,6 +21944,7 @@ describe("desktop source boundaries", () => {
     );
     expect(docsIndex).toContain("runtime-desktop-observation-profile-v0.22.md");
     expect(docsIndex).toContain("runtime-desktop-observation-summary-v0.22.md");
+    expect(docsIndex).toContain("app-tauri-desktop-observer-command-v0.22.md");
     expect(combined).not.toContain("desktop action automation is enabled");
     expect(combined).not.toContain("click/type/select is enabled");
     expect(combined).not.toContain("raw screenshot persistence is enabled");

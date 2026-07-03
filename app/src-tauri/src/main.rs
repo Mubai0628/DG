@@ -21,6 +21,7 @@ fn main() {
             commands::project_knowledge_commit_candidate,
             commands::project_knowledge_revoke,
             commands::project_knowledge_expire,
+            commands::observe_desktop_metadata,
             commands::run_web_table_to_csv_flow
         ])
         .run(tauri::generate_context!())

@@ -357,6 +357,7 @@ foundation.
 - [P1A-002 Desktop Observation Profile Schema plan](p1a-002-desktop-observation-profile-schema-plan.md)
 - [Runtime Desktop Observation Profile v0.22](runtime-desktop-observation-profile-v0.22.md)
 - [Runtime Desktop Observation Summary v0.22](runtime-desktop-observation-summary-v0.22.md)
+- [App / Tauri Desktop Observer Command v0.22](app-tauri-desktop-observer-command-v0.22.md)
 - [Runtime Memory Recall Preview v0.3](runtime-memory-recall-preview-v0.3.md)
 - [v0.4.0 Controlled Creation Preview RC release notes](release-notes-v0.4.0-controlled-creation-preview-rc.1.md)
 - [App Shell Controlled Creation manual QA](app-shell-controlled-creation-manual-qa.md)

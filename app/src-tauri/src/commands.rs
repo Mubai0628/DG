@@ -373,6 +373,96 @@ pub struct LiveDeepSeekPatchProposalCommandResult {
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 #[serde(rename_all = "camelCase")]
+pub struct DesktopObservationCommandRequest {
+    profile: Value,
+    request_id: String,
+    user_triggered: bool,
+    include_foreground_window: bool,
+    include_window_list: bool,
+    include_display_metadata: bool,
+    include_screenshot_metadata: bool,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct DesktopWindowObservationSummary {
+    window_id_hash: String,
+    title_summary: String,
+    app_name_summary: String,
+    pid_hash: Option<String>,
+    bounds_summary: Option<String>,
+    focused: bool,
+    display_id_hash: Option<String>,
+    redaction_codes: Vec<String>,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct DesktopAppObservationSummary {
+    app_id_hash: String,
+    app_name_summary: String,
+    window_count: usize,
+    redaction_codes: Vec<String>,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct DesktopDisplayObservationSummary {
+    display_id_hash: String,
+    size_summary: String,
+    scale_factor: Option<f64>,
+    primary: bool,
+    redaction_codes: Vec<String>,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct DesktopScreenshotObservationMetadata {
+    screenshot_hash: Option<String>,
+    width: u32,
+    height: u32,
+    byte_estimate: Option<u64>,
+    redaction_codes: Vec<String>,
+    raw_screenshot_persisted: bool,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct DesktopObservationCommandResult {
+    ok: bool,
+    status: String,
+    request_id: String,
+    observation_id: String,
+    profile_id: Option<String>,
+    window_count: usize,
+    app_count: usize,
+    display_count: usize,
+    screenshot_metadata_included: bool,
+    windows: Vec<DesktopWindowObservationSummary>,
+    apps: Vec<DesktopAppObservationSummary>,
+    displays: Vec<DesktopDisplayObservationSummary>,
+    screenshot_metadata: Option<DesktopScreenshotObservationMetadata>,
+    warning_codes: Vec<String>,
+    summary_only: bool,
+    raw_screenshot_persisted: bool,
+    raw_ocr_text_persisted: bool,
+    raw_clipboard_included: bool,
+    can_desktop_action: bool,
+    can_click_type_select: bool,
+    can_write_clipboard: bool,
+    can_send_to_model: bool,
+    can_write_event_store: bool,
+    can_apply_patch: bool,
+    can_rollback: bool,
+    can_execute_git: bool,
+    can_execute_shell: bool,
+    app_can_execute: bool,
+    result_hash: String,
+    safe_message: String,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+#[serde(rename_all = "camelCase")]
 pub struct McpReadonlyDiscoverRequest {
     profile: Value,
     typed_confirmation: String,
@@ -1563,6 +1653,211 @@ pub fn call_mcp_readonly_tool(
     request: McpReadonlyToolCallRequest,
 ) -> Result<McpReadonlyToolCallResult, DesktopFlowError> {
     run_mcp_readonly_tool_call_fixed(request)
+}
+
+#[tauri::command(rename_all = "camelCase")]
+pub fn observe_desktop_metadata(
+    request: DesktopObservationCommandRequest,
+) -> Result<DesktopObservationCommandResult, DesktopFlowError> {
+    run_desktop_observation_metadata(request)
+}
+
+fn run_desktop_observation_metadata(
+    request: DesktopObservationCommandRequest,
+) -> Result<DesktopObservationCommandResult, DesktopFlowError> {
+    validate_desktop_observation_request(&request)?;
+    let profile_id = request
+        .profile
+        .get("profileId")
+        .and_then(Value::as_str)
+        .map(sanitize_safe_message);
+    let observation_id = format!(
+        "desktop-observation-{}",
+        short_hash(&format!(
+            "{}:{}:{}:{}:{}:{}",
+            request.request_id,
+            profile_id.as_deref().unwrap_or("profile"),
+            request.include_foreground_window,
+            request.include_window_list,
+            request.include_display_metadata,
+            request.include_screenshot_metadata
+        ))
+    );
+    let mut warning_codes = Vec::new();
+    let windows = Vec::new();
+    let apps = Vec::new();
+    if request.include_foreground_window || request.include_window_list {
+        warning_codes.push("WINDOW_METADATA_UNAVAILABLE".to_string());
+    }
+    let displays = if request.include_display_metadata {
+        vec![DesktopDisplayObservationSummary {
+            display_id_hash: short_hash("desktop-observer-primary-display"),
+            size_summary: "metadata unavailable".to_string(),
+            scale_factor: None,
+            primary: true,
+            redaction_codes: vec!["DISPLAY_METADATA_FALLBACK".to_string()],
+        }]
+    } else {
+        Vec::new()
+    };
+    if request.include_display_metadata && displays.is_empty() {
+        warning_codes.push("DISPLAY_METADATA_UNAVAILABLE".to_string());
+    }
+    let screenshot_metadata = if request.include_screenshot_metadata {
+        warning_codes.push("SCREENSHOT_CAPTURE_NOT_PERFORMED".to_string());
+        Some(DesktopScreenshotObservationMetadata {
+            screenshot_hash: None,
+            width: 0,
+            height: 0,
+            byte_estimate: None,
+            redaction_codes: vec!["RAW_SCREENSHOT_NOT_CAPTURED".to_string()],
+            raw_screenshot_persisted: false,
+        })
+    } else {
+        None
+    };
+    warning_codes.sort();
+    warning_codes.dedup();
+    let status = if warning_codes.is_empty() {
+        "observed"
+    } else {
+        "warning"
+    }
+    .to_string();
+    let result_hash = short_hash(&format!(
+        "{}:{}:{}:{}:{}:{:?}",
+        observation_id,
+        request.request_id,
+        windows.len(),
+        apps.len(),
+        displays.len(),
+        warning_codes
+    ));
+    Ok(DesktopObservationCommandResult {
+        ok: true,
+        status,
+        request_id: sanitize_safe_message(&request.request_id),
+        observation_id,
+        profile_id,
+        window_count: windows.len(),
+        app_count: apps.len(),
+        display_count: displays.len(),
+        screenshot_metadata_included: screenshot_metadata.is_some(),
+        windows,
+        apps,
+        displays,
+        screenshot_metadata,
+        warning_codes,
+        summary_only: true,
+        raw_screenshot_persisted: false,
+        raw_ocr_text_persisted: false,
+        raw_clipboard_included: false,
+        can_desktop_action: false,
+        can_click_type_select: false,
+        can_write_clipboard: false,
+        can_send_to_model: false,
+        can_write_event_store: false,
+        can_apply_patch: false,
+        can_rollback: false,
+        can_execute_git: false,
+        can_execute_shell: false,
+        app_can_execute: false,
+        result_hash,
+        safe_message: "Desktop observation metadata summarized without action.".to_string(),
+    })
+}
+
+fn validate_desktop_observation_request(
+    request: &DesktopObservationCommandRequest,
+) -> Result<(), DesktopFlowError> {
+    if request.request_id.trim().is_empty() {
+        return Err(desktop_observer_invalid("Desktop observation requestId is required"));
+    }
+    if !request.user_triggered {
+        return Err(DesktopFlowError::new(
+            "DESKTOP_OBSERVER_NOT_USER_TRIGGERED",
+            "Desktop observation must be explicitly user-triggered",
+            "desktop_observer",
+        ));
+    }
+    let Some(profile) = request.profile.as_object() else {
+        return Err(desktop_observer_invalid(
+            "Desktop observation profile is required",
+        ));
+    };
+    if matches!(
+        profile.get("observationMode").and_then(Value::as_str),
+        Some("disabled")
+    ) || matches!(profile.get("status").and_then(Value::as_str), Some("blocked"))
+    {
+        return Err(desktop_observer_invalid(
+            "Desktop observation profile is not enabled for metadata observation",
+        ));
+    }
+    if let Some(key) = find_forbidden_approved_apply_key(&request.profile) {
+        return Err(desktop_observer_invalid(format!(
+            "Desktop observation request contains forbidden field {key}"
+        )));
+    }
+    validate_live_value_string_safety(&request.profile).map_err(desktop_observer_invalid)?;
+    if desktop_observer_value_has_execution_true(&request.profile) {
+        return Err(desktop_observer_invalid(
+            "Desktop observation request attempted to enable action or persistence",
+        ));
+    }
+    Ok(())
+}
+
+fn desktop_observer_value_has_execution_true(value: &Value) -> bool {
+    match value {
+        Value::Array(items) => items.iter().any(desktop_observer_value_has_execution_true),
+        Value::Object(object) => object.iter().any(|(key, nested)| {
+            let lower = key.to_ascii_lowercase();
+            let execution_key = matches!(
+                lower.as_str(),
+                "allowdesktopaction"
+                    | "allowclicktypeselect"
+                    | "allowclipboardwrite"
+                    | "allowclipboardread"
+                    | "allowclipboardreadbydefault"
+                    | "allowfiledialogautomation"
+                    | "allowhiddenbackgroundcapture"
+                    | "allowscreenrecording"
+                    | "allowrawscreenshotpersistence"
+                    | "allowrawocrtextpersistence"
+                    | "sendtomodel"
+                    | "rawscreenshotpersisted"
+                    | "rawocrtextpersisted"
+                    | "rawclipboardincluded"
+                    | "candesktopaction"
+                    | "canclicktypeselect"
+                    | "canwriteclipboard"
+                    | "canreadclipboard"
+                    | "canreadclipboardbydefault"
+                    | "canpersistrawscreenshot"
+                    | "canpersistrawocrtext"
+                    | "cansendtomodel"
+                    | "canwriteeventstore"
+                    | "canapplypatch"
+                    | "canrollback"
+                    | "canexecutegit"
+                    | "canexecuteshell"
+                    | "canissuepermissionlease"
+                    | "appcanexecute"
+            );
+            (execution_key && nested.as_bool() == Some(true))
+                || desktop_observer_value_has_execution_true(nested)
+        }),
+        _ => false,
+    }
+}
+
+fn desktop_observer_invalid(message: impl Into<String>) -> DesktopFlowError {
+    DesktopFlowError::new(
+        "DESKTOP_OBSERVER_BLOCKED",
+        message.into(),
+        "desktop_observer",
+    )
 }
 
 fn run_mcp_readonly_discover_fake(
@@ -7898,6 +8193,60 @@ mod tests {
         Ok("test-live-key-value".to_string())
     }
 
+    fn safe_desktop_observation_profile() -> Value {
+        serde_json::json!({
+            "schemaVersion": "desktop_observation_profile.v1",
+            "profileId": "desktop-observer-profile-test",
+            "displayName": "Metadata observer",
+            "observationMode": "metadata_only",
+            "scope": {
+                "includeForegroundWindow": true,
+                "includeWindowList": true,
+                "includeDisplayMetadata": true,
+                "includeScreenshotMetadata": false
+            },
+            "capturePolicy": {
+                "allowDesktopAction": false,
+                "allowClickTypeSelect": false,
+                "allowClipboardWrite": false,
+                "allowClipboardReadByDefault": false,
+                "allowFileDialogAutomation": false,
+                "allowHiddenBackgroundCapture": false,
+                "allowScreenRecording": false,
+                "allowRawScreenshotPersistence": false,
+                "allowRawOcrTextPersistence": false,
+                "sendToModel": false
+            },
+            "redactionPolicy": {
+                "enabled": true,
+                "redactWindowTitles": true,
+                "redactProcessNames": true,
+                "redactSecretMarkers": true,
+                "summaryOnly": true
+            },
+            "maxWindowCount": 10,
+            "maxDisplayCount": 2,
+            "includeWindowTitles": false,
+            "includeProcessNames": false,
+            "includeDisplayMetadata": true,
+            "includeScreenshotMetadata": false,
+            "profileHash": "desktop-profile-hash-test",
+            "source": "runtime_desktop_observation_profile"
+        })
+    }
+
+    fn safe_desktop_observation_request() -> DesktopObservationCommandRequest {
+        DesktopObservationCommandRequest {
+            profile: safe_desktop_observation_profile(),
+            request_id: "desktop-observation-request-test".to_string(),
+            user_triggered: true,
+            include_foreground_window: true,
+            include_window_list: true,
+            include_display_metadata: true,
+            include_screenshot_metadata: true,
+        }
+    }
+
     fn safe_live_transport_response() -> LiveDeepSeekTransportResponse {
         let proposal = serde_json::json!({
             "schemaVersion": 1,
@@ -7955,6 +8304,92 @@ mod tests {
                 Ok(safe_live_transport_response())
             },
         )
+    }
+
+    #[test]
+    fn desktop_observer_requires_user_trigger() {
+        let mut request = safe_desktop_observation_request();
+        request.user_triggered = false;
+        let error =
+            observe_desktop_metadata(request).expect_err("non-user-triggered request blocks");
+        assert_eq!(error.error_code, "DESKTOP_OBSERVER_NOT_USER_TRIGGERED");
+        assert_eq!(error.stage, "desktop_observer");
+    }
+
+    #[test]
+    fn desktop_observer_blocks_disabled_profile() {
+        let mut request = safe_desktop_observation_request();
+        request.profile["observationMode"] = Value::String("disabled".to_string());
+        let error = observe_desktop_metadata(request).expect_err("disabled profile blocks");
+        assert_eq!(error.error_code, "DESKTOP_OBSERVER_BLOCKED");
+        assert!(error.safe_message.contains("not enabled"));
+    }
+
+    #[test]
+    fn desktop_observer_blocks_action_fields() {
+        let mut request = safe_desktop_observation_request();
+        request.profile["capturePolicy"]["allowDesktopAction"] = Value::Bool(true);
+        let error = observe_desktop_metadata(request).expect_err("desktop action blocks");
+        assert_eq!(error.error_code, "DESKTOP_OBSERVER_BLOCKED");
+        assert!(error.safe_message.contains("action or persistence"));
+
+        let mut raw_request = safe_desktop_observation_request();
+        let raw_screenshot_key = ["raw", "Screenshot"].concat();
+        raw_request.profile[raw_screenshot_key.as_str()] =
+            Value::String("not allowed".to_string());
+        let raw_error = observe_desktop_metadata(raw_request).expect_err("raw field blocks");
+        assert_eq!(raw_error.error_code, "DESKTOP_OBSERVER_BLOCKED");
+        assert!(raw_error.safe_message.contains("forbidden field"));
+    }
+
+    #[test]
+    fn desktop_observer_returns_summary_only_metadata() {
+        let result =
+            observe_desktop_metadata(safe_desktop_observation_request()).expect("safe summary");
+        assert!(result.ok);
+        assert_eq!(result.status, "warning");
+        assert_eq!(result.request_id, "desktop-observation-request-test");
+        assert_eq!(
+            result.profile_id.as_deref(),
+            Some("desktop-observer-profile-test")
+        );
+        assert_eq!(result.window_count, 0);
+        assert_eq!(result.app_count, 0);
+        assert_eq!(result.display_count, 1);
+        assert!(result.screenshot_metadata_included);
+        assert!(result.summary_only);
+        assert!(!result.raw_screenshot_persisted);
+        assert!(!result.raw_ocr_text_persisted);
+        assert!(!result.raw_clipboard_included);
+        assert!(!result.can_desktop_action);
+        assert!(!result.can_click_type_select);
+        assert!(!result.can_write_clipboard);
+        assert!(!result.can_send_to_model);
+        assert!(!result.can_write_event_store);
+        assert!(!result.can_apply_patch);
+        assert!(!result.can_rollback);
+        assert!(!result.can_execute_git);
+        assert!(!result.can_execute_shell);
+        assert!(!result.app_can_execute);
+        assert!(result
+            .warning_codes
+            .contains(&"SCREENSHOT_CAPTURE_NOT_PERFORMED".to_string()));
+        let serialized = serde_json::to_string(&result).expect("serialize result");
+        assert!(!serialized.contains("eventPreview"));
+        assert!(!serialized.contains("eventLogPath"));
+        assert!(!serialized.contains("raw screenshot bytes"));
+        assert!(!serialized.contains("Authorization"));
+        assert!(!serialized.contains("sk-"));
+    }
+
+    #[test]
+    fn desktop_observer_command_does_not_write_eventstore() {
+        let result =
+            observe_desktop_metadata(safe_desktop_observation_request()).expect("safe summary");
+        let value = serde_json::to_value(result).expect("serialize");
+        assert!(value.get("eventPreview").is_none());
+        assert!(value.get("eventLogPath").is_none());
+        assert_eq!(value.get("canWriteEventStore"), Some(&Value::Bool(false)));
     }
 
     #[test]

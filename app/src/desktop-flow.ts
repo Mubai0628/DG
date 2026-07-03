@@ -557,6 +557,54 @@ export type ProjectKnowledgeLifecycleResult = {
   warnings: string[];
 };
 
+export type DesktopObservationCommandRequest = {
+  profile: Record<string, unknown>;
+  requestId: string;
+  userTriggered: true;
+  includeForegroundWindow: boolean;
+  includeWindowList: boolean;
+  includeDisplayMetadata: boolean;
+  includeScreenshotMetadata: boolean;
+};
+
+export type DesktopObservationCommandSummaryItem = {
+  [key: string]: unknown;
+  redactionCodes?: string[] | undefined;
+};
+
+export type DesktopObservationCommandResult = {
+  ok: true;
+  status: "observed" | "warning";
+  requestId: string;
+  observationId: string;
+  profileId?: string | undefined;
+  windowCount: number;
+  appCount: number;
+  displayCount: number;
+  screenshotMetadataIncluded: boolean;
+  windows: DesktopObservationCommandSummaryItem[];
+  apps: DesktopObservationCommandSummaryItem[];
+  displays: DesktopObservationCommandSummaryItem[];
+  screenshotMetadata?: DesktopObservationCommandSummaryItem | undefined;
+  warningCodes: string[];
+  summaryOnly: true;
+  rawScreenshotPersisted: false;
+  rawOcrTextPersisted: false;
+  rawClipboardIncluded: false;
+  canDesktopAction: false;
+  canClickTypeSelect: false;
+  canWriteClipboard: false;
+  canSendToModel: false;
+  canWriteEventStore: false;
+  canApplyPatch: false;
+  canRollback: false;
+  canExecuteGit: false;
+  canExecuteShell: false;
+  appCanExecute: false;
+  resultHash: string;
+  safeMessage: string;
+};
+
 export const allowedDesktopCommands = [
   "get_app_version",
   "apply_approved_user_workspace_patch",
@@ -576,6 +624,7 @@ export const allowedDesktopCommands = [
   "project_knowledge_expire",
   "run_git_read_lane",
   "run_shell_verification_lane",
+  "observe_desktop_metadata",
   "run_web_table_to_csv_flow"
 ] as const;
 
@@ -885,6 +934,18 @@ export async function expireProjectKnowledgeEntry(
   );
 }
 
+export async function observeDesktopMetadata(
+  request: DesktopObservationCommandRequest,
+  invokeImpl?: TauriInvoke
+): Promise<DesktopObservationCommandResult> {
+  validateDesktopObservationCommandRequest(request);
+  return invokeAllowedCommand<DesktopObservationCommandResult>(
+    "observe_desktop_metadata",
+    { request },
+    invokeImpl
+  );
+}
+
 export async function invokeAllowedCommand<T>(
   command: string,
   args: Record<string, unknown>,
@@ -945,6 +1006,8 @@ function normalizeAllowedCommandResponse(
       return normalizeGitReadLaneResult(raw);
     case "run_shell_verification_lane":
       return normalizeShellVerificationLaneResult(raw);
+    case "observe_desktop_metadata":
+      return normalizeDesktopObservationCommandResult(raw);
     case "apply_approved_user_workspace_patch":
       return normalizeApprovedApplyResult(raw);
     case "rollback_approved_user_workspace_patch":
@@ -1333,6 +1396,118 @@ function validateProjectKnowledgeCandidate(
   ) {
     throw new Error("Pitfalls require a mitigation summary");
   }
+}
+
+function validateDesktopObservationCommandRequest(
+  request: DesktopObservationCommandRequest
+): void {
+  if (!isRecord(request.profile)) {
+    throw new Error("Desktop observation profile is required");
+  }
+  if (request.requestId.trim().length === 0) {
+    throw new Error("Desktop observation requestId is required");
+  }
+  if (request.userTriggered !== true) {
+    throw new Error("Desktop observation must be user-triggered");
+  }
+  if (
+    typeof request.includeForegroundWindow !== "boolean" ||
+    typeof request.includeWindowList !== "boolean" ||
+    typeof request.includeDisplayMetadata !== "boolean" ||
+    typeof request.includeScreenshotMetadata !== "boolean"
+  ) {
+    throw new Error("Desktop observation include flags are required");
+  }
+  if (containsForbiddenDesktopObservationValue(request)) {
+    throw new Error("Desktop observation request contains unsafe fields");
+  }
+}
+
+function normalizeDesktopObservationCommandResult(
+  raw: unknown
+): DesktopObservationCommandResult {
+  const record = isRecord(raw) ? raw : {};
+  if (
+    record.ok !== true ||
+    (record.status !== "observed" && record.status !== "warning") ||
+    typeof record.requestId !== "string" ||
+    typeof record.observationId !== "string" ||
+    typeof record.windowCount !== "number" ||
+    typeof record.appCount !== "number" ||
+    typeof record.displayCount !== "number" ||
+    typeof record.screenshotMetadataIncluded !== "boolean" ||
+    !Array.isArray(record.windows) ||
+    !Array.isArray(record.apps) ||
+    !Array.isArray(record.displays) ||
+    !Array.isArray(record.warningCodes) ||
+    record.summaryOnly !== true ||
+    record.rawScreenshotPersisted !== false ||
+    record.rawOcrTextPersisted !== false ||
+    record.rawClipboardIncluded !== false ||
+    record.canDesktopAction !== false ||
+    record.canClickTypeSelect !== false ||
+    record.canWriteClipboard !== false ||
+    record.canSendToModel !== false ||
+    record.canWriteEventStore !== false ||
+    record.canApplyPatch !== false ||
+    record.canRollback !== false ||
+    record.canExecuteGit !== false ||
+    record.canExecuteShell !== false ||
+    record.appCanExecute !== false ||
+    typeof record.resultHash !== "string" ||
+    typeof record.safeMessage !== "string"
+  ) {
+    throw normalizeDesktopCommandError({
+      errorCode: "INVALID_RESPONSE",
+      safeMessage: "Desktop observation response was invalid",
+      stage: "normalize_response"
+    });
+  }
+  if (containsForbiddenDesktopObservationValue(record)) {
+    throw normalizeDesktopCommandError({
+      errorCode: "INVALID_RESPONSE",
+      safeMessage: "Desktop observation response contained unsafe fields",
+      stage: "normalize_response"
+    });
+  }
+  return {
+    ok: true,
+    status: record.status,
+    requestId: safeErrorMessage(record.requestId),
+    observationId: safeErrorMessage(record.observationId),
+    ...(typeof record.profileId === "string"
+      ? { profileId: safeErrorMessage(record.profileId) }
+      : {}),
+    windowCount: record.windowCount,
+    appCount: record.appCount,
+    displayCount: record.displayCount,
+    screenshotMetadataIncluded: record.screenshotMetadataIncluded,
+    windows: record.windows.filter(isRecord),
+    apps: record.apps.filter(isRecord),
+    displays: record.displays.filter(isRecord),
+    ...(isRecord(record.screenshotMetadata)
+      ? { screenshotMetadata: record.screenshotMetadata }
+      : {}),
+    warningCodes: record.warningCodes.filter(
+      (value): value is string => typeof value === "string"
+    ),
+    summaryOnly: true,
+    rawScreenshotPersisted: false,
+    rawOcrTextPersisted: false,
+    rawClipboardIncluded: false,
+    canDesktopAction: false,
+    canClickTypeSelect: false,
+    canWriteClipboard: false,
+    canSendToModel: false,
+    canWriteEventStore: false,
+    canApplyPatch: false,
+    canRollback: false,
+    canExecuteGit: false,
+    canExecuteShell: false,
+    appCanExecute: false,
+    resultHash: safeErrorMessage(record.resultHash),
+    safeMessage: safeErrorMessage(record.safeMessage)
+  };
 }
 
 function normalizeProjectKnowledgeSnapshotResult(
@@ -2342,6 +2517,34 @@ function containsForbiddenLiveProposalValue(value: unknown): boolean {
   return false;
 }
 
+function containsForbiddenDesktopObservationValue(value: unknown): boolean {
+  if (Array.isArray(value)) {
+    return value.some(containsForbiddenDesktopObservationValue);
+  }
+  if (isRecord(value)) {
+    for (const [key, nested] of Object.entries(value)) {
+      const lowerKey = key.toLowerCase();
+      if (desktopObservationForbiddenFieldNames.has(lowerKey)) {
+        return true;
+      }
+      if (
+        desktopObservationExecutionFieldNames.has(lowerKey) &&
+        nested === true
+      ) {
+        return true;
+      }
+      if (containsForbiddenDesktopObservationValue(nested)) {
+        return true;
+      }
+    }
+    return false;
+  }
+  if (typeof value === "string") {
+    return containsUnsafeDesktopObservationText(value);
+  }
+  return false;
+}
+
 function containsUnsafeLiveProposalText(value: string): boolean {
   return (
     /\bsk-[A-Za-z0-9_-]{8,}\b/.test(value) ||
@@ -2352,6 +2555,16 @@ function containsUnsafeLiveProposalText(value: string): boolean {
     /\braw\s*response\b/i.test(value) ||
     /\braw\s*source\b/i.test(value) ||
     /\braw\s*diff\b/i.test(value)
+  );
+}
+
+function containsUnsafeDesktopObservationText(value: string): boolean {
+  return (
+    containsUnsafeLiveProposalText(value) ||
+    /\braw\s*screenshot\b/i.test(value) ||
+    /\braw\s*ocr\b/i.test(value) ||
+    /\bclipboard\s*(text|value|write)\b/i.test(value) ||
+    /\b(click|type|select)\s+desktop\b/i.test(value)
   );
 }
 
@@ -2441,6 +2654,89 @@ const liveExecutionFieldNames = new Set(
     "allowGit",
     "allowShell",
     "allowAppExecution"
+  ].map((key) => key.toLowerCase())
+);
+
+const desktopObservationForbiddenFieldNames = new Set(
+  [
+    ["raw", "Prompt"].join(""),
+    "promptText",
+    ["raw", "Response"].join(""),
+    "responseText",
+    "reasoningContent",
+    "reasoning_content",
+    ["raw", "Source"].join(""),
+    ["raw", "Diff"].join(""),
+    ["raw", "Patch"].join(""),
+    ["raw", "Dom"].join(""),
+    ["raw", "Csv"].join(""),
+    ["raw", "Screenshot"].join(""),
+    "screenshotBytes",
+    "screenshotBase64",
+    "pixelBuffer",
+    ["raw", "Ocr"].join(""),
+    ["raw", "OcrText"].join(""),
+    "ocrText",
+    "clipboard",
+    "clipboardText",
+    "apiKey",
+    "apiKeyValue",
+    "Authorization",
+    "bearer",
+    "token",
+    "secret",
+    "env",
+    "stdout",
+    "stderr",
+    "command",
+    ["shell", "Command"].join(""),
+    ["git", "Command"].join(""),
+    "tauriCommand",
+    "eventStoreWrite",
+    "applyNow",
+    "rollbackNow",
+    "permissionLease",
+    "desktopAction",
+    "nativeBridge",
+    "click",
+    "type",
+    "select",
+    "tools",
+    "tool_choice"
+  ].map((key) => key.toLowerCase())
+);
+
+const desktopObservationExecutionFieldNames = new Set(
+  [
+    "allowDesktopAction",
+    "allowClickTypeSelect",
+    "allowClipboardWrite",
+    "allowClipboardRead",
+    "allowClipboardReadByDefault",
+    "allowFileDialogAutomation",
+    "allowHiddenBackgroundCapture",
+    "allowScreenRecording",
+    "allowRawScreenshotPersistence",
+    "allowRawOcrTextPersistence",
+    "sendToModel",
+    "rawScreenshotPersisted",
+    "rawOcrTextPersisted",
+    "rawClipboardIncluded",
+    "canDesktopAction",
+    "canClickTypeSelect",
+    "canWriteClipboard",
+    "canReadClipboard",
+    "canReadClipboardByDefault",
+    "canPersistRawScreenshot",
+    "canPersistRawOcrText",
+    "canSendToModel",
+    "canWriteEventStore",
+    "canApplyPatch",
+    "canRollback",
+    "canExecuteGit",
+    "canExecuteShell",
+    "canIssuePermissionLease",
+    "appCanExecute"
   ].map((key) => key.toLowerCase())
 );
 

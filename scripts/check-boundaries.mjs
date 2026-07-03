@@ -304,6 +304,9 @@ function isAllowedBoundaryHit(file, line, ruleId) {
   if (isDesktopObserverProfileDenylist(file, ruleId)) {
     return true;
   }
+  if (isDesktopObserverCommandDenylist(file, line, ruleId)) {
+    return true;
+  }
   if (file === "browser-extension/src/payload.ts") {
     return true;
   }
@@ -471,6 +474,27 @@ function isDesktopObserverProfileSecretDenylist(file, ruleId) {
   return (
     isDesktopObserverSchemaFile(file) &&
     ["deepseek_env_reference", "openai_env_reference"].includes(ruleId)
+  );
+}
+
+function isDesktopObserverCommandDenylist(file, line, ruleId) {
+  // ACCEPTABLE_DESKTOP_OBSERVER_COMMAND_DENYLIST: fixed metadata command rejects these fields.
+  return (
+    (file === "app/src/desktop-flow.ts" ||
+      file === "app/src-tauri/src/commands.rs") &&
+    [
+      "raw_prompt_reference",
+      "raw_dom_reference",
+      "raw_screenshot_reference",
+      "clipboard_reference"
+    ].includes(ruleId) &&
+    (line.includes("DesktopObservation") ||
+      line.includes("desktopObservation") ||
+      line.includes("desktop_observer") ||
+      line.includes("rawScreenshot") ||
+      line.includes("raw_screenshot") ||
+      line.includes("Clipboard") ||
+      line.includes("clipboard"))
   );
 }
 
