@@ -307,6 +307,9 @@ function isAllowedBoundaryHit(file, line, ruleId) {
   if (isDesktopObserverCommandDenylist(file, line, ruleId)) {
     return true;
   }
+  if (isDesktopObserverAppSurfaceCopy(file, line, ruleId)) {
+    return true;
+  }
   if (file === "browser-extension/src/payload.ts") {
     return true;
   }
@@ -496,6 +499,20 @@ function isDesktopObserverCommandDenylist(file, line, ruleId) {
       line.includes("Clipboard") ||
       line.includes("clipboard"))
   );
+}
+
+function isDesktopObserverAppSurfaceCopy(file, line, ruleId) {
+  // ACCEPTABLE_DESKTOP_OBSERVER_APP_SURFACE_COPY: disabled/read-only copy only.
+  if (ruleId !== "clipboard_reference") {
+    return false;
+  }
+  if (file === "app/src/App.tsx") {
+    return line.includes("write clipboard");
+  }
+  if (file === "app/src/desktop-observer-view.ts") {
+    return line.includes("clipboard access");
+  }
+  return false;
 }
 
 function isDesktopObserverSchemaFile(file) {

@@ -107,6 +107,7 @@ import {
   parseLiveProposalEvaluationSummaryJson
 } from "../src/live-proposal-evaluation-summary-view.js";
 import { buildLiveProposalEvaluationTelemetryAuditView } from "../src/live-proposal-evaluation-telemetry-audit-view.js";
+import { buildDesktopObserverView } from "../src/desktop-observer-view.js";
 import { buildScreenshotRedactionBoundaryView } from "../src/screenshot-redaction-boundary-view.js";
 import { buildMcpMetadataRedactionAuditView } from "../src/mcp-metadata-redaction-audit-view.js";
 import { buildMcpReadonlyConnectionView } from "../src/mcp-readonly-connection-view.js";
@@ -1162,8 +1163,10 @@ describe("desktop command wrapper", () => {
     expect(flowSource).not.toContain("observe_desktop_action");
     expect(flowSource).not.toContain("desktopActionInvoke");
     expect(appSource).not.toContain("observe_desktop_metadata");
-    expect(appSource).not.toContain("Click Desktop");
-    expect(appSource).not.toContain("Type Desktop");
+    expect(appSource).toContain("Click Desktop (disabled)");
+    expect(appSource).toContain("Type into Desktop (disabled)");
+    expect(appSource).toContain("Capture Raw Screenshot (disabled)");
+    expect(appSource).toContain("Send Screen to Model (disabled)");
     expect(appSource).not.toContain("Select Desktop");
     expect(appSource).not.toContain("Write Clipboard");
   });
@@ -1255,6 +1258,156 @@ describe("desktop command wrapper", () => {
     expect(viewSource).not.toContain("modelSent: true");
     expect(appSource).not.toContain("Persist Raw Screenshot");
     expect(appSource).not.toContain("Send Screenshot To Model");
+  });
+
+  it("builds the Desktop Observer App surface with a fixed metadata request", () => {
+    const view = buildDesktopObserverView();
+
+    expect(view.status).toBe("profile_ready");
+    expect(view.profileSummary.profileId).toBe("desktop-observer-profile-app");
+    expect(view.safeRequest).toMatchObject({
+      userTriggered: true,
+      includeForegroundWindow: true,
+      includeWindowList: true,
+      includeDisplayMetadata: true,
+      includeScreenshotMetadata: true
+    });
+    expect(view.safeRequest?.profile.capturePolicy).toMatchObject({
+      allowDesktopAction: false,
+      allowClickTypeSelect: false,
+      allowClipboardWrite: false,
+      allowRawScreenshotPersistence: false,
+      allowRawOcrTextPersistence: false,
+      sendToModel: false
+    });
+    expect(view.readiness.canPreviewProfile).toBe(true);
+    expect(view.readiness.canObserveMetadata).toBe(true);
+    expect(view.readiness.canDesktopAction).toBe(false);
+    expect(view.readiness.canClickTypeSelect).toBe(false);
+    expect(view.readiness.canControlWindows).toBe(false);
+    expect(view.readiness.canReadClipboard).toBe(false);
+    expect(view.readiness.canWriteClipboard).toBe(false);
+    expect(view.readiness.canPersistRawImage).toBe(false);
+    expect(view.readiness.canPersistOcrText).toBe(false);
+    expect(view.readiness.canSendToModel).toBe(false);
+    expect(view.readiness.canWriteEventStore).toBe(false);
+    expect(view.readiness.canApplyPatch).toBe(false);
+    expect(view.readiness.canRollback).toBe(false);
+    expect(view.readiness.canExecuteGit).toBe(false);
+    expect(view.readiness.canExecuteShell).toBe(false);
+    expect(view.readiness.appCanExecute).toBe(false);
+  });
+
+  it("summarizes observed desktop metadata with screenshot boundary only", () => {
+    const view = buildDesktopObserverView({
+      observeStatus: "observed",
+      observationResult: {
+        ok: true,
+        status: "warning",
+        requestId: "desktop-observation-request-test",
+        observationId: "desktop-observation-test",
+        profileId: "desktop-observer-profile-test",
+        windowCount: 1,
+        appCount: 1,
+        displayCount: 1,
+        screenshotMetadataIncluded: true,
+        windows: [
+          {
+            windowIdHash: "window-hash",
+            titleSummary: "title redacted",
+            appNameSummary: "app redacted",
+            focused: true,
+            redactionCodes: ["WINDOW_TITLE_REDACTED"]
+          }
+        ],
+        apps: [
+          {
+            appIdHash: "app-hash",
+            appNameSummary: "app redacted",
+            windowCount: 1,
+            redactionCodes: ["APP_NAME_REDACTED"]
+          }
+        ],
+        displays: [
+          {
+            displayIdHash: "display-hash",
+            sizeSummary: "1920x1080",
+            primary: true,
+            redactionCodes: []
+          }
+        ],
+        screenshotMetadata: {
+          width: 1920,
+          height: 1080,
+          hashPrefix: "screenhash",
+          redactionCodes: ["RAW_SCREENSHOT_NOT_CAPTURED"],
+          rawScreenshotPersisted: false
+        },
+        warningCodes: ["SCREENSHOT_CAPTURE_NOT_PERFORMED"],
+        summaryOnly: true,
+        rawScreenshotPersisted: false,
+        rawOcrTextPersisted: false,
+        rawClipboardIncluded: false,
+        canDesktopAction: false,
+        canClickTypeSelect: false,
+        canWriteClipboard: false,
+        canSendToModel: false,
+        canWriteEventStore: false,
+        canApplyPatch: false,
+        canRollback: false,
+        canExecuteGit: false,
+        canExecuteShell: false,
+        appCanExecute: false,
+        resultHash: "desktop-observation-result-hash",
+        safeMessage: "Desktop observation metadata summarized without action."
+      }
+    });
+
+    expect(view.status).toBe("warning");
+    expect(view.observationId).toBe("desktop-observation-test");
+    expect(view.windowCount).toBe(1);
+    expect(view.appCount).toBe(1);
+    expect(view.displayCount).toBe(1);
+    expect(view.focusedWindowSummary).toBe("title redacted / app redacted");
+    expect(view.redactionWarnings).toContain("WINDOW_TITLE_REDACTED");
+    expect(view.redactionWarnings).toContain("RAW_SCREENSHOT_NOT_CAPTURED");
+    expect(view.screenshotBoundary?.status).toBe("boundary_ready");
+    expect(view.screenshotBoundary?.rawPersisted).toBe(false);
+    expect(view.screenshotBoundary?.ocrPersisted).toBe(false);
+    expect(view.screenshotBoundary?.modelSent).toBe(false);
+  });
+
+  it("renders the Desktop Observer panel as fixed-wrapper read-only UI", async () => {
+    const appSource = await readFile(
+      path.join(appRoot, "src", "App.tsx"),
+      "utf8"
+    );
+    const viewSource = await readFile(
+      path.join(appRoot, "src", "desktop-observer-view.ts"),
+      "utf8"
+    );
+
+    expect(appSource).toContain("Desktop Observer");
+    expect(appSource).toContain("Read-only / no desktop action");
+    expect(appSource).toContain(
+      "The App Shell cannot click, type, select, control"
+    );
+    expect(appSource).toContain("Preview Desktop Observation Profile");
+    expect(appSource).toContain("Observe Desktop Metadata");
+    expect(appSource).toContain("Click Desktop (disabled)");
+    expect(appSource).toContain("Type into Desktop (disabled)");
+    expect(appSource).toContain("Capture Raw Screenshot (disabled)");
+    expect(appSource).toContain("Send Screen to Model (disabled)");
+    expect(appSource).toContain("observeDesktopMetadata");
+    expect(appSource).not.toContain("observe_desktop_action");
+    expect(appSource).not.toContain("desktopActionInvoke");
+    expect(viewSource).toContain("app_desktop_observer_surface");
+    expect(viewSource).not.toContain("safeInvoke(");
+    expect(viewSource).not.toContain("invoke(");
+    expect(viewSource).not.toContain("fetch(");
+    expect(viewSource).not.toContain("type=\"file\"");
+    expect(viewSource).not.toContain("type=\"password\"");
+    expect(viewSource).not.toContain("modelSent: true");
   });
 
   it("calls MCP readonly discovery only through the fixed wrapper", async () => {
@@ -21938,11 +22091,19 @@ describe("desktop source boundaries", () => {
       ),
       "utf8"
     );
+    const surfaceDoc = await readFile(
+      path.join(
+        repoRoot,
+        "docs",
+        "app-shell-desktop-observer-surface-v0.22.md"
+      ),
+      "utf8"
+    );
     const docsIndex = await readFile(
       path.join(repoRoot, "docs", "README.md"),
       "utf8"
     );
-    const combined = `${adr}\n${threatModel}\n${implementationGate}\n${nextPlan}\n${profileDoc}\n${summaryDoc}\n${commandDoc}\n${redactionDoc}\n${docsIndex}`;
+    const combined = `${adr}\n${threatModel}\n${implementationGate}\n${nextPlan}\n${profileDoc}\n${summaryDoc}\n${commandDoc}\n${redactionDoc}\n${surfaceDoc}\n${docsIndex}`;
 
     expect(adr).toContain("ADR 0011: Desktop Observer MVP");
     expect(adr).toContain("Proposed / Accepted for P1A design gate");
@@ -22046,6 +22207,22 @@ describe("desktop source boundaries", () => {
     expect(redactionDoc).toContain("modelSent: false");
     expect(redactionDoc).toContain("P1A-006");
 
+    expect(surfaceDoc).toContain(
+      "App Shell Desktop Observer Surface v0.22"
+    );
+    expect(surfaceDoc).toContain("read-only Desktop Observer surface");
+    expect(surfaceDoc).toContain("Read-only / no desktop action");
+    expect(surfaceDoc).toContain("Observe Desktop Metadata");
+    expect(surfaceDoc).toContain("Click Desktop (disabled)");
+    expect(surfaceDoc).toContain("Type into Desktop (disabled)");
+    expect(surfaceDoc).toContain("Capture Raw Screenshot (disabled)");
+    expect(surfaceDoc).toContain("Send Screen to Model (disabled)");
+    expect(surfaceDoc).toContain("observeDesktopMetadata");
+    expect(surfaceDoc).toContain("No raw screenshot input or display");
+    expect(surfaceDoc).toContain("No OCR input or display");
+    expect(surfaceDoc).toContain("No clipboard read or write");
+    expect(surfaceDoc).toContain("No model call");
+
     expect(docsIndex).toContain("adr/0011-desktop-observer-mvp.md");
     expect(docsIndex).toContain("desktop-observer-threat-model-v0.22.md");
     expect(docsIndex).toContain(
@@ -22060,6 +22237,7 @@ describe("desktop source boundaries", () => {
     expect(docsIndex).toContain(
       "runtime-screenshot-redaction-boundary-v0.22.md"
     );
+    expect(docsIndex).toContain("app-shell-desktop-observer-surface-v0.22.md");
     expect(combined).not.toContain("desktop action automation is enabled");
     expect(combined).not.toContain("click/type/select is enabled");
     expect(combined).not.toContain("raw screenshot persistence is enabled");

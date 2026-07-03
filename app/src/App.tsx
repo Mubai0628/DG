@@ -18,6 +18,7 @@ import {
   listProjectKnowledge,
   loadWorkspaceEventSummary,
   liveProposalAllowedKeySourceRef,
+  observeDesktopMetadata,
   recordApprovedUserWorkspaceExecutionEvent,
   recordControlRunDraftEvent,
   recordLiveProposalSummaryEvent,
@@ -32,6 +33,7 @@ import {
   type ApprovedUserWorkspaceApplyResult,
   type ApprovedUserWorkspaceRollbackResult,
   type ApprovedUserWorkspaceExecutionEventRecordResult,
+  type DesktopObservationCommandResult,
   type GitReadLane,
   type GitReadLaneResult,
   type LiveDeepSeekPatchProposalCommandRequest,
@@ -193,6 +195,11 @@ import {
   summarizeLiveProposalEvaluationTelemetryAuditView,
   type LiveProposalEvaluationTelemetryAuditView
 } from "./live-proposal-evaluation-telemetry-audit-view.js";
+import {
+  buildDesktopObserverView,
+  summarizeDesktopObserverView,
+  type DesktopObserverView
+} from "./desktop-observer-view.js";
 import {
   buildMcpReadonlyConnectionView,
   summarizeMcpReadonlyConnectionView,
@@ -580,6 +587,18 @@ export function DesktopShell(): JSX.Element {
   const [eventStatus, setEventStatus] = useState<EventStatus>("idle");
   const [eventError, setEventError] = useState<string | undefined>();
   const [docMessage, setDocMessage] = useState<string | undefined>();
+  const [desktopObserverPreview, setDesktopObserverPreview] = useState<
+    DesktopObserverView | undefined
+  >();
+  const [desktopObserverStatus, setDesktopObserverStatus] = useState<
+    "idle" | "observing" | "observed" | "failed"
+  >("idle");
+  const [desktopObserverResult, setDesktopObserverResult] = useState<
+    DesktopObservationCommandResult | undefined
+  >();
+  const [desktopObserverError, setDesktopObserverError] = useState<
+    string | undefined
+  >();
   const [bridgePreview, setBridgePreview] = useState<
     BridgeProposalPreviewState | undefined
   >();
@@ -1009,6 +1028,17 @@ export function DesktopShell(): JSX.Element {
       }),
     [controlPlanePanel, error, eventSummary]
   );
+  const desktopObserverCandidate = useMemo<DesktopObserverView>(
+    () =>
+      buildDesktopObserverView({
+        observationResult: desktopObserverResult,
+        observeStatus: desktopObserverStatus,
+        observeError: desktopObserverError
+      }),
+    [desktopObserverError, desktopObserverResult, desktopObserverStatus]
+  );
+  const displayedDesktopObserver =
+    desktopObserverPreview ?? desktopObserverCandidate;
   const runDraftCandidate = useMemo<AppRunDraftView>(
     () =>
       buildRunDraftView({
@@ -2883,6 +2913,47 @@ export function DesktopShell(): JSX.Element {
 
   function handlePreviewContextAssembly(): void {
     setContextAssemblyPreview(contextAssemblyCandidate);
+  }
+
+  function handlePreviewDesktopObserverProfile(): void {
+    setDesktopObserverPreview(desktopObserverCandidate);
+  }
+
+  async function handleObserveDesktopMetadata(): Promise<void> {
+    if (desktopObserverCandidate.safeRequest === undefined) {
+      setDesktopObserverPreview(desktopObserverCandidate);
+      return;
+    }
+
+    setDesktopObserverStatus("observing");
+    setDesktopObserverError(undefined);
+    setDesktopObserverPreview(
+      buildDesktopObserverView({ observeStatus: "observing" })
+    );
+
+    try {
+      const observation = await observeDesktopMetadata(
+        desktopObserverCandidate.safeRequest
+      );
+      setDesktopObserverResult(observation);
+      setDesktopObserverStatus("observed");
+      setDesktopObserverPreview(
+        buildDesktopObserverView({
+          observationResult: observation,
+          observeStatus: "observed"
+        })
+      );
+    } catch (caught) {
+      const message = safeErrorMessage(caught);
+      setDesktopObserverError(message);
+      setDesktopObserverStatus("failed");
+      setDesktopObserverPreview(
+        buildDesktopObserverView({
+          observeStatus: "failed",
+          observeError: message
+        })
+      );
+    }
   }
 
   function handlePreviewFixedRunPlan(): void {
@@ -5689,6 +5760,164 @@ export function DesktopShell(): JSX.Element {
             <p className="fieldHelp">
               {summarizeE2ETaskRecoveryView(displayedE2ETaskRecovery).source} ·{" "}
               {displayedE2ETaskRecovery.nextAction}
+            </p>
+          </section>
+
+          <section className="eventPanel" aria-label="Desktop Observer">
+            <div className="panelHeader">
+              <h2>Desktop Observer</h2>
+              <span className="muted">Read-only / no desktop action</span>
+            </div>
+            <p className="fieldHelp">
+              Observes foreground/window/display metadata on explicit user
+              request. The App Shell cannot click, type, select, control
+              windows, write clipboard, persist raw screenshots, or send
+              desktop observations to a model automatically.
+            </p>
+
+            <div className="buttonRow">
+              <button
+                type="button"
+                className="secondary"
+                onClick={(event) => {
+                  event.preventDefault();
+                  event.stopPropagation();
+                  handlePreviewDesktopObserverProfile();
+                }}
+              >
+                Preview Desktop Observation Profile
+              </button>
+              <button
+                type="button"
+                className="secondary"
+                disabled={
+                  desktopObserverStatus === "observing" ||
+                  !desktopObserverCandidate.readiness.canObserveMetadata
+                }
+                onClick={(event) => {
+                  event.preventDefault();
+                  event.stopPropagation();
+                  void handleObserveDesktopMetadata();
+                }}
+              >
+                {desktopObserverStatus === "observing"
+                  ? "Observing..."
+                  : "Observe Desktop Metadata"}
+              </button>
+              <button type="button" className="secondary" disabled>
+                Click Desktop (disabled)
+              </button>
+              <button type="button" className="secondary" disabled>
+                Type into Desktop (disabled)
+              </button>
+              <button type="button" className="secondary" disabled>
+                Capture Raw Screenshot (disabled)
+              </button>
+              <button type="button" className="secondary" disabled>
+                Send Screen to Model (disabled)
+              </button>
+            </div>
+
+            {displayedDesktopObserver.status === "blocked" ? (
+              <div className="errorBox">
+                <strong>Desktop Observer blocked</strong>
+                <p>{displayedDesktopObserver.safeMessage}</p>
+              </div>
+            ) : null}
+
+            <dl className="summaryGrid compact">
+              <div>
+                <dt>Status</dt>
+                <dd>{displayedDesktopObserver.status}</dd>
+              </div>
+              <div>
+                <dt>Profile</dt>
+                <dd>{displayedDesktopObserver.profileSummary.profileId}</dd>
+              </div>
+              <div>
+                <dt>Observation</dt>
+                <dd>{displayedDesktopObserver.observationId ?? "n/a"}</dd>
+              </div>
+              <div>
+                <dt>Windows / apps / displays</dt>
+                <dd>
+                  {displayedDesktopObserver.windowCount} /{" "}
+                  {displayedDesktopObserver.appCount} /{" "}
+                  {displayedDesktopObserver.displayCount}
+                </dd>
+              </div>
+              <div>
+                <dt>Focused window</dt>
+                <dd>{displayedDesktopObserver.focusedWindowSummary}</dd>
+              </div>
+              <div>
+                <dt>Redaction warnings</dt>
+                <dd>
+                  {displayedDesktopObserver.redactionWarnings.length > 0
+                    ? displayedDesktopObserver.redactionWarnings.join(", ")
+                    : "none"}
+                </dd>
+              </div>
+              <div>
+                <dt>Screenshot boundary</dt>
+                <dd>
+                  {displayedDesktopObserver.screenshotBoundary === undefined
+                    ? "not included"
+                    : `${displayedDesktopObserver.screenshotBoundary.status} / ${displayedDesktopObserver.screenshotBoundary.hashPrefix ?? "no hash"}`}
+                </dd>
+              </div>
+              <div>
+                <dt>Blockers / warnings</dt>
+                <dd>
+                  {displayedDesktopObserver.blockerCount} /{" "}
+                  {displayedDesktopObserver.warningCount}
+                </dd>
+              </div>
+              <div>
+                <dt>Raw/OCR/model</dt>
+                <dd>
+                  {displayedDesktopObserver.readiness.canPersistRawImage
+                    ? "raw"
+                    : "no raw"}{" "}
+                  /{" "}
+                  {displayedDesktopObserver.readiness.canPersistOcrText
+                    ? "ocr"
+                    : "no ocr"}{" "}
+                  /{" "}
+                  {displayedDesktopObserver.readiness.canSendToModel
+                    ? "model"
+                    : "no model"}
+                </dd>
+              </div>
+              <div>
+                <dt>Desktop action</dt>
+                <dd>
+                  {displayedDesktopObserver.readiness.canDesktopAction
+                    ? "enabled"
+                    : "disabled"}
+                </dd>
+              </div>
+            </dl>
+
+            {displayedDesktopObserver.screenshotBoundary !== undefined ? (
+              <p className="muted">
+                screenshot boundary flags raw{" "}
+                {displayedDesktopObserver.screenshotBoundary.rawPersisted
+                  ? "yes"
+                  : "no"}
+                , OCR{" "}
+                {displayedDesktopObserver.screenshotBoundary.ocrPersisted
+                  ? "yes"
+                  : "no"}
+                , model{" "}
+                {displayedDesktopObserver.screenshotBoundary.modelSent
+                  ? "yes"
+                  : "no"}
+              </p>
+            ) : null}
+
+            <p className="fieldHelp">
+              {summarizeDesktopObserverView(displayedDesktopObserver).nextAction}
             </p>
           </section>
 

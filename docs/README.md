@@ -359,6 +359,7 @@ foundation.
 - [Runtime Desktop Observation Summary v0.22](runtime-desktop-observation-summary-v0.22.md)
 - [App / Tauri Desktop Observer Command v0.22](app-tauri-desktop-observer-command-v0.22.md)
 - [Runtime Screenshot Redaction Boundary v0.22](runtime-screenshot-redaction-boundary-v0.22.md)
+- [App Shell Desktop Observer Surface v0.22](app-shell-desktop-observer-surface-v0.22.md)
 - [Runtime Memory Recall Preview v0.3](runtime-memory-recall-preview-v0.3.md)
 - [v0.4.0 Controlled Creation Preview RC release notes](release-notes-v0.4.0-controlled-creation-preview-rc.1.md)
 - [App Shell Controlled Creation manual QA](app-shell-controlled-creation-manual-qa.md)
