@@ -462,7 +462,7 @@ function isLiveProposalOptInPolicyDisplayRef(file, line, ruleId) {
 function isDesktopObserverProfileDenylist(file, ruleId) {
   // ACCEPTABLE_DESKTOP_OBSERVER_PROFILE_DENYLIST: forbidden field names only.
   return (
-    isDesktopObserverSchemaFile(file) &&
+    (isDesktopObserverSchemaFile(file) || isDesktopActionProposalSchemaFile(file)) &&
     [
       "raw_prompt_reference",
       "raw_dom_reference",
@@ -475,7 +475,7 @@ function isDesktopObserverProfileDenylist(file, ruleId) {
 function isDesktopObserverProfileSecretDenylist(file, ruleId) {
   // ACCEPTABLE_DESKTOP_OBSERVER_PROFILE_DENYLIST: env names are blocked markers.
   return (
-    isDesktopObserverSchemaFile(file) &&
+    (isDesktopObserverSchemaFile(file) || isDesktopActionProposalSchemaFile(file)) &&
     ["deepseek_env_reference", "openai_env_reference"].includes(ruleId)
   );
 }
@@ -522,6 +522,10 @@ function isDesktopObserverSchemaFile(file) {
     file === "runtime/src/desktop-observer/screenshot-redaction-boundary.ts" ||
     file === "runtime/src/desktop-observer/desktop-observer-redaction-audit.ts"
   );
+}
+
+function isDesktopActionProposalSchemaFile(file) {
+  return file === "runtime/src/desktop-action/action-proposal-schema.ts";
 }
 
 function isEventLogLeakScannerLine(line) {

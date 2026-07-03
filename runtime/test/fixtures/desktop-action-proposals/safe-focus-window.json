@@ -1,0 +1,40 @@
+{
+  "schemaVersion": "desktop_action_proposal.v1",
+  "proposalId": "desktop-action-proposal-safe-focus",
+  "title": "Focus editor window",
+  "intent": "focus_existing_window",
+  "objectiveSummary": "Bring the known editor window to the foreground before a future manual review.",
+  "observerEvidenceRefs": [
+    {
+      "evidenceRefId": "desktop-evidence-editor-1",
+      "observationId": "desktop-observation-1",
+      "observedAt": "2026-07-03T05:00:00.000Z",
+      "summary": "Focused editor window metadata summary.",
+      "source": "desktop_observation_summary",
+      "warningCodes": [],
+      "redactionCodes": ["TITLE_REDACTED"]
+    }
+  ],
+  "operations": [
+    {
+      "operationId": "desktop-action-operation-focus-1",
+      "actionKind": "focus_window",
+      "targetRef": {
+        "targetId": "target-editor-window",
+        "windowIdHash": "win_hash_editor",
+        "appIdHash": "app_hash_editor",
+        "displayIdHash": "display_hash_primary",
+        "boundsSummary": "x:100 y:100 w:1200 h:800",
+        "role": "window",
+        "labelSummary": "Editor window summary",
+        "observerEvidenceRefId": "desktop-evidence-editor-1"
+      },
+      "summary": "Future proposal to focus the editor window.",
+      "rationale": "The user requested a desktop target proposal only.",
+      "expectedVisibleStateChange": "Editor window would become foreground in a future execution phase."
+    }
+  ],
+  "riskNotes": ["Focus-only proposal; no desktop action is executed in this phase."],
+  "assumptions": ["Observer evidence remains current."],
+  "createdAt": "2026-07-03T05:05:00.000Z"
+}

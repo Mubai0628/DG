@@ -1,0 +1,25 @@
+{
+  "schemaVersion": "desktop_action_proposal.v1",
+  "title": "Blocked execute now",
+  "intent": "unsafe_execute_now",
+  "objectiveSummary": "This fixture is intentionally blocked.",
+  "observerEvidenceRefs": [
+    {
+      "evidenceRefId": "desktop-evidence-execute-1",
+      "summary": "Evidence summary only."
+    }
+  ],
+  "operations": [
+    {
+      "actionKind": "click_target",
+      "targetRef": {
+        "targetId": "target-button",
+        "observerEvidenceRefId": "desktop-evidence-execute-1"
+      },
+      "summary": "Unsafe proposal fixture.",
+      "expectedVisibleStateChange": "No execution.",
+      "executeNow": true
+    }
+  ],
+  "riskNotes": ["Unsafe fixture."]
+}

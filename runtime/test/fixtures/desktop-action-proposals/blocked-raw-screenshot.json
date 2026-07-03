@@ -1,0 +1,25 @@
+{
+  "schemaVersion": "desktop_action_proposal.v1",
+  "title": "Blocked raw screenshot",
+  "intent": "unsafe_raw_screenshot",
+  "objectiveSummary": "This fixture is intentionally blocked.",
+  "observerEvidenceRefs": [
+    {
+      "evidenceRefId": "desktop-evidence-raw-1",
+      "summary": "Evidence summary only."
+    }
+  ],
+  "operations": [
+    {
+      "actionKind": "focus_window",
+      "targetRef": {
+        "targetId": "target-window",
+        "observerEvidenceRefId": "desktop-evidence-raw-1"
+      },
+      "summary": "Unsafe proposal fixture.",
+      "expectedVisibleStateChange": "No execution."
+    }
+  ],
+  "riskNotes": ["Unsafe fixture."],
+  "rawScreenshot": "RAW_SCREENSHOT_NOT_ALLOWED"
+}

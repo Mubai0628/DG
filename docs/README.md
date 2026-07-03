@@ -374,6 +374,7 @@ foundation.
 - [Desktop Action Proposal threat model v0.23](desktop-action-proposal-threat-model-v0.23.md)
 - [Desktop Action Proposal implementation gate v0.23](desktop-action-proposal-implementation-gate-v0.23.md)
 - [P1B-002 Desktop Action Proposal Schema plan](p1b-002-desktop-action-proposal-schema-plan.md)
+- [Runtime Desktop Action Proposal Schema v0.23](runtime-desktop-action-proposal-schema-v0.23.md)
 - [Runtime Memory Recall Preview v0.3](runtime-memory-recall-preview-v0.3.md)
 - [v0.4.0 Controlled Creation Preview RC release notes](release-notes-v0.4.0-controlled-creation-preview-rc.1.md)
 - [App Shell Controlled Creation manual QA](app-shell-controlled-creation-manual-qa.md)

@@ -1,0 +1,39 @@
+{
+  "schemaVersion": "desktop_action_proposal.v1",
+  "proposalId": "desktop-action-proposal-warning-click",
+  "title": "Click safe toolbar target",
+  "intent": "click_toolbar_target",
+  "objectiveSummary": "Model a future click on a non-sensitive toolbar target.",
+  "observerEvidenceRefs": [
+    {
+      "evidenceRefId": "desktop-evidence-toolbar-1",
+      "observationId": "desktop-observation-2",
+      "observedAt": "2026-07-03T05:00:00.000Z",
+      "summary": "Toolbar target metadata summary.",
+      "source": "desktop_observation_summary",
+      "warningCodes": ["LOW_CONFIDENCE_BOUNDS"],
+      "redactionCodes": ["TITLE_REDACTED"]
+    }
+  ],
+  "operations": [
+    {
+      "operationId": "desktop-action-operation-click-1",
+      "actionKind": "click_target",
+      "targetRef": {
+        "targetId": "target-toolbar-button",
+        "windowIdHash": "win_hash_toolbar",
+        "appIdHash": "app_hash_editor",
+        "displayIdHash": "display_hash_primary",
+        "boundsSummary": "x:50 y:40 w:80 h:32",
+        "role": "button",
+        "labelSummary": "Toolbar button summary",
+        "observerEvidenceRefId": "desktop-evidence-toolbar-1"
+      },
+      "summary": "Future proposal to click the toolbar button.",
+      "rationale": "Click is modeled only as a proposal.",
+      "expectedVisibleStateChange": "Toolbar state might change in a future execution phase."
+    }
+  ],
+  "riskNotes": ["Click target requires risk classification."],
+  "createdAt": "2026-07-03T05:05:00.000Z"
+}
