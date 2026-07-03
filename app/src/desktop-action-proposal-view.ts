@@ -95,9 +95,8 @@ export function buildDesktopActionProposalView(
       : validateDesktopActionTargets({
           proposal,
           observerSummary: observerSummaryFromProposal(proposalValidation),
-          currentMetadataSummary: currentMetadataFromProposal(
-            proposalValidation
-          ),
+          currentMetadataSummary:
+            currentMetadataFromProposal(proposalValidation),
           staleThresholdMs: 60 * 60 * 1000,
           createdAt: input.createdAt ?? proposal.createdAt
         });
@@ -175,7 +174,9 @@ export function buildDesktopActionProposalView(
   return {
     status,
     source: "app_desktop_action_proposal_surface",
-    viewId: input.idGenerator?.() || `desktop-action-proposal-${viewHash.slice(0, 12)}`,
+    viewId:
+      input.idGenerator?.() ||
+      `desktop-action-proposal-${viewHash.slice(0, 12)}`,
     ...(proposal?.proposalId ? { proposalId: proposal.proposalId } : {}),
     actionCount: proposal?.operations.length ?? 0,
     targetSummary,
@@ -282,16 +283,15 @@ function observerSummaryFromProposal(
         titleSummary: operation.targetRef.labelSummary,
         targetIds: [operation.targetRef.targetId]
       })) || [],
-    displays:
-      unique(
-        proposal?.operations
-          .map((operation) => operation.targetRef.displayIdHash)
-          .filter((item): item is string => Boolean(item)) || []
-      ).map((displayIdHash) => ({
-        displayIdHash,
-        sizeSummary: "8192x8192",
-        primary: true
-      }))
+    displays: unique(
+      proposal?.operations
+        .map((operation) => operation.targetRef.displayIdHash)
+        .filter((item): item is string => Boolean(item)) || []
+    ).map((displayIdHash) => ({
+      displayIdHash,
+      sizeSummary: "8192x8192",
+      primary: true
+    }))
   };
 }
 
@@ -312,16 +312,15 @@ function currentMetadataFromProposal(
         confidence: 0.9,
         candidateCount: 1
       })) || [],
-    displays:
-      unique(
-        proposal?.operations
-          .map((operation) => operation.targetRef.displayIdHash)
-          .filter((item): item is string => Boolean(item)) || []
-      ).map((displayIdHash) => ({
-        displayIdHash,
-        sizeSummary: "8192x8192",
-        primary: true
-      }))
+    displays: unique(
+      proposal?.operations
+        .map((operation) => operation.targetRef.displayIdHash)
+        .filter((item): item is string => Boolean(item)) || []
+    ).map((displayIdHash) => ({
+      displayIdHash,
+      sizeSummary: "8192x8192",
+      primary: true
+    }))
   };
 }
 

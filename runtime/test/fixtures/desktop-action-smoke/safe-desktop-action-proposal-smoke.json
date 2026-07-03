@@ -35,9 +35,7 @@
         "expectedVisibleStateChange": "Editor window would become foreground in a future approved execution phase."
       }
     ],
-    "riskNotes": [
-      "Focus-only proposal; P1B does not execute desktop actions."
-    ],
+    "riskNotes": ["Focus-only proposal; P1B does not execute desktop actions."],
     "assumptions": ["Observer evidence remains current."],
     "createdAt": "2026-07-03T05:05:00.000Z"
   },

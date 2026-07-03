@@ -223,6 +223,13 @@ Current scope:
   checklist while preserving no desktop action, no click/type/select, no
   clipboard write, no hidden capture, no raw screenshot or OCR persistence by
   default, and no model auto-send
+- prepare the v0.24 Desktop Action Proposal MVP RC with proposal schema,
+  target metadata validation, risk classification, simulation, Capability
+  Broker planning refs, App read-only proposal surface, privacy/redaction
+  audit, smoke coverage, release notes, manual QA, and RC checklist while
+  preserving no desktop action, no click/type/select, no clipboard write, no
+  file dialog automation, no native bridge, no remote control, and no dynamic
+  agent desktop control
 - prepare the v0.19 MCP Tool Invocation Proposal RC with proposal schema,
   input risk classification, simulated result summaries, broker planning,
   read-only App proposal surface, redaction audit, and smoke hardening while

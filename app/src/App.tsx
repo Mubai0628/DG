@@ -5975,18 +5975,15 @@ export function DesktopShell(): JSX.Element {
             </p>
           </section>
 
-          <section
-            className="eventPanel"
-            aria-label="Desktop Action Proposal"
-          >
+          <section className="eventPanel" aria-label="Desktop Action Proposal">
             <div className="panelHeader">
               <h2>Desktop Action Proposal</h2>
               <span className="muted">Proposal only / no desktop action</span>
             </div>
             <p className="fieldHelp">
-              Models a future desktop action from Desktop Observer evidence.
-              The App Shell does not click, type, use clipboard, open file
-              dialogs, or perform desktop actions.
+              Models a future desktop action from Desktop Observer evidence. The
+              App Shell does not click, type, use clipboard, open file dialogs,
+              or perform desktop actions.
             </p>
 
             <label>

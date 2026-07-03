@@ -453,6 +453,9 @@ v0.17 Capability Host MVP references:
 - [v0.23 Desktop Observer post-release review](docs/v0.23-desktop-observer-postrelease-review.md)
 - [P1B Desktop Action Proposal roadmap](docs/p1b-desktop-action-proposal-roadmap.md)
 - [P1B-001 Desktop Action Proposal gate plan](docs/p1b-001-desktop-action-proposal-gate-plan.md)
+- [v0.24.0 Desktop Action Proposal MVP RC release notes](docs/release-notes-v0.24.0-desktop-action-proposal-mvp-rc.1.md)
+- [Desktop Action Proposal manual QA](docs/desktop-action-proposal-manual-qa.md)
+- [Desktop Action Proposal RC checklist](docs/desktop-action-proposal-rc-checklist.md)
 
 ## Current roadmap
 
@@ -532,13 +535,14 @@ screenshot or OCR persistence by default, no native bridge broad action, and no
 automatic model send.
 The v0.23 Desktop Observer MVP RC packages this observer path with release
 notes, manual QA, RC checklist, full-gate guidance, and prerelease commands.
-P1B starts the Desktop Action Proposal MVP, no execution roadmap. It models
-future desktop actions as proposals with target metadata validation, risk
+P1B is complete for the v0.24 Desktop Action Proposal MVP RC. It models future
+desktop actions as proposals with target metadata validation, risk
 classification, approval draft, dry-run simulation, Capability Broker planning
-refs, App read-only display, and privacy audit while preserving no real desktop
-action, no click/type/select execution, no clipboard write, no file dialog
-automation, no hidden background capture, no screen recording, no native bridge
-broad action, no remote control, and no dynamic agent desktop control.
+refs, App read-only display, privacy/redaction audit, and smoke hardening while
+preserving no real desktop action, no click/type/select execution, no clipboard
+write, no file dialog automation, no hidden background capture, no screen
+recording, no native bridge broad action, no remote control, and no dynamic
+agent desktop control.
 
 - [v0.2 App Shell RC post-release review](docs/v0.2-app-shell-rc-postrelease-review.md)
 - [P0G Coding Workflow roadmap](docs/p0g-coding-workflow-roadmap.md)

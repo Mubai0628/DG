@@ -13,11 +13,7 @@ import {
 } from "../src/desktop-action/index.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const smokeRoot = path.join(
-  __dirname,
-  "fixtures",
-  "desktop-action-smoke"
-);
+const smokeRoot = path.join(__dirname, "fixtures", "desktop-action-smoke");
 
 async function smokeFixture(): Promise<Record<string, unknown>> {
   return JSON.parse(
@@ -174,9 +170,7 @@ describe("desktop action privacy redaction audit", () => {
 
     expect(audit.status).toBe("blocked");
     expect(audit.redactionSummary.rawOcrTextDetected).toBe(true);
-    expect(audit.findings.map((item) => item.code)).toContain(
-      "RAW_OCR_FIELD"
-    );
+    expect(audit.findings.map((item) => item.code)).toContain("RAW_OCR_FIELD");
     expectSummaryOnly(audit);
   });
 
@@ -207,9 +201,7 @@ describe("desktop action privacy redaction audit", () => {
     expect(audit.status).toBe("blocked");
     expect(audit.redactionSummary.secretMarkerDetected).toBe(true);
     expect(audit.redactionSummary.apiKeyDetected).toBe(true);
-    expect(audit.findings.map((item) => item.code)).toContain(
-      "API_KEY_MARKER"
-    );
+    expect(audit.findings.map((item) => item.code)).toContain("API_KEY_MARKER");
     expectSummaryOnly(audit);
   });
 

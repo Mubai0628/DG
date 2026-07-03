@@ -116,8 +116,14 @@ const forbiddenFieldKinds = new Map<
   }
 >(
   [
-    ["rawscreenshot", ["raw_screenshot", "RAW_SCREENSHOT_FIELD", "rawScreenshotDetected"]],
-    ["screenshotbytes", ["image_bytes", "IMAGE_BYTES_FIELD", "imageBytesDetected"]],
+    [
+      "rawscreenshot",
+      ["raw_screenshot", "RAW_SCREENSHOT_FIELD", "rawScreenshotDetected"]
+    ],
+    [
+      "screenshotbytes",
+      ["image_bytes", "IMAGE_BYTES_FIELD", "imageBytesDetected"]
+    ],
     ["imagedata", ["image_bytes", "IMAGE_BYTES_FIELD", "imageBytesDetected"]],
     ["rawocrtext", ["raw_ocr", "RAW_OCR_FIELD", "rawOcrTextDetected"]],
     ["ocrtext", ["raw_ocr", "RAW_OCR_FIELD", "rawOcrTextDetected"]],
@@ -128,12 +134,30 @@ const forbiddenFieldKinds = new Map<
     ["authorization", ["api_key", "AUTHORIZATION_FIELD", "apiKeyDetected"]],
     ["bearer", ["api_key", "BEARER_FIELD", "apiKeyDetected"]],
     ["secret", ["secret", "SECRET_FIELD", "secretMarkerDetected"]],
-    ["clipboardcontent", ["clipboard", "CLIPBOARD_CONTENT_FIELD", "clipboardContentDetected"]],
-    ["filecontent", ["file_content", "FILE_CONTENT_FIELD", "fileContentDetected"]],
-    ["beforecontent", ["file_content", "FILE_CONTENT_FIELD", "fileContentDetected"]],
-    ["aftercontent", ["file_content", "FILE_CONTENT_FIELD", "fileContentDetected"]],
-    ["targetlabelraw", ["target_label", "RAW_TARGET_LABEL_FIELD", "rawTargetLabelDetected"]],
-    ["rawtargetlabel", ["target_label", "RAW_TARGET_LABEL_FIELD", "rawTargetLabelDetected"]]
+    [
+      "clipboardcontent",
+      ["clipboard", "CLIPBOARD_CONTENT_FIELD", "clipboardContentDetected"]
+    ],
+    [
+      "filecontent",
+      ["file_content", "FILE_CONTENT_FIELD", "fileContentDetected"]
+    ],
+    [
+      "beforecontent",
+      ["file_content", "FILE_CONTENT_FIELD", "fileContentDetected"]
+    ],
+    [
+      "aftercontent",
+      ["file_content", "FILE_CONTENT_FIELD", "fileContentDetected"]
+    ],
+    [
+      "targetlabelraw",
+      ["target_label", "RAW_TARGET_LABEL_FIELD", "rawTargetLabelDetected"]
+    ],
+    [
+      "rawtargetlabel",
+      ["target_label", "RAW_TARGET_LABEL_FIELD", "rawTargetLabelDetected"]
+    ]
   ].map(([key, value]) => {
     const tuple = value as [
       DesktopActionPrivacyRedactionFindingKind,

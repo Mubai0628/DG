@@ -1444,9 +1444,7 @@ describe("desktop command wrapper", () => {
     expect(safe.viewId).toBe("desktop-action-proposal-view-test");
     expect(safe.proposalId).toBe("desktop-action-proposal-safe-focus");
     expect(safe.actionCount).toBe(1);
-    expect(safe.targetSummary).toContain(
-      "focus_window:target-editor-window"
-    );
+    expect(safe.targetSummary).toContain("focus_window:target-editor-window");
     expect(safe.riskSummary).toContain("D1_LOW");
     expect(safe.simulationSummary).toContain("foreground");
     expect(safe.capabilitySummary).toContain("execute DISABLED");
@@ -1580,9 +1578,9 @@ describe("desktop command wrapper", () => {
     expect(appSource).toContain(
       "Models a future desktop action from Desktop Observer evidence."
     );
-    expect(appSource).toContain(
-      "The App Shell does not click, type, use clipboard, open file"
-    );
+    expect(appSource).toContain("App Shell does not click, type");
+    expect(appSource).toContain("use clipboard");
+    expect(appSource).toContain("open file dialogs");
     expect(appSource).toContain("Preview Desktop Action Proposal");
     expect(appSource).toContain("Clear Desktop Action Proposal");
     expect(appSource).toContain("Execute Desktop Action (disabled)");
@@ -1643,11 +1641,7 @@ describe("desktop command wrapper", () => {
       "utf8"
     );
     const smokeDoc = await readFile(
-      path.join(
-        repoRoot,
-        "docs",
-        "desktop-action-proposal-smoke-v0.23.md"
-      ),
+      path.join(repoRoot, "docs", "desktop-action-proposal-smoke-v0.23.md"),
       "utf8"
     );
     const docsIndex = await readFile(
@@ -22597,8 +22591,10 @@ describe("desktop source boundaries", () => {
     expect(rootReadme).toContain(
       "p1b-001-desktop-action-proposal-gate-plan.md"
     );
-    expect(rootReadme).toContain("P1B starts the Desktop Action Proposal MVP");
-    expect(rootReadme).toContain("no execution roadmap");
+    expect(rootReadme).toContain(
+      "P1B is complete for the v0.24 Desktop Action Proposal MVP RC"
+    );
+    expect(rootReadme).toContain("privacy/redaction audit");
 
     expect(combined).toContain("no desktop action");
     expect(combined).not.toContain("desktop action execution is enabled");
@@ -22714,6 +22710,107 @@ describe("desktop source boundaries", () => {
     expect(combined).not.toContain("click/type/select is enabled");
     expect(combined).not.toContain("clipboard write is enabled");
     expect(combined).not.toContain("file dialog automation is enabled");
+    expect(combined).not.toContain("native bridge broad action is enabled");
+  });
+
+  it("documents the v0.24 desktop action proposal mvp rc without enabling action", async () => {
+    const appSource = await readFile(
+      path.join(appRoot, "src", "App.tsx"),
+      "utf8"
+    );
+    const releaseNotes = await readFile(
+      path.join(
+        repoRoot,
+        "docs",
+        "release-notes-v0.24.0-desktop-action-proposal-mvp-rc.1.md"
+      ),
+      "utf8"
+    );
+    const manualQa = await readFile(
+      path.join(repoRoot, "docs", "desktop-action-proposal-manual-qa.md"),
+      "utf8"
+    );
+    const rcChecklist = await readFile(
+      path.join(repoRoot, "docs", "desktop-action-proposal-rc-checklist.md"),
+      "utf8"
+    );
+    const docsIndex = await readFile(
+      path.join(repoRoot, "docs", "README.md"),
+      "utf8"
+    );
+    const rootReadme = await readFile(path.join(repoRoot, "README.md"), "utf8");
+    const appReadme = await readFile(path.join(appRoot, "README.md"), "utf8");
+    const combined = `${releaseNotes}\n${manualQa}\n${rcChecklist}\n${docsIndex}\n${rootReadme}\n${appReadme}\n${appSource}`;
+
+    expect(releaseNotes).toContain("v0.24.0-desktop-action-proposal-mvp-rc.1");
+    expect(releaseNotes).toContain(
+      "Desktop Action Proposal MVP, no desktop action"
+    );
+    expect(releaseNotes).toContain("Desktop Action Proposal schema");
+    expect(releaseNotes).toContain("Target/window/app/screen metadata");
+    expect(releaseNotes).toContain("Desktop action simulated result");
+    expect(releaseNotes).toContain("Capability Broker planning integration");
+    expect(releaseNotes).toContain("privacy/redaction audit");
+    expect(releaseNotes).toContain("Smoke/hardening");
+    expect(releaseNotes).toContain(
+      "App can preview proposal summaries but cannot execute desktop action"
+    );
+    expect(releaseNotes).toContain(
+      "No click/type/select/clipboard/file dialog execution is enabled"
+    );
+    expect(releaseNotes).toContain("summary-only evidence refs");
+    expect(releaseNotes).toContain("pnpm verify:ci");
+    expect(releaseNotes).toContain("pnpm release:smoke");
+    expect(releaseNotes).toContain("pnpm app:qa:check");
+
+    expect(manualQa).toContain("Convert Smoke");
+    expect(manualQa).toContain("Desktop Observer Smoke");
+    expect(manualQa).toContain("Desktop Action Proposal Smoke");
+    expect(manualQa).toContain("Preview Desktop Action Proposal");
+    expect(manualQa).toContain("Execute Desktop Action (disabled)");
+    expect(manualQa).toContain("Click Target (disabled)");
+    expect(manualQa).toContain("Type Text (disabled)");
+    expect(manualQa).toContain("Use Clipboard (disabled)");
+    expect(manualQa).toContain("blocked raw screenshot");
+    expect(manualQa).toContain("blocked secret");
+    expect(manualQa).toContain("executeNow");
+    expect(manualQa).toContain("Refresh events");
+    expect(manualQa).toContain("no native bridge");
+
+    expect(rcChecklist).toContain("Local Scoped Command Gate");
+    expect(rcChecklist).toContain("Full Stage-End Command Gate");
+    expect(rcChecklist).toContain("Visual Smoke Gate");
+    expect(rcChecklist).toContain("pnpm verify:ci");
+    expect(rcChecklist).toContain("pnpm release:smoke");
+    expect(rcChecklist).toContain("pnpm app:qa:check");
+    expect(rcChecklist).toContain("git tag v0.24.0");
+    expect(rcChecklist).toContain("gh release create");
+    expect(rcChecklist).toContain("full docs path links");
+
+    expect(appSource).toContain("Desktop Action Proposal");
+    expect(appSource).toContain("Proposal only / no desktop action");
+    expect(appSource).toContain("Execute Desktop Action (disabled)");
+    expect(appSource).toContain("Click Target (disabled)");
+    expect(appSource).toContain("Type Text (disabled)");
+    expect(appSource).toContain("Use Clipboard (disabled)");
+    expect(appSource).not.toMatch(/>\s*Execute Desktop Action\s*</);
+    expect(appSource).not.toMatch(/>\s*Click Target\s*</);
+    expect(appSource).not.toMatch(/>\s*Type Text\s*</);
+    expect(appSource).not.toMatch(/>\s*Use Clipboard\s*</);
+
+    expect(docsIndex).toContain(
+      "release-notes-v0.24.0-desktop-action-proposal-mvp-rc.1.md"
+    );
+    expect(docsIndex).toContain("desktop-action-proposal-manual-qa.md");
+    expect(docsIndex).toContain("desktop-action-proposal-rc-checklist.md");
+    expect(rootReadme).toContain(
+      "release-notes-v0.24.0-desktop-action-proposal-mvp-rc.1.md"
+    );
+    expect(appReadme).toContain("v0.24 Desktop Action Proposal MVP RC");
+    expect(combined).toContain("no desktop action");
+    expect(combined).not.toContain("desktop action execution is enabled");
+    expect(combined).not.toContain("click/type/select execution is enabled");
+    expect(combined).not.toContain("clipboard write is enabled");
     expect(combined).not.toContain("native bridge broad action is enabled");
   });
 
