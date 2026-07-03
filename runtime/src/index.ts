@@ -43,6 +43,7 @@ export * from "./control-plane/index.js";
 export * from "./context/index.js";
 export * from "./memory/index.js";
 export * from "./deepseek/index.js";
+export * from "./desktop-observer/index.js";
 export * from "./events/index.js";
 export * from "./execution/index.js";
 export * from "./e2e-task/index.js";

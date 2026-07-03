@@ -301,6 +301,9 @@ function isAllowedBoundaryHit(file, line, ruleId) {
   ) {
     return true;
   }
+  if (isDesktopObserverProfileDenylist(file, ruleId)) {
+    return true;
+  }
   if (file === "browser-extension/src/payload.ts") {
     return true;
   }
@@ -350,6 +353,9 @@ function isAllowedSecretHit(file, line, ruleId) {
     return true;
   }
   if (isLiveProposalOptInPolicyDisplayRef(file, line, ruleId)) {
+    return true;
+  }
+  if (isDesktopObserverProfileSecretDenylist(file, ruleId)) {
     return true;
   }
   return false;
@@ -444,6 +450,27 @@ function isLiveProposalOptInPolicyDisplayRef(file, line, ruleId) {
       file === "app/src/App.tsx") &&
     line.includes("DEEPSEEK_API_KEY") &&
     (line.includes("allowedEnvVarNames") || line.includes("ref only"))
+  );
+}
+
+function isDesktopObserverProfileDenylist(file, ruleId) {
+  // ACCEPTABLE_DESKTOP_OBSERVER_PROFILE_DENYLIST: forbidden field names only.
+  return (
+    file === "runtime/src/desktop-observer/desktop-observation-profile.ts" &&
+    [
+      "raw_prompt_reference",
+      "raw_dom_reference",
+      "raw_screenshot_reference",
+      "clipboard_reference"
+    ].includes(ruleId)
+  );
+}
+
+function isDesktopObserverProfileSecretDenylist(file, ruleId) {
+  // ACCEPTABLE_DESKTOP_OBSERVER_PROFILE_DENYLIST: env names are blocked markers.
+  return (
+    file === "runtime/src/desktop-observer/desktop-observation-profile.ts" &&
+    ["deepseek_env_reference", "openai_env_reference"].includes(ruleId)
   );
 }
 
