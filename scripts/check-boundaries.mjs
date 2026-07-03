@@ -530,7 +530,8 @@ function isDesktopActionProposalSchemaFile(file) {
   return (
     file === "runtime/src/desktop-action/action-proposal-schema.ts" ||
     file === "runtime/src/desktop-action/target-metadata-validation.ts" ||
-    file === "runtime/src/desktop-action/risk-classifier.ts"
+    file === "runtime/src/desktop-action/risk-classifier.ts" ||
+    file === "runtime/src/desktop-action/simulated-result.ts"
   );
 }
 
