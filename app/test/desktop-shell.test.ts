@@ -22951,6 +22951,127 @@ describe("desktop source boundaries", () => {
     expect(combined).not.toContain("autonomous desktop agent is enabled");
   });
 
+  it("documents the P1C approved desktop action execution ADR and gate", async () => {
+    const adr = await readFile(
+      path.join(
+        repoRoot,
+        "docs",
+        "adr",
+        "0011-approved-desktop-action-execution.md"
+      ),
+      "utf8"
+    );
+    const threatModel = await readFile(
+      path.join(
+        repoRoot,
+        "docs",
+        "approved-desktop-action-execution-threat-model-v0.24.md"
+      ),
+      "utf8"
+    );
+    const implementationGate = await readFile(
+      path.join(
+        repoRoot,
+        "docs",
+        "approved-desktop-action-execution-implementation-gate-v0.24.md"
+      ),
+      "utf8"
+    );
+    const nextPlan = await readFile(
+      path.join(
+        repoRoot,
+        "docs",
+        "p1c-002-desktop-action-approval-receipt-plan.md"
+      ),
+      "utf8"
+    );
+    const docsIndex = await readFile(
+      path.join(repoRoot, "docs", "README.md"),
+      "utf8"
+    );
+    const combined = `${adr}\n${threatModel}\n${implementationGate}\n${nextPlan}\n${docsIndex}`;
+
+    expect(adr).toContain("ADR 0011: Approved Desktop Action Execution");
+    expect(adr).toContain("Proposed / Accepted for P1C design gate");
+    expect(adr).toContain("focus_observed_window");
+    expect(adr).toContain("raise_observed_window");
+    expect(adr).toContain("activate_observed_window");
+    expect(adr).toContain("Desktop Observer evidence");
+    expect(adr).toContain("Desktop Action Proposal");
+    expect(adr).toContain("human approval receipt");
+    expect(adr).toContain("exact typed");
+    expect(adr).toContain("confirmation");
+    expect(adr).toContain("fixed Tauri command");
+    expect(adr).toContain("generic native bridge");
+    expect(adr).toContain("click/type/select/drag/drop");
+    expect(adr).toContain("clipboard write");
+    expect(adr).toContain("file dialog automation");
+    expect(adr).toContain("screen recording");
+    expect(adr).toContain("hidden capture");
+    expect(adr).toContain("autonomous desktop agent");
+    expect(adr).toContain("Replay can reconstruct an action summary");
+
+    expect(threatModel).toContain("Stale window metadata");
+    expect(threatModel).toContain("Wrong window target");
+    expect(threatModel).toContain("App spoofing");
+    expect(threatModel).toContain("Window title injection");
+    expect(threatModel).toContain("Focus stealing");
+    expect(threatModel).toContain("Sensitive window/app target");
+    expect(threatModel).toContain("Hidden/background capture");
+    expect(threatModel).toContain("Accidental action on wrong monitor");
+    expect(threatModel).toContain("Desktop action approval bypass");
+    expect(threatModel).toContain("Native bridge escalation");
+    expect(threatModel).toContain("Clipboard leakage");
+    expect(threatModel).toContain("Raw screenshot / OCR leakage");
+    expect(threatModel).toContain("Event/replay confusion");
+    expect(threatModel).toContain("Dynamic agent desktop control");
+    expect(threatModel).toContain("Remote control risk");
+
+    expect(implementationGate).toContain("Observer Evidence Freshness");
+    expect(implementationGate).toContain("Target Validation");
+    expect(implementationGate).toContain("Risk Classification");
+    expect(implementationGate).toContain("Approval Receipt");
+    expect(implementationGate).toContain("Typed Confirmation");
+    expect(implementationGate).toContain("Fixed Command Boundary");
+    expect(implementationGate).toContain("Platform Support Boundary");
+    expect(implementationGate).toContain("Privacy / Redaction Audit");
+    expect(implementationGate).toContain("Summary-only Event");
+    expect(implementationGate).toContain("Replay Safety");
+    expect(implementationGate).toContain("App UI Safety");
+    expect(implementationGate).toContain("CI / Boundary Safety");
+
+    expect(nextPlan).toContain("P1C-002 Desktop Action Approval Receipt Plan");
+    expect(nextPlan).toContain("not a broad PermissionLease");
+    expect(nextPlan).toContain("FOCUS OBSERVED WINDOW");
+    expect(nextPlan).toContain("RAISE OBSERVED WINDOW");
+    expect(nextPlan).toContain("ACTIVATE OBSERVED WINDOW");
+    expect(nextPlan).toContain("Unsupported action kind");
+    expect(nextPlan).toContain("Typed confirmation mismatch");
+    expect(nextPlan).toContain("Raw screenshot/API key blocked");
+
+    expect(docsIndex).toContain(
+      "adr/0011-approved-desktop-action-execution.md"
+    );
+    expect(docsIndex).toContain(
+      "approved-desktop-action-execution-threat-model-v0.24.md"
+    );
+    expect(docsIndex).toContain(
+      "approved-desktop-action-execution-implementation-gate-v0.24.md"
+    );
+    expect(docsIndex).toContain(
+      "p1c-002-desktop-action-approval-receipt-plan.md"
+    );
+
+    expect(combined).not.toContain("arbitrary desktop action is enabled");
+    expect(combined).not.toContain("click/type/select execution is enabled");
+    expect(combined).not.toContain("clipboard write is enabled");
+    expect(combined).not.toContain("file dialog automation is enabled");
+    expect(combined).not.toContain(
+      "native bridge broad action execution is enabled"
+    );
+    expect(combined).not.toContain("autonomous desktop agent is enabled");
+  });
+
   it("documents the v0.22 post-release review and P1A desktop observer roadmap", async () => {
     const promptDoc = await readFile(
       path.join(repoRoot, "docs", "v0.23-desktop-observer-mvp-prompts.md"),
