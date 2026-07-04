@@ -23,6 +23,7 @@ fn main() {
             commands::project_knowledge_expire,
             commands::observe_desktop_metadata,
             commands::execute_approved_desktop_action,
+            commands::execute_approved_expanded_desktop_action,
             commands::run_web_table_to_csv_flow
         ])
         .run(tauri::generate_context!())

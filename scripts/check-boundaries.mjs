@@ -276,6 +276,7 @@ function isAllowedBoundaryHit(file, line, ruleId) {
       line.includes("Command::new(program)") ||
       line.includes("app/scripts/run-flow.mjs") ||
       isEventLogLeakScannerLine(line) ||
+      isApprovedExpandedCommandDenylist(file, line, ruleId) ||
       line.includes("DEEPSEEK_API_KEY") ||
       line.includes("OPENAI_API_KEY")
     );
@@ -311,6 +312,9 @@ function isAllowedBoundaryHit(file, line, ruleId) {
     return true;
   }
   if (isApprovedExpandedReceiptDenylist(file, line, ruleId)) {
+    return true;
+  }
+  if (isApprovedExpandedCommandDenylist(file, line, ruleId)) {
     return true;
   }
   if (file === "browser-extension/src/payload.ts") {
@@ -394,7 +398,8 @@ function checkMvpHardeningBoundaries(root, file, text) {
     "apply_approved_user_workspace_patch",
     "rollback_approved_user_workspace_patch",
     "record_approved_user_workspace_execution_event",
-    "execute_approved_desktop_action"
+    "execute_approved_desktop_action",
+    "execute_approved_expanded_desktop_action"
   ];
   const sourceCanUseReadinessFlags =
     rel.startsWith("app/src/") || rel.startsWith("runtime/src/");
@@ -573,6 +578,17 @@ function isApprovedExpandedReceiptSecretDenylist(file, ruleId) {
     file ===
       "runtime/src/desktop-action/approved-expanded-action-receipt.ts" &&
     ["deepseek_env_reference", "openai_env_reference"].includes(ruleId)
+  );
+}
+
+function isApprovedExpandedCommandDenylist(file, line, ruleId) {
+  // ACCEPTABLE_APPROVED_EXPANDED_ACTION_COMMAND_DENYLIST: command rejects these fields.
+  return (
+    file === "app/src-tauri/src/commands.rs" &&
+    ruleId === "clipboard_reference" &&
+    (line.includes("clipboard") ||
+      line.includes("clipboardContent") ||
+      line.includes("writeclipboard"))
   );
 }
 

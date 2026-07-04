@@ -435,6 +435,7 @@ foundation.
 - [App Shell Approved Expanded Desktop Action Receipt v0.26](app-shell-approved-expanded-desktop-action-receipt-v0.26.md)
 - [Runtime Safe Click Contract v0.26](runtime-safe-click-contract-v0.26.md)
 - [Runtime Safe Type Contract v0.26](runtime-safe-type-contract-v0.26.md)
+- [Tauri Approved Expanded Desktop Action Command v0.26](tauri-approved-expanded-desktop-action-command-v0.26.md)
 - [Runtime Memory Recall Preview v0.3](runtime-memory-recall-preview-v0.3.md)
 - [v0.4.0 Controlled Creation Preview RC release notes](release-notes-v0.4.0-controlled-creation-preview-rc.1.md)
 - [App Shell Controlled Creation manual QA](app-shell-controlled-creation-manual-qa.md)

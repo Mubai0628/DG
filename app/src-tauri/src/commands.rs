@@ -56,6 +56,10 @@ const APPROVED_DESKTOP_ACTION_FOCUS_CONFIRMATION: &str = "FOCUS OBSERVED WINDOW"
 const APPROVED_DESKTOP_ACTION_RAISE_CONFIRMATION: &str = "RAISE OBSERVED WINDOW";
 const APPROVED_DESKTOP_ACTION_ACTIVATE_CONFIRMATION: &str = "ACTIVATE OBSERVED WINDOW";
 const APPROVED_DESKTOP_ACTION_RESULT_TYPE: &str = "desktop_action.approved_result";
+const APPROVED_EXPANDED_DESKTOP_ACTION_CLICK_CONFIRMATION: &str = "CLICK OBSERVED TARGET";
+const APPROVED_EXPANDED_DESKTOP_ACTION_TYPE_CONFIRMATION: &str = "TYPE INTO OBSERVED FIELD";
+const APPROVED_EXPANDED_DESKTOP_ACTION_RESULT_TYPE: &str =
+    "desktop_action.approved_expanded_result";
 
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -520,6 +524,98 @@ pub struct ApprovedDesktopActionCommandResult {
     raw_ocr_text_persisted: bool,
     raw_window_content_included: bool,
     can_click_type_select: bool,
+    can_write_clipboard: bool,
+    can_open_file_dialog: bool,
+    can_use_native_bridge: bool,
+    can_write_event_store: bool,
+    can_execute_git: bool,
+    can_execute_shell: bool,
+    app_can_execute: bool,
+    safe_message: String,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct ApprovedExpandedDesktopActionBoundsSummary {
+    bounds_hash: String,
+    point_hash: Option<String>,
+    target_bounds_hash: Option<String>,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct ApprovedExpandedDesktopActionTextPayloadSummary {
+    text_hash: String,
+    text_length: usize,
+    #[serde(default)]
+    warning_codes: Vec<String>,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct ApprovedExpandedDesktopActionCommandRequest {
+    receipt: Value,
+    contract: Value,
+    action_kind: String,
+    target_ref: String,
+    window_ref: String,
+    app_ref: String,
+    display_ref: Option<String>,
+    bounds_summary: Option<ApprovedExpandedDesktopActionBoundsSummary>,
+    text_payload: Option<ApprovedExpandedDesktopActionTextPayloadSummary>,
+    typed_confirmation: String,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct ApprovedExpandedDesktopActionCommandEventPreview {
+    #[serde(rename = "type")]
+    event_type: String,
+    action_execution_id: String,
+    action_kind: String,
+    target_ref: String,
+    window_ref: String,
+    app_ref: String,
+    display_ref: Option<String>,
+    status: String,
+    result_hash: String,
+    warning_codes: Vec<String>,
+    not_written: bool,
+    would_write_summary_event: bool,
+    raw_action_payload_included: bool,
+    raw_desktop_capture_included: bool,
+    raw_text_included: bool,
+    summary_only: bool,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct ApprovedExpandedDesktopActionCommandResult {
+    ok: bool,
+    status: String,
+    action_execution_id: String,
+    action_kind: String,
+    target_ref: String,
+    window_ref: String,
+    app_ref: String,
+    display_ref: Option<String>,
+    bounds_hash: Option<String>,
+    text_hash: Option<String>,
+    text_length: Option<usize>,
+    warning_codes: Vec<String>,
+    result_hash: String,
+    event_preview: ApprovedExpandedDesktopActionCommandEventPreview,
+    summary_only: bool,
+    raw_screenshot_persisted: bool,
+    raw_ocr_text_persisted: bool,
+    raw_target_text_included: bool,
+    raw_action_payload_included: bool,
+    raw_desktop_capture_included: bool,
+    raw_text_included: bool,
+    can_click: bool,
+    can_type: bool,
+    can_select: bool,
+    can_drag_drop: bool,
     can_write_clipboard: bool,
     can_open_file_dialog: bool,
     can_use_native_bridge: bool,
@@ -1738,6 +1834,13 @@ pub fn execute_approved_desktop_action(
     run_approved_desktop_action_command(request)
 }
 
+#[tauri::command(rename_all = "camelCase")]
+pub fn execute_approved_expanded_desktop_action(
+    request: ApprovedExpandedDesktopActionCommandRequest,
+) -> Result<ApprovedExpandedDesktopActionCommandResult, DesktopFlowError> {
+    run_approved_expanded_desktop_action_command(request)
+}
+
 fn run_desktop_observation_metadata(
     request: DesktopObservationCommandRequest,
 ) -> Result<DesktopObservationCommandResult, DesktopFlowError> {
@@ -2016,6 +2119,367 @@ fn run_approved_desktop_action_command(
     })
 }
 
+fn run_approved_expanded_desktop_action_command(
+    request: ApprovedExpandedDesktopActionCommandRequest,
+) -> Result<ApprovedExpandedDesktopActionCommandResult, DesktopFlowError> {
+    validate_approved_expanded_desktop_action_request(&request)?;
+    let bounds_hash = request
+        .bounds_summary
+        .as_ref()
+        .map(|summary| sanitize_safe_message(&summary.bounds_hash));
+    let text_hash = request
+        .text_payload
+        .as_ref()
+        .map(|summary| sanitize_safe_message(&summary.text_hash));
+    let text_length = request
+        .text_payload
+        .as_ref()
+        .map(|summary| summary.text_length);
+    let action_execution_id = format!(
+        "approved-expanded-desktop-action-{}",
+        short_hash(&format!(
+            "{}:{}:{}:{}:{:?}:{:?}",
+            request.action_kind,
+            request.target_ref,
+            request.window_ref,
+            request.app_ref,
+            bounds_hash,
+            text_hash
+        ))
+    );
+    let status = "unsupported_platform".to_string();
+    let warning_codes = vec!["UNSUPPORTED_PLATFORM".to_string()];
+    let result_hash = short_hash(&format!(
+        "{}:{}:{}:{}:{:?}:{:?}:{:?}",
+        action_execution_id,
+        request.action_kind,
+        request.target_ref,
+        request.window_ref,
+        bounds_hash,
+        text_hash,
+        warning_codes
+    ));
+    let event_preview = ApprovedExpandedDesktopActionCommandEventPreview {
+        event_type: APPROVED_EXPANDED_DESKTOP_ACTION_RESULT_TYPE.to_string(),
+        action_execution_id: action_execution_id.clone(),
+        action_kind: sanitize_safe_message(&request.action_kind),
+        target_ref: sanitize_safe_message(&request.target_ref),
+        window_ref: sanitize_safe_message(&request.window_ref),
+        app_ref: sanitize_safe_message(&request.app_ref),
+        display_ref: request.display_ref.as_deref().map(sanitize_safe_message),
+        status: status.clone(),
+        result_hash: result_hash.clone(),
+        warning_codes: warning_codes.clone(),
+        not_written: true,
+        would_write_summary_event: false,
+        raw_action_payload_included: false,
+        raw_desktop_capture_included: false,
+        raw_text_included: false,
+        summary_only: true,
+    };
+
+    Ok(ApprovedExpandedDesktopActionCommandResult {
+        ok: true,
+        status,
+        action_execution_id,
+        action_kind: sanitize_safe_message(&request.action_kind),
+        target_ref: sanitize_safe_message(&request.target_ref),
+        window_ref: sanitize_safe_message(&request.window_ref),
+        app_ref: sanitize_safe_message(&request.app_ref),
+        display_ref: request.display_ref.as_deref().map(sanitize_safe_message),
+        bounds_hash,
+        text_hash,
+        text_length,
+        warning_codes,
+        result_hash,
+        event_preview,
+        summary_only: true,
+        raw_screenshot_persisted: false,
+        raw_ocr_text_persisted: false,
+        raw_target_text_included: false,
+        raw_action_payload_included: false,
+        raw_desktop_capture_included: false,
+        raw_text_included: false,
+        can_click: false,
+        can_type: false,
+        can_select: false,
+        can_drag_drop: false,
+        can_write_clipboard: false,
+        can_open_file_dialog: false,
+        can_use_native_bridge: false,
+        can_write_event_store: false,
+        can_execute_git: false,
+        can_execute_shell: false,
+        app_can_execute: false,
+        safe_message: "Approved expanded desktop action command is fixed and summary-only; this platform is unsupported safely."
+            .to_string(),
+    })
+}
+
+fn validate_approved_expanded_desktop_action_request(
+    request: &ApprovedExpandedDesktopActionCommandRequest,
+) -> Result<(), DesktopFlowError> {
+    validate_approved_expanded_desktop_action_kind(&request.action_kind)?;
+    validate_approved_expanded_desktop_safe_ref(&request.target_ref, "target ref")?;
+    validate_approved_expanded_desktop_safe_ref(&request.window_ref, "window ref")?;
+    validate_approved_expanded_desktop_safe_ref(&request.app_ref, "app ref")?;
+    if let Some(display_ref) = &request.display_ref {
+        validate_approved_expanded_desktop_safe_ref(display_ref, "display ref")?;
+    }
+    let expected_confirmation =
+        approved_expanded_desktop_action_confirmation(&request.action_kind)?;
+    if request.typed_confirmation != expected_confirmation {
+        return Err(approved_expanded_desktop_action_invalid(
+            "Approved expanded desktop action typed confirmation is required",
+        ));
+    }
+    let request_value = serde_json::to_value(request).map_err(|_| {
+        approved_expanded_desktop_action_invalid(
+            "Approved expanded desktop action request could not be summarized",
+        )
+    })?;
+    if let Some(key) = find_forbidden_approved_apply_key(&request_value) {
+        return Err(approved_expanded_desktop_action_invalid(format!(
+            "Approved expanded desktop action request contains forbidden field {key}"
+        )));
+    }
+    validate_live_value_string_safety(&request_value)
+        .map_err(approved_expanded_desktop_action_invalid)?;
+    if approved_desktop_action_value_has_execution_true(&request.receipt)
+        || approved_desktop_action_value_has_execution_true(&request.contract)
+    {
+        return Err(approved_expanded_desktop_action_invalid(
+            "Approved expanded desktop action input attempted broad execution",
+        ));
+    }
+    validate_approved_expanded_desktop_action_receipt(request)?;
+    validate_approved_expanded_desktop_action_contract(request)?;
+
+    match request.action_kind.as_str() {
+        "click_observed_safe_target" => {
+            let Some(bounds_summary) = &request.bounds_summary else {
+                return Err(approved_expanded_desktop_action_invalid(
+                    "Approved expanded click bounds summary is required",
+                ));
+            };
+            validate_approved_expanded_desktop_safe_ref(
+                &bounds_summary.bounds_hash,
+                "bounds hash",
+            )?;
+            if request.text_payload.is_some() {
+                return Err(approved_expanded_desktop_action_invalid(
+                    "Approved expanded click must not include text payload",
+                ));
+            }
+        }
+        "type_into_observed_text_field" => {
+            let Some(text_payload) = &request.text_payload else {
+                return Err(approved_expanded_desktop_action_invalid(
+                    "Approved expanded type text payload summary is required",
+                ));
+            };
+            validate_approved_expanded_desktop_safe_ref(&text_payload.text_hash, "text hash")?;
+            if text_payload.text_length == 0 || text_payload.text_length > 80 {
+                return Err(approved_expanded_desktop_action_invalid(
+                    "Approved expanded type text length is unsafe",
+                ));
+            }
+        }
+        _ => unreachable!(),
+    }
+    Ok(())
+}
+
+fn validate_approved_expanded_desktop_action_receipt(
+    request: &ApprovedExpandedDesktopActionCommandRequest,
+) -> Result<(), DesktopFlowError> {
+    let Some(receipt) = request.receipt.as_object() else {
+        return Err(approved_expanded_desktop_action_invalid(
+            "Approved expanded desktop action receipt is required",
+        ));
+    };
+    if receipt.get("source").and_then(Value::as_str)
+        != Some("runtime_approved_expanded_desktop_action_receipt")
+    {
+        return Err(approved_expanded_desktop_action_invalid(
+            "Approved expanded desktop action receipt source is invalid",
+        ));
+    }
+    if receipt.get("status").and_then(Value::as_str) != Some("ready")
+        || receipt.get("blockerCount").and_then(Value::as_u64).unwrap_or(1) != 0
+        || receipt.get("typedConfirmationAccepted").and_then(Value::as_bool) != Some(true)
+        || receipt.get("summaryOnly").and_then(Value::as_bool) != Some(true)
+    {
+        return Err(approved_expanded_desktop_action_invalid(
+            "Approved expanded desktop action receipt is not ready",
+        ));
+    }
+    if receipt.get("actionKind").and_then(Value::as_str) != Some(request.action_kind.as_str()) {
+        return Err(approved_expanded_desktop_action_invalid(
+            "Approved expanded desktop action receipt action mismatch",
+        ));
+    }
+    let Some(scope) = receipt.get("scope").and_then(Value::as_object) else {
+        return Err(approved_expanded_desktop_action_invalid(
+            "Approved expanded desktop action receipt scope is required",
+        ));
+    };
+    for (field, expected) in [
+        ("actionKind", request.action_kind.as_str()),
+        ("targetId", request.target_ref.as_str()),
+        ("windowRef", request.window_ref.as_str()),
+        ("appRef", request.app_ref.as_str()),
+        ("typedConfirmation", request.typed_confirmation.as_str()),
+    ] {
+        if scope.get(field).and_then(Value::as_str) != Some(expected) {
+            return Err(approved_expanded_desktop_action_invalid(format!(
+                "Approved expanded desktop action receipt {field} mismatch"
+            )));
+        }
+    }
+    if let Some(display_ref) = &request.display_ref {
+        if scope.get("displayRef").and_then(Value::as_str) != Some(display_ref.as_str()) {
+            return Err(approved_expanded_desktop_action_invalid(
+                "Approved expanded desktop action receipt display mismatch",
+            ));
+        }
+    }
+    let Some(allowed_actions) = scope.get("allowedActionKinds").and_then(Value::as_array) else {
+        return Err(approved_expanded_desktop_action_invalid(
+            "Approved expanded desktop action receipt allowed actions are required",
+        ));
+    };
+    if !allowed_actions
+        .iter()
+        .any(|value| value.as_str() == Some(request.action_kind.as_str()))
+    {
+        return Err(approved_expanded_desktop_action_invalid(
+            "Approved expanded desktop action is not allowlisted by the receipt",
+        ));
+    }
+    let Some(readiness) = receipt.get("readiness").and_then(Value::as_object) else {
+        return Err(approved_expanded_desktop_action_invalid(
+            "Approved expanded desktop action receipt readiness is required",
+        ));
+    };
+    let required_readiness = match request.action_kind.as_str() {
+        "click_observed_safe_target" => "canEnterSafeClickContract",
+        "type_into_observed_text_field" => "canEnterSafeTypeContract",
+        _ => unreachable!(),
+    };
+    if readiness.get(required_readiness).and_then(Value::as_bool) != Some(true) {
+        return Err(approved_expanded_desktop_action_invalid(
+            "Approved expanded desktop action receipt cannot enter contract",
+        ));
+    }
+    Ok(())
+}
+
+fn validate_approved_expanded_desktop_action_contract(
+    request: &ApprovedExpandedDesktopActionCommandRequest,
+) -> Result<(), DesktopFlowError> {
+    let Some(contract) = request.contract.as_object() else {
+        return Err(approved_expanded_desktop_action_invalid(
+            "Approved expanded desktop action contract is required",
+        ));
+    };
+    let expected_source = match request.action_kind.as_str() {
+        "click_observed_safe_target" => "runtime_safe_click_contract",
+        "type_into_observed_text_field" => "runtime_safe_type_contract",
+        _ => unreachable!(),
+    };
+    if contract.get("source").and_then(Value::as_str) != Some(expected_source) {
+        return Err(approved_expanded_desktop_action_invalid(
+            "Approved expanded desktop action contract source is invalid",
+        ));
+    }
+    if contract.get("actionKind").and_then(Value::as_str) != Some(request.action_kind.as_str())
+        || contract.get("blockerCount").and_then(Value::as_u64).unwrap_or(1) != 0
+        || contract.get("summaryOnly").and_then(Value::as_bool) != Some(true)
+    {
+        return Err(approved_expanded_desktop_action_invalid(
+            "Approved expanded desktop action contract is not ready",
+        ));
+    }
+    if !matches!(
+        contract.get("status").and_then(Value::as_str),
+        Some("planned") | Some("warning")
+    ) {
+        return Err(approved_expanded_desktop_action_invalid(
+            "Approved expanded desktop action contract status is blocked",
+        ));
+    }
+    for (field, expected) in [
+        ("targetRef", request.target_ref.as_str()),
+        ("windowRef", request.window_ref.as_str()),
+        ("appRef", request.app_ref.as_str()),
+    ] {
+        if contract.get(field).and_then(Value::as_str) != Some(expected) {
+            return Err(approved_expanded_desktop_action_invalid(format!(
+                "Approved expanded desktop action contract {field} mismatch"
+            )));
+        }
+    }
+    if let Some(display_ref) = &request.display_ref {
+        if contract.get("displayRef").and_then(Value::as_str) != Some(display_ref.as_str()) {
+            return Err(approved_expanded_desktop_action_invalid(
+                "Approved expanded desktop action contract display mismatch",
+            ));
+        }
+    }
+    let Some(readiness) = contract.get("readiness").and_then(Value::as_object) else {
+        return Err(approved_expanded_desktop_action_invalid(
+            "Approved expanded desktop action contract readiness is required",
+        ));
+    };
+    if readiness
+        .get("canExecuteViaFixedTauriCommand")
+        .and_then(Value::as_bool)
+        != Some(true)
+    {
+        return Err(approved_expanded_desktop_action_invalid(
+            "Approved expanded desktop action contract cannot enter fixed Tauri command",
+        ));
+    }
+    match request.action_kind.as_str() {
+        "click_observed_safe_target" => {
+            let Some(bounds_summary) = &request.bounds_summary else {
+                return Err(approved_expanded_desktop_action_invalid(
+                    "Approved expanded click bounds summary is required",
+                ));
+            };
+            if contract.get("boundsHash").and_then(Value::as_str)
+                != Some(bounds_summary.bounds_hash.as_str())
+            {
+                return Err(approved_expanded_desktop_action_invalid(
+                    "Approved expanded desktop action bounds mismatch",
+                ));
+            }
+        }
+        "type_into_observed_text_field" => {
+            let Some(text_payload) = &request.text_payload else {
+                return Err(approved_expanded_desktop_action_invalid(
+                    "Approved expanded type text payload summary is required",
+                ));
+            };
+            if contract.get("textHash").and_then(Value::as_str)
+                != Some(text_payload.text_hash.as_str())
+                || contract
+                    .get("textLength")
+                    .and_then(Value::as_u64)
+                    .map(|value| value as usize)
+                    != Some(text_payload.text_length)
+            {
+                return Err(approved_expanded_desktop_action_invalid(
+                    "Approved expanded desktop action text summary mismatch",
+                ));
+            }
+        }
+        _ => unreachable!(),
+    }
+    Ok(())
+}
+
 fn validate_approved_desktop_action_request(
     request: &ApprovedDesktopActionCommandRequest,
 ) -> Result<(), DesktopFlowError> {
@@ -2128,6 +2592,68 @@ fn validate_approved_desktop_action_receipt(
         ));
     }
     Ok(())
+}
+
+fn validate_approved_expanded_desktop_action_kind(
+    action_kind: &str,
+) -> Result<(), DesktopFlowError> {
+    match action_kind {
+        "click_observed_safe_target" | "type_into_observed_text_field" => Ok(()),
+        _ => Err(approved_expanded_desktop_action_invalid(
+            "Approved expanded desktop action kind is not allowlisted",
+        )),
+    }
+}
+
+fn approved_expanded_desktop_action_confirmation(
+    action_kind: &str,
+) -> Result<&'static str, DesktopFlowError> {
+    match action_kind {
+        "click_observed_safe_target" => Ok(APPROVED_EXPANDED_DESKTOP_ACTION_CLICK_CONFIRMATION),
+        "type_into_observed_text_field" => Ok(APPROVED_EXPANDED_DESKTOP_ACTION_TYPE_CONFIRMATION),
+        _ => Err(approved_expanded_desktop_action_invalid(
+            "Approved expanded desktop action kind is not allowlisted",
+        )),
+    }
+}
+
+fn validate_approved_expanded_desktop_safe_ref(
+    value: &str,
+    label: &str,
+) -> Result<(), DesktopFlowError> {
+    let trimmed = value.trim();
+    if trimmed.is_empty() {
+        return Err(approved_expanded_desktop_action_invalid(format!(
+            "Approved expanded desktop action {label} is required"
+        )));
+    }
+    if trimmed.len() > 160
+        || trimmed.contains('\0')
+        || trimmed.contains('\n')
+        || trimmed.contains('\r')
+        || trimmed.contains('"')
+        || trimmed.contains('\'')
+        || trimmed.contains('<')
+        || trimmed.contains('>')
+        || trimmed.contains('|')
+        || trimmed.contains(';')
+        || trimmed.contains('`')
+        || trimmed.contains('$')
+        || contains_approved_apply_sensitive_marker(trimmed)
+    {
+        return Err(approved_expanded_desktop_action_invalid(format!(
+            "Approved expanded desktop action {label} is unsafe"
+        )));
+    }
+    Ok(())
+}
+
+fn approved_expanded_desktop_action_invalid(message: impl Into<String>) -> DesktopFlowError {
+    DesktopFlowError::new(
+        "APPROVED_EXPANDED_DESKTOP_ACTION_BLOCKED",
+        message.into(),
+        "approved_expanded_desktop_action",
+    )
 }
 
 fn validate_approved_desktop_action_kind(action_kind: &str) -> Result<(), DesktopFlowError> {
@@ -6307,6 +6833,29 @@ fn forbidden_approved_apply_key(key: &str) -> bool {
             | "rawdom"
             | "rawcsv"
             | "rawscreenshot"
+            | "rawocr"
+            | "rawocrtext"
+            | "ocrtext"
+            | "rawtargettext"
+            | "targettext"
+            | "rawtext"
+            | "textvalue"
+            | "clipboard"
+            | "clipboardtext"
+            | "clipboardcontent"
+            | "clipboardoperation"
+            | "writeclipboard"
+            | "filedialog"
+            | "filedialogoperation"
+            | "openfiledialog"
+            | "filedialogpath"
+            | "dragdropoperation"
+            | "rawcoordinates"
+            | "coordinates"
+            | "clickx"
+            | "clicky"
+            | "screenx"
+            | "screeny"
             | "rawstdout"
             | "rawstderr"
             | "beforecontent"
@@ -8672,6 +9221,192 @@ mod tests {
         }
     }
 
+    fn safe_approved_expanded_desktop_action_receipt(action_kind: &str) -> Value {
+        let typed_confirmation = if action_kind == "type_into_observed_text_field" {
+            APPROVED_EXPANDED_DESKTOP_ACTION_TYPE_CONFIRMATION
+        } else {
+            APPROVED_EXPANDED_DESKTOP_ACTION_CLICK_CONFIRMATION
+        };
+        serde_json::json!({
+            "status": "ready",
+            "receiptId": "approved-expanded-action-receipt-test",
+            "actionKind": action_kind,
+            "scope": {
+                "receiptId": "approved-expanded-action-receipt-test",
+                "actionKind": action_kind,
+                "observationId": "desktop-observation-test",
+                "targetId": "target-ref-hash-test",
+                "proposalId": "expanded-action-proposal-test",
+                "riskClassificationId": "expanded-action-risk-test",
+                "simulationId": "expanded-action-simulation-test",
+                "windowRef": "window-ref-hash-test",
+                "appRef": "app-ref-hash-test",
+                "displayRef": "display-ref-hash-test",
+                "targetHash": "target-hash-test",
+                "allowedActionKinds": [action_kind],
+                "expiresAt": "2099-01-01T00:00:00.000Z",
+                "typedConfirmation": typed_confirmation,
+                "maxClicks": 1,
+                "maxTextLength": 80,
+                "receiptHash": "expanded-receipt-hash-test"
+            },
+            "typedConfirmationAccepted": true,
+            "findings": [],
+            "blockerCount": 0,
+            "warningCount": 0,
+            "findingCount": 0,
+            "readiness": {
+                "canEnterSafeClickContract": action_kind == "click_observed_safe_target",
+                "canEnterSafeTypeContract": action_kind == "type_into_observed_text_field",
+                "canEnterFixedTauriCommand": false,
+                "canExecuteDesktopAction": false,
+                "canClick": false,
+                "canType": false,
+                "canSelect": false,
+                "canDragDrop": false,
+                "canWriteClipboard": false,
+                "canOpenFileDialog": false,
+                "canWriteEventStore": false,
+                "canUseNativeBridge": false,
+                "canExecuteGit": false,
+                "canExecuteShell": false,
+                "appCanExecute": false
+            },
+            "summaryOnly": true,
+            "source": "runtime_approved_expanded_desktop_action_receipt"
+        })
+    }
+
+    fn safe_approved_expanded_desktop_action_contract(action_kind: &str) -> Value {
+        if action_kind == "type_into_observed_text_field" {
+            serde_json::json!({
+                "status": "planned",
+                "contractId": "safe-type-contract-test",
+                "actionKind": "type_into_observed_text_field",
+                "targetRef": "target-ref-hash-test",
+                "windowRef": "window-ref-hash-test",
+                "appRef": "app-ref-hash-test",
+                "displayRef": "display-ref-hash-test",
+                "textHash": "text-hash-test",
+                "textLength": 12,
+                "freshnessStatus": "fresh",
+                "riskStatus": "safe",
+                "simulationStatus": "safe",
+                "findings": [],
+                "blockerCount": 0,
+                "warningCount": 0,
+                "findingCount": 0,
+                "readiness": {
+                    "canExecuteViaFixedTauriCommand": true,
+                    "canCallTauriCommand": false,
+                    "canExecuteDesktopAction": false,
+                    "canClick": false,
+                    "canType": false,
+                    "canSelect": false,
+                    "canDragDrop": false,
+                    "canWriteClipboard": false,
+                    "canOpenFileDialog": false,
+                    "canWriteEventStore": false,
+                    "canUseNativeBridge": false,
+                    "canExecuteGit": false,
+                    "canExecuteShell": false,
+                    "appCanExecute": false
+                },
+                "summaryOnly": true,
+                "source": "runtime_safe_type_contract"
+            })
+        } else {
+            serde_json::json!({
+                "status": "planned",
+                "contractId": "safe-click-contract-test",
+                "actionKind": "click_observed_safe_target",
+                "targetRef": "target-ref-hash-test",
+                "windowRef": "window-ref-hash-test",
+                "appRef": "app-ref-hash-test",
+                "displayRef": "display-ref-hash-test",
+                "boundsHash": "bounds-hash-test",
+                "freshnessStatus": "fresh",
+                "riskStatus": "safe",
+                "simulationStatus": "safe",
+                "findings": [],
+                "blockerCount": 0,
+                "warningCount": 0,
+                "findingCount": 0,
+                "readiness": {
+                    "canExecuteViaFixedTauriCommand": true,
+                    "canCallTauriCommand": false,
+                    "canExecuteDesktopAction": false,
+                    "canClick": false,
+                    "canDoubleClick": false,
+                    "canType": false,
+                    "canSelect": false,
+                    "canDragDrop": false,
+                    "canWriteClipboard": false,
+                    "canOpenFileDialog": false,
+                    "canWriteEventStore": false,
+                    "canUseNativeBridge": false,
+                    "canExecuteGit": false,
+                    "canExecuteShell": false,
+                    "appCanExecute": false
+                },
+                "summaryOnly": true,
+                "source": "runtime_safe_click_contract"
+            })
+        }
+    }
+
+    fn safe_approved_expanded_desktop_action_request()
+        -> ApprovedExpandedDesktopActionCommandRequest
+    {
+        ApprovedExpandedDesktopActionCommandRequest {
+            receipt: safe_approved_expanded_desktop_action_receipt(
+                "click_observed_safe_target",
+            ),
+            contract: safe_approved_expanded_desktop_action_contract(
+                "click_observed_safe_target",
+            ),
+            action_kind: "click_observed_safe_target".to_string(),
+            target_ref: "target-ref-hash-test".to_string(),
+            window_ref: "window-ref-hash-test".to_string(),
+            app_ref: "app-ref-hash-test".to_string(),
+            display_ref: Some("display-ref-hash-test".to_string()),
+            bounds_summary: Some(ApprovedExpandedDesktopActionBoundsSummary {
+                bounds_hash: "bounds-hash-test".to_string(),
+                point_hash: Some("point-hash-test".to_string()),
+                target_bounds_hash: Some("bounds-hash-test".to_string()),
+            }),
+            text_payload: None,
+            typed_confirmation: APPROVED_EXPANDED_DESKTOP_ACTION_CLICK_CONFIRMATION
+                .to_string(),
+        }
+    }
+
+    fn safe_approved_expanded_desktop_type_request()
+        -> ApprovedExpandedDesktopActionCommandRequest
+    {
+        ApprovedExpandedDesktopActionCommandRequest {
+            receipt: safe_approved_expanded_desktop_action_receipt(
+                "type_into_observed_text_field",
+            ),
+            contract: safe_approved_expanded_desktop_action_contract(
+                "type_into_observed_text_field",
+            ),
+            action_kind: "type_into_observed_text_field".to_string(),
+            target_ref: "target-ref-hash-test".to_string(),
+            window_ref: "window-ref-hash-test".to_string(),
+            app_ref: "app-ref-hash-test".to_string(),
+            display_ref: Some("display-ref-hash-test".to_string()),
+            bounds_summary: None,
+            text_payload: Some(ApprovedExpandedDesktopActionTextPayloadSummary {
+                text_hash: "text-hash-test".to_string(),
+                text_length: 12,
+                warning_codes: Vec::new(),
+            }),
+            typed_confirmation: APPROVED_EXPANDED_DESKTOP_ACTION_TYPE_CONFIRMATION
+                .to_string(),
+        }
+    }
+
     fn safe_live_transport_response() -> LiveDeepSeekTransportResponse {
         let proposal = serde_json::json!({
             "schemaVersion": 1,
@@ -8893,6 +9628,155 @@ mod tests {
             execute_approved_desktop_action(secret_request).expect_err("secret marker blocks");
         assert_eq!(secret_error.error_code, "APPROVED_DESKTOP_ACTION_BLOCKED");
         assert!(!secret_error.safe_message.contains("sk-fake"));
+    }
+
+    #[test]
+    fn approved_expanded_desktop_action_command_returns_unsupported_platform_summary() {
+        let result = execute_approved_expanded_desktop_action(
+            safe_approved_expanded_desktop_action_request(),
+        )
+        .expect("safe expanded fixed command summary");
+        assert!(result.ok);
+        assert_eq!(result.status, "unsupported_platform");
+        assert_eq!(result.action_kind, "click_observed_safe_target");
+        assert_eq!(result.bounds_hash.as_deref(), Some("bounds-hash-test"));
+        assert!(result.summary_only);
+        assert!(result
+            .warning_codes
+            .contains(&"UNSUPPORTED_PLATFORM".to_string()));
+        assert_eq!(
+            result.event_preview.event_type,
+            APPROVED_EXPANDED_DESKTOP_ACTION_RESULT_TYPE
+        );
+        assert!(result.event_preview.not_written);
+        assert!(!result.event_preview.would_write_summary_event);
+        assert!(!result.event_preview.raw_action_payload_included);
+        assert!(!result.event_preview.raw_desktop_capture_included);
+        assert!(!result.event_preview.raw_text_included);
+        assert!(result.event_preview.summary_only);
+        assert!(!result.raw_screenshot_persisted);
+        assert!(!result.raw_ocr_text_persisted);
+        assert!(!result.raw_target_text_included);
+        assert!(!result.raw_action_payload_included);
+        assert!(!result.raw_desktop_capture_included);
+        assert!(!result.raw_text_included);
+        assert!(!result.can_click);
+        assert!(!result.can_type);
+        assert!(!result.can_select);
+        assert!(!result.can_drag_drop);
+        assert!(!result.can_write_clipboard);
+        assert!(!result.can_open_file_dialog);
+        assert!(!result.can_use_native_bridge);
+        assert!(!result.can_write_event_store);
+        assert!(!result.can_execute_git);
+        assert!(!result.can_execute_shell);
+        assert!(!result.app_can_execute);
+        let serialized = serde_json::to_string(&result).expect("serialize result");
+        assert!(!serialized.contains("raw screenshot bytes"));
+        assert!(!serialized.contains("raw OCR text"));
+        assert!(!serialized.contains("raw target text"));
+        assert!(!serialized.contains("Authorization"));
+        assert!(!serialized.contains("sk-"));
+    }
+
+    #[test]
+    fn approved_expanded_desktop_action_command_accepts_type_summary_only() {
+        let result = execute_approved_expanded_desktop_action(
+            safe_approved_expanded_desktop_type_request(),
+        )
+        .expect("safe expanded type command summary");
+        assert_eq!(result.status, "unsupported_platform");
+        assert_eq!(result.action_kind, "type_into_observed_text_field");
+        assert_eq!(result.text_hash.as_deref(), Some("text-hash-test"));
+        assert_eq!(result.text_length, Some(12));
+        assert!(!result.raw_text_included);
+        assert!(!result.can_type);
+    }
+
+    #[test]
+    fn approved_expanded_desktop_action_command_blocks_missing_or_wrong_receipt() {
+        let mut request = safe_approved_expanded_desktop_action_request();
+        request.receipt = Value::Null;
+        let error = execute_approved_expanded_desktop_action(request)
+            .expect_err("missing receipt must block");
+        assert_eq!(
+            error.error_code,
+            "APPROVED_EXPANDED_DESKTOP_ACTION_BLOCKED"
+        );
+        assert_eq!(error.stage, "approved_expanded_desktop_action");
+
+        let mut wrong_confirmation = safe_approved_expanded_desktop_action_request();
+        wrong_confirmation.typed_confirmation = "CLICK NOW".to_string();
+        let error = execute_approved_expanded_desktop_action(wrong_confirmation)
+            .expect_err("wrong confirmation must block");
+        assert_eq!(
+            error.error_code,
+            "APPROVED_EXPANDED_DESKTOP_ACTION_BLOCKED"
+        );
+        assert!(error.safe_message.contains("typed confirmation"));
+    }
+
+    #[test]
+    fn approved_expanded_desktop_action_command_blocks_unsupported_kind() {
+        let mut request = safe_approved_expanded_desktop_action_request();
+        request.action_kind = "drag_drop_target".to_string();
+        request.typed_confirmation = "DRAG DROP TARGET".to_string();
+        request.receipt = safe_approved_expanded_desktop_action_receipt("drag_drop_target");
+        request.contract = safe_approved_expanded_desktop_action_contract("drag_drop_target");
+        let error = execute_approved_expanded_desktop_action(request)
+            .expect_err("unsupported action must block");
+        assert_eq!(
+            error.error_code,
+            "APPROVED_EXPANDED_DESKTOP_ACTION_BLOCKED"
+        );
+        assert!(error.safe_message.contains("not allowlisted"));
+    }
+
+    #[test]
+    fn approved_expanded_desktop_action_command_blocks_raw_or_unsafe_fields() {
+        let mut clipboard_request = safe_approved_expanded_desktop_action_request();
+        clipboard_request.receipt["clipboardContent"] =
+            Value::String("not allowed".to_string());
+        let clipboard_error = execute_approved_expanded_desktop_action(clipboard_request)
+            .expect_err("clipboard field blocks");
+        assert_eq!(
+            clipboard_error.error_code,
+            "APPROVED_EXPANDED_DESKTOP_ACTION_BLOCKED"
+        );
+
+        let mut file_dialog_request = safe_approved_expanded_desktop_action_request();
+        file_dialog_request.contract["fileDialogOperation"] =
+            Value::String("not allowed".to_string());
+        let file_dialog_error = execute_approved_expanded_desktop_action(file_dialog_request)
+            .expect_err("file dialog field blocks");
+        assert_eq!(
+            file_dialog_error.error_code,
+            "APPROVED_EXPANDED_DESKTOP_ACTION_BLOCKED"
+        );
+
+        let mut drag_drop_request = safe_approved_expanded_desktop_action_request();
+        drag_drop_request.contract["dragDropOperation"] =
+            Value::String("not allowed".to_string());
+        let drag_drop_error = execute_approved_expanded_desktop_action(drag_drop_request)
+            .expect_err("drag/drop field blocks");
+        assert_eq!(
+            drag_drop_error.error_code,
+            "APPROVED_EXPANDED_DESKTOP_ACTION_BLOCKED"
+        );
+
+        let mut raw_text_request = safe_approved_expanded_desktop_type_request();
+        raw_text_request.text_payload = Some(ApprovedExpandedDesktopActionTextPayloadSummary {
+            text_hash: "text-hash-test".to_string(),
+            text_length: 12,
+            warning_codes: vec!["RAW_TEXT".to_string()],
+        });
+        raw_text_request.contract["rawText"] = Value::String("do not leak".to_string());
+        let raw_text_error = execute_approved_expanded_desktop_action(raw_text_request)
+            .expect_err("raw text field blocks");
+        assert_eq!(
+            raw_text_error.error_code,
+            "APPROVED_EXPANDED_DESKTOP_ACTION_BLOCKED"
+        );
     }
 
     #[test]

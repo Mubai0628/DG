@@ -11,6 +11,7 @@ import {
   callMcpReadonlyTool,
   commitProjectKnowledgeCandidate,
   executeApprovedDesktopAction,
+  executeApprovedExpandedDesktopAction,
   expireProjectKnowledgeEntry,
   generateLiveDeepSeekPatchProposal,
   invokeAllowedCommand,
@@ -32,6 +33,8 @@ import {
   safeInvoke,
   type ApprovedDesktopActionCommandRequest,
   type ApprovedDesktopActionCommandResult,
+  type ApprovedExpandedDesktopActionCommandRequest,
+  type ApprovedExpandedDesktopActionCommandResult,
   type ApprovedUserWorkspaceApplyResult,
   type ApprovedUserWorkspaceRollbackResult,
   type DesktopObservationCommandRequest,
@@ -1195,6 +1198,200 @@ describe("desktop command wrapper", () => {
     expect(result.appCanExecute).toBe(false);
   });
 
+  it("calls approved expanded desktop action only through the fixed command wrapper", async () => {
+    const receipt = {
+      status: "ready",
+      receiptId: "approved-expanded-action-receipt-test",
+      actionKind: "click_observed_safe_target",
+      scope: {
+        receiptId: "approved-expanded-action-receipt-test",
+        actionKind: "click_observed_safe_target",
+        observationId: "desktop-observation-test",
+        targetId: "target-ref-hash-test",
+        proposalId: "expanded-action-proposal-test",
+        riskClassificationId: "expanded-action-risk-test",
+        simulationId: "expanded-action-simulation-test",
+        windowRef: "window-ref-hash-test",
+        appRef: "app-ref-hash-test",
+        displayRef: "display-ref-hash-test",
+        targetHash: "target-hash-test",
+        allowedActionKinds: ["click_observed_safe_target"],
+        expiresAt: "2099-01-01T00:00:00.000Z",
+        typedConfirmation: "CLICK OBSERVED TARGET",
+        maxClicks: 1,
+        receiptHash: "expanded-receipt-hash-test"
+      },
+      typedConfirmationAccepted: true,
+      blockerCount: 0,
+      warningCount: 0,
+      findingCount: 0,
+      readiness: {
+        canEnterSafeClickContract: true,
+        canEnterSafeTypeContract: false,
+        canEnterFixedTauriCommand: false,
+        canExecuteDesktopAction: false,
+        canClick: false,
+        canType: false,
+        canSelect: false,
+        canDragDrop: false,
+        canWriteClipboard: false,
+        canOpenFileDialog: false,
+        canWriteEventStore: false,
+        canUseNativeBridge: false,
+        canExecuteGit: false,
+        canExecuteShell: false,
+        appCanExecute: false
+      },
+      summaryOnly: true,
+      source: "runtime_approved_expanded_desktop_action_receipt"
+    };
+    const contract = {
+      status: "planned",
+      contractId: "safe-click-contract-test",
+      actionKind: "click_observed_safe_target",
+      targetRef: "target-ref-hash-test",
+      windowRef: "window-ref-hash-test",
+      appRef: "app-ref-hash-test",
+      displayRef: "display-ref-hash-test",
+      boundsHash: "bounds-hash-test",
+      freshnessStatus: "fresh",
+      riskStatus: "safe",
+      simulationStatus: "safe",
+      blockerCount: 0,
+      warningCount: 0,
+      findingCount: 0,
+      readiness: {
+        canExecuteViaFixedTauriCommand: true,
+        canCallTauriCommand: false,
+        canExecuteDesktopAction: false,
+        canClick: false,
+        canDoubleClick: false,
+        canType: false,
+        canSelect: false,
+        canDragDrop: false,
+        canWriteClipboard: false,
+        canOpenFileDialog: false,
+        canWriteEventStore: false,
+        canUseNativeBridge: false,
+        canExecuteGit: false,
+        canExecuteShell: false,
+        appCanExecute: false
+      },
+      summaryOnly: true,
+      source: "runtime_safe_click_contract"
+    };
+    const request: ApprovedExpandedDesktopActionCommandRequest = {
+      receipt,
+      contract,
+      actionKind: "click_observed_safe_target",
+      targetRef: "target-ref-hash-test",
+      windowRef: "window-ref-hash-test",
+      appRef: "app-ref-hash-test",
+      displayRef: "display-ref-hash-test",
+      boundsSummary: {
+        boundsHash: "bounds-hash-test",
+        pointHash: "point-hash-test",
+        targetBoundsHash: "bounds-hash-test"
+      },
+      typedConfirmation: "CLICK OBSERVED TARGET"
+    };
+    const invoke: TauriInvoke = async <T>(
+      command: string,
+      args?: Record<string, unknown>
+    ): Promise<T> => {
+      expect(command).toBe("execute_approved_expanded_desktop_action");
+      expect(args).toMatchObject({ request });
+      const result = {
+        ok: true,
+        status: "unsupported_platform",
+        actionExecutionId: "approved-expanded-desktop-action-test",
+        actionKind: "click_observed_safe_target",
+        targetRef: "target-ref-hash-test",
+        windowRef: "window-ref-hash-test",
+        appRef: "app-ref-hash-test",
+        displayRef: "display-ref-hash-test",
+        boundsHash: "bounds-hash-test",
+        warningCodes: ["UNSUPPORTED_PLATFORM"],
+        resultHash: "approved-expanded-desktop-action-result-hash",
+        eventPreview: {
+          type: "desktop_action.approved_expanded_result",
+          actionExecutionId: "approved-expanded-desktop-action-test",
+          actionKind: "click_observed_safe_target",
+          targetRef: "target-ref-hash-test",
+          windowRef: "window-ref-hash-test",
+          appRef: "app-ref-hash-test",
+          displayRef: "display-ref-hash-test",
+          status: "unsupported_platform",
+          resultHash: "approved-expanded-desktop-action-result-hash",
+          warningCodes: ["UNSUPPORTED_PLATFORM"],
+          notWritten: true,
+          wouldWriteSummaryEvent: false,
+          rawActionPayloadIncluded: false,
+          rawDesktopCaptureIncluded: false,
+          rawTextIncluded: false,
+          summaryOnly: true
+        },
+        summaryOnly: true,
+        rawScreenshotPersisted: false,
+        rawOcrTextPersisted: false,
+        rawTargetTextIncluded: false,
+        rawActionPayloadIncluded: false,
+        rawDesktopCaptureIncluded: false,
+        rawTextIncluded: false,
+        canClick: false,
+        canType: false,
+        canSelect: false,
+        canDragDrop: false,
+        canWriteClipboard: false,
+        canOpenFileDialog: false,
+        canUseNativeBridge: false,
+        canWriteEventStore: false,
+        canExecuteGit: false,
+        canExecuteShell: false,
+        appCanExecute: false,
+        safeMessage:
+          "Approved expanded desktop action command is fixed and summary-only."
+      } satisfies ApprovedExpandedDesktopActionCommandResult;
+      return result as T;
+    };
+
+    const result = await executeApprovedExpandedDesktopAction(request, invoke);
+
+    expect(result.status).toBe("unsupported_platform");
+    expect(result.eventPreview.notWritten).toBe(true);
+    expect(result.eventPreview.wouldWriteSummaryEvent).toBe(false);
+    expect(result.summaryOnly).toBe(true);
+    expect(result.rawScreenshotPersisted).toBe(false);
+    expect(result.rawOcrTextPersisted).toBe(false);
+    expect(result.rawTargetTextIncluded).toBe(false);
+    expect(result.rawActionPayloadIncluded).toBe(false);
+    expect(result.rawDesktopCaptureIncluded).toBe(false);
+    expect(result.rawTextIncluded).toBe(false);
+    expect(result.canClick).toBe(false);
+    expect(result.canType).toBe(false);
+    expect(result.canWriteClipboard).toBe(false);
+    expect(result.canOpenFileDialog).toBe(false);
+    expect(result.canUseNativeBridge).toBe(false);
+    expect(result.canWriteEventStore).toBe(false);
+    expect(result.canExecuteGit).toBe(false);
+    expect(result.canExecuteShell).toBe(false);
+    expect(result.appCanExecute).toBe(false);
+
+    await expect(
+      executeApprovedExpandedDesktopAction(
+        {
+          ...request,
+          textPayload: {
+            textHash: "text-hash-test",
+            textLength: 5,
+            rawText: "do not leak"
+          }
+        } as never,
+        async () => ({}) as never
+      )
+    ).rejects.toThrow("text payload");
+  });
+
   it("blocks unsafe desktop observation wrapper inputs and responses", async () => {
     const safeCapturePolicy = {
       allowDesktopAction: false,
@@ -1428,18 +1625,32 @@ describe("desktop command wrapper", () => {
 
     expect(flowSource).toContain("execute_approved_desktop_action");
     expect(flowSource).toContain("executeApprovedDesktopAction");
+    expect(flowSource).toContain("execute_approved_expanded_desktop_action");
+    expect(flowSource).toContain("executeApprovedExpandedDesktopAction");
     expect(mainSource).toContain("commands::execute_approved_desktop_action");
+    expect(mainSource).toContain(
+      "commands::execute_approved_expanded_desktop_action"
+    );
     expect(commandsSource).toContain("execute_approved_desktop_action");
+    expect(commandsSource).toContain(
+      "execute_approved_expanded_desktop_action"
+    );
     expect(commandsSource).toContain("unsupported_platform");
     expect(commandsSource).toContain("APPROVED_DESKTOP_ACTION_BLOCKED");
+    expect(commandsSource).toContain(
+      "APPROVED_EXPANDED_DESKTOP_ACTION_BLOCKED"
+    );
     expect(commandsSource).toContain("focus_observed_window");
     expect(commandsSource).toContain("raise_observed_window");
     expect(commandsSource).toContain("activate_observed_window");
+    expect(commandsSource).toContain("click_observed_safe_target");
+    expect(commandsSource).toContain("type_into_observed_text_field");
     expect(commandsSource).not.toContain("Command::new(command)");
     expect(commandsSource).not.toContain("native_bridge_execute");
     expect(flowSource).not.toContain("desktopActionInvoke");
     expect(flowSource).not.toContain("nativeBridgeExecute");
     expect(appSource).not.toContain("execute_approved_desktop_action");
+    expect(appSource).not.toContain("execute_approved_expanded_desktop_action");
     expect(appSource).toContain("executeApprovedDesktopAction(request)");
   });
 
@@ -28287,6 +28498,40 @@ describe("expanded desktop action proposal app surface", () => {
     expect(doc).toContain("no raw screenshot or OCR persistence");
     expect(doc).toContain("no broad native bridge");
     expect(docsIndex).toContain("runtime-safe-type-contract-v0.26.md");
+  });
+
+  it("documents the approved expanded desktop action Tauri command boundary", async () => {
+    const doc = await readFile(
+      path.join(
+        repoRoot,
+        "docs",
+        "tauri-approved-expanded-desktop-action-command-v0.26.md"
+      ),
+      "utf8"
+    );
+    const docsIndex = await readFile(
+      path.join(repoRoot, "docs", "README.md"),
+      "utf8"
+    );
+
+    expect(doc).toContain(
+      "Tauri Approved Expanded Desktop Action Command v0.26"
+    );
+    expect(doc).toContain("execute_approved_expanded_desktop_action");
+    expect(doc).toContain("click_observed_safe_target");
+    expect(doc).toContain("type_into_observed_text_field");
+    expect(doc).toContain("unsupported_platform");
+    expect(doc).toContain("does not add an App execution panel");
+    expect(doc).toContain("eventPreview.notWritten: true");
+    expect(doc).toContain("no clipboard write");
+    expect(doc).toContain("no file dialog automation");
+    expect(doc).toContain("no drag/drop");
+    expect(doc).toContain("no EventStore write");
+    expect(doc).toContain("no raw screenshot or OCR persistence");
+    expect(doc).toContain("no raw text persistence");
+    expect(docsIndex).toContain(
+      "tauri-approved-expanded-desktop-action-command-v0.26.md"
+    );
   });
 
   it("documents the desktop action expansion redaction audit and smoke path", async () => {

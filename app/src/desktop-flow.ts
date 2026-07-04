@@ -668,6 +668,90 @@ export type ApprovedDesktopActionCommandResult = {
   safeMessage: string;
 };
 
+export type ApprovedExpandedDesktopActionKind =
+  | "click_observed_safe_target"
+  | "type_into_observed_text_field";
+
+export type ApprovedExpandedDesktopActionBoundsSummary = {
+  boundsHash: string;
+  pointHash?: string | undefined;
+  targetBoundsHash?: string | undefined;
+};
+
+export type ApprovedExpandedDesktopActionTextPayloadSummary = {
+  textHash: string;
+  textLength: number;
+  warningCodes?: string[] | undefined;
+};
+
+export type ApprovedExpandedDesktopActionCommandRequest = {
+  receipt: Record<string, unknown>;
+  contract: Record<string, unknown>;
+  actionKind: ApprovedExpandedDesktopActionKind | string;
+  targetRef: string;
+  windowRef: string;
+  appRef: string;
+  displayRef?: string | undefined;
+  boundsSummary?: ApprovedExpandedDesktopActionBoundsSummary | undefined;
+  textPayload?: ApprovedExpandedDesktopActionTextPayloadSummary | undefined;
+  typedConfirmation: string;
+};
+
+export type ApprovedExpandedDesktopActionCommandEventPreview = {
+  type: "desktop_action.approved_expanded_result";
+  actionExecutionId: string;
+  actionKind: ApprovedExpandedDesktopActionKind;
+  targetRef: string;
+  windowRef: string;
+  appRef: string;
+  displayRef?: string | undefined;
+  status: "executed" | "unsupported_platform" | "permission_required" | "blocked";
+  resultHash: string;
+  warningCodes: string[];
+  notWritten: true;
+  wouldWriteSummaryEvent: false;
+  rawActionPayloadIncluded: false;
+  rawDesktopCaptureIncluded: false;
+  rawTextIncluded: false;
+  summaryOnly: true;
+};
+
+export type ApprovedExpandedDesktopActionCommandResult = {
+  ok: true;
+  status: "executed" | "unsupported_platform" | "permission_required" | "blocked";
+  actionExecutionId: string;
+  actionKind: ApprovedExpandedDesktopActionKind;
+  targetRef: string;
+  windowRef: string;
+  appRef: string;
+  displayRef?: string | undefined;
+  boundsHash?: string | undefined;
+  textHash?: string | undefined;
+  textLength?: number | undefined;
+  warningCodes: string[];
+  resultHash: string;
+  eventPreview: ApprovedExpandedDesktopActionCommandEventPreview;
+  summaryOnly: true;
+  rawScreenshotPersisted: false;
+  rawOcrTextPersisted: false;
+  rawTargetTextIncluded: false;
+  rawActionPayloadIncluded: false;
+  rawDesktopCaptureIncluded: false;
+  rawTextIncluded: false;
+  canClick: false;
+  canType: false;
+  canSelect: false;
+  canDragDrop: false;
+  canWriteClipboard: false;
+  canOpenFileDialog: false;
+  canUseNativeBridge: false;
+  canWriteEventStore: false;
+  canExecuteGit: false;
+  canExecuteShell: false;
+  appCanExecute: false;
+  safeMessage: string;
+};
+
 export const allowedDesktopCommands = [
   "get_app_version",
   "apply_approved_user_workspace_patch",
@@ -689,6 +773,7 @@ export const allowedDesktopCommands = [
   "run_shell_verification_lane",
   "observe_desktop_metadata",
   "execute_approved_desktop_action",
+  "execute_approved_expanded_desktop_action",
   "run_web_table_to_csv_flow"
 ] as const;
 
@@ -1022,6 +1107,18 @@ export async function executeApprovedDesktopAction(
   );
 }
 
+export async function executeApprovedExpandedDesktopAction(
+  request: ApprovedExpandedDesktopActionCommandRequest,
+  invokeImpl?: TauriInvoke
+): Promise<ApprovedExpandedDesktopActionCommandResult> {
+  validateApprovedExpandedDesktopActionCommandRequest(request);
+  return invokeAllowedCommand<ApprovedExpandedDesktopActionCommandResult>(
+    "execute_approved_expanded_desktop_action",
+    { request },
+    invokeImpl
+  );
+}
+
 export async function invokeAllowedCommand<T>(
   command: string,
   args: Record<string, unknown>,
@@ -1086,6 +1183,8 @@ function normalizeAllowedCommandResponse(
       return normalizeDesktopObservationCommandResult(raw);
     case "execute_approved_desktop_action":
       return normalizeApprovedDesktopActionCommandResult(raw);
+    case "execute_approved_expanded_desktop_action":
+      return normalizeApprovedExpandedDesktopActionCommandResult(raw);
     case "apply_approved_user_workspace_patch":
       return normalizeApprovedApplyResult(raw);
     case "rollback_approved_user_workspace_patch":
@@ -1542,6 +1641,83 @@ function validateApprovedDesktopActionCommandRequest(
   }
 }
 
+function validateApprovedExpandedDesktopActionCommandRequest(
+  request: ApprovedExpandedDesktopActionCommandRequest
+): void {
+  if (!isApprovedExpandedDesktopActionKind(request.actionKind)) {
+    throw new Error("Approved expanded desktop action kind is not allowlisted");
+  }
+  const actionKind = request.actionKind;
+  const requiredRefs: Array<[string, string]> = [
+    ["targetRef", request.targetRef],
+    ["windowRef", request.windowRef],
+    ["appRef", request.appRef]
+  ];
+  for (const [label, value] of requiredRefs) {
+    validateApprovedDesktopActionSafeRef(value, label);
+  }
+  if (request.displayRef !== undefined) {
+    validateApprovedDesktopActionSafeRef(request.displayRef, "displayRef");
+  }
+  if (
+    request.typedConfirmation !==
+    approvedExpandedDesktopActionConfirmation(actionKind)
+  ) {
+    throw new Error("Approved expanded desktop action confirmation is required");
+  }
+  if (!isRecord(request.receipt)) {
+    throw new Error("Approved expanded desktop action receipt is required");
+  }
+  if (!isRecord(request.contract)) {
+    throw new Error("Approved expanded desktop action contract is required");
+  }
+  if (containsApprovedDesktopActionExecutionTrue(request.receipt)) {
+    throw new Error(
+      "Approved expanded desktop action receipt attempted broad execution"
+    );
+  }
+  if (containsApprovedDesktopActionExecutionTrue(request.contract)) {
+    throw new Error(
+      "Approved expanded desktop action contract attempted broad execution"
+    );
+  }
+  if (actionKind === "click_observed_safe_target") {
+    if (!isRecord(request.boundsSummary)) {
+      throw new Error(
+        "Approved expanded desktop action bounds summary is required"
+      );
+    }
+    validateApprovedDesktopActionSafeRef(
+      request.boundsSummary.boundsHash,
+      "boundsHash"
+    );
+    if (request.textPayload !== undefined) {
+      throw new Error("Approved expanded click must not include text payload");
+    }
+  }
+  if (actionKind === "type_into_observed_text_field") {
+    if (!isRecord(request.textPayload)) {
+      throw new Error("Approved expanded type text payload summary is required");
+    }
+    validateApprovedDesktopActionSafeRef(
+      request.textPayload.textHash,
+      "textHash"
+    );
+    if (
+      typeof request.textPayload.textLength !== "number" ||
+      request.textPayload.textLength <= 0 ||
+      request.textPayload.textLength > 80
+    ) {
+      throw new Error("Approved expanded type text length is unsafe");
+    }
+  }
+  if (containsForbiddenApprovedDesktopActionValue(request)) {
+    throw new Error(
+      "Approved expanded desktop action request contains unsafe fields"
+    );
+  }
+}
+
 function normalizeDesktopObservationCommandResult(
   raw: unknown
 ): DesktopObservationCommandResult {
@@ -1625,6 +1801,140 @@ function normalizeDesktopObservationCommandResult(
     canExecuteShell: false,
     appCanExecute: false,
     resultHash: safeErrorMessage(record.resultHash),
+    safeMessage: safeErrorMessage(record.safeMessage)
+  };
+}
+
+function normalizeApprovedExpandedDesktopActionCommandResult(
+  raw: unknown
+): ApprovedExpandedDesktopActionCommandResult {
+  const record = isRecord(raw) ? raw : {};
+  const eventPreview = isRecord(record.eventPreview) ? record.eventPreview : {};
+  if (
+    record.ok !== true ||
+    !isApprovedExpandedDesktopActionResultStatus(record.status) ||
+    typeof record.actionExecutionId !== "string" ||
+    !isApprovedExpandedDesktopActionKind(record.actionKind) ||
+    typeof record.targetRef !== "string" ||
+    typeof record.windowRef !== "string" ||
+    typeof record.appRef !== "string" ||
+    !Array.isArray(record.warningCodes) ||
+    typeof record.resultHash !== "string" ||
+    eventPreview.type !== "desktop_action.approved_expanded_result" ||
+    typeof eventPreview.actionExecutionId !== "string" ||
+    !isApprovedExpandedDesktopActionKind(eventPreview.actionKind) ||
+    typeof eventPreview.targetRef !== "string" ||
+    typeof eventPreview.windowRef !== "string" ||
+    typeof eventPreview.appRef !== "string" ||
+    !isApprovedExpandedDesktopActionResultStatus(eventPreview.status) ||
+    typeof eventPreview.resultHash !== "string" ||
+    !Array.isArray(eventPreview.warningCodes) ||
+    eventPreview.notWritten !== true ||
+    eventPreview.wouldWriteSummaryEvent !== false ||
+    eventPreview.rawActionPayloadIncluded !== false ||
+    eventPreview.rawDesktopCaptureIncluded !== false ||
+    eventPreview.rawTextIncluded !== false ||
+    eventPreview.summaryOnly !== true ||
+    record.summaryOnly !== true ||
+    record.rawScreenshotPersisted !== false ||
+    record.rawOcrTextPersisted !== false ||
+    record.rawTargetTextIncluded !== false ||
+    record.rawActionPayloadIncluded !== false ||
+    record.rawDesktopCaptureIncluded !== false ||
+    record.rawTextIncluded !== false ||
+    record.canClick !== false ||
+    record.canType !== false ||
+    record.canSelect !== false ||
+    record.canDragDrop !== false ||
+    record.canWriteClipboard !== false ||
+    record.canOpenFileDialog !== false ||
+    record.canUseNativeBridge !== false ||
+    record.canWriteEventStore !== false ||
+    record.canExecuteGit !== false ||
+    record.canExecuteShell !== false ||
+    record.appCanExecute !== false ||
+    typeof record.safeMessage !== "string"
+  ) {
+    throw normalizeDesktopCommandError({
+      errorCode: "INVALID_RESPONSE",
+      safeMessage: "Approved expanded desktop action response was invalid",
+      stage: "normalize_response"
+    });
+  }
+  if (containsForbiddenApprovedDesktopActionValue(record)) {
+    throw normalizeDesktopCommandError({
+      errorCode: "INVALID_RESPONSE",
+      safeMessage:
+        "Approved expanded desktop action response contained unsafe fields",
+      stage: "normalize_response"
+    });
+  }
+  const warningCodes = record.warningCodes.filter(
+    (value): value is string => typeof value === "string"
+  );
+  const eventWarningCodes = eventPreview.warningCodes.filter(
+    (value): value is string => typeof value === "string"
+  );
+  return {
+    ok: true,
+    status: record.status,
+    actionExecutionId: safeErrorMessage(record.actionExecutionId),
+    actionKind: record.actionKind,
+    targetRef: safeErrorMessage(record.targetRef),
+    windowRef: safeErrorMessage(record.windowRef),
+    appRef: safeErrorMessage(record.appRef),
+    ...(typeof record.displayRef === "string"
+      ? { displayRef: safeErrorMessage(record.displayRef) }
+      : {}),
+    ...(typeof record.boundsHash === "string"
+      ? { boundsHash: safeErrorMessage(record.boundsHash) }
+      : {}),
+    ...(typeof record.textHash === "string"
+      ? { textHash: safeErrorMessage(record.textHash) }
+      : {}),
+    ...(typeof record.textLength === "number"
+      ? { textLength: record.textLength }
+      : {}),
+    warningCodes,
+    resultHash: safeErrorMessage(record.resultHash),
+    eventPreview: {
+      type: "desktop_action.approved_expanded_result",
+      actionExecutionId: safeErrorMessage(eventPreview.actionExecutionId),
+      actionKind: eventPreview.actionKind,
+      targetRef: safeErrorMessage(eventPreview.targetRef),
+      windowRef: safeErrorMessage(eventPreview.windowRef),
+      appRef: safeErrorMessage(eventPreview.appRef),
+      ...(typeof eventPreview.displayRef === "string"
+        ? { displayRef: safeErrorMessage(eventPreview.displayRef) }
+        : {}),
+      status: eventPreview.status,
+      resultHash: safeErrorMessage(eventPreview.resultHash),
+      warningCodes: eventWarningCodes,
+      notWritten: true,
+      wouldWriteSummaryEvent: false,
+      rawActionPayloadIncluded: false,
+      rawDesktopCaptureIncluded: false,
+      rawTextIncluded: false,
+      summaryOnly: true
+    },
+    summaryOnly: true,
+    rawScreenshotPersisted: false,
+    rawOcrTextPersisted: false,
+    rawTargetTextIncluded: false,
+    rawActionPayloadIncluded: false,
+    rawDesktopCaptureIncluded: false,
+    rawTextIncluded: false,
+    canClick: false,
+    canType: false,
+    canSelect: false,
+    canDragDrop: false,
+    canWriteClipboard: false,
+    canOpenFileDialog: false,
+    canUseNativeBridge: false,
+    canWriteEventStore: false,
+    canExecuteGit: false,
+    canExecuteShell: false,
+    appCanExecute: false,
     safeMessage: safeErrorMessage(record.safeMessage)
   };
 }
@@ -2736,12 +3046,32 @@ function isApprovedDesktopActionKind(
   );
 }
 
+function isApprovedExpandedDesktopActionKind(
+  value: unknown
+): value is ApprovedExpandedDesktopActionKind {
+  return (
+    value === "click_observed_safe_target" ||
+    value === "type_into_observed_text_field"
+  );
+}
+
 function isApprovedDesktopActionResultStatus(
   value: unknown
 ): value is ApprovedDesktopActionCommandResult["status"] {
   return (
     value === "executed" ||
     value === "unsupported_platform" ||
+    value === "blocked"
+  );
+}
+
+function isApprovedExpandedDesktopActionResultStatus(
+  value: unknown
+): value is ApprovedExpandedDesktopActionCommandResult["status"] {
+  return (
+    value === "executed" ||
+    value === "unsupported_platform" ||
+    value === "permission_required" ||
     value === "blocked"
   );
 }
@@ -2756,6 +3086,17 @@ function approvedDesktopActionConfirmation(
       return "RAISE OBSERVED WINDOW";
     case "activate_observed_window":
       return "ACTIVATE OBSERVED WINDOW";
+  }
+}
+
+function approvedExpandedDesktopActionConfirmation(
+  actionKind: ApprovedExpandedDesktopActionKind
+): string {
+  switch (actionKind) {
+    case "click_observed_safe_target":
+      return "CLICK OBSERVED TARGET";
+    case "type_into_observed_text_field":
+      return "TYPE INTO OBSERVED FIELD";
   }
 }
 
@@ -3091,8 +3432,26 @@ const approvedDesktopActionForbiddenFieldNames = new Set(
     "ocrText",
     ["raw", "WindowContent"].join(""),
     "windowContent",
+    ["raw", "TargetText"].join(""),
+    "targetText",
+    "rawText",
+    "textValue",
     "clipboard",
     "clipboardText",
+    "clipboardContent",
+    "clipboardOperation",
+    "writeClipboard",
+    "fileDialog",
+    "fileDialogOperation",
+    "openFileDialog",
+    "fileDialogPath",
+    "dragDropOperation",
+    "rawCoordinates",
+    "coordinates",
+    "clickX",
+    "clickY",
+    "screenX",
+    "screenY",
     "apiKey",
     "apiKeyValue",
     "Authorization",
