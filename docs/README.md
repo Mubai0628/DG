@@ -478,6 +478,8 @@ foundation.
 - [App Shell Evidence Freshness / Drift v0.28](app-shell-evidence-freshness-drift-v0.28.md)
 - [Runtime Agent Handoff State Review v0.28](runtime-agent-handoff-state-review-v0.28.md)
 - [App Shell Agent Handoff State Review v0.28](app-shell-agent-handoff-state-review-v0.28.md)
+- [North Star Demo Manual QA Matrix](north-star-demo-manual-qa-matrix.md)
+- [North Star Demo Release Smoke v0.28](north-star-demo-release-smoke-v0.28.md)
 - [Runtime Memory Recall Preview v0.3](runtime-memory-recall-preview-v0.3.md)
 - [v0.4.0 Controlled Creation Preview RC release notes](release-notes-v0.4.0-controlled-creation-preview-rc.1.md)
 - [App Shell Controlled Creation manual QA](app-shell-controlled-creation-manual-qa.md)

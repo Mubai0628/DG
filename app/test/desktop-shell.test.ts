@@ -25865,6 +25865,99 @@ describe("desktop source boundaries", () => {
     expect(docsIndex).toContain("cross-surface-agent-workflow-manual-qa.md");
   });
 
+  it("validates the North Star demo smoke QA matrix fixture", async () => {
+    const fixtureText = await readFile(
+      path.join(appRoot, "test", "fixtures", "north-star-demo-smoke.json"),
+      "utf8"
+    );
+    const fixture = JSON.parse(fixtureText) as {
+      fixtureId: string;
+      qaMatrix: Array<{ id: string; summaryOnly: boolean }>;
+      smokeGuards: Record<string, boolean>;
+      expected: Record<string, boolean>;
+    };
+    const requiredCoverage = [
+      "convert",
+      "live_proposal",
+      "fixed_multi_agent_route",
+      "project_knowledge_recall",
+      "mcp_readonly_evidence",
+      "plugin_skill_metadata_evidence",
+      "desktop_observer_evidence",
+      "desktop_action_proposal",
+      "approved_desktop_action",
+      "approved_workspace_apply",
+      "git_shell_verification",
+      "rollback",
+      "replay_audit",
+      "redaction",
+      "failure_recovery"
+    ];
+    const coverageIds = fixture.qaMatrix.map((item) => item.id);
+
+    expect(fixture.fixtureId).toBe("north-star-demo-smoke-v0.29");
+    expect(coverageIds).toEqual(expect.arrayContaining(requiredCoverage));
+    expect(fixture.qaMatrix).toHaveLength(requiredCoverage.length);
+    expect(fixture.qaMatrix.every((item) => item.summaryOnly)).toBe(true);
+    expect(Object.values(fixture.smokeGuards).every((value) => value === false))
+      .toBe(true);
+    expect(fixture.expected.allMatrixItemsCovered).toBe(true);
+    expect(fixture.expected.summaryOnly).toBe(true);
+    expect(fixture.expected.appExecutionExpanded).toBe(false);
+    expect(fixture.expected.broadExecutionAdded).toBe(false);
+    expect(fixtureText).not.toContain("rawPrompt");
+    expect(fixtureText).not.toContain("rawSource");
+    expect(fixtureText).not.toContain("rawDiff");
+    expect(fixtureText).not.toContain("Authorization");
+    expect(fixtureText).not.toContain("sk-");
+  });
+
+  it("documents the North Star demo QA matrix and release smoke hardening", async () => {
+    const manualQa = await readFile(
+      path.join(repoRoot, "docs", "north-star-demo-manual-qa-matrix.md"),
+      "utf8"
+    );
+    const smokeDoc = await readFile(
+      path.join(repoRoot, "docs", "north-star-demo-release-smoke-v0.28.md"),
+      "utf8"
+    );
+    const docsIndex = await readFile(
+      path.join(repoRoot, "docs", "README.md"),
+      "utf8"
+    );
+
+    expect(manualQa).toContain("Convert");
+    expect(manualQa).toContain("live proposal");
+    expect(manualQa).toContain("fixed multi-agent route");
+    expect(manualQa).toContain("project knowledge recall");
+    expect(manualQa).toContain("MCP read-only evidence");
+    expect(manualQa).toContain("plugin/skill metadata");
+    expect(manualQa).toContain("desktop observer evidence");
+    expect(manualQa).toContain("desktop action proposal");
+    expect(manualQa).toContain("approved desktop action");
+    expect(manualQa).toContain("approved workspace apply");
+    expect(manualQa).toContain("Git/shell verification");
+    expect(manualQa).toContain("rollback");
+    expect(manualQa).toContain("Replay/audit");
+    expect(manualQa).toContain("Redaction");
+    expect(manualQa).toContain("Failure recovery");
+    expect(manualQa).toContain("no dynamic bidding");
+    expect(manualQa).toContain("no broad desktop action");
+    expect(manualQa).toContain("no raw prompt/source/diff/API key");
+    expect(smokeDoc).toContain("North Star Demo Release Smoke v0.28");
+    expect(smokeDoc).toContain("Do not run live DeepSeek by default");
+    expect(smokeDoc).toContain("Do not execute arbitrary Git/shell");
+    expect(smokeDoc).toContain("Do not execute MCP mutating tools");
+    expect(smokeDoc).toContain("Do not execute plugin/skill runtime");
+    expect(smokeDoc).toContain("Do not persist raw prompt/source/diff/API key");
+    expect(smokeDoc).toContain("pnpm app:typecheck");
+    expect(smokeDoc).toContain("pnpm app:test");
+    expect(smokeDoc).toContain("pnpm check:boundaries");
+    expect(smokeDoc).toContain("pnpm check:secrets");
+    expect(docsIndex).toContain("north-star-demo-manual-qa-matrix.md");
+    expect(docsIndex).toContain("north-star-demo-release-smoke-v0.28.md");
+  });
+
   it("documents the v0.28 cross-surface workflow RC release package", async () => {
     const releaseNotes = await readFile(
       path.join(

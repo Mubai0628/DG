@@ -1,0 +1,131 @@
+{
+  "fixtureId": "north-star-demo-smoke-v0.29",
+  "description": "Summary-only North Star demo QA matrix fixture for release smoke hardening.",
+  "qaMatrix": [
+    {
+      "id": "convert",
+      "surface": "web_table_to_csv Convert",
+      "expected": "real_conversion_flow_preserved",
+      "summaryOnly": true
+    },
+    {
+      "id": "live_proposal",
+      "surface": "Live proposal",
+      "expected": "runtime_explicit_opt_in_only",
+      "summaryOnly": true
+    },
+    {
+      "id": "fixed_multi_agent_route",
+      "surface": "Fixed multi-agent route",
+      "expected": "fixed_roles_no_dynamic_bidding",
+      "summaryOnly": true
+    },
+    {
+      "id": "project_knowledge_recall",
+      "surface": "Project knowledge recall",
+      "expected": "summary_refs_only",
+      "summaryOnly": true
+    },
+    {
+      "id": "mcp_readonly_evidence",
+      "surface": "MCP read-only evidence",
+      "expected": "metadata_and_readonly_tool_summaries",
+      "summaryOnly": true
+    },
+    {
+      "id": "plugin_skill_metadata_evidence",
+      "surface": "Plugin/skill metadata evidence",
+      "expected": "metadata_only_no_runtime",
+      "summaryOnly": true
+    },
+    {
+      "id": "desktop_observer_evidence",
+      "surface": "Desktop observer evidence",
+      "expected": "metadata_only_no_action",
+      "summaryOnly": true
+    },
+    {
+      "id": "desktop_action_proposal",
+      "surface": "Desktop action proposal",
+      "expected": "proposal_only",
+      "summaryOnly": true
+    },
+    {
+      "id": "approved_desktop_action",
+      "surface": "Approved desktop action",
+      "expected": "existing_approved_lane_only",
+      "summaryOnly": true
+    },
+    {
+      "id": "approved_workspace_apply",
+      "surface": "Approved workspace apply",
+      "expected": "existing_receipt_and_typed_confirmation_lane",
+      "summaryOnly": true
+    },
+    {
+      "id": "git_shell_verification",
+      "surface": "Git/shell verification",
+      "expected": "fixed_safe_lanes_only",
+      "summaryOnly": true
+    },
+    {
+      "id": "rollback",
+      "surface": "Rollback",
+      "expected": "approved_checkpoint_summary_only",
+      "summaryOnly": true
+    },
+    {
+      "id": "replay_audit",
+      "surface": "Replay/audit",
+      "expected": "summary_timeline_only",
+      "summaryOnly": true
+    },
+    {
+      "id": "redaction",
+      "surface": "Redaction",
+      "expected": "no_raw_content_or_secret_material",
+      "summaryOnly": true
+    },
+    {
+      "id": "failure_recovery",
+      "surface": "Failure recovery",
+      "expected": "safe_next_action_summary",
+      "summaryOnly": true
+    }
+  ],
+  "smokeGuards": {
+    "runLiveDeepSeekByDefault": false,
+    "executeBroadDesktopAction": false,
+    "executeArbitraryGitShell": false,
+    "executeMcpMutatingTools": false,
+    "executePluginSkillRuntime": false,
+    "persistRawPrompt": false,
+    "persistRawSource": false,
+    "persistRawDiff": false,
+    "persistCredentialMaterial": false
+  },
+  "summaryRefs": [
+    {
+      "refId": "north-star-convert-summary",
+      "kind": "convert_summary",
+      "hashPrefix": "nsconvert"
+    },
+    {
+      "refId": "north-star-replay-audit-summary",
+      "kind": "replay_audit_summary",
+      "hashPrefix": "nsreplay"
+    },
+    {
+      "refId": "north-star-redaction-summary",
+      "kind": "redaction_summary",
+      "hashPrefix": "nsredact"
+    }
+  ],
+  "expected": {
+    "allMatrixItemsCovered": true,
+    "summaryOnly": true,
+    "appExecutionExpanded": false,
+    "broadExecutionAdded": false,
+    "releaseSmokeReady": true
+  }
+}
