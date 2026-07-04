@@ -542,6 +542,7 @@ function isDesktopActionProposalSchemaFile(file) {
   return (
     file === "runtime/src/desktop/index.ts" ||
     file === "runtime/src/desktop/action-expansion-proposal.ts" ||
+    file === "runtime/src/desktop/desktop-action-risk-classifier.ts" ||
     file === "runtime/src/desktop/clipboard-action-proposal.ts" ||
     file === "runtime/src/desktop/desktop-action-sequence-simulation.ts" ||
     file === "runtime/src/desktop/desktop-target-freshness.ts" ||

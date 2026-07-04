@@ -9,6 +9,10 @@ import {
   validateDesktopActionProposal,
   validateDesktopActionTargets
 } from "../src/desktop-action/index.js";
+import {
+  classifyDesktopActionExpansionRisk,
+  summarizeDesktopActionExpansionRisk
+} from "../src/desktop/index.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const fixtureRoot = path.join(
@@ -263,5 +267,144 @@ describe("desktop action risk classifier", () => {
     expect(serialized).not.toContain("sk-test");
     expect(serialized).not.toContain("executeNow");
     expectExecutionFlagsFalse(result);
+  });
+});
+
+function expansionProposal(actionKind: string, labelSummary = "Next") {
+  return {
+    proposalId: `expanded-risk-${actionKind}`,
+    actionKind,
+    objectiveSummary: `Review ${labelSummary} target.`,
+    targetSummary: {
+      targetId: `target-${actionKind}`,
+      targetKind: "button",
+      labelSummary,
+      appNameSummary: "Demo App",
+      windowTitleSummary: "Demo Window",
+      confidence: 0.92
+    },
+    expectedEffectSummary: "Visible state changes in a safe preview only.",
+    proposalHash: `proposal_hash_${actionKind}`
+  };
+}
+
+function expectExpansionExecutionFlagsFalse(
+  result: ReturnType<typeof classifyDesktopActionExpansionRisk>
+) {
+  expect(result.readiness.canExecuteDesktopAction).toBe(false);
+  expect(result.readiness.canClick).toBe(false);
+  expect(result.readiness.canType).toBe(false);
+  expect(result.readiness.canSelect).toBe(false);
+  expect(result.readiness.canWriteClipboard).toBe(false);
+  expect(result.readiness.canOpenFileDialog).toBe(false);
+  expect(result.readiness.canDragDrop).toBe(false);
+  expect(result.readiness.canWriteEventStore).toBe(false);
+  expect(result.readiness.canUseNativeBridge).toBe(false);
+  expect(result.readiness.appCanExecute).toBe(false);
+}
+
+describe("desktop action expansion risk classifier", () => {
+  it("classifies low-risk navigation as low", () => {
+    const result = classifyDesktopActionExpansionRisk({
+      proposalSummary: expansionProposal("wait_for_state", "Navigation ready"),
+      freshnessResult: { status: "fresh" }
+    });
+
+    expect(result.status).toBe("classified");
+    expect(result.riskClass).toBe("low");
+    expect(result.requiredApprovals).toEqual([]);
+    expectExpansionExecutionFlagsFalse(result);
+  });
+
+  it("blocks password targets", () => {
+    const result = classifyDesktopActionExpansionRisk({
+      proposalSummary: expansionProposal("type_text", "Password")
+    });
+
+    expect(result.status).toBe("blocked");
+    expect(result.riskClass).toBe("blocked");
+    expect(result.blockedReasons).toContain("PASSWORD_TARGET_BLOCKED");
+    expect(result.riskFactors).toContain("password_or_credential_field");
+    expectExpansionExecutionFlagsFalse(result);
+  });
+
+  it("classifies payment actions as high review", () => {
+    const result = classifyDesktopActionExpansionRisk({
+      proposalSummary: expansionProposal("click_target", "Payment submit")
+    });
+
+    expect(result.status).toBe("warning");
+    expect(result.riskClass).toBe("high");
+    expect(result.warningCodes).toContain("PAYMENT_OR_FINANCE_REVIEW");
+    expect(result.requiredApprovals).toContain("typed_confirmation");
+  });
+
+  it("blocks delete actions", () => {
+    const result = classifyDesktopActionExpansionRisk({
+      proposalSummary: expansionProposal("click_target", "Delete project")
+    });
+
+    expect(result.status).toBe("blocked");
+    expect(result.blockedReasons).toContain("DESTRUCTIVE_TARGET_BLOCKED");
+  });
+
+  it("blocks clipboard and file dialog actions", () => {
+    const clipboard = classifyDesktopActionExpansionRisk({
+      proposalSummary: expansionProposal("clipboard_write", "Copy summary")
+    });
+    const fileDialog = classifyDesktopActionExpansionRisk({
+      proposalSummary: expansionProposal("file_dialog_select", "Choose file")
+    });
+
+    expect(clipboard.status).toBe("blocked");
+    expect(clipboard.blockedReasons).toContain("CLIPBOARD_ACTION_BLOCKED");
+    expect(fileDialog.status).toBe("blocked");
+    expect(fileDialog.blockedReasons).toContain("FILE_DIALOG_ACTION_BLOCKED");
+  });
+
+  it("escalates stale target freshness to blocked", () => {
+    const result = classifyDesktopActionExpansionRisk({
+      proposalSummary: expansionProposal("click_target", "Open"),
+      freshnessResult: {
+        status: "blocked",
+        blockerCodes: ["STALE_EVIDENCE"]
+      }
+    });
+
+    expect(result.status).toBe("blocked");
+    expect(result.blockedReasons).toContain("STALE_OR_BLOCKED_TARGET");
+    expect(result.riskFactors).toContain("stale_evidence");
+  });
+
+  it("blocks raw fields and keeps output summary-only", () => {
+    const result = classifyDesktopActionExpansionRisk({
+      proposalSummary: expansionProposal("click_target", "Open"),
+      observerEvidenceSummary: {
+        rawScreenshot: "RAW_SCREENSHOT",
+        marker: "sk-test-obvious-fake"
+      },
+      canClick: true
+    } as never);
+    const summary = summarizeDesktopActionExpansionRisk(result);
+    const serialized = JSON.stringify(summary);
+
+    expect(result.status).toBe("blocked");
+    expect(result.findings.map((finding) => finding.code)).toContain(
+      "FORBIDDEN_FIELD"
+    );
+    expect(result.findings.map((finding) => finding.code)).toContain(
+      "RAW_MARKER"
+    );
+    expect(result.findings.map((finding) => finding.code)).toContain(
+      "SECRET_MARKER"
+    );
+    expect(result.findings.map((finding) => finding.code)).toContain(
+      "EXECUTION_FLAG_TRUE"
+    );
+    expect(serialized).not.toContain("RAW_SCREENSHOT");
+    expect(serialized).not.toContain("sk-test");
+    expect(serialized).not.toContain("rawScreenshot");
+    expect(summary.summaryOnly).toBe(true);
+    expectExpansionExecutionFlagsFalse(result);
   });
 });
