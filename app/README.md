@@ -235,6 +235,11 @@ Current scope:
   command for observed-window focus/raise/activate summaries while generic
   native bridge, click/type/select, clipboard/file dialog automation,
   EventStore writes, and replay re-execution remain disabled
+- prepare the v0.26 Desktop Action Expansion Proposal RC with read-only
+  expanded click/type/select/clipboard/file-dialog proposal summaries,
+  freshness checks, risk classification, and sequence simulation while App
+  execution, clipboard write, file dialog automation, EventStore writes, and
+  native bridge remain disabled
 - prepare the v0.19 MCP Tool Invocation Proposal RC with proposal schema,
   input risk classification, simulated result summaries, broker planning,
   read-only App proposal surface, redaction audit, and smoke hardening while

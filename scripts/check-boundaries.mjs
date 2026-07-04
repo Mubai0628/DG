@@ -516,7 +516,10 @@ function isDesktopObserverAppSurfaceCopy(file, line, ruleId) {
       line.includes("Use Clipboard (disabled)") ||
       line.includes("Write Clipboard (disabled)") ||
       line.includes("clipboard, file") ||
+      line.includes("clipboard, and file-dialog") ||
+      line.includes("Clipboard / file dialog") ||
       line.includes("canWriteClipboard") ||
+      line.includes('? "clipboard"') ||
       line.includes("no clipboard")
     );
   }

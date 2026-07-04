@@ -115,6 +115,7 @@ import {
   desktopObserverEvidenceRefs
 } from "../src/desktop-observer-view.js";
 import { buildDesktopActionProposalView } from "../src/desktop-action-proposal-view.js";
+import { buildExpandedDesktopActionProposalView } from "../src/expanded-desktop-action-proposal-view.js";
 import { buildApprovedDesktopActionView } from "../src/approved-desktop-action-view.js";
 import { buildDesktopActionReplayView } from "../src/desktop-action-replay-view.js";
 import { buildScreenshotRedactionBoundaryView } from "../src/screenshot-redaction-boundary-view.js";
@@ -27680,6 +27681,182 @@ describe("desktop source boundaries", () => {
     expect(docsIndex).toContain(
       "app-shell-approval-gated-disposable-apply-v0.5.md"
     );
+  });
+});
+
+function expandedDesktopActionProposalFixture() {
+  return {
+    schemaVersion: "desktop_action_expansion_proposal.v1",
+    proposalId: "expanded-action-click-1",
+    actionKind: "click_target",
+    objectiveSummary: "Open the visible preferences panel.",
+    observerEvidenceRef: {
+      evidenceRefId: "expanded-evidence-1",
+      observedAt: "2026-07-04T10:00:00.000Z",
+      summary: "Foreground app target metadata summary.",
+      windowIdHash: "win_hash",
+      appIdHash: "app_hash",
+      displayIdHash: "display_hash",
+      targetHash: "target_hash"
+    },
+    targetSummary: {
+      targetId: "target-preferences",
+      targetKind: "button",
+      labelSummary: "Preferences",
+      appNameSummary: "Demo App",
+      windowTitleSummary: "Demo Window",
+      role: "button",
+      confidence: 0.94,
+      windowIdHash: "win_hash",
+      appIdHash: "app_hash",
+      displayIdHash: "display_hash",
+      boundsHash: "bounds_hash",
+      boundsSummary: "safe bounds hash summary"
+    },
+    expectedEffect: {
+      summary: "The preferences panel would become visible."
+    },
+    riskNotes: ["Expanded desktop action proposal remains read-only."],
+    createdAt: "2026-07-04T10:01:00.000Z"
+  };
+}
+
+describe("expanded desktop action proposal app surface", () => {
+  it("previews a safe proposal as summary-only and read-only", () => {
+    const view = buildExpandedDesktopActionProposalView({
+      proposalJsonText: JSON.stringify(expandedDesktopActionProposalFixture()),
+      sourceKind: "manual_test"
+    });
+
+    expect(view.status).toBe("warning");
+    expect(view.proposalId).toBe("expanded-action-click-1");
+    expect(view.actionKind).toBe("click_target");
+    expect(view.targetSummary).toContain("button:target-preferences");
+    expect(view.freshnessSummary).toContain("fresh");
+    expect(view.riskSummary).toContain("medium");
+    expect(view.simulationSummary).toContain("warning");
+    expect(view.contextAssemblyRef).toContain("no_compress_zone");
+    expect(view.readiness.canDisplayReadOnlyPreview).toBe(true);
+    expect(view.readiness.canExecuteClick).toBe(false);
+    expect(view.readiness.canTypeText).toBe(false);
+    expect(view.readiness.canWriteClipboard).toBe(false);
+    expect(view.readiness.canOpenFileDialog).toBe(false);
+    expect(view.readiness.canExecuteDesktopAction).toBe(false);
+    expect(view.readiness.canWriteEventStore).toBe(false);
+    expect(view.readiness.canUseNativeBridge).toBe(false);
+    expect(view.readiness.appCanExecute).toBe(false);
+    expect(JSON.stringify(view)).not.toContain("RAW_SCREENSHOT");
+    expect(JSON.stringify(view)).not.toContain("RAW_OCR");
+  });
+
+  it("blocks raw screenshot and raw OCR inputs", () => {
+    const rawScreenshot = buildExpandedDesktopActionProposalView({
+      proposalJsonText: JSON.stringify({
+        ...expandedDesktopActionProposalFixture(),
+        rawScreenshot: "RAW_SCREENSHOT"
+      })
+    });
+    const rawOcr = buildExpandedDesktopActionProposalView({
+      proposalJsonText: JSON.stringify({
+        ...expandedDesktopActionProposalFixture(),
+        observerEvidenceRef: {
+          ...expandedDesktopActionProposalFixture().observerEvidenceRef,
+          rawOcrText: "RAW_OCR"
+        }
+      })
+    });
+
+    expect(rawScreenshot.status).toBe("blocked");
+    expect(rawScreenshot.findings.map((finding) => finding.code)).toContain(
+      "RAW_MARKER"
+    );
+    expect(rawOcr.status).toBe("blocked");
+    expect(rawOcr.findings.map((finding) => finding.code)).toContain(
+      "RAW_MARKER"
+    );
+  });
+
+  it("blocks API key markers and execution fields", () => {
+    const secret = buildExpandedDesktopActionProposalView({
+      proposalJsonText: JSON.stringify({
+        ...expandedDesktopActionProposalFixture(),
+        riskNotes: ["fake key sk-test-obvious-fake"]
+      })
+    });
+    const execution = buildExpandedDesktopActionProposalView({
+      proposalJsonText: JSON.stringify({
+        ...expandedDesktopActionProposalFixture(),
+        clickNow: true,
+        readiness: {
+          canClick: true
+        }
+      })
+    });
+
+    expect(secret.status).toBe("blocked");
+    expect(secret.findings.map((finding) => finding.code)).toContain(
+      "SECRET_MARKER"
+    );
+    expect(execution.status).toBe("blocked");
+    expect(execution.findings.map((finding) => finding.code)).toContain(
+      "EXECUTION_FLAG_TRUE"
+    );
+  });
+
+  it("renders disabled controls and keeps source boundaries", async () => {
+    const appSource = await readFile(
+      path.join(appRoot, "src", "App.tsx"),
+      "utf8"
+    );
+    const viewSource = await readFile(
+      path.join(appRoot, "src", "expanded-desktop-action-proposal-view.ts"),
+      "utf8"
+    );
+
+    expect(appSource).toContain("Expanded Desktop Action Proposal");
+    expect(appSource).toContain("Proposal only / no desktop action");
+    expect(appSource).toContain("Preview Proposal");
+    expect(appSource).toContain("Clear Proposal");
+    expect(appSource).toContain("Execute Click (disabled)");
+    expect(appSource).toContain("Type Text (disabled)");
+    expect(appSource).toContain("Write Clipboard (disabled)");
+    expect(appSource).toContain("Open File Dialog (disabled)");
+    expect(appSource).not.toMatch(/>\s*Execute Click\s*</);
+    expect(appSource).not.toMatch(/>\s*Type Text\s*</);
+    expect(appSource).not.toMatch(/>\s*Write Clipboard\s*</);
+    expect(appSource).not.toMatch(/>\s*Open File Dialog\s*</);
+    expect(viewSource).not.toContain("safeInvoke");
+    expect(viewSource).not.toContain("fetch(");
+    expect(viewSource).not.toContain("recordLiveProposal");
+    expect(viewSource).not.toContain("recordControl");
+    expect(viewSource).not.toContain("executeApprovedDesktopAction");
+  });
+
+  it("documents the expanded desktop action proposal surface", async () => {
+    const doc = await readFile(
+      path.join(
+        repoRoot,
+        "docs",
+        "app-shell-expanded-desktop-action-proposal-v0.25.md"
+      ),
+      "utf8"
+    );
+    const docsIndex = await readFile(
+      path.join(repoRoot, "docs", "README.md"),
+      "utf8"
+    );
+    const appReadme = await readFile(path.join(appRoot, "README.md"), "utf8");
+
+    expect(doc).toContain("App Shell Expanded Desktop Action Proposal v0.25");
+    expect(doc).toContain("read-only");
+    expect(doc).toContain("No desktop action execution");
+    expect(doc).toContain("No Tauri command");
+    expect(doc).toContain("No EventStore write");
+    expect(doc).toContain("no_compress_zone");
+    expect(docsIndex).toContain(
+      "app-shell-expanded-desktop-action-proposal-v0.25.md"
+    );
+    expect(appReadme).toContain("v0.26 Desktop Action Expansion Proposal RC");
   });
 });
 

@@ -208,6 +208,10 @@ import {
   type DesktopActionProposalView
 } from "./desktop-action-proposal-view.js";
 import {
+  buildExpandedDesktopActionProposalView,
+  type ExpandedDesktopActionProposalView
+} from "./expanded-desktop-action-proposal-view.js";
+import {
   buildApprovedDesktopActionView,
   summarizeApprovedDesktopActionView,
   type ApprovedDesktopActionView
@@ -619,6 +623,14 @@ export function DesktopShell(): JSX.Element {
     useState("");
   const [desktopActionProposalPreview, setDesktopActionProposalPreview] =
     useState<DesktopActionProposalView | undefined>();
+  const [
+    expandedDesktopActionProposalText,
+    setExpandedDesktopActionProposalText
+  ] = useState("");
+  const [
+    expandedDesktopActionProposalPreview,
+    setExpandedDesktopActionProposalPreview
+  ] = useState<ExpandedDesktopActionProposalView | undefined>();
   const [
     approvedDesktopActionTypedConfirmation,
     setApprovedDesktopActionTypedConfirmation
@@ -1086,6 +1098,18 @@ export function DesktopShell(): JSX.Element {
   );
   const displayedDesktopActionProposal =
     desktopActionProposalPreview ?? buildDesktopActionProposalView();
+  const expandedDesktopActionProposalCandidate =
+    useMemo<ExpandedDesktopActionProposalView>(
+      () =>
+        buildExpandedDesktopActionProposalView({
+          proposalJsonText: expandedDesktopActionProposalText,
+          sourceKind: "paste"
+        }),
+      [expandedDesktopActionProposalText]
+    );
+  const displayedExpandedDesktopActionProposal =
+    expandedDesktopActionProposalPreview ??
+    buildExpandedDesktopActionProposalView();
   const approvedDesktopActionCandidate = useMemo<ApprovedDesktopActionView>(
     () =>
       buildApprovedDesktopActionView({
@@ -3051,6 +3075,19 @@ export function DesktopShell(): JSX.Element {
     setApprovedDesktopActionStatus("idle");
     setApprovedDesktopActionResult(undefined);
     setApprovedDesktopActionError(undefined);
+    setContextAssemblyPreview(undefined);
+  }
+
+  function handlePreviewExpandedDesktopActionProposal(): void {
+    setExpandedDesktopActionProposalPreview(
+      expandedDesktopActionProposalCandidate
+    );
+    setContextAssemblyPreview(undefined);
+  }
+
+  function handleClearExpandedDesktopActionProposal(): void {
+    setExpandedDesktopActionProposalText("");
+    setExpandedDesktopActionProposalPreview(undefined);
     setContextAssemblyPreview(undefined);
   }
 
@@ -6267,6 +6304,199 @@ export function DesktopShell(): JSX.Element {
 
             <p className="fieldHelp">
               {displayedDesktopActionProposal.nextAction}
+            </p>
+          </section>
+
+          <section
+            className="eventPanel"
+            aria-label="Expanded Desktop Action Proposal"
+          >
+            <div className="panelHeader">
+              <h2>Expanded Desktop Action Proposal</h2>
+              <span className="muted">Proposal only / no desktop action</span>
+            </div>
+            <p className="fieldHelp">
+              Models future click, type, select, clipboard, and file-dialog
+              actions as read-only proposals. The App Shell cannot execute these
+              actions.
+            </p>
+
+            <label>
+              Expanded desktop action proposal JSON
+              <textarea
+                rows={8}
+                value={expandedDesktopActionProposalText}
+                onChange={(event) => {
+                  setExpandedDesktopActionProposalText(event.target.value);
+                }}
+                placeholder="Paste desktop_action_expansion_proposal JSON draft"
+              />
+            </label>
+
+            <div className="buttonRow">
+              <button
+                type="button"
+                className="secondary"
+                onClick={(event) => {
+                  event.preventDefault();
+                  event.stopPropagation();
+                  handlePreviewExpandedDesktopActionProposal();
+                }}
+              >
+                Preview Proposal
+              </button>
+              <button
+                type="button"
+                className="secondary"
+                onClick={(event) => {
+                  event.preventDefault();
+                  event.stopPropagation();
+                  handleClearExpandedDesktopActionProposal();
+                }}
+              >
+                Clear Proposal
+              </button>
+              <button type="button" className="secondary" disabled>
+                Execute Click (disabled)
+              </button>
+              <button type="button" className="secondary" disabled>
+                Type Text (disabled)
+              </button>
+              <button type="button" className="secondary" disabled>
+                Write Clipboard (disabled)
+              </button>
+              <button type="button" className="secondary" disabled>
+                Open File Dialog (disabled)
+              </button>
+            </div>
+
+            {displayedExpandedDesktopActionProposal.status === "blocked" ? (
+              <div className="errorBox">
+                <strong>Expanded Desktop Action Proposal blocked</strong>
+                <p>{displayedExpandedDesktopActionProposal.nextAction}</p>
+              </div>
+            ) : null}
+
+            <dl className="summaryGrid compact">
+              <div>
+                <dt>Status</dt>
+                <dd>{displayedExpandedDesktopActionProposal.status}</dd>
+              </div>
+              <div>
+                <dt>Proposal</dt>
+                <dd>
+                  {displayedExpandedDesktopActionProposal.proposalId ?? "n/a"}
+                </dd>
+              </div>
+              <div>
+                <dt>Action kind</dt>
+                <dd>
+                  {displayedExpandedDesktopActionProposal.actionKind ?? "n/a"}
+                </dd>
+              </div>
+              <div>
+                <dt>Target summary</dt>
+                <dd>{displayedExpandedDesktopActionProposal.targetSummary}</dd>
+              </div>
+              <div>
+                <dt>Freshness summary</dt>
+                <dd>
+                  {displayedExpandedDesktopActionProposal.freshnessSummary}
+                </dd>
+              </div>
+              <div>
+                <dt>Risk summary</dt>
+                <dd>{displayedExpandedDesktopActionProposal.riskSummary}</dd>
+              </div>
+              <div>
+                <dt>Simulation summary</dt>
+                <dd>
+                  {displayedExpandedDesktopActionProposal.simulationSummary}
+                </dd>
+              </div>
+              <div>
+                <dt>Blockers / warnings</dt>
+                <dd>
+                  {displayedExpandedDesktopActionProposal.blockerCount} /{" "}
+                  {displayedExpandedDesktopActionProposal.warningCount}
+                </dd>
+              </div>
+              <div>
+                <dt>Hash</dt>
+                <dd>
+                  {displayedExpandedDesktopActionProposal.simulationHash?.substring(
+                    0,
+                    12
+                  ) ??
+                    displayedExpandedDesktopActionProposal.riskHash?.substring(
+                      0,
+                      12
+                    ) ??
+                    displayedExpandedDesktopActionProposal.proposalHash?.substring(
+                      0,
+                      12
+                    ) ??
+                    "n/a"}
+                </dd>
+              </div>
+              <div>
+                <dt>Execution</dt>
+                <dd>
+                  {displayedExpandedDesktopActionProposal.readiness
+                    .canExecuteDesktopAction
+                    ? "enabled"
+                    : "disabled"}
+                </dd>
+              </div>
+              <div>
+                <dt>Clipboard / file dialog</dt>
+                <dd>
+                  {displayedExpandedDesktopActionProposal.readiness
+                    .canWriteClipboard
+                    ? "clipboard"
+                    : "no clipboard"}{" "}
+                  /{" "}
+                  {displayedExpandedDesktopActionProposal.readiness
+                    .canOpenFileDialog
+                    ? "file dialog"
+                    : "no file dialog"}
+                </dd>
+              </div>
+              <div>
+                <dt>Native bridge / events</dt>
+                <dd>
+                  {displayedExpandedDesktopActionProposal.readiness
+                    .canUseNativeBridge
+                    ? "bridge"
+                    : "no bridge"}{" "}
+                  /{" "}
+                  {displayedExpandedDesktopActionProposal.readiness
+                    .canWriteEventStore
+                    ? "write"
+                    : "no write"}
+                </dd>
+              </div>
+            </dl>
+
+            {displayedExpandedDesktopActionProposal.contextAssemblyRef !==
+            undefined ? (
+              <p className="muted">
+                no_compress_zone ref{" "}
+                {displayedExpandedDesktopActionProposal.contextAssemblyRef}
+              </p>
+            ) : null}
+
+            {displayedExpandedDesktopActionProposal.findings.length > 0 ? (
+              <p className="muted">
+                findings{" "}
+                {displayedExpandedDesktopActionProposal.findings
+                  .map((finding) => finding.code)
+                  .join(", ")}
+              </p>
+            ) : null}
+
+            <p className="fieldHelp">
+              {displayedExpandedDesktopActionProposal.nextAction}
             </p>
           </section>
 
