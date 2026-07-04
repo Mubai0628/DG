@@ -205,6 +205,11 @@ import {
   type CrossSurfaceWorkflowView
 } from "./cross-surface-workflow-view.js";
 import {
+  buildCrossSurfaceEvidenceView,
+  summarizeCrossSurfaceEvidenceView,
+  type CrossSurfaceEvidenceView
+} from "./cross-surface-evidence-view.js";
+import {
   buildDesktopObserverView,
   desktopObserverEvidenceRefs,
   summarizeDesktopObserverView,
@@ -813,6 +818,10 @@ export function DesktopShell(): JSX.Element {
     useState("");
   const [crossSurfaceWorkflowPreview, setCrossSurfaceWorkflowPreview] =
     useState<CrossSurfaceWorkflowView | undefined>();
+  const [crossSurfaceEvidenceJsonText, setCrossSurfaceEvidenceJsonText] =
+    useState("");
+  const [crossSurfaceEvidencePreview, setCrossSurfaceEvidencePreview] =
+    useState<CrossSurfaceEvidenceView | undefined>();
   const [fixedMultiAgentRunPreview, setFixedMultiAgentRunPreview] = useState<
     FixedMultiAgentRunView | undefined
   >();
@@ -2419,6 +2428,16 @@ export function DesktopShell(): JSX.Element {
   );
   const displayedCrossSurfaceWorkflow =
     crossSurfaceWorkflowPreview ?? buildCrossSurfaceWorkflowView();
+  const crossSurfaceEvidenceCandidate = useMemo<CrossSurfaceEvidenceView>(
+    () =>
+      buildCrossSurfaceEvidenceView({
+        evidenceJsonText: crossSurfaceEvidenceJsonText,
+        sourceKind: "paste"
+      }),
+    [crossSurfaceEvidenceJsonText]
+  );
+  const displayedCrossSurfaceEvidence =
+    crossSurfaceEvidencePreview ?? buildCrossSurfaceEvidenceView();
   const mcpReadonlyConnectionCandidate = useMemo<McpReadonlyConnectionView>(
     () =>
       buildMcpReadonlyConnectionView({
@@ -2630,6 +2649,9 @@ export function DesktopShell(): JSX.Element {
   useEffect(() => {
     setCrossSurfaceWorkflowPreview(undefined);
   }, [crossSurfaceWorkflowScenarioText]);
+  useEffect(() => {
+    setCrossSurfaceEvidencePreview(undefined);
+  }, [crossSurfaceEvidenceJsonText]);
   useEffect(() => {
     setFixedMultiAgentRunPreview(undefined);
   }, [
@@ -3715,6 +3737,15 @@ export function DesktopShell(): JSX.Element {
   function handleClearCrossSurfaceWorkflow(): void {
     setCrossSurfaceWorkflowScenarioText("");
     setCrossSurfaceWorkflowPreview(undefined);
+  }
+
+  function handlePreviewCrossSurfaceEvidence(): void {
+    setCrossSurfaceEvidencePreview(crossSurfaceEvidenceCandidate);
+  }
+
+  function handleClearCrossSurfaceEvidence(): void {
+    setCrossSurfaceEvidenceJsonText("");
+    setCrossSurfaceEvidencePreview(undefined);
   }
 
   async function handleDiscoverMcpReadonlyMetadata(): Promise<void> {
@@ -9490,6 +9521,213 @@ export function DesktopShell(): JSX.Element {
                 ).source
               }{" "}
               · {displayedLiveProposalEvaluationTelemetryAudit.nextAction}
+            </p>
+          </section>
+
+          <section
+            className="eventPanel"
+            aria-label="Cross-surface Evidence Summary"
+          >
+            <div className="panelHeader">
+              <h2>Cross-surface Evidence Summary</h2>
+              <span className="muted">Summary refs only / no tool calls</span>
+            </div>
+            <p className="fieldHelp">
+              Aggregates project knowledge, MCP read-only metadata, MCP
+              read-only tool summaries, plugin/skill metadata, desktop observer
+              metadata, and desktop action proposal summaries. The App Shell
+              does not read raw MCP resource content, call MCP tools, execute
+              plugin or skill runtimes, trigger desktop observer commands,
+              execute desktop actions, or write EventStore events.
+            </p>
+
+            <label>
+              <span>Cross-surface evidence refs JSON</span>
+              <textarea
+                className="compactTextarea"
+                value={crossSurfaceEvidenceJsonText}
+                onChange={(event) => {
+                  setCrossSurfaceEvidenceJsonText(event.target.value);
+                }}
+                placeholder="Paste summary-only cross-surface evidence refs JSON"
+                spellCheck={false}
+              />
+              <p className="fieldHelp">
+                Accepts summary-only refs for project knowledge, MCP metadata,
+                plugin/skill metadata, desktop observer metadata, and desktop
+                action proposal summaries. Raw MCP output, screenshots, source,
+                diffs, prompts, package contents, and secrets are blocked.
+              </p>
+            </label>
+
+            <div className="buttonRow">
+              <button
+                type="button"
+                className="secondary"
+                onClick={(event) => {
+                  event.preventDefault();
+                  event.stopPropagation();
+                  handlePreviewCrossSurfaceEvidence();
+                }}
+              >
+                Preview Evidence Summary
+              </button>
+              <button
+                type="button"
+                className="secondary"
+                onClick={(event) => {
+                  event.preventDefault();
+                  event.stopPropagation();
+                  handleClearCrossSurfaceEvidence();
+                }}
+              >
+                Clear Evidence Summary
+              </button>
+              <button type="button" className="secondary" disabled>
+                Collect Evidence (disabled)
+              </button>
+              <button type="button" className="secondary" disabled>
+                Call MCP Tool (disabled)
+              </button>
+            </div>
+
+            {displayedCrossSurfaceEvidence.status === "empty" ? (
+              <p className="empty">
+                No cross-surface evidence refs loaded. Paste summary-only
+                evidence refs to preview aggregation.
+              </p>
+            ) : null}
+
+            {displayedCrossSurfaceEvidence.status === "blocked" ? (
+              <div className="errorBox">
+                <strong>Evidence summary blocked</strong>
+                <p>{displayedCrossSurfaceEvidence.nextAction}</p>
+              </div>
+            ) : null}
+
+            <dl className="summaryGrid compact">
+              <div>
+                <dt>Status</dt>
+                <dd>{displayedCrossSurfaceEvidence.status}</dd>
+              </div>
+              <div>
+                <dt>Evidence summary</dt>
+                <dd>{displayedCrossSurfaceEvidence.evidenceSummaryId}</dd>
+              </div>
+              <div>
+                <dt>Evidence / workflow refs</dt>
+                <dd>
+                  {displayedCrossSurfaceEvidence.evidenceCount} /{" "}
+                  {displayedCrossSurfaceEvidence.workflowRefCount}
+                </dd>
+              </div>
+              <div>
+                <dt>Blockers / warnings</dt>
+                <dd>
+                  {displayedCrossSurfaceEvidence.blockerCount} /{" "}
+                  {displayedCrossSurfaceEvidence.warningCount}
+                </dd>
+              </div>
+              <div>
+                <dt>Hash</dt>
+                <dd>{displayedCrossSurfaceEvidence.hashPrefix ?? "n/a"}</dd>
+              </div>
+              <div>
+                <dt>Attach / MCP content</dt>
+                <dd>
+                  {displayedCrossSurfaceEvidence.readiness
+                    .canAttachToWorkflowPreview
+                    ? "yes"
+                    : "no"}{" "}
+                  /{" "}
+                  {displayedCrossSurfaceEvidence.readiness
+                    .canReadMcpResourceContent
+                    ? "yes"
+                    : "no"}
+                </dd>
+              </div>
+              <div>
+                <dt>MCP tool / plugin runtime</dt>
+                <dd>
+                  {displayedCrossSurfaceEvidence.readiness.canCallMcpTool
+                    ? "yes"
+                    : "no"}{" "}
+                  /{" "}
+                  {displayedCrossSurfaceEvidence.readiness
+                    .canExecutePluginRuntime
+                    ? "yes"
+                    : "no"}
+                </dd>
+              </div>
+              <div>
+                <dt>Desktop observer / action</dt>
+                <dd>
+                  {displayedCrossSurfaceEvidence.readiness
+                    .canTriggerDesktopObserver
+                    ? "yes"
+                    : "no"}{" "}
+                  /{" "}
+                  {displayedCrossSurfaceEvidence.readiness
+                    .canExecuteDesktopAction
+                    ? "yes"
+                    : "no"}
+                </dd>
+              </div>
+              <div>
+                <dt>EventStore / App execute</dt>
+                <dd>
+                  {displayedCrossSurfaceEvidence.readiness.canWriteEventStore
+                    ? "yes"
+                    : "no"}{" "}
+                  /{" "}
+                  {displayedCrossSurfaceEvidence.readiness.appCanExecute
+                    ? "yes"
+                    : "no"}
+                </dd>
+              </div>
+            </dl>
+
+            {displayedCrossSurfaceEvidence.workflowSummaryRefs.length > 0 ? (
+              <ol className="timeline">
+                {displayedCrossSurfaceEvidence.workflowSummaryRefs.map(
+                  (ref) => (
+                    <li key={`${ref.stepKind}-${ref.refId}`}>
+                      <span className="timelineMeta">
+                        {ref.stepKind} · {ref.status}
+                      </span>
+                      <span>{ref.summary}</span>
+                      {ref.warningCodes.length > 0 ? (
+                        <span className="timelineMeta">
+                          Warnings: {ref.warningCodes.join(", ")}
+                        </span>
+                      ) : null}
+                      {ref.blockerCodes.length > 0 ? (
+                        <span className="timelineMeta">
+                          Blockers: {ref.blockerCodes.join(", ")}
+                        </span>
+                      ) : null}
+                    </li>
+                  )
+                )}
+              </ol>
+            ) : null}
+
+            {displayedCrossSurfaceEvidence.findings.length > 0 ? (
+              <p className="muted">
+                findings{" "}
+                {displayedCrossSurfaceEvidence.findings
+                  .map((finding) => finding.code)
+                  .join(", ")}
+              </p>
+            ) : null}
+
+            <p className="fieldHelp">
+              {
+                summarizeCrossSurfaceEvidenceView(
+                  displayedCrossSurfaceEvidence
+                ).source
+              }{" "}
+              · {displayedCrossSurfaceEvidence.nextAction}
             </p>
           </section>
 

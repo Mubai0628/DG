@@ -114,6 +114,7 @@ import {
 } from "../src/live-proposal-evaluation-summary-view.js";
 import { buildLiveProposalEvaluationTelemetryAuditView } from "../src/live-proposal-evaluation-telemetry-audit-view.js";
 import { buildCrossSurfaceWorkflowView } from "../src/cross-surface-workflow-view.js";
+import { buildCrossSurfaceEvidenceView } from "../src/cross-surface-evidence-view.js";
 import {
   buildDesktopObserverView,
   desktopObserverEvidenceRefs
@@ -24690,6 +24691,140 @@ describe("desktop source boundaries", () => {
     expect(combined).not.toContain("cross-surface workflow execution enabled");
     expect(combined).not.toContain("dynamic bidding is enabled");
     expect(combined).not.toContain("MCP tool invocation is enabled");
+  });
+
+  it("summarizes cross-surface evidence refs without enabling tool calls", () => {
+    const view = buildCrossSurfaceEvidenceView({
+      evidenceJsonText: JSON.stringify({
+        evidenceRefs: [
+          {
+            refId: "knowledge-ref",
+            kind: "project_knowledge",
+            status: "summary_ready",
+            summary: "Project knowledge summary.",
+            summaryOnly: true
+          },
+          {
+            refId: "mcp-ref",
+            kind: "mcp_readonly_metadata",
+            status: "summary_ready",
+            summary: "MCP metadata summary.",
+            summaryOnly: true
+          },
+          {
+            refId: "plugin-ref",
+            kind: "plugin_metadata",
+            status: "summary_ready",
+            summary: "Plugin metadata summary.",
+            summaryOnly: true
+          },
+          {
+            refId: "desktop-ref",
+            kind: "desktop_observer_metadata",
+            status: "summary_ready",
+            summary: "Desktop observer metadata summary.",
+            summaryOnly: true
+          }
+        ]
+      }),
+      sourceKind: "manual_test"
+    });
+
+    expect(view.status).toBe("summary_ready");
+    expect(view.evidenceCount).toBe(4);
+    expect(view.workflowRefCount).toBe(4);
+    expect(view.readiness.canAttachToWorkflowPreview).toBe(true);
+    expect(view.readiness.canReadMcpResourceContent).toBe(false);
+    expect(view.readiness.canCallMcpTool).toBe(false);
+    expect(view.readiness.canExecutePluginRuntime).toBe(false);
+    expect(view.readiness.canTriggerDesktopObserver).toBe(false);
+    expect(view.readiness.canExecuteDesktopAction).toBe(false);
+    expect(view.readiness.canWriteEventStore).toBe(false);
+    expect(view.readiness.appCanExecute).toBe(false);
+  });
+
+  it("blocks cross-surface evidence raw fields and keeps output summary-only", () => {
+    const view = buildCrossSurfaceEvidenceView({
+      evidenceJsonText: JSON.stringify({
+        evidenceRefs: [
+          {
+            refId: "raw-mcp-ref",
+            kind: "mcp_readonly_tool_summary",
+            summary: "Safe summary",
+            rawMcpOutput: "do not display raw MCP output",
+            rawDesktopScreenshot: "do not display raw screenshot",
+            rawPluginPackage: "do not display raw plugin package"
+          }
+        ]
+      }),
+      sourceKind: "manual_test"
+    });
+    const serialized = JSON.stringify(view);
+
+    expect(view.status).toBe("blocked");
+    expect(view.readiness.canAttachToWorkflowPreview).toBe(false);
+    expect(view.readiness.canCallMcpTool).toBe(false);
+    expect(serialized).not.toContain("do not display raw MCP output");
+    expect(serialized).not.toContain("do not display raw screenshot");
+    expect(serialized).not.toContain("do not display raw plugin package");
+  });
+
+  it("renders the App cross-surface evidence summary as disabled-only", async () => {
+    const appSource = await readFile(
+      path.join(appRoot, "src", "App.tsx"),
+      "utf8"
+    );
+    const viewSource = await readFile(
+      path.join(appRoot, "src", "cross-surface-evidence-view.ts"),
+      "utf8"
+    );
+
+    expect(appSource).toContain("Cross-surface Evidence Summary");
+    expect(appSource).toContain("Summary refs only / no tool calls");
+    expect(appSource).toContain("Preview Evidence Summary");
+    expect(appSource).toContain("Clear Evidence Summary");
+    expect(appSource).toContain("Collect Evidence (disabled)");
+    expect(appSource).toContain("Call MCP Tool (disabled)");
+    expect(appSource).toContain("does not read raw MCP resource content");
+    expect(appSource).toContain("plugin or skill runtimes");
+    expect(appSource).toContain("execute desktop actions");
+    expect(appSource).toContain("write EventStore events");
+    expect(appSource).not.toContain("Collect Evidence</button>");
+    expect(appSource).not.toContain("Call MCP Tool</button>");
+    expect(viewSource).not.toContain("fetch(");
+    expect(viewSource).not.toContain("invoke(");
+    expect(viewSource).not.toContain("recordCrossSurface");
+    expect(viewSource).not.toContain("writeEvent");
+  });
+
+  it("documents the cross-surface evidence integration", async () => {
+    const evidenceDoc = await readFile(
+      path.join(
+        repoRoot,
+        "docs",
+        "cross-surface-evidence-integration-v0.27.md"
+      ),
+      "utf8"
+    );
+    const docsIndex = await readFile(
+      path.join(repoRoot, "docs", "README.md"),
+      "utf8"
+    );
+
+    expect(evidenceDoc).toContain("Cross-surface Evidence Integration");
+    expect(evidenceDoc).toContain("project_knowledge");
+    expect(evidenceDoc).toContain("mcp_readonly_metadata");
+    expect(evidenceDoc).toContain("plugin_metadata");
+    expect(evidenceDoc).toContain("desktop_observer_metadata");
+    expect(evidenceDoc).toContain("summary-only");
+    expect(evidenceDoc).toContain("does not read project raw memory content");
+    expect(evidenceDoc).toContain("call MCP tools");
+    expect(evidenceDoc).toContain("execute plugin or skill runtimes");
+    expect(evidenceDoc).toContain("execute desktop actions");
+    expect(evidenceDoc).toContain("write EventStore events");
+    expect(docsIndex).toContain(
+      "cross-surface-evidence-integration-v0.27.md"
+    );
   });
 
   it("documents the P1D desktop action expansion ADR and implementation gate", async () => {
