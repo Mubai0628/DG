@@ -26240,6 +26240,93 @@ describe("desktop source boundaries", () => {
     expect(combined).not.toContain("auto-apply enabled");
   });
 
+  it("documents the v0.29 post-release review and P1H external capability roadmap", async () => {
+    const promptDoc = await readFile(
+      path.join(
+        repoRoot,
+        "docs",
+        "v0.30-external-capability-execution-hardening-prompts.md"
+      ),
+      "utf8"
+    );
+    const review = await readFile(
+      path.join(
+        repoRoot,
+        "docs",
+        "v0.29-north-star-demo-hardening-postrelease-review.md"
+      ),
+      "utf8"
+    );
+    const roadmap = await readFile(
+      path.join(
+        repoRoot,
+        "docs",
+        "p1h-external-capability-execution-hardening-roadmap.md"
+      ),
+      "utf8"
+    );
+    const plan = await readFile(
+      path.join(
+        repoRoot,
+        "docs",
+        "p1h-001-external-capability-hardening-plan.md"
+      ),
+      "utf8"
+    );
+    const docsIndex = await readFile(
+      path.join(repoRoot, "docs", "README.md"),
+      "utf8"
+    );
+    const rootReadme = await readFile(path.join(repoRoot, "README.md"), "utf8");
+    const combined = `${promptDoc}\n${review}\n${roadmap}\n${plan}\n${docsIndex}\n${rootReadme}`;
+
+    expect(promptDoc).toContain(
+      "v0.30 External Capability Execution Hardening"
+    );
+    expect(promptDoc).toContain("DW-P1H-009");
+    expect(review).toContain("v0.29.0-north-star-demo-hardening-rc.1");
+    expect(review).toContain(
+      "North Star demo hardening, policy, and replay safety"
+    );
+    expect(review).toContain("MCP read-only connection/tool execution");
+    expect(review).toContain("Plugin/Skill sandbox metadata");
+    expect(review).toContain("Mutating MCP tools are disabled");
+    expect(review).toContain("Arbitrary Git/shell execution is disabled");
+    expect(roadmap).toContain(
+      "P1H External Capability Execution Hardening Roadmap"
+    );
+    expect(roadmap).toContain(
+      "harden external capability execution boundaries"
+    );
+    expect(roadmap).toContain("No mutating MCP tools");
+    expect(roadmap).toContain("No arbitrary plugin/skill execution");
+    expect(roadmap).toContain("No broad PermissionLease");
+    expect(roadmap).toContain("Golden regression / smoke");
+    expect(plan).toContain("P1H-001 External Capability Hardening Gate Plan");
+    expect(plan).toContain("No runtime feature implementation in P1H-001");
+    expect(plan).toContain("No App feature implementation in P1H-001");
+    expect(plan).toContain("DW-P1H-002");
+    expect(docsIndex).toContain(
+      "v0.30-external-capability-execution-hardening-prompts.md"
+    );
+    expect(docsIndex).toContain(
+      "v0.29-north-star-demo-hardening-postrelease-review.md"
+    );
+    expect(docsIndex).toContain(
+      "p1h-external-capability-execution-hardening-roadmap.md"
+    );
+    expect(docsIndex).toContain(
+      "p1h-001-external-capability-hardening-plan.md"
+    );
+    expect(rootReadme).toContain(
+      "p1h-external-capability-execution-hardening-roadmap.md"
+    );
+    expect(combined).not.toContain("mutating MCP tools enabled");
+    expect(combined).not.toContain("arbitrary plugin code execution enabled");
+    expect(combined).not.toContain("arbitrary skill runtime enabled");
+    expect(combined).not.toContain("broad PermissionLease enabled");
+  });
+
   it("documents the P1G north star demo hardening ADR and gate", async () => {
     const adr = await readFile(
       path.join(repoRoot, "docs", "adr", "0011-north-star-demo-hardening.md"),

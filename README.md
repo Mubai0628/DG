@@ -349,6 +349,24 @@ v0.15 MVP Hardening / Recovery references:
 - [v0.14 End-to-End Coding Task post-release review](docs/v0.14-end-to-end-coding-task-postrelease-review.md)
 - [P0S MVP Hardening / Recovery roadmap](docs/p0s-mvp-hardening-recovery-roadmap.md)
 - [P0S-001 MVP Hardening / Recovery plan](docs/p0s-001-mvp-hardening-recovery-plan.md)
+
+## v0.30 External Capability Execution Hardening status
+
+P1H starts the v0.30 External Capability Execution Hardening roadmap after the
+v0.29 North Star demo hardening release. The phase hardens MCP read-only tool
+consistency, plugin/skill sandbox escape checks, Capability Broker policy,
+PermissionLease / approval receipt consistency, replay completeness, redaction
+audit, an App read-only audit surface, and golden safety smoke while preserving
+no mutating MCP tools, no arbitrary MCP invocation, no arbitrary plugin/skill
+runtime, no broad native bridge, no broad desktop automation, no arbitrary
+Git/shell, and no broad PermissionLease.
+
+v0.30 External Capability Execution Hardening references:
+
+- [v0.30 External Capability Execution Hardening prompts](docs/v0.30-external-capability-execution-hardening-prompts.md)
+- [v0.29 North Star Demo Hardening post-release review](docs/v0.29-north-star-demo-hardening-postrelease-review.md)
+- [P1H External Capability Execution Hardening roadmap](docs/p1h-external-capability-execution-hardening-roadmap.md)
+- [P1H-001 External Capability Hardening gate plan](docs/p1h-001-external-capability-hardening-plan.md)
 - [v0.15.0 MVP Hardening / Recovery RC release notes](docs/release-notes-v0.15.0-mvp-hardening-recovery-rc.1.md)
 - [MVP Hardening / Recovery manual QA](docs/mvp-hardening-recovery-manual-qa.md)
 - [MVP Hardening / Recovery RC checklist](docs/mvp-hardening-recovery-rc-checklist.md)
