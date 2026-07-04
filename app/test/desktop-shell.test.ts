@@ -25293,6 +25293,87 @@ describe("desktop source boundaries", () => {
     expect(combined).not.toContain("auto-apply enabled");
   });
 
+  it("documents the P1G north star demo hardening ADR and gate", async () => {
+    const adr = await readFile(
+      path.join(repoRoot, "docs", "adr", "0011-north-star-demo-hardening.md"),
+      "utf8"
+    );
+    const threatModel = await readFile(
+      path.join(
+        repoRoot,
+        "docs",
+        "north-star-demo-hardening-threat-model-v0.28.md"
+      ),
+      "utf8"
+    );
+    const implementationGate = await readFile(
+      path.join(
+        repoRoot,
+        "docs",
+        "north-star-demo-hardening-implementation-gate-v0.28.md"
+      ),
+      "utf8"
+    );
+    const nextPlan = await readFile(
+      path.join(
+        repoRoot,
+        "docs",
+        "p1g-002-cross-surface-failure-recovery-contract-plan.md"
+      ),
+      "utf8"
+    );
+    const docsIndex = await readFile(
+      path.join(repoRoot, "docs", "README.md"),
+      "utf8"
+    );
+    const combined = `${adr}\n${threatModel}\n${implementationGate}\n${nextPlan}\n${docsIndex}`;
+
+    expect(adr).toContain("ADR 0011: North Star Demo Hardening");
+    expect(adr).toContain("Accepted for P1G design gate");
+    expect(adr).toContain(
+      "v0.29 hardens the existing cross-surface demo workflow"
+    );
+    expect(adr).toContain("No new broad execution capability");
+    expect(adr).toContain("human approval");
+    expect(adr).toContain("typed confirmation");
+    expect(adr).toContain("Recovery suggestions remain advisory");
+    expect(threatModel).toContain("partial workflow failure");
+    expect(threatModel).toContain("stale evidence");
+    expect(threatModel).toContain("inconsistent approval receipt");
+    expect(threatModel).toContain("missing replay event");
+    expect(threatModel).toContain("agent handoff");
+    expect(threatModel).toContain("raw prompt");
+    expect(threatModel).toContain("overstate readiness");
+    expect(implementationGate).toContain("Failure Recovery");
+    expect(implementationGate).toContain("Approval Consistency");
+    expect(implementationGate).toContain("Capability Policy Enforcement");
+    expect(implementationGate).toContain("Replay Completeness");
+    expect(implementationGate).toContain("Evidence Freshness");
+    expect(implementationGate).toContain("Agent Handoff Safety");
+    expect(implementationGate).toContain("App UI Readiness Wording");
+    expect(nextPlan).toContain(
+      "P1G-002 Cross-surface Failure Recovery Contract Plan"
+    );
+    expect(nextPlan).toContain("proposal_generation_failed");
+    expect(nextPlan).toContain("rollback_required");
+    expect(nextPlan).toContain("policy_mismatch");
+    expect(nextPlan).toContain("advisory-only output");
+    expect(docsIndex).toContain("adr/0011-north-star-demo-hardening.md");
+    expect(docsIndex).toContain(
+      "north-star-demo-hardening-threat-model-v0.28.md"
+    );
+    expect(docsIndex).toContain(
+      "north-star-demo-hardening-implementation-gate-v0.28.md"
+    );
+    expect(docsIndex).toContain(
+      "p1g-002-cross-surface-failure-recovery-contract-plan.md"
+    );
+    expect(combined).not.toContain("dynamic bidding enabled");
+    expect(combined).not.toContain("mutating MCP tools enabled");
+    expect(combined).not.toContain("broad desktop action enabled");
+    expect(combined).not.toContain("auto-apply enabled");
+  });
+
   it("documents the P1D desktop action expansion ADR and implementation gate", async () => {
     const adr = await readFile(
       path.join(
