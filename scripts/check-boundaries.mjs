@@ -597,6 +597,7 @@ function isDesktopActionProposalSchemaFile(file) {
     file ===
       "runtime/src/desktop-action/approved-expanded-action-receipt.ts" ||
     file === "runtime/src/desktop-action/safe-click-contract.ts" ||
+    file === "runtime/src/desktop-action/safe-type-contract.ts" ||
     file ===
       "runtime/src/desktop-action/approved-desktop-action-execution.ts" ||
     file === "runtime/src/desktop-action/desktop-action-privacy-audit.ts"

@@ -8,5 +8,6 @@ export * from "./desktop-action-privacy-audit.js";
 export * from "./privacy-redaction-audit.js";
 export * from "./risk-classifier.js";
 export * from "./safe-click-contract.js";
+export * from "./safe-type-contract.js";
 export * from "./simulated-result.js";
 export * from "./target-metadata-validation.js";
