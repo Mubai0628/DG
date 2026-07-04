@@ -43,6 +43,7 @@ export * from "./control-plane/index.js";
 export * from "./context/index.js";
 export * from "./memory/index.js";
 export * from "./deepseek/index.js";
+export * as desktopExpansion from "./desktop/index.js";
 export * from "./desktop-action/index.js";
 export * from "./desktop-observer/index.js";
 export * from "./events/index.js";
