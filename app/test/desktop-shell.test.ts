@@ -115,6 +115,7 @@ import {
 import { buildLiveProposalEvaluationTelemetryAuditView } from "../src/live-proposal-evaluation-telemetry-audit-view.js";
 import { buildCrossSurfaceWorkflowView } from "../src/cross-surface-workflow-view.js";
 import { buildCrossSurfaceEvidenceView } from "../src/cross-surface-evidence-view.js";
+import { buildCrossSurfaceApprovedSequence } from "../../runtime/src/workflows/cross-surface-approved-sequencer.js";
 import {
   buildDesktopObserverView,
   desktopObserverEvidenceRefs
@@ -24824,6 +24825,82 @@ describe("desktop source boundaries", () => {
     expect(evidenceDoc).toContain("write EventStore events");
     expect(docsIndex).toContain(
       "cross-surface-evidence-integration-v0.27.md"
+    );
+  });
+
+  it("summarizes approved cross-surface lanes without executing them", () => {
+    const sequence = buildCrossSurfaceApprovedSequence({
+      lanes: [
+        {
+          laneId: "apply-lane",
+          kind: "approved_workspace_apply",
+          status: "summary_ready",
+          summary: "Approved apply summary.",
+          approvalReceiptRef: "apply-receipt-ref",
+          typedConfirmationRef: "typed-confirm-apply"
+        },
+        {
+          laneId: "verify-lane",
+          kind: "git_shell_verification",
+          status: "summary_ready",
+          summary: "Fixed verification summary.",
+          verificationTemplateRef: "shell-template.app.typecheck"
+        }
+      ],
+      sourceKind: "manual_test"
+    });
+
+    expect(sequence.status).toBe("sequence_ready");
+    expect(sequence.readiness.canExecuteNow).toBe(true);
+    expect(sequence.readiness.sequencerExecutes).toBe(false);
+    expect(sequence.readiness.canWriteEventStore).toBe(false);
+    expect(sequence.readiness.canApplyPatch).toBe(false);
+    expect(sequence.readiness.canExecuteGit).toBe(false);
+    expect(sequence.readiness.canExecuteShell).toBe(false);
+    expect(sequence.readiness.appCanExecute).toBe(false);
+  });
+
+  it("renders the approved actions sequencer as read-only summary", async () => {
+    const appSource = await readFile(
+      path.join(appRoot, "src", "App.tsx"),
+      "utf8"
+    );
+
+    expect(appSource).toContain("Approved actions sequencer");
+    expect(appSource).toContain("Sequencer summary only");
+    expect(appSource).toContain("does not auto-execute approved apply");
+    expect(appSource).toContain("verification, desktop action, rollback");
+    expect(appSource).toContain("sequencerExecutes");
+    expect(appSource).not.toContain("Run Approved Sequence");
+    expect(appSource).not.toContain("Auto-execute Approved Sequence");
+  });
+
+  it("documents the runtime cross-surface approved sequencer", async () => {
+    const sequencerDoc = await readFile(
+      path.join(
+        repoRoot,
+        "docs",
+        "runtime-cross-surface-approved-sequencer-v0.27.md"
+      ),
+      "utf8"
+    );
+    const docsIndex = await readFile(
+      path.join(repoRoot, "docs", "README.md"),
+      "utf8"
+    );
+
+    expect(sequencerDoc).toContain("Runtime Cross-surface Approved Sequencer");
+    expect(sequencerDoc).toContain("approved workspace apply");
+    expect(sequencerDoc).toContain("fixed Git/shell verification");
+    expect(sequencerDoc).toContain("approved desktop");
+    expect(sequencerDoc).toContain("approved rollback");
+    expect(sequencerDoc).toContain("summary event replay");
+    expect(sequencerDoc).toContain("does not execute");
+    expect(sequencerDoc).toContain("missing approval receipts");
+    expect(sequencerDoc).toContain("missing typed confirmations");
+    expect(sequencerDoc).toContain("arbitrary shell or Git command fields");
+    expect(docsIndex).toContain(
+      "runtime-cross-surface-approved-sequencer-v0.27.md"
     );
   });
 

@@ -210,6 +210,11 @@ import {
   type CrossSurfaceEvidenceView
 } from "./cross-surface-evidence-view.js";
 import {
+  buildCrossSurfaceApprovedSequence,
+  summarizeCrossSurfaceApprovedSequence,
+  type CrossSurfaceApprovedSequence
+} from "../../runtime/src/workflows/cross-surface-approved-sequencer.js";
+import {
   buildDesktopObserverView,
   desktopObserverEvidenceRefs,
   summarizeDesktopObserverView,
@@ -2438,6 +2443,14 @@ export function DesktopShell(): JSX.Element {
   );
   const displayedCrossSurfaceEvidence =
     crossSurfaceEvidencePreview ?? buildCrossSurfaceEvidenceView();
+  const crossSurfaceApprovedSequence = useMemo<CrossSurfaceApprovedSequence>(
+    () =>
+      buildCrossSurfaceApprovedSequence({
+        lanes: [],
+        sourceKind: "app_preview"
+      }),
+    []
+  );
   const mcpReadonlyConnectionCandidate = useMemo<McpReadonlyConnectionView>(
     () =>
       buildMcpReadonlyConnectionView({
@@ -9915,6 +9928,33 @@ export function DesktopShell(): JSX.Element {
                 </dd>
               </div>
             </dl>
+
+            <div className="statusBox">
+              <strong>Approved actions sequencer</strong>
+              <p>
+                {summarizeCrossSurfaceApprovedSequence(
+                  crossSurfaceApprovedSequence
+                ).source}{" "}
+                · {crossSurfaceApprovedSequence.status} · lanes{" "}
+                {crossSurfaceApprovedSequence.readyLaneCount} /{" "}
+                {crossSurfaceApprovedSequence.laneCount} · missing approvals{" "}
+                {crossSurfaceApprovedSequence.missingApprovals.length}
+              </p>
+              <p className="muted">
+                Sequencer summary only. It does not auto-execute approved apply,
+                verification, desktop action, rollback, or replay lanes.
+              </p>
+              <p className="muted">
+                canExecuteNow{" "}
+                {crossSurfaceApprovedSequence.readiness.canExecuteNow
+                  ? "yes"
+                  : "no"}{" "}
+                / sequencerExecutes{" "}
+                {crossSurfaceApprovedSequence.readiness.sequencerExecutes
+                  ? "yes"
+                  : "no"}
+              </p>
+            </div>
 
             {displayedCrossSurfaceWorkflow.stages.length > 0 ? (
               <ol className="timeline">
