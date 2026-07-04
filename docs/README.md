@@ -413,6 +413,7 @@ foundation.
 - [P1D-002 Desktop Action Expansion Proposal Schema plan](p1d-002-desktop-action-expansion-proposal-schema-plan.md)
 - [Runtime Desktop Action Expansion Proposal v0.25](runtime-desktop-action-expansion-proposal-v0.25.md)
 - [Runtime Clipboard Action Proposal v0.25](runtime-clipboard-action-proposal-v0.25.md)
+- [Runtime File Dialog Action Proposal v0.25](runtime-file-dialog-action-proposal-v0.25.md)
 - [Runtime Memory Recall Preview v0.3](runtime-memory-recall-preview-v0.3.md)
 - [v0.4.0 Controlled Creation Preview RC release notes](release-notes-v0.4.0-controlled-creation-preview-rc.1.md)
 - [App Shell Controlled Creation manual QA](app-shell-controlled-creation-manual-qa.md)
