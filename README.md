@@ -470,6 +470,10 @@ v0.17 Capability Host MVP references:
 - [Desktop Action Expansion Proposal RC checklist](docs/desktop-action-expansion-proposal-rc-checklist.md)
 - [P1D Desktop Action Expansion Proposal roadmap](docs/p1d-desktop-action-expansion-proposal-roadmap.md)
 - [P1D-001 Desktop Action Expansion Proposal gate plan](docs/p1d-001-desktop-action-expansion-proposal-gate-plan.md)
+- [v0.27 Approved Expanded Desktop Action Execution prompts](docs/v0.27-approved-expanded-desktop-action-execution-prompts.md)
+- [v0.26 Desktop Action Expansion Proposal post-release review](docs/v0.26-desktop-action-expansion-proposal-postrelease-review.md)
+- [P1E Approved Expanded Desktop Action Execution roadmap](docs/p1e-approved-expanded-desktop-action-execution-roadmap.md)
+- [P1E-001 Approved Expanded Desktop Action Execution plan](docs/p1e-001-approved-expanded-desktop-action-execution-plan.md)
 
 ## Current roadmap
 
@@ -570,6 +574,11 @@ classification, read-only App display, redaction audit, smoke coverage, release
 notes, manual QA, and RC checklist while preserving no real click/type/select,
 no clipboard write, no file dialog automation, no broad native bridge, and no
 dynamic agent desktop control.
+P1E starts the v0.27 Approved Expanded Desktop Action Execution roadmap with a
+narrow plan for human-approved single safe click and single safe type lanes only.
+Clipboard write, file dialog automation, drag/drop, multi-step automation,
+hidden/background action, broad native bridge, and autonomous desktop agents
+remain deferred.
 
 - [v0.2 App Shell RC post-release review](docs/v0.2-app-shell-rc-postrelease-review.md)
 - [P0G Coding Workflow roadmap](docs/p0g-coding-workflow-roadmap.md)

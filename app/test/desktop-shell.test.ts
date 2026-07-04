@@ -23740,6 +23740,122 @@ describe("desktop source boundaries", () => {
     expect(combined).not.toContain("dynamic agent desktop control is enabled");
   });
 
+  it("documents the v0.26 post-release review and P1E approved expanded desktop action roadmap", async () => {
+    const promptDoc = await readFile(
+      path.join(
+        repoRoot,
+        "docs",
+        "v0.27-approved-expanded-desktop-action-execution-prompts.md"
+      ),
+      "utf8"
+    );
+    const review = await readFile(
+      path.join(
+        repoRoot,
+        "docs",
+        "v0.26-desktop-action-expansion-proposal-postrelease-review.md"
+      ),
+      "utf8"
+    );
+    const roadmap = await readFile(
+      path.join(
+        repoRoot,
+        "docs",
+        "p1e-approved-expanded-desktop-action-execution-roadmap.md"
+      ),
+      "utf8"
+    );
+    const plan = await readFile(
+      path.join(
+        repoRoot,
+        "docs",
+        "p1e-001-approved-expanded-desktop-action-execution-plan.md"
+      ),
+      "utf8"
+    );
+    const docsIndex = await readFile(
+      path.join(repoRoot, "docs", "README.md"),
+      "utf8"
+    );
+    const rootReadme = await readFile(path.join(repoRoot, "README.md"), "utf8");
+    const combined = `${promptDoc}\n${review}\n${roadmap}\n${plan}\n${docsIndex}\n${rootReadme}`;
+
+    expect(promptDoc).toContain(
+      "v0.27 Approved Expanded Desktop Action Execution"
+    );
+    expect(promptDoc).toContain("DW-P1E-009");
+    expect(promptDoc).toContain("click_observed_safe_target");
+    expect(promptDoc).toContain("type_into_observed_text_field");
+    expect(promptDoc).toContain("typed confirmation");
+
+    expect(review).toContain("v0.26.0-desktop-action-expansion-proposal-rc.1");
+    expect(review).toContain(
+      "Desktop action expansion proposals, no click/type execution"
+    );
+    expect(review).toContain("Desktop Observer");
+    expect(review).toContain("Target freshness");
+    expect(review).toContain("Sequence simulation");
+    expect(review).toContain("Sensitive/destructive UI risk classifier");
+    expect(review).toContain("App expanded desktop action proposal surface");
+    expect(review).toContain("Real click");
+    expect(review).toContain("Real type");
+    expect(review).toContain("Clipboard write");
+    expect(review).toContain("File dialog automation");
+
+    expect(roadmap).toContain(
+      "P1E Approved Expanded Desktop Action Execution Roadmap"
+    );
+    expect(roadmap).toContain(
+      "Open only narrow approved expanded desktop actions"
+    );
+    expect(roadmap).toContain("click_observed_safe_target");
+    expect(roadmap).toContain("type_into_observed_text_field");
+    expect(roadmap).toContain("Approval receipt");
+    expect(roadmap).toContain("Fixed Tauri command");
+    expect(roadmap).toContain("DW-P1E-001");
+    expect(roadmap).toContain("DW-P1E-009");
+
+    expect(plan).toContain(
+      "P1E-001 Approved Expanded Desktop Action Execution Plan"
+    );
+    expect(plan).toContain("docs/tests only");
+    expect(plan).toContain("No runtime approval receipt implementation");
+    expect(plan).toContain("No Tauri command implementation");
+    expect(plan).toContain("No clipboard write");
+    expect(plan).toContain("No file dialog automation");
+    expect(plan).toContain("No broad native bridge");
+    expect(plan).toContain("No replay re-execution");
+
+    expect(docsIndex).toContain(
+      "v0.27-approved-expanded-desktop-action-execution-prompts.md"
+    );
+    expect(docsIndex).toContain(
+      "v0.26-desktop-action-expansion-proposal-postrelease-review.md"
+    );
+    expect(docsIndex).toContain(
+      "p1e-approved-expanded-desktop-action-execution-roadmap.md"
+    );
+    expect(docsIndex).toContain(
+      "p1e-001-approved-expanded-desktop-action-execution-plan.md"
+    );
+    expect(rootReadme).toContain(
+      "v0.27-approved-expanded-desktop-action-execution-prompts.md"
+    );
+    expect(rootReadme).toContain(
+      "p1e-approved-expanded-desktop-action-execution-roadmap.md"
+    );
+    expect(rootReadme).toContain(
+      "P1E starts the v0.27 Approved Expanded Desktop Action Execution roadmap"
+    );
+
+    expect(combined).toContain("summary-only");
+    expect(combined).not.toContain("clipboard write is enabled");
+    expect(combined).not.toContain("file dialog automation is enabled");
+    expect(combined).not.toContain("drag/drop is enabled");
+    expect(combined).not.toContain("broad native bridge is enabled");
+    expect(combined).not.toContain("autonomous desktop agent is enabled");
+  });
+
   it("documents the P1D desktop action expansion ADR and implementation gate", async () => {
     const adr = await readFile(
       path.join(
