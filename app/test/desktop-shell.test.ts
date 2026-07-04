@@ -162,6 +162,11 @@ import {
   patchVirtualApplyWarningCodes
 } from "../src/patch-virtual-apply-preview-view.js";
 import {
+  buildApprovedDesktopActionPrivacyAudit,
+  buildApprovedExpandedDesktopActionEvent,
+  projectApprovedExpandedDesktopActionReplay
+} from "../../runtime/src/desktop-action/index.js";
+import {
   buildPatchRollbackCheckpointPreviewView,
   patchRollbackCheckpointApprovalRefs,
   patchRollbackCheckpointSurfaceSummaries,
@@ -2279,6 +2284,136 @@ describe("desktop command wrapper", () => {
     expect(serialized).not.toContain("sk-fake");
   });
 
+  it("projects approved expanded desktop action events into replay without re-execution", () => {
+    const expandedResult = {
+      ok: true,
+      status: "unsupported_platform",
+      actionExecutionId: "approved-expanded-desktop-action-test",
+      actionKind: "click_observed_safe_target",
+      targetRef: "target-preferences-button",
+      windowRef: "window-settings",
+      appRef: "app-settings",
+      displayRef: "display-primary",
+      boundsHash: "bounds-hash",
+      warningCodes: ["UNSUPPORTED_PLATFORM"],
+      resultHash: "approved-expanded-desktop-action-result-hash",
+      eventPreview: {
+        type: "desktop_action.approved_expanded_result",
+        actionExecutionId: "approved-expanded-desktop-action-test",
+        actionKind: "click_observed_safe_target",
+        targetRef: "target-preferences-button",
+        windowRef: "window-settings",
+        appRef: "app-settings",
+        displayRef: "display-primary",
+        status: "unsupported_platform",
+        resultHash: "approved-expanded-desktop-action-result-hash",
+        warningCodes: ["UNSUPPORTED_PLATFORM"],
+        notWritten: true,
+        wouldWriteSummaryEvent: false,
+        rawActionPayloadIncluded: false,
+        rawDesktopCaptureIncluded: false,
+        rawTextIncluded: false,
+        summaryOnly: true
+      },
+      summaryOnly: true,
+      rawScreenshotPersisted: false,
+      rawOcrTextPersisted: false,
+      rawTargetTextIncluded: false,
+      rawActionPayloadIncluded: false,
+      rawDesktopCaptureIncluded: false,
+      rawTextIncluded: false,
+      canClick: false,
+      canType: false,
+      canSelect: false,
+      canDragDrop: false,
+      canWriteClipboard: false,
+      canOpenFileDialog: false,
+      canUseNativeBridge: false,
+      canWriteEventStore: false,
+      canExecuteGit: false,
+      canExecuteShell: false,
+      appCanExecute: false,
+      safeMessage: "Approved expanded desktop action command is summary-only."
+    } satisfies ApprovedExpandedDesktopActionCommandResult;
+    const eventResult = buildApprovedExpandedDesktopActionEvent({
+      status: "unsupported",
+      actionExecutionId: expandedResult.actionExecutionId,
+      actionKind: expandedResult.actionKind,
+      targetRef: expandedResult.targetRef,
+      windowRef: expandedResult.windowRef,
+      appRef: expandedResult.appRef,
+      displayRef: expandedResult.displayRef,
+      receiptId: "approved-expanded-receipt-test",
+      contractId: "safe-click-contract-test",
+      warningCodes: expandedResult.warningCodes,
+      actionHash: expandedResult.resultHash,
+      resultHash: expandedResult.resultHash,
+      sourceSummary: expandedResult.eventPreview
+    });
+    const projection = projectApprovedExpandedDesktopActionReplay(
+      eventResult.event === undefined ? [] : [eventResult.event]
+    );
+    const replay = buildDesktopActionReplayView({
+      expandedCommandResult: expandedResult
+    });
+    const serialized = JSON.stringify({
+      event: eventResult.event,
+      projection,
+      replay
+    });
+
+    expect(eventResult.status).toBe("event_ready");
+    expect(eventResult.event?.eventType).toBe(
+      "desktop_action.expanded.blocked"
+    );
+    expect(eventResult.event?.summaryOnly).toBe(true);
+    expect(eventResult.event?.notWritten).toBe(true);
+    expect(eventResult.event?.rawScreenshotIncluded).toBe(false);
+    expect(eventResult.event?.rawOcrTextIncluded).toBe(false);
+    expect(eventResult.event?.rawTargetTextIncluded).toBe(false);
+    expect(eventResult.event?.apiKeyIncluded).toBe(false);
+    expect(projection.status).toBe("projected");
+    expect(projection.eventCount).toBe(1);
+    expect(projection.unsupportedCount).toBe(1);
+    expect(projection.readiness.canReplayDesktopAction).toBe(false);
+    expect(projection.readiness.canExecuteDesktopAction).toBe(false);
+    expect(projection.readiness.canWriteEventStore).toBe(false);
+    expect(replay.status).toBe("projected");
+    expect(replay.eventType).toBe("desktop_action.expanded.blocked");
+    expect(replay.actionKind).toBe("click_observed_safe_target");
+    expect(replay.targetWindowRef).toBe("window-settings");
+    expect(replay.replayProjection.privacyAudit.status).toBe("audit_ready");
+    expect(replay.readiness.canReplayDesktopAction).toBe(false);
+    expect(replay.readiness.canExecuteDesktopAction).toBe(false);
+    expect(replay.readiness.canWriteEventStore).toBe(false);
+    expect(serialized).not.toContain("RAW_SCREENSHOT");
+    expect(serialized).not.toContain("RAW_OCR");
+    expect(serialized).not.toContain("RAW_TEXT");
+    expect(serialized).not.toContain("sk-fake");
+  });
+
+  it("blocks raw screenshot OCR and text in expanded desktop action privacy audit", () => {
+    const audit = buildApprovedDesktopActionPrivacyAudit({
+      artifact: {
+        rawScreenshot: "RAW_SCREENSHOT",
+        ocrText: "RAW_OCR",
+        rawText: "RAW_TEXT"
+      }
+    });
+
+    expect(audit.status).toBe("blocked");
+    expect(audit.rawScreenshotDetected).toBe(true);
+    expect(audit.rawOcrDetected).toBe(true);
+    expect(audit.rawTextDetected).toBe(true);
+    expect(audit.readiness.canPersistRawScreenshot).toBe(false);
+    expect(audit.readiness.canPersistOcrText).toBe(false);
+    expect(audit.readiness.canPersistRawText).toBe(false);
+    expect(audit.readiness.canReplayDesktopAction).toBe(false);
+    expect(audit.readiness.canExecuteDesktopAction).toBe(false);
+    expect(audit.readiness.canWriteEventStore).toBe(false);
+    expect(audit.readiness.appCanExecute).toBe(false);
+  });
+
   it("renders the Desktop Action Replay panel without replay execution", async () => {
     const appSource = await readFile(
       path.join(appRoot, "src", "App.tsx"),
@@ -2288,21 +2423,60 @@ describe("desktop command wrapper", () => {
       path.join(appRoot, "src", "desktop-action-replay-view.ts"),
       "utf8"
     );
+    const eventsDoc = await readFile(
+      path.join(
+        repoRoot,
+        "docs",
+        "expanded-desktop-action-events-replay-v0.26.md"
+      ),
+      "utf8"
+    );
+    const privacyDoc = await readFile(
+      path.join(
+        repoRoot,
+        "docs",
+        "expanded-desktop-action-privacy-audit-v0.26.md"
+      ),
+      "utf8"
+    );
+    const docsIndex = await readFile(
+      path.join(repoRoot, "docs", "README.md"),
+      "utf8"
+    );
 
     expect(appSource).toContain("Desktop Action Replay");
     expect(appSource).toContain("Summary replay / no re-execution");
     expect(appSource).toContain("Replay can show status");
+    expect(appSource).toContain("expanded click/type summary");
+    expect(appSource).toContain("Desktop action replay preview");
     expect(appSource).toContain("cannot execute desktop actions");
     expect(appSource).toContain("Privacy audit");
     expect(appSource).not.toContain("handleReplayDesktopAction");
     expect(appSource).not.toContain("replayDesktopAction(");
     expect(viewSource).toContain("app_desktop_action_replay_surface");
     expect(viewSource).toContain("buildApprovedDesktopActionEvent");
+    expect(viewSource).toContain("buildApprovedExpandedDesktopActionEvent");
     expect(viewSource).toContain("projectApprovedDesktopActionReplay");
+    expect(viewSource).toContain("projectApprovedExpandedDesktopActionReplay");
     expect(viewSource).not.toContain("safeInvoke(");
     expect(viewSource).not.toContain("invoke(");
     expect(viewSource).not.toContain("fetch(");
     expect(viewSource).not.toContain("writeFile(");
+    expect(eventsDoc).toContain("Expanded Desktop Action Events / Replay v0.26");
+    expect(eventsDoc).toContain("desktop_action.expanded.executed");
+    expect(eventsDoc).toContain("desktop_action.expanded.blocked");
+    expect(eventsDoc).toContain("Replay is a projection only");
+    expect(eventsDoc).toContain("no raw text");
+    expect(eventsDoc).toContain("no API key");
+    expect(privacyDoc).toContain("Expanded Desktop Action Privacy Audit v0.26");
+    expect(privacyDoc).toContain("raw target text");
+    expect(privacyDoc).toContain("no EventStore write");
+    expect(docsIndex).toContain(
+      "expanded-desktop-action-events-replay-v0.26.md"
+    );
+    expect(docsIndex).toContain(
+      "expanded-desktop-action-privacy-audit-v0.26.md"
+    );
   });
 
   it("runs the approved desktop action smoke fixture through replay and privacy audit", async () => {

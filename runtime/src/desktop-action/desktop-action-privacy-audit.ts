@@ -7,6 +7,7 @@ export type ApprovedDesktopActionPrivacyAuditFinding = {
   kind:
     | "raw_screenshot"
     | "raw_ocr"
+    | "raw_text"
     | "clipboard"
     | "raw_window_content"
     | "api_key"
@@ -25,6 +26,7 @@ export type ApprovedDesktopActionPrivacyAudit = {
   auditId: string;
   rawScreenshotDetected: boolean;
   rawOcrDetected: boolean;
+  rawTextDetected: boolean;
   clipboardDetected: boolean;
   rawWindowContentDetected: boolean;
   apiKeyDetected: boolean;
@@ -36,6 +38,7 @@ export type ApprovedDesktopActionPrivacyAudit = {
   readiness: {
     canPersistRawScreenshot: false;
     canPersistOcrText: false;
+    canPersistRawText: false;
     canUseClipboard: false;
     canPersistRawWindowContent: false;
     canWriteEventStore: false;
@@ -96,6 +99,30 @@ const forbiddenFields = new Map<
       kind: "raw_ocr",
       code: "APPROVED_DESKTOP_ACTION_OCR_TEXT_FIELD",
       flag: "rawOcrDetected"
+    }
+  ],
+  [
+    normalizeField(rawPrefix + "Text"),
+    {
+      kind: "raw_text",
+      code: "APPROVED_DESKTOP_ACTION_RAW_TEXT_FIELD",
+      flag: "rawTextDetected"
+    }
+  ],
+  [
+    normalizeField(rawPrefix + "TargetText"),
+    {
+      kind: "raw_text",
+      code: "APPROVED_DESKTOP_ACTION_RAW_TARGET_TEXT_FIELD",
+      flag: "rawTextDetected"
+    }
+  ],
+  [
+    normalizeField("targetText"),
+    {
+      kind: "raw_text",
+      code: "APPROVED_DESKTOP_ACTION_TARGET_TEXT_FIELD",
+      flag: "rawTextDetected"
     }
   ],
   [
@@ -211,6 +238,12 @@ const unsafeTextMarkers: Array<{
     pattern: /\bRAW_OCR\b/
   },
   {
+    kind: "raw_text",
+    code: "APPROVED_DESKTOP_ACTION_RAW_TEXT_MARKER",
+    flag: "rawTextDetected",
+    pattern: /\bRAW_TEXT\b/
+  },
+  {
     kind: "clipboard",
     code: "APPROVED_DESKTOP_ACTION_CLIPBOARD_MARKER",
     flag: "clipboardDetected",
@@ -245,6 +278,7 @@ const unsafeTextMarkers: Array<{
 type ScanFlags = {
   rawScreenshotDetected: boolean;
   rawOcrDetected: boolean;
+  rawTextDetected: boolean;
   clipboardDetected: boolean;
   rawWindowContentDetected: boolean;
   apiKeyDetected: boolean;
@@ -278,6 +312,7 @@ export function buildApprovedDesktopActionPrivacyAudit(
     readiness: {
       canPersistRawScreenshot: false,
       canPersistOcrText: false,
+      canPersistRawText: false,
       canUseClipboard: false,
       canPersistRawWindowContent: false,
       canWriteEventStore: false,
@@ -302,6 +337,7 @@ export function summarizeApprovedDesktopActionPrivacyAudit(
     `blockers:${audit.blockerCount}`,
     `raw_screenshot:${audit.rawScreenshotDetected}`,
     `ocr:${audit.rawOcrDetected}`,
+    `raw_text:${audit.rawTextDetected}`,
     `clipboard:${audit.clipboardDetected}`,
     `window_content:${audit.rawWindowContentDetected}`,
     `api_key:${audit.apiKeyDetected}`,
@@ -379,6 +415,7 @@ function emptyFlags(): ScanFlags {
   return {
     rawScreenshotDetected: false,
     rawOcrDetected: false,
+    rawTextDetected: false,
     clipboardDetected: false,
     rawWindowContentDetected: false,
     apiKeyDetected: false,

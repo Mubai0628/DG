@@ -1213,9 +1213,16 @@ export function DesktopShell(): JSX.Element {
     () =>
       buildDesktopActionReplayView({
         commandResult: approvedDesktopActionResult,
-        approvedDesktopActionView: displayedApprovedDesktopAction
+        approvedDesktopActionView: displayedApprovedDesktopAction,
+        expandedCommandResult: approvedExpandedDesktopActionResult,
+        approvedExpandedDesktopActionView: displayedApprovedExpandedDesktopAction
       }),
-    [approvedDesktopActionResult, displayedApprovedDesktopAction]
+    [
+      approvedDesktopActionResult,
+      approvedExpandedDesktopActionResult,
+      displayedApprovedDesktopAction,
+      displayedApprovedExpandedDesktopAction
+    ]
   );
   const runDraftCandidate = useMemo<AppRunDraftView>(
     () =>
@@ -7367,10 +7374,9 @@ export function DesktopShell(): JSX.Element {
               <span className="muted">Summary replay / no re-execution</span>
             </div>
             <p className="fieldHelp">
-              Projects approved desktop action summary events into a replay
-              surface. Replay can show status, action kind, target refs,
-              timestamp, and warning codes, but cannot execute desktop actions
-              or write events.
+              Projects approved desktop action and expanded click/type summary
+              events into a replay surface. Replay can show status, event type,
+              action kind, target refs, timestamp, and warning codes, but cannot execute desktop actions or write events.
             </p>
 
             {desktopActionReplayView.status === "blocked" ? (
@@ -7384,6 +7390,10 @@ export function DesktopShell(): JSX.Element {
               <div>
                 <dt>Status</dt>
                 <dd>{desktopActionReplayView.status}</dd>
+              </div>
+              <div>
+                <dt>Event type</dt>
+                <dd>{desktopActionReplayView.eventType}</dd>
               </div>
               <div>
                 <dt>Action status</dt>
@@ -16959,6 +16969,14 @@ export function DesktopShell(): JSX.Element {
                     <dt>Latest project knowledge recall</dt>
                     <dd>
                       {eventPanel.latestProjectKnowledgeRecallSummary ?? "n/a"}
+                    </dd>
+                  </div>
+                  <div>
+                    <dt>Desktop action replay preview</dt>
+                    <dd>
+                      {desktopActionReplayView.status === "empty"
+                        ? "n/a"
+                        : `${desktopActionReplayView.eventType} / ${desktopActionReplayView.actionStatus}`}
                     </dd>
                   </div>
                   <div>
