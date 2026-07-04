@@ -50,6 +50,7 @@ export * from "./events/index.js";
 export * from "./execution/index.js";
 export * from "./e2e-task/index.js";
 export * from "./flows/index.js";
+export * from "./workflows/index.js";
 export * as modelPlane from "./models/index.js";
 export {
   getDeepSeekCapabilityProfile,

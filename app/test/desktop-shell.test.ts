@@ -24517,6 +24517,47 @@ describe("desktop source boundaries", () => {
     expect(runtimeSource).not.toContain("fetch(");
   });
 
+  it("documents the P1F cross-surface workflow planner", async () => {
+    const runtimeDoc = await readFile(
+      path.join(
+        repoRoot,
+        "docs",
+        "runtime-cross-surface-workflow-planner-v0.27.md"
+      ),
+      "utf8"
+    );
+    const docsIndex = await readFile(
+      path.join(repoRoot, "docs", "README.md"),
+      "utf8"
+    );
+    const runtimeSource = await readFile(
+      path.join(
+        repoRoot,
+        "runtime",
+        "src",
+        "workflows",
+        "cross-surface-workflow-planner.ts"
+      ),
+      "utf8"
+    );
+
+    expect(runtimeDoc).toContain("Runtime Cross-surface Workflow Planner");
+    expect(runtimeDoc).toContain("summary-only plan");
+    expect(runtimeDoc).toContain("No DeepSeek call");
+    expect(runtimeDoc).toContain("No MCP call");
+    expect(runtimeDoc).toContain("No desktop command");
+    expect(runtimeDoc).toContain("No apply or rollback");
+    expect(runtimeDoc).toContain("No Git or shell execution");
+    expect(runtimeDoc).toContain("No EventStore write");
+    expect(runtimeDoc).toContain("No agent execution");
+    expect(runtimeDoc).toContain("All execution readiness flags remain false");
+    expect(runtimeDoc).toContain("P1F-004 App Cross-surface Workflow Composer");
+    expect(docsIndex).toContain(
+      "runtime-cross-surface-workflow-planner-v0.27.md"
+    );
+    expect(runtimeSource).not.toContain("fetch(");
+  });
+
   it("documents the P1D desktop action expansion ADR and implementation gate", async () => {
     const adr = await readFile(
       path.join(
