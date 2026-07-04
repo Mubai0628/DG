@@ -452,6 +452,7 @@ foundation.
 - [P1F-002 Cross-surface Workflow Scenario Schema plan](p1f-002-cross-surface-workflow-scenario-schema-plan.md)
 - [Runtime Cross-surface Workflow Scenario v0.27](runtime-cross-surface-workflow-scenario-v0.27.md)
 - [Runtime Cross-surface Workflow Planner v0.27](runtime-cross-surface-workflow-planner-v0.27.md)
+- [App Shell Cross-surface Workflow Preview v0.27](app-shell-cross-surface-workflow-preview-v0.27.md)
 - [Runtime Memory Recall Preview v0.3](runtime-memory-recall-preview-v0.3.md)
 - [v0.4.0 Controlled Creation Preview RC release notes](release-notes-v0.4.0-controlled-creation-preview-rc.1.md)
 - [App Shell Controlled Creation manual QA](app-shell-controlled-creation-manual-qa.md)

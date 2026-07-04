@@ -200,6 +200,11 @@ import {
   type LiveProposalEvaluationTelemetryAuditView
 } from "./live-proposal-evaluation-telemetry-audit-view.js";
 import {
+  buildCrossSurfaceWorkflowView,
+  summarizeCrossSurfaceWorkflowView,
+  type CrossSurfaceWorkflowView
+} from "./cross-surface-workflow-view.js";
+import {
   buildDesktopObserverView,
   desktopObserverEvidenceRefs,
   summarizeDesktopObserverView,
@@ -804,6 +809,10 @@ export function DesktopShell(): JSX.Element {
     liveProposalEvaluationTelemetryAuditPreview,
     setLiveProposalEvaluationTelemetryAuditPreview
   ] = useState<LiveProposalEvaluationTelemetryAuditView | undefined>();
+  const [crossSurfaceWorkflowScenarioText, setCrossSurfaceWorkflowScenarioText] =
+    useState("");
+  const [crossSurfaceWorkflowPreview, setCrossSurfaceWorkflowPreview] =
+    useState<CrossSurfaceWorkflowView | undefined>();
   const [fixedMultiAgentRunPreview, setFixedMultiAgentRunPreview] = useState<
     FixedMultiAgentRunView | undefined
   >();
@@ -2400,6 +2409,16 @@ export function DesktopShell(): JSX.Element {
   const displayedLiveProposalEvaluationTelemetryAudit =
     liveProposalEvaluationTelemetryAuditPreview ??
     buildLiveProposalEvaluationTelemetryAuditView();
+  const crossSurfaceWorkflowCandidate = useMemo<CrossSurfaceWorkflowView>(
+    () =>
+      buildCrossSurfaceWorkflowView({
+        scenarioJsonText: crossSurfaceWorkflowScenarioText,
+        sourceKind: "paste"
+      }),
+    [crossSurfaceWorkflowScenarioText]
+  );
+  const displayedCrossSurfaceWorkflow =
+    crossSurfaceWorkflowPreview ?? buildCrossSurfaceWorkflowView();
   const mcpReadonlyConnectionCandidate = useMemo<McpReadonlyConnectionView>(
     () =>
       buildMcpReadonlyConnectionView({
@@ -2608,6 +2627,9 @@ export function DesktopShell(): JSX.Element {
     liveProposalEvaluationSummaryText,
     liveProposalEvaluationTelemetryAuditText
   ]);
+  useEffect(() => {
+    setCrossSurfaceWorkflowPreview(undefined);
+  }, [crossSurfaceWorkflowScenarioText]);
   useEffect(() => {
     setFixedMultiAgentRunPreview(undefined);
   }, [
@@ -3684,6 +3706,15 @@ export function DesktopShell(): JSX.Element {
   function handleClearLiveProposalEvaluationTelemetryAudit(): void {
     setLiveProposalEvaluationTelemetryAuditText("");
     setLiveProposalEvaluationTelemetryAuditPreview(undefined);
+  }
+
+  function handlePreviewCrossSurfaceWorkflow(): void {
+    setCrossSurfaceWorkflowPreview(crossSurfaceWorkflowCandidate);
+  }
+
+  function handleClearCrossSurfaceWorkflow(): void {
+    setCrossSurfaceWorkflowScenarioText("");
+    setCrossSurfaceWorkflowPreview(undefined);
   }
 
   async function handleDiscoverMcpReadonlyMetadata(): Promise<void> {
@@ -9459,6 +9490,233 @@ export function DesktopShell(): JSX.Element {
                 ).source
               }{" "}
               · {displayedLiveProposalEvaluationTelemetryAudit.nextAction}
+            </p>
+          </section>
+
+          <section
+            className="eventPanel"
+            aria-label="Cross-surface Agent Workflow"
+          >
+            <div className="panelHeader">
+              <h2>Cross-surface Agent Workflow</h2>
+              <span className="muted">
+                Workflow preview / controlled lanes only
+              </span>
+            </div>
+            <p className="fieldHelp">
+              Previews a fixed cross-surface workflow from summary refs only.
+              The App Shell does not run DeepSeek, run agents, call MCP tools,
+              execute desktop actions, apply patches, rollback, or write
+              EventStore events.
+            </p>
+
+            <label>
+              <span>Cross-surface workflow scenario JSON</span>
+              <textarea
+                className="compactTextarea"
+                value={crossSurfaceWorkflowScenarioText}
+                onChange={(event) => {
+                  setCrossSurfaceWorkflowScenarioText(event.target.value);
+                }}
+                placeholder="Paste summary-only cross-surface workflow scenario JSON"
+                spellCheck={false}
+              />
+              <p className="fieldHelp">
+                Accepts objective, route, stage, evidence, no-compress, and
+                expected outcome summaries. Raw prompts, source text, diffs,
+                secrets, and execution flags are blocked before preview.
+              </p>
+            </label>
+
+            <div className="buttonRow">
+              <button
+                type="button"
+                className="secondary"
+                onClick={(event) => {
+                  event.preventDefault();
+                  event.stopPropagation();
+                  handlePreviewCrossSurfaceWorkflow();
+                }}
+              >
+                Preview Cross-surface Workflow
+              </button>
+              <button
+                type="button"
+                className="secondary"
+                onClick={(event) => {
+                  event.preventDefault();
+                  event.stopPropagation();
+                  handleClearCrossSurfaceWorkflow();
+                }}
+              >
+                Clear Workflow Preview
+              </button>
+              <button type="button" className="secondary" disabled>
+                Run Cross-surface Workflow (disabled)
+              </button>
+              <button type="button" className="secondary" disabled>
+                Auto-execute Workflow (disabled)
+              </button>
+            </div>
+
+            {displayedCrossSurfaceWorkflow.status === "empty" ? (
+              <p className="empty">
+                No cross-surface workflow scenario loaded. Paste a summary-only
+                scenario to preview the controlled lane plan.
+              </p>
+            ) : null}
+
+            {displayedCrossSurfaceWorkflow.status === "blocked" ? (
+              <div className="errorBox">
+                <strong>Cross-surface workflow blocked</strong>
+                <p>{displayedCrossSurfaceWorkflow.nextAction}</p>
+              </div>
+            ) : null}
+
+            <dl className="summaryGrid compact">
+              <div>
+                <dt>Status</dt>
+                <dd>{displayedCrossSurfaceWorkflow.status}</dd>
+              </div>
+              <div>
+                <dt>Scenario</dt>
+                <dd>{displayedCrossSurfaceWorkflow.scenarioId ?? "n/a"}</dd>
+              </div>
+              <div>
+                <dt>Plan</dt>
+                <dd>{displayedCrossSurfaceWorkflow.planId ?? "n/a"}</dd>
+              </div>
+              <div>
+                <dt>State</dt>
+                <dd>{displayedCrossSurfaceWorkflow.state ?? "n/a"}</dd>
+              </div>
+              <div>
+                <dt>Steps ready / total</dt>
+                <dd>
+                  {displayedCrossSurfaceWorkflow.readyStepCount} /{" "}
+                  {displayedCrossSurfaceWorkflow.stepCount}
+                </dd>
+              </div>
+              <div>
+                <dt>Missing / blocked steps</dt>
+                <dd>
+                  {displayedCrossSurfaceWorkflow.missingStepCount} /{" "}
+                  {displayedCrossSurfaceWorkflow.blockedStepCount}
+                </dd>
+              </div>
+              <div>
+                <dt>Blockers / warnings</dt>
+                <dd>
+                  {displayedCrossSurfaceWorkflow.blockerCount} /{" "}
+                  {displayedCrossSurfaceWorkflow.warningCount}
+                </dd>
+              </div>
+              <div>
+                <dt>Hash</dt>
+                <dd>{displayedCrossSurfaceWorkflow.hashPrefix ?? "n/a"}</dd>
+              </div>
+              <div>
+                <dt>Preview / run workflow</dt>
+                <dd>
+                  {displayedCrossSurfaceWorkflow.readiness.canPreviewWorkflow
+                    ? "yes"
+                    : "no"}{" "}
+                  /{" "}
+                  {displayedCrossSurfaceWorkflow.readiness.canRunWorkflow
+                    ? "yes"
+                    : "no"}
+                </dd>
+              </div>
+              <div>
+                <dt>DeepSeek / agents</dt>
+                <dd>
+                  {displayedCrossSurfaceWorkflow.readiness.canCallDeepSeek
+                    ? "yes"
+                    : "no"}{" "}
+                  /{" "}
+                  {displayedCrossSurfaceWorkflow.readiness.canRunAgents
+                    ? "yes"
+                    : "no"}
+                </dd>
+              </div>
+              <div>
+                <dt>MCP / desktop action</dt>
+                <dd>
+                  {displayedCrossSurfaceWorkflow.readiness.canInvokeMcpTools
+                    ? "yes"
+                    : "no"}{" "}
+                  /{" "}
+                  {displayedCrossSurfaceWorkflow.readiness
+                    .canExecuteDesktopAction
+                    ? "yes"
+                    : "no"}
+                </dd>
+              </div>
+              <div>
+                <dt>Apply / rollback</dt>
+                <dd>
+                  {displayedCrossSurfaceWorkflow.readiness.canApplyPatch
+                    ? "yes"
+                    : "no"}{" "}
+                  /{" "}
+                  {displayedCrossSurfaceWorkflow.readiness.canRollback
+                    ? "yes"
+                    : "no"}
+                </dd>
+              </div>
+              <div>
+                <dt>EventStore / App execute</dt>
+                <dd>
+                  {displayedCrossSurfaceWorkflow.readiness.canWriteEventStore
+                    ? "yes"
+                    : "no"}{" "}
+                  /{" "}
+                  {displayedCrossSurfaceWorkflow.readiness.appCanExecute
+                    ? "yes"
+                    : "no"}
+                </dd>
+              </div>
+            </dl>
+
+            {displayedCrossSurfaceWorkflow.stages.length > 0 ? (
+              <ol className="timeline">
+                {displayedCrossSurfaceWorkflow.stages.map((stage) => (
+                  <li key={`${stage.kind}-${stage.stageId ?? stage.refId}`}>
+                    <span className="timelineMeta">
+                      {stage.kind} · {stage.status}
+                    </span>
+                    <span>{stage.stateAfter}</span>
+                    {stage.warningCodes.length > 0 ? (
+                      <span className="timelineMeta">
+                        Warnings: {stage.warningCodes.join(", ")}
+                      </span>
+                    ) : null}
+                    {stage.blockerCodes.length > 0 ? (
+                      <span className="timelineMeta">
+                        Blockers: {stage.blockerCodes.join(", ")}
+                      </span>
+                    ) : null}
+                  </li>
+                ))}
+              </ol>
+            ) : null}
+
+            {displayedCrossSurfaceWorkflow.findings.length > 0 ? (
+              <p className="muted">
+                findings{" "}
+                {displayedCrossSurfaceWorkflow.findings
+                  .map((finding) => finding.code)
+                  .join(", ")}
+              </p>
+            ) : null}
+
+            <p className="fieldHelp">
+              {
+                summarizeCrossSurfaceWorkflowView(
+                  displayedCrossSurfaceWorkflow
+                ).source
+              }{" "}
+              · {displayedCrossSurfaceWorkflow.nextAction}
             </p>
           </section>
 

@@ -113,6 +113,7 @@ import {
   parseLiveProposalEvaluationSummaryJson
 } from "../src/live-proposal-evaluation-summary-view.js";
 import { buildLiveProposalEvaluationTelemetryAuditView } from "../src/live-proposal-evaluation-telemetry-audit-view.js";
+import { buildCrossSurfaceWorkflowView } from "../src/cross-surface-workflow-view.js";
 import {
   buildDesktopObserverView,
   desktopObserverEvidenceRefs
@@ -24556,6 +24557,139 @@ describe("desktop source boundaries", () => {
       "runtime-cross-surface-workflow-planner-v0.27.md"
     );
     expect(runtimeSource).not.toContain("fetch(");
+  });
+
+  it("previews a cross-surface workflow scenario without enabling execution", async () => {
+    const fixture = await readFile(
+      path.join(
+        repoRoot,
+        "runtime",
+        "test",
+        "fixtures",
+        "cross-surface-workflows",
+        "golden-demo-docs-task.json"
+      ),
+      "utf8"
+    );
+
+    const view = buildCrossSurfaceWorkflowView({
+      scenarioJsonText: fixture,
+      sourceKind: "fixture",
+      createdAt: "2026-07-04T00:00:00.000Z",
+      idGenerator: () => "app-cross-surface-workflow-test"
+    });
+
+    expect(view.status).toBe("preview_ready");
+    expect(view.scenarioId).toBe("cross-surface-golden-docs-task");
+    expect(view.stepCount).toBeGreaterThanOrEqual(13);
+    expect(view.readyStepCount).toBeGreaterThanOrEqual(10);
+    expect(view.stages.map((stage) => stage.kind)).toContain(
+      "proposal_generation"
+    );
+    expect(view.stages.map((stage) => stage.kind)).toContain(
+      "workspace_apply_approval"
+    );
+    expect(view.readiness.canPreviewWorkflow).toBe(true);
+    expect(view.readiness.canRunWorkflow).toBe(false);
+    expect(view.readiness.canCallDeepSeek).toBe(false);
+    expect(view.readiness.canRunAgents).toBe(false);
+    expect(view.readiness.canInvokeMcpTools).toBe(false);
+    expect(view.readiness.canExecuteDesktopAction).toBe(false);
+    expect(view.readiness.canApplyPatch).toBe(false);
+    expect(view.readiness.canRollback).toBe(false);
+    expect(view.readiness.canWriteEventStore).toBe(false);
+    expect(view.readiness.appCanExecute).toBe(false);
+  });
+
+  it("blocks unsafe cross-surface workflow input and keeps output summary-only", () => {
+    const view = buildCrossSurfaceWorkflowView({
+      scenarioJsonText: JSON.stringify({
+        schemaVersion: "cross_surface_workflow_scenario.v1",
+        title: "Unsafe raw scenario",
+        objectiveSummary: "Summarize docs only.",
+        routeKind: "fixed_cross_surface_workflow",
+        rawPrompt: "do not display raw prompt source diff",
+        stages: [],
+        evidenceRefs: [],
+        expectedOutcome: {
+          expectedStatus: "preview_ready",
+          expectedStageKinds: [],
+          expectedSummaryOnly: true,
+          expectedExecutionEnabled: false
+        },
+        forbiddenPolicySummary: "summary only"
+      }),
+      sourceKind: "manual_test"
+    });
+    const serialized = JSON.stringify(view);
+
+    expect(view.status).toBe("blocked");
+    expect(view.readiness.canPreviewWorkflow).toBe(false);
+    expect(view.readiness.appCanExecute).toBe(false);
+    expect(serialized).not.toContain("do not display raw prompt source diff");
+    expect(serialized).not.toContain("raw prompt source diff");
+  });
+
+  it("renders the App cross-surface workflow preview as disabled-only", async () => {
+    const appSource = await readFile(
+      path.join(appRoot, "src", "App.tsx"),
+      "utf8"
+    );
+    const viewSource = await readFile(
+      path.join(appRoot, "src", "cross-surface-workflow-view.ts"),
+      "utf8"
+    );
+
+    expect(appSource).toContain("Cross-surface Agent Workflow");
+    expect(appSource).toContain("Workflow preview / controlled lanes only");
+    expect(appSource).toContain("Preview Cross-surface Workflow");
+    expect(appSource).toContain("Clear Workflow Preview");
+    expect(appSource).toContain("Run Cross-surface Workflow (disabled)");
+    expect(appSource).toContain("Auto-execute Workflow (disabled)");
+    expect(appSource).toContain("The App Shell does not run DeepSeek");
+    expect(appSource).toContain("run agents");
+    expect(appSource).toContain("call MCP tools");
+    expect(appSource).toContain("execute desktop actions");
+    expect(appSource).toContain("EventStore events");
+    expect(appSource).not.toContain("Run Cross-surface Workflow</button>");
+    expect(appSource).not.toContain("Auto-execute Workflow</button>");
+    expect(viewSource).not.toContain("fetch(");
+    expect(viewSource).not.toContain("invoke(");
+    expect(viewSource).not.toContain("recordCrossSurface");
+    expect(viewSource).not.toContain("writeEvent");
+  });
+
+  it("documents the App cross-surface workflow preview surface", async () => {
+    const appDoc = await readFile(
+      path.join(
+        repoRoot,
+        "docs",
+        "app-shell-cross-surface-workflow-preview-v0.27.md"
+      ),
+      "utf8"
+    );
+    const docsIndex = await readFile(
+      path.join(repoRoot, "docs", "README.md"),
+      "utf8"
+    );
+    const combined = `${appDoc}\n${docsIndex}`;
+
+    expect(appDoc).toContain("App Shell Cross-surface Workflow Preview");
+    expect(appDoc).toContain("read-only surface");
+    expect(appDoc).toContain("summary-only");
+    expect(appDoc).toContain("does not");
+    expect(appDoc).toContain("run DeepSeek");
+    expect(appDoc).toContain("run agents");
+    expect(appDoc).toContain("call MCP tools");
+    expect(appDoc).toContain("execute desktop actions");
+    expect(appDoc).toContain("write EventStore events");
+    expect(appDoc).toContain("All execution readiness flags remain false");
+    expect(docsIndex).toContain(
+      "app-shell-cross-surface-workflow-preview-v0.27.md"
+    );
+    expect(combined).not.toContain("cross-surface workflow execution enabled");
+    expect(combined).not.toContain("dynamic bidding is enabled");
+    expect(combined).not.toContain("MCP tool invocation is enabled");
   });
 
   it("documents the P1D desktop action expansion ADR and implementation gate", async () => {
