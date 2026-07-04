@@ -1,0 +1,65 @@
+{
+  "actionProposals": [
+    {
+      "status": "warning",
+      "proposalId": "expanded-desktop-action-smoke-click",
+      "actionKind": "click_target",
+      "objectiveSummary": "Open the visible preferences panel.",
+      "observerEvidenceRefId": "expanded-smoke-evidence-1",
+      "targetId": "target-preferences",
+      "targetKind": "button",
+      "expectedEffectSummary": "The preferences panel would become visible.",
+      "warningCodes": ["EXPANDED_ACTION_PROPOSAL_ONLY"],
+      "blockerCodes": [],
+      "proposalHash": "proposal_hash_expanded_smoke",
+      "summaryOnly": true
+    }
+  ],
+  "targetFreshnessSummaries": [
+    {
+      "status": "fresh",
+      "proposalId": "expanded-desktop-action-smoke-click",
+      "targetHash": "target_hash_expanded_smoke",
+      "warningCodes": [],
+      "blockerCodes": [],
+      "summaryOnly": true
+    }
+  ],
+  "sequenceSimulationSummaries": [
+    {
+      "status": "simulated",
+      "simulationId": "expanded-smoke-simulation",
+      "stepCount": 1,
+      "simulatedStepCount": 1,
+      "blockedStepCount": 0,
+      "warningStepCount": 0,
+      "warningCodes": [],
+      "blockerCodes": [],
+      "summaryOnly": true
+    }
+  ],
+  "riskClassifierSummaries": [
+    {
+      "status": "warning",
+      "proposalId": "expanded-desktop-action-smoke-click",
+      "actionKind": "click_target",
+      "riskClass": "medium",
+      "riskScore": 40,
+      "warningCodes": ["RISK_REVIEW_REQUIRED"],
+      "blockerCodes": [],
+      "riskFactors": ["click_target_proposal_only"],
+      "summaryOnly": true
+    }
+  ],
+  "appSurfaceSummaries": [
+    {
+      "status": "warning",
+      "surfaceId": "app-expanded-desktop-action-smoke",
+      "proposalId": "expanded-desktop-action-smoke-click",
+      "warningCodes": ["APP_READ_ONLY_SURFACE"],
+      "blockerCodes": [],
+      "contextAssemblyRef": "expanded_desktop_action_proposal:expanded-desktop-action-smoke-click:no_compress_zone",
+      "summaryOnly": true
+    }
+  ]
+}

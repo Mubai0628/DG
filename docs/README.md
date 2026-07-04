@@ -418,6 +418,8 @@ foundation.
 - [Runtime Desktop Action Sequence Simulation v0.25](runtime-desktop-action-sequence-simulation-v0.25.md)
 - [Runtime Desktop Action Risk Classifier v0.25](runtime-desktop-action-risk-classifier-v0.25.md)
 - [App Shell Expanded Desktop Action Proposal v0.25](app-shell-expanded-desktop-action-proposal-v0.25.md)
+- [Runtime Desktop Action Expansion Redaction Audit v0.25](runtime-desktop-action-expansion-redaction-audit-v0.25.md)
+- [Desktop Action Expansion Smoke v0.25](desktop-action-expansion-smoke-v0.25.md)
 - [Runtime Memory Recall Preview v0.3](runtime-memory-recall-preview-v0.3.md)
 - [v0.4.0 Controlled Creation Preview RC release notes](release-notes-v0.4.0-controlled-creation-preview-rc.1.md)
 - [App Shell Controlled Creation manual QA](app-shell-controlled-creation-manual-qa.md)

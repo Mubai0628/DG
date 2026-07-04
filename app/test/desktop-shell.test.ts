@@ -27858,6 +27858,45 @@ describe("expanded desktop action proposal app surface", () => {
     );
     expect(appReadme).toContain("v0.26 Desktop Action Expansion Proposal RC");
   });
+
+  it("documents the desktop action expansion redaction audit and smoke path", async () => {
+    const auditDoc = await readFile(
+      path.join(
+        repoRoot,
+        "docs",
+        "runtime-desktop-action-expansion-redaction-audit-v0.25.md"
+      ),
+      "utf8"
+    );
+    const smokeDoc = await readFile(
+      path.join(repoRoot, "docs", "desktop-action-expansion-smoke-v0.25.md"),
+      "utf8"
+    );
+    const docsIndex = await readFile(
+      path.join(repoRoot, "docs", "README.md"),
+      "utf8"
+    );
+
+    expect(auditDoc).toContain(
+      "Runtime Desktop Action Expansion Redaction Audit v0.25"
+    );
+    expect(auditDoc).toContain("audit-only");
+    expect(auditDoc).toContain("raw screenshot fields");
+    expect(auditDoc).toContain("clipboard content");
+    expect(auditDoc).toContain("file dialog raw");
+    expect(auditDoc).toContain("no real click");
+    expect(auditDoc).toContain("no real type");
+    expect(auditDoc).toContain("no clipboard write");
+    expect(auditDoc).toContain("no file dialog automation");
+    expect(smokeDoc).toContain("Desktop Action Expansion Smoke v0.25");
+    expect(smokeDoc).toContain("summary-only smoke fixture");
+    expect(smokeDoc).toContain("redaction audit status: `audit_ready`");
+    expect(smokeDoc).toContain("desktop action execution readiness: `false`");
+    expect(docsIndex).toContain(
+      "runtime-desktop-action-expansion-redaction-audit-v0.25.md"
+    );
+    expect(docsIndex).toContain("desktop-action-expansion-smoke-v0.25.md");
+  });
 });
 
 describe("desktop dev scripts", () => {
