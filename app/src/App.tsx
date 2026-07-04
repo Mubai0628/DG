@@ -225,6 +225,11 @@ import {
   type CrossSurfaceReplayTimelineView
 } from "./cross-surface-replay-timeline-view.js";
 import {
+  buildCrossSurfaceReplayAuditView,
+  summarizeCrossSurfaceReplayAuditView,
+  type CrossSurfaceReplayAuditView
+} from "./cross-surface-replay-audit-view.js";
+import {
   buildCrossSurfaceApprovedSequence,
   summarizeCrossSurfaceApprovedSequence,
   type CrossSurfaceApprovedSequence
@@ -858,6 +863,10 @@ export function DesktopShell(): JSX.Element {
     crossSurfaceReplayTimelinePreview,
     setCrossSurfaceReplayTimelinePreview
   ] = useState<CrossSurfaceReplayTimelineView | undefined>();
+  const [crossSurfaceReplayAuditText, setCrossSurfaceReplayAuditText] =
+    useState("");
+  const [crossSurfaceReplayAuditPreview, setCrossSurfaceReplayAuditPreview] =
+    useState<CrossSurfaceReplayAuditView | undefined>();
   const [fixedMultiAgentRunPreview, setFixedMultiAgentRunPreview] = useState<
     FixedMultiAgentRunView | undefined
   >();
@@ -2505,6 +2514,17 @@ export function DesktopShell(): JSX.Element {
     );
   const displayedCrossSurfaceReplayTimeline =
     crossSurfaceReplayTimelinePreview ?? buildCrossSurfaceReplayTimelineView();
+  const crossSurfaceReplayAuditCandidate =
+    useMemo<CrossSurfaceReplayAuditView>(
+      () =>
+        buildCrossSurfaceReplayAuditView({
+          replayAuditJsonText: crossSurfaceReplayAuditText,
+          sourceKind: "paste"
+        }),
+      [crossSurfaceReplayAuditText]
+    );
+  const displayedCrossSurfaceReplayAudit =
+    crossSurfaceReplayAuditPreview ?? buildCrossSurfaceReplayAuditView();
   const crossSurfaceApprovedSequence = useMemo<CrossSurfaceApprovedSequence>(
     () =>
       buildCrossSurfaceApprovedSequence({
@@ -2736,6 +2756,9 @@ export function DesktopShell(): JSX.Element {
   useEffect(() => {
     setCrossSurfaceReplayTimelinePreview(undefined);
   }, [crossSurfaceReplayTimelineText]);
+  useEffect(() => {
+    setCrossSurfaceReplayAuditPreview(undefined);
+  }, [crossSurfaceReplayAuditText]);
   useEffect(() => {
     setFixedMultiAgentRunPreview(undefined);
   }, [
@@ -3857,6 +3880,15 @@ export function DesktopShell(): JSX.Element {
   function handleClearCrossSurfaceReplayTimeline(): void {
     setCrossSurfaceReplayTimelineText("");
     setCrossSurfaceReplayTimelinePreview(undefined);
+  }
+
+  function handlePreviewCrossSurfaceReplayAudit(): void {
+    setCrossSurfaceReplayAuditPreview(crossSurfaceReplayAuditCandidate);
+  }
+
+  function handleClearCrossSurfaceReplayAudit(): void {
+    setCrossSurfaceReplayAuditText("");
+    setCrossSurfaceReplayAuditPreview(undefined);
   }
 
   async function handleDiscoverMcpReadonlyMetadata(): Promise<void> {
@@ -10692,6 +10724,197 @@ export function DesktopShell(): JSX.Element {
                 ).source
               }{" "}
               · {displayedCrossSurfaceReplayTimeline.nextAction}
+            </p>
+          </section>
+
+          <section
+            className="eventPanel"
+            aria-label="Cross-surface Replay / Audit Completeness"
+          >
+            <div className="panelHeader">
+              <h2>Cross-surface Replay / Audit Completeness</h2>
+              <span className="muted">Read-only / no replay execution</span>
+            </div>
+            <p className="fieldHelp">
+              Checks that replay/audit summary events include required task,
+              model proposal, repair/schema validation, approval, apply,
+              verification, rollback, MCP, plugin/skill, desktop, agent route,
+              policy, and redaction refs. The App Shell does not replay
+              execution, re-run actions, apply patches, rollback, write
+              EventStore events, invoke MCP tools, execute desktop actions, or
+              run Git/shell.
+            </p>
+
+            <label>
+              <span>Replay/audit completeness JSON</span>
+              <textarea
+                className="compactTextarea"
+                value={crossSurfaceReplayAuditText}
+                onChange={(event) => {
+                  setCrossSurfaceReplayAuditText(event.target.value);
+                }}
+                placeholder="Paste summary-only replay/audit completeness events JSON"
+                spellCheck={false}
+              />
+              <p className="fieldHelp">
+                Accepts summary-only event refs and relation flags. Raw event
+                payloads, source, diffs, prompts, responses, screenshots, OCR,
+                stdout/stderr, command payloads, and secrets are blocked.
+              </p>
+            </label>
+
+            <div className="buttonRow">
+              <button
+                type="button"
+                className="secondary"
+                onClick={(event) => {
+                  event.preventDefault();
+                  event.stopPropagation();
+                  handlePreviewCrossSurfaceReplayAudit();
+                }}
+              >
+                Preview Replay Audit
+              </button>
+              <button
+                type="button"
+                className="secondary"
+                onClick={(event) => {
+                  event.preventDefault();
+                  event.stopPropagation();
+                  handleClearCrossSurfaceReplayAudit();
+                }}
+              >
+                Clear Replay Audit
+              </button>
+            </div>
+
+            {displayedCrossSurfaceReplayAudit.status === "empty" ? (
+              <p className="empty">
+                No replay/audit completeness events loaded. Paste summary-only
+                events to preview completeness.
+              </p>
+            ) : null}
+
+            {displayedCrossSurfaceReplayAudit.status === "blocked" ? (
+              <div className="errorBox">
+                <strong>Replay/audit completeness blocked</strong>
+                <p>{displayedCrossSurfaceReplayAudit.nextAction}</p>
+              </div>
+            ) : null}
+
+            <dl className="summaryGrid compact">
+              <div>
+                <dt>Status</dt>
+                <dd>{displayedCrossSurfaceReplayAudit.status}</dd>
+              </div>
+              <div>
+                <dt>Completeness report</dt>
+                <dd>{displayedCrossSurfaceReplayAudit.completenessId}</dd>
+              </div>
+              <div>
+                <dt>Events</dt>
+                <dd>{displayedCrossSurfaceReplayAudit.eventCount}</dd>
+              </div>
+              <div>
+                <dt>Required present / total</dt>
+                <dd>
+                  {displayedCrossSurfaceReplayAudit.presentRequiredEventCount} /{" "}
+                  {displayedCrossSurfaceReplayAudit.requiredEventCount}
+                </dd>
+              </div>
+              <div>
+                <dt>Missing required</dt>
+                <dd>{displayedCrossSurfaceReplayAudit.missingRequiredEventCount}</dd>
+              </div>
+              <div>
+                <dt>Out-of-order / duplicate conflicts</dt>
+                <dd>
+                  {displayedCrossSurfaceReplayAudit.outOfOrderCount} /{" "}
+                  {displayedCrossSurfaceReplayAudit.duplicateConflictCount}
+                </dd>
+              </div>
+              <div>
+                <dt>Blockers / warnings</dt>
+                <dd>
+                  {displayedCrossSurfaceReplayAudit.blockerCount} /{" "}
+                  {displayedCrossSurfaceReplayAudit.warningCount}
+                </dd>
+              </div>
+              <div>
+                <dt>Hash</dt>
+                <dd>{displayedCrossSurfaceReplayAudit.hashPrefix ?? "n/a"}</dd>
+              </div>
+              <div>
+                <dt>Render / replay</dt>
+                <dd>
+                  {displayedCrossSurfaceReplayAudit.readiness
+                    .canRenderCompletenessReport
+                    ? "yes"
+                    : "no"}{" "}
+                  /{" "}
+                  {displayedCrossSurfaceReplayAudit.readiness.canReplayExecution
+                    ? "yes"
+                    : "no"}
+                </dd>
+              </div>
+              <div>
+                <dt>Apply / rollback / EventStore</dt>
+                <dd>
+                  {displayedCrossSurfaceReplayAudit.readiness.canApplyPatch ||
+                  displayedCrossSurfaceReplayAudit.readiness.canRollback ||
+                  displayedCrossSurfaceReplayAudit.readiness.canWriteEventStore
+                    ? "yes"
+                    : "no"}
+                </dd>
+              </div>
+            </dl>
+
+            {displayedCrossSurfaceReplayAudit.missingRequiredKinds.length > 0 ? (
+              <p className="muted">
+                missing{" "}
+                {displayedCrossSurfaceReplayAudit.missingRequiredKinds.join(
+                  ", "
+                )}
+              </p>
+            ) : null}
+
+            {displayedCrossSurfaceReplayAudit.eventSummaries.length > 0 ? (
+              <ol className="timeline">
+                {displayedCrossSurfaceReplayAudit.eventSummaries.map((event) => (
+                  <li key={event.eventId}>
+                    <span className="timelineMeta">
+                      {event.kind} · {event.status}
+                    </span>
+                    <span>summary {event.summaryHash}</span>
+                    {event.warningCodes.length > 0 ? (
+                      <span className="timelineMeta">
+                        Warnings: {event.warningCodes.join(", ")}
+                      </span>
+                    ) : null}
+                    {event.blockerCodes.length > 0 ? (
+                      <span className="timelineMeta">
+                        Blockers: {event.blockerCodes.join(", ")}
+                      </span>
+                    ) : null}
+                  </li>
+                ))}
+              </ol>
+            ) : null}
+
+            {displayedCrossSurfaceReplayAudit.findingCodes.length > 0 ? (
+              <p className="muted">
+                findings{" "}
+                {displayedCrossSurfaceReplayAudit.findingCodes.join(", ")}
+              </p>
+            ) : null}
+
+            <p className="fieldHelp">
+              {
+                summarizeCrossSurfaceReplayAuditView(
+                  displayedCrossSurfaceReplayAudit
+                ).source
+              }{" "}
+              · {displayedCrossSurfaceReplayAudit.nextAction}
             </p>
           </section>
 

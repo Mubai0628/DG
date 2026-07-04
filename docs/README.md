@@ -472,6 +472,8 @@ foundation.
 - [App Shell Approval / Receipt Consistency v0.28](app-shell-approval-consistency-v0.28.md)
 - [Runtime Capability Policy Enforcement v0.28](runtime-capability-policy-enforcement-v0.28.md)
 - [App Shell Capability Policy Enforcement v0.28](app-shell-capability-policy-enforcement-v0.28.md)
+- [Runtime Replay / Audit Completeness v0.28](runtime-replay-audit-completeness-v0.28.md)
+- [App Shell Cross-surface Replay / Audit Completeness v0.28](app-shell-cross-surface-replay-audit-v0.28.md)
 - [Runtime Memory Recall Preview v0.3](runtime-memory-recall-preview-v0.3.md)
 - [v0.4.0 Controlled Creation Preview RC release notes](release-notes-v0.4.0-controlled-creation-preview-rc.1.md)
 - [App Shell Controlled Creation manual QA](app-shell-controlled-creation-manual-qa.md)

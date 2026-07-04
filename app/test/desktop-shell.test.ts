@@ -118,6 +118,7 @@ import { buildCrossSurfaceEvidenceView } from "../src/cross-surface-evidence-vie
 import { buildApprovalConsistencyView } from "../src/approval-consistency-view.js";
 import { buildCapabilityPolicyEnforcementView } from "../src/capability-policy-enforcement-view.js";
 import { buildCrossSurfaceReplayTimelineView } from "../src/cross-surface-replay-timeline-view.js";
+import { buildCrossSurfaceReplayAuditView } from "../src/cross-surface-replay-audit-view.js";
 import {
   buildCrossSurfaceApprovedSequence,
   type CrossSurfaceApprovedLaneInput
@@ -25317,6 +25318,147 @@ describe("desktop source boundaries", () => {
     expect(replayDoc).toContain("raw stdout/stderr");
     expect(replayDoc).toContain("missing critical stages");
     expect(docsIndex).toContain("cross-surface-replay-audit-timeline-v0.27.md");
+  });
+
+  it("previews cross-surface replay audit completeness without execution", () => {
+    const requiredKinds = [
+      "task_run_draft",
+      "model_proposal",
+      "repair_schema_validation",
+      "policy_enforcement",
+      "approval_receipt",
+      "apply_result",
+      "verification_result",
+      "redaction_audit"
+    ];
+    const view = buildCrossSurfaceReplayAuditView({
+      replayAuditJsonText: JSON.stringify({
+        events: requiredKinds.map((kind) => ({
+          eventId: `${kind}-event`,
+          kind,
+          status: "summary_ready",
+          summary: `${kind} summary.`
+        }))
+      }),
+      sourceKind: "fixture"
+    });
+
+    expect(view.status).toBe("complete");
+    expect(view.eventCount).toBe(8);
+    expect(view.missingRequiredEventCount).toBe(0);
+    expect(view.readiness.canRenderCompletenessReport).toBe(true);
+    expect(view.readiness.canReplayExecution).toBe(false);
+    expect(view.readiness.canRerunActions).toBe(false);
+    expect(view.readiness.canWriteEventStore).toBe(false);
+    expect(view.readiness.canApplyPatch).toBe(false);
+    expect(view.readiness.canRollback).toBe(false);
+    expect(view.readiness.canInvokeMcpTool).toBe(false);
+    expect(view.readiness.canExecuteDesktopAction).toBe(false);
+    expect(view.readiness.canExecuteGit).toBe(false);
+    expect(view.readiness.canExecuteShell).toBe(false);
+    expect(view.readiness.appCanExecute).toBe(false);
+  });
+
+  it("blocks unsafe cross-surface replay audit completeness summaries", () => {
+    const view = buildCrossSurfaceReplayAuditView({
+      replayAuditJsonText: JSON.stringify({
+        events: [
+          {
+            eventId: "apply-result",
+            kind: "apply_result",
+            summary: "Apply without approval."
+          },
+          {
+            eventId: "desktop-proposal",
+            kind: "desktop_action_proposal",
+            summary: "Bearer abcdefghijklmnop",
+            rawEvent: "do not display raw replay event",
+            readiness: {
+              canReplayExecution: true
+            }
+          }
+        ]
+      }),
+      sourceKind: "fixture"
+    });
+    const serialized = JSON.stringify(view);
+
+    expect(view.status).toBe("blocked");
+    expect(view.findingCodes).toEqual(
+      expect.arrayContaining([
+        "APPLY_WITHOUT_APPROVAL",
+        "DESKTOP_ACTION_WITHOUT_OBSERVER",
+        "FORBIDDEN_RAW_EVENT_FIELD",
+        "BEARER_TOKEN_MARKER",
+        "EXECUTION_FLAG_TRUE"
+      ])
+    );
+    expect(serialized).not.toContain("do not display raw replay event");
+    expect(serialized).not.toContain("Bearer abcdefghijklmnop");
+    expect(view.readiness.canReplayExecution).toBe(false);
+    expect(view.readiness.canApplyPatch).toBe(false);
+    expect(view.readiness.appCanExecute).toBe(false);
+  });
+
+  it("renders the App cross-surface replay audit completeness panel as read-only", async () => {
+    const appSource = await readFile(
+      path.join(appRoot, "src", "App.tsx"),
+      "utf8"
+    );
+    const viewSource = await readFile(
+      path.join(appRoot, "src", "cross-surface-replay-audit-view.ts"),
+      "utf8"
+    );
+
+    expect(appSource).toContain("Cross-surface Replay / Audit Completeness");
+    expect(appSource).toContain("Read-only / no replay execution");
+    expect(appSource).toContain("Preview Replay Audit");
+    expect(appSource).toContain("Clear Replay Audit");
+    expect(appSource).toContain("does not replay execution");
+    expect(appSource).toContain("does not replay execution, re-run actions");
+    expect(appSource).not.toContain("Execute Replay Audit");
+    expect(appSource).not.toContain("Apply Replay Audit");
+    expect(viewSource).toContain("replay-audit-completeness");
+    expect(viewSource).not.toContain("safeInvoke");
+    expect(viewSource).not.toContain("fetch(");
+    expect(viewSource).not.toContain("writeFile");
+    expect(viewSource).not.toContain("writeEvent");
+  });
+
+  it("documents replay audit completeness hardening", async () => {
+    const runtimeDoc = await readFile(
+      path.join(repoRoot, "docs", "runtime-replay-audit-completeness-v0.28.md"),
+      "utf8"
+    );
+    const appDoc = await readFile(
+      path.join(
+        repoRoot,
+        "docs",
+        "app-shell-cross-surface-replay-audit-v0.28.md"
+      ),
+      "utf8"
+    );
+    const docsIndex = await readFile(
+      path.join(repoRoot, "docs", "README.md"),
+      "utf8"
+    );
+
+    expect(runtimeDoc).toContain("Runtime Replay / Audit Completeness v0.28");
+    expect(runtimeDoc).toContain("apply results without approval receipts");
+    expect(runtimeDoc).toContain("rollback results without checkpoints");
+    expect(runtimeDoc).toContain("MCP tool results without approval");
+    expect(runtimeDoc).toContain("All execution readiness flags are false");
+    expect(appDoc).toContain(
+      "App Shell Cross-surface Replay / Audit Completeness v0.28"
+    );
+    expect(appDoc).toContain("Read-only replay/audit completeness panel");
+    expect(appDoc).toContain("Does not replay execution");
+    expect(appDoc).toContain("Does not apply or rollback");
+    expect(appDoc).toContain("Does not write EventStore");
+    expect(docsIndex).toContain("runtime-replay-audit-completeness-v0.28.md");
+    expect(docsIndex).toContain(
+      "app-shell-cross-surface-replay-audit-v0.28.md"
+    );
   });
 
   it("runs the cross-surface workflow smoke fixture through preview surfaces", async () => {
