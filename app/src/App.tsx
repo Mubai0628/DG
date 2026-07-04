@@ -210,6 +210,11 @@ import {
   type CrossSurfaceEvidenceView
 } from "./cross-surface-evidence-view.js";
 import {
+  buildApprovalConsistencyView,
+  summarizeApprovalConsistencyView,
+  type ApprovalConsistencyView
+} from "./approval-consistency-view.js";
+import {
   buildCrossSurfaceReplayTimelineView,
   summarizeCrossSurfaceReplayTimelineView,
   type CrossSurfaceReplayTimelineView
@@ -834,6 +839,10 @@ export function DesktopShell(): JSX.Element {
     useState("");
   const [crossSurfaceEvidencePreview, setCrossSurfaceEvidencePreview] =
     useState<CrossSurfaceEvidenceView | undefined>();
+  const [approvalConsistencyJsonText, setApprovalConsistencyJsonText] =
+    useState("");
+  const [approvalConsistencyPreview, setApprovalConsistencyPreview] =
+    useState<ApprovalConsistencyView | undefined>();
   const [crossSurfaceReplayTimelineText, setCrossSurfaceReplayTimelineText] =
     useState("");
   const [
@@ -2456,6 +2465,16 @@ export function DesktopShell(): JSX.Element {
   );
   const displayedCrossSurfaceEvidence =
     crossSurfaceEvidencePreview ?? buildCrossSurfaceEvidenceView();
+  const approvalConsistencyCandidate = useMemo<ApprovalConsistencyView>(
+    () =>
+      buildApprovalConsistencyView({
+        consistencyJsonText: approvalConsistencyJsonText,
+        sourceKind: "paste"
+      }),
+    [approvalConsistencyJsonText]
+  );
+  const displayedApprovalConsistency =
+    approvalConsistencyPreview ?? buildApprovalConsistencyView();
   const crossSurfaceReplayTimelineCandidate =
     useMemo<CrossSurfaceReplayTimelineView>(
       () =>
@@ -2689,6 +2708,9 @@ export function DesktopShell(): JSX.Element {
   useEffect(() => {
     setCrossSurfaceEvidencePreview(undefined);
   }, [crossSurfaceEvidenceJsonText]);
+  useEffect(() => {
+    setApprovalConsistencyPreview(undefined);
+  }, [approvalConsistencyJsonText]);
   useEffect(() => {
     setCrossSurfaceReplayTimelinePreview(undefined);
   }, [crossSurfaceReplayTimelineText]);
@@ -3786,6 +3808,15 @@ export function DesktopShell(): JSX.Element {
   function handleClearCrossSurfaceEvidence(): void {
     setCrossSurfaceEvidenceJsonText("");
     setCrossSurfaceEvidencePreview(undefined);
+  }
+
+  function handlePreviewApprovalConsistency(): void {
+    setApprovalConsistencyPreview(approvalConsistencyCandidate);
+  }
+
+  function handleClearApprovalConsistency(): void {
+    setApprovalConsistencyJsonText("");
+    setApprovalConsistencyPreview(undefined);
   }
 
   function handlePreviewCrossSurfaceReplayTimeline(): void {
@@ -9776,6 +9807,210 @@ export function DesktopShell(): JSX.Element {
                   .source
               }{" "}
               · {displayedCrossSurfaceEvidence.nextAction}
+            </p>
+          </section>
+
+          <section
+            className="eventPanel"
+            aria-label="Approval / Receipt Consistency"
+          >
+            <div className="panelHeader">
+              <h2>Approval / Receipt Consistency</h2>
+              <span className="muted">Read-only / advisory</span>
+            </div>
+            <p className="fieldHelp">
+              Checks approval receipts, PermissionLease previews, apply and
+              rollback receipts, MCP read-only approvals, desktop action
+              approvals, live proposal opt-in policy summaries, capability
+              plans, broker previews, and workflow stage refs. The App Shell
+              does not approve, reject, apply, rollback, issue leases, execute
+              desktop actions, write EventStore events, or run Git/shell.
+            </p>
+
+            <label>
+              <span>Approval consistency refs JSON</span>
+              <textarea
+                className="compactTextarea"
+                value={approvalConsistencyJsonText}
+                onChange={(event) => {
+                  setApprovalConsistencyJsonText(event.target.value);
+                }}
+                placeholder="Paste summary-only approval and receipt scope refs JSON"
+                spellCheck={false}
+              />
+              <p className="fieldHelp">
+                Accepts summary-only scope refs with task, proposal, workspace,
+                target, expiration, typed confirmation, max file/byte, and path
+                metadata. Raw prompts, source, diffs, responses, command
+                payloads, and secrets are blocked.
+              </p>
+            </label>
+
+            <div className="buttonRow">
+              <button
+                type="button"
+                className="secondary"
+                onClick={(event) => {
+                  event.preventDefault();
+                  event.stopPropagation();
+                  handlePreviewApprovalConsistency();
+                }}
+              >
+                Preview Consistency
+              </button>
+              <button
+                type="button"
+                className="secondary"
+                onClick={(event) => {
+                  event.preventDefault();
+                  event.stopPropagation();
+                  handleClearApprovalConsistency();
+                }}
+              >
+                Clear Consistency Preview
+              </button>
+            </div>
+
+            {displayedApprovalConsistency.status === "empty" ? (
+              <p className="empty">
+                No approval consistency refs loaded. Paste summary-only scope
+                refs to preview receipt alignment.
+              </p>
+            ) : null}
+
+            {displayedApprovalConsistency.status === "blocked" ? (
+              <div className="errorBox">
+                <strong>Approval consistency blocked</strong>
+                <p>{displayedApprovalConsistency.nextAction}</p>
+              </div>
+            ) : null}
+
+            <dl className="summaryGrid compact">
+              <div>
+                <dt>Status</dt>
+                <dd>{displayedApprovalConsistency.status}</dd>
+              </div>
+              <div>
+                <dt>Consistency report</dt>
+                <dd>{displayedApprovalConsistency.consistencyId}</dd>
+              </div>
+              <div>
+                <dt>Consistent / total scopes</dt>
+                <dd>
+                  {displayedApprovalConsistency.consistentScopeCount} /{" "}
+                  {displayedApprovalConsistency.scopeCount}
+                </dd>
+              </div>
+              <div>
+                <dt>Inconsistent / warning scopes</dt>
+                <dd>
+                  {displayedApprovalConsistency.inconsistentScopeCount} /{" "}
+                  {displayedApprovalConsistency.warningScopeCount}
+                </dd>
+              </div>
+              <div>
+                <dt>Blockers / warnings</dt>
+                <dd>
+                  {displayedApprovalConsistency.blockerCount} /{" "}
+                  {displayedApprovalConsistency.warningCount}
+                </dd>
+              </div>
+              <div>
+                <dt>Hash</dt>
+                <dd>{displayedApprovalConsistency.hashPrefix ?? "n/a"}</dd>
+              </div>
+              <div>
+                <dt>Advisory / approve</dt>
+                <dd>
+                  {displayedApprovalConsistency.readiness
+                    .canUseForAdvisoryReview
+                    ? "yes"
+                    : "no"}{" "}
+                  /{" "}
+                  {displayedApprovalConsistency.readiness.canApprove
+                    ? "yes"
+                    : "no"}
+                </dd>
+              </div>
+              <div>
+                <dt>Apply / rollback</dt>
+                <dd>
+                  {displayedApprovalConsistency.readiness.canApplyPatch
+                    ? "yes"
+                    : "no"}{" "}
+                  /{" "}
+                  {displayedApprovalConsistency.readiness.canRollback
+                    ? "yes"
+                    : "no"}
+                </dd>
+              </div>
+              <div>
+                <dt>Lease / EventStore</dt>
+                <dd>
+                  {displayedApprovalConsistency.readiness
+                    .canIssuePermissionLease
+                    ? "yes"
+                    : "no"}{" "}
+                  /{" "}
+                  {displayedApprovalConsistency.readiness.canWriteEventStore
+                    ? "yes"
+                    : "no"}
+                </dd>
+              </div>
+              <div>
+                <dt>Desktop / Git-shell</dt>
+                <dd>
+                  {displayedApprovalConsistency.readiness
+                    .canExecuteDesktopAction
+                    ? "yes"
+                    : "no"}{" "}
+                  /{" "}
+                  {displayedApprovalConsistency.readiness.canExecuteGit ||
+                  displayedApprovalConsistency.readiness.canExecuteShell
+                    ? "yes"
+                    : "no"}
+                </dd>
+              </div>
+            </dl>
+
+            {displayedApprovalConsistency.scopeSummaries.length > 0 ? (
+              <ol className="timeline">
+                {displayedApprovalConsistency.scopeSummaries.map((scope) => (
+                  <li key={scope.scopeId}>
+                    <span className="timelineMeta">
+                      {scope.kind} · {scope.stageKind} · {scope.status}
+                    </span>
+                    <span>summary {scope.summaryHash}</span>
+                    {scope.expiresAt !== undefined ? (
+                      <span className="timelineMeta">
+                        expires {scope.expiresAt}
+                      </span>
+                    ) : null}
+                    {scope.warningCodes.length > 0 ? (
+                      <span className="timelineMeta">
+                        Warnings: {scope.warningCodes.join(", ")}
+                      </span>
+                    ) : null}
+                    {scope.blockerCodes.length > 0 ? (
+                      <span className="timelineMeta">
+                        Blockers: {scope.blockerCodes.join(", ")}
+                      </span>
+                    ) : null}
+                  </li>
+                ))}
+              </ol>
+            ) : null}
+
+            {displayedApprovalConsistency.findingCodes.length > 0 ? (
+              <p className="muted">
+                findings {displayedApprovalConsistency.findingCodes.join(", ")}
+              </p>
+            ) : null}
+
+            <p className="fieldHelp">
+              {summarizeApprovalConsistencyView(displayedApprovalConsistency)
+                .source}{" "}
+              · {displayedApprovalConsistency.nextAction}
             </p>
           </section>
 

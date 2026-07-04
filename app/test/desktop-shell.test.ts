@@ -115,6 +115,7 @@ import {
 import { buildLiveProposalEvaluationTelemetryAuditView } from "../src/live-proposal-evaluation-telemetry-audit-view.js";
 import { buildCrossSurfaceWorkflowView } from "../src/cross-surface-workflow-view.js";
 import { buildCrossSurfaceEvidenceView } from "../src/cross-surface-evidence-view.js";
+import { buildApprovalConsistencyView } from "../src/approval-consistency-view.js";
 import { buildCrossSurfaceReplayTimelineView } from "../src/cross-surface-replay-timeline-view.js";
 import {
   buildCrossSurfaceApprovedSequence,
@@ -24828,6 +24829,139 @@ describe("desktop source boundaries", () => {
     expect(evidenceDoc).toContain("execute desktop actions");
     expect(evidenceDoc).toContain("write EventStore events");
     expect(docsIndex).toContain("cross-surface-evidence-integration-v0.27.md");
+  });
+
+  it("previews approval and receipt consistency without enabling execution", () => {
+    const view = buildApprovalConsistencyView({
+      consistencyJsonText: JSON.stringify({
+        createdAt: "2026-07-05T00:00:00.000Z",
+        expectedTaskId: "task-1",
+        expectedWorkspaceRootRef: "workspace-ref",
+        expectedProposalId: "proposal-1",
+        scopes: [
+          {
+            scopeId: "apply-receipt-1",
+            kind: "user_workspace_apply_receipt",
+            stageKind: "workspace_apply",
+            taskId: "task-1",
+            workspaceRootRef: "workspace-ref",
+            proposalId: "proposal-1",
+            allowedPathRefs: ["docs/example.md"],
+            expiresAt: "2026-07-06T00:00:00.000Z",
+            typedConfirmationPresent: true,
+            summary: "Apply receipt summary."
+          }
+        ]
+      }),
+      sourceKind: "fixture"
+    });
+
+    expect(view.status).toBe("consistent");
+    expect(view.scopeCount).toBe(1);
+    expect(view.readiness.canUseForAdvisoryReview).toBe(true);
+    expect(view.readiness.canApprove).toBe(false);
+    expect(view.readiness.canApplyPatch).toBe(false);
+    expect(view.readiness.canRollback).toBe(false);
+    expect(view.readiness.canIssuePermissionLease).toBe(false);
+    expect(view.readiness.canWriteEventStore).toBe(false);
+    expect(view.readiness.appCanExecute).toBe(false);
+  });
+
+  it("blocks unsafe approval consistency summaries", () => {
+    const view = buildApprovalConsistencyView({
+      consistencyJsonText: JSON.stringify({
+        scopes: [
+          {
+            scopeId: "unsafe-receipt",
+            kind: "desktop_action_approval",
+            stageKind: "workspace_apply",
+            allowedPathRefs: ["*"],
+            typedConfirmationPresent: false,
+            rawPrompt: "do not show raw prompt",
+            summary: "Bearer abcdefghijklmnop",
+            readiness: {
+              canApplyPatch: true
+            }
+          }
+        ]
+      }),
+      sourceKind: "fixture"
+    });
+    const serialized = JSON.stringify(view);
+
+    expect(view.status).toBe("blocked");
+    expect(view.findingCodes).toEqual(
+      expect.arrayContaining([
+        "FORBIDDEN_FIELD",
+        "BEARER_TOKEN_MARKER",
+        "EXECUTION_FLAG_TRUE",
+        "DESKTOP_RECEIPT_USED_FOR_WORKSPACE_APPLY",
+        "BROAD_WILDCARD_SCOPE",
+        "MISSING_TYPED_CONFIRMATION"
+      ])
+    );
+    expect(serialized).not.toContain("do not show raw prompt");
+    expect(serialized).not.toContain("Bearer abcdefghijklmnop");
+    expect(view.readiness.canApprove).toBe(false);
+    expect(view.readiness.canApplyPatch).toBe(false);
+    expect(view.readiness.appCanExecute).toBe(false);
+  });
+
+  it("renders the App approval consistency panel as read-only", async () => {
+    const appSource = await readFile(
+      path.join(appRoot, "src", "App.tsx"),
+      "utf8"
+    );
+    const viewSource = await readFile(
+      path.join(appRoot, "src", "approval-consistency-view.ts"),
+      "utf8"
+    );
+
+    expect(appSource).toContain("Approval / Receipt Consistency");
+    expect(appSource).toContain("Read-only / advisory");
+    expect(appSource).toContain("Preview Consistency");
+    expect(appSource).toContain("Clear Consistency Preview");
+    expect(appSource).toContain("does not approve, reject, apply, rollback");
+    expect(appSource).not.toContain("Approve Consistency");
+    expect(appSource).not.toContain("Reject Consistency");
+    expect(appSource).not.toContain("Apply Consistency");
+    expect(appSource).not.toContain("Rollback Consistency");
+    expect(viewSource).toContain("approval-consistency-check");
+    expect(viewSource).not.toContain("safeInvoke");
+    expect(viewSource).not.toContain("fetch(");
+    expect(viewSource).not.toContain("writeFile");
+    expect(viewSource).not.toContain("readFile");
+  });
+
+  it("documents approval consistency hardening", async () => {
+    const runtimeDoc = await readFile(
+      path.join(repoRoot, "docs", "runtime-approval-consistency-check-v0.28.md"),
+      "utf8"
+    );
+    const appDoc = await readFile(
+      path.join(repoRoot, "docs", "app-shell-approval-consistency-v0.28.md"),
+      "utf8"
+    );
+    const docsIndex = await readFile(
+      path.join(repoRoot, "docs", "README.md"),
+      "utf8"
+    );
+    const combined = `${runtimeDoc}\n${appDoc}`;
+
+    expect(runtimeDoc).toContain("Runtime Approval Consistency Check v0.28");
+    expect(runtimeDoc).toContain("expired receipts");
+    expect(runtimeDoc).toContain("mismatched task ids");
+    expect(runtimeDoc).toContain("broad PermissionLease");
+    expect(runtimeDoc).toContain("missing typed confirmation");
+    expect(runtimeDoc).toContain("All execution readiness flags are false");
+    expect(appDoc).toContain("App Shell Approval / Receipt Consistency v0.28");
+    expect(appDoc).toContain("Read-only advisory panel");
+    expect(appDoc).toContain("Does not approve or reject");
+    expect(appDoc).toContain("Does not apply or rollback");
+    expect(appDoc).toContain("Does not write EventStore");
+    expect(combined).not.toContain("App execution enabled");
+    expect(docsIndex).toContain("runtime-approval-consistency-check-v0.28.md");
+    expect(docsIndex).toContain("app-shell-approval-consistency-v0.28.md");
   });
 
   it("summarizes approved cross-surface lanes without executing them", () => {
