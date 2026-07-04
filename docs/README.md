@@ -495,6 +495,7 @@ foundation.
 - [Runtime MCP Read-only Tool Consistency v0.30](runtime-mcp-readonly-tool-consistency-v0.30.md)
 - [Runtime Plugin / Skill Sandbox Escape Checks v0.30](runtime-plugin-skill-sandbox-escape-checks-v0.30.md)
 - [Runtime External Capability Replay Completeness v0.30](runtime-external-capability-replay-completeness-v0.30.md)
+- [Runtime External Capability Redaction Audit v0.30](runtime-external-capability-redaction-audit-v0.30.md)
 - [Runtime Memory Recall Preview v0.3](runtime-memory-recall-preview-v0.3.md)
 - [v0.4.0 Controlled Creation Preview RC release notes](release-notes-v0.4.0-controlled-creation-preview-rc.1.md)
 - [App Shell Controlled Creation manual QA](app-shell-controlled-creation-manual-qa.md)

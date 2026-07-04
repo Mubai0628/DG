@@ -145,6 +145,50 @@ describe("external capability redaction audit", () => {
     expectNoExecution(audit);
   });
 
+  it("audits P1H summary artifacts without raw output persistence", () => {
+    const audit = buildExternalCapabilityRedactionAudit({
+      policyHardeningReport: {
+        status: "policy_ready",
+        riskSummary: { low: 1 }
+      },
+      mcpReadonlyConsistencyReport: {
+        status: "consistency_ready",
+        redactionCounts: {
+          redactedFieldCount: 1,
+          rawFieldDetectedCount: 0
+        }
+      },
+      sandboxEscapeReport: {
+        status: "safe_metadata",
+        blockedSignalCodes: []
+      },
+      replayCompletenessReport: {
+        status: "replay_ready",
+        resultCount: 2
+      },
+      externalResultSummaries: [
+        {
+          resultId: "external-result-1",
+          descriptorRef: "descriptor-external-1",
+          sourceType: "mcp_readonly_tool",
+          hashPrefix: "abc123"
+        }
+      ]
+    });
+    const summary = summarizeExternalCapabilityRedactionAudit(audit);
+
+    expect(audit.status).toBe("audit_ready");
+    expect(audit.sourceCounts.policyHardeningReportCount).toBe(1);
+    expect(audit.sourceCounts.mcpReadonlyConsistencyReportCount).toBe(1);
+    expect(audit.sourceCounts.sandboxEscapeReportCount).toBe(1);
+    expect(audit.sourceCounts.replayCompletenessReportCount).toBe(1);
+    expect(audit.sourceCounts.externalResultSummaryCount).toBe(1);
+    expect(audit.rawFieldDetectedCount).toBe(0);
+    expect(summary.redactedFieldCount).toBe(0);
+    expect(summary.riskSummary.low).toBe(1);
+    expectNoExecution(audit);
+  });
+
   it("blocks raw fields and secret markers", () => {
     const audit = buildExternalCapabilityRedactionAudit({
       manifestResult: safeManifest(),
@@ -189,6 +233,80 @@ describe("external capability redaction audit", () => {
     expect(codes).toContain("SECRET_URL_QUERY_REJECTED");
     expect(audit.rawLeakBooleans.secretUrlDetected).toBe(true);
     expectNoExecution(audit);
+  });
+
+  it("blocks raw tool output, raw stdout/stderr, raw package content, and process execution fields", () => {
+    const audit = buildExternalCapabilityRedactionAudit({
+      replayCompletenessReport: {
+        status: "replay_ready"
+      },
+      externalResultSummaries: [
+        {
+          resultId: "external-result-raw",
+          rawToolOutput: "RAW_TOOL_OUTPUT_SHOULD_NOT_LEAK",
+          rawPackageContent: "RAW_PACKAGE_CONTENT_SHOULD_NOT_LEAK",
+          stdout: "RAW_STDOUT_SHOULD_NOT_LEAK",
+          stderr: "RAW_STDERR_SHOULD_NOT_LEAK",
+          childProcess: "spawn synthetic",
+          nativeBridge: true
+        }
+      ]
+    } as never);
+    const codes = audit.findings.map((finding) => finding.code);
+    const serialized = JSON.stringify(audit);
+
+    expect(audit.status).toBe("blocked");
+    expect(codes).toContain("RAW_TOOL_OUTPUT_FIELD_REJECTED");
+    expect(codes).toContain("RAW_PACKAGE_CONTENT_FIELD_REJECTED");
+    expect(codes).toContain("RAW_STDOUT_FIELD_REJECTED");
+    expect(codes).toContain("RAW_STDERR_FIELD_REJECTED");
+    expect(codes).toContain("CHILD_PROCESS_FIELD_REJECTED");
+    expect(codes).toContain("NATIVE_BRIDGE_FIELD_REJECTED");
+    expect(audit.rawLeakBooleans.rawToolOutputDetected).toBe(true);
+    expect(audit.rawLeakBooleans.rawPackageContentDetected).toBe(true);
+    expect(audit.rawLeakBooleans.rawStdoutDetected).toBe(true);
+    expect(audit.rawLeakBooleans.rawStderrDetected).toBe(true);
+    expect(serialized).not.toContain("RAW_TOOL_OUTPUT_SHOULD_NOT_LEAK");
+    expect(serialized).not.toContain("RAW_PACKAGE_CONTENT_SHOULD_NOT_LEAK");
+    expect(serialized).not.toContain("RAW_STDOUT_SHOULD_NOT_LEAK");
+    expect(serialized).not.toContain("RAW_STDERR_SHOULD_NOT_LEAK");
+    expectNoExecution(audit);
+  });
+
+  it("blocks or warns on P1H artifact statuses", () => {
+    const blocked = buildExternalCapabilityRedactionAudit({
+      policyHardeningReport: { status: "blocked" },
+      mcpReadonlyConsistencyReport: { status: "blocked" },
+      sandboxEscapeReport: { status: "blocked" },
+      replayCompletenessReport: { status: "blocked" }
+    });
+    const warning = buildExternalCapabilityRedactionAudit({
+      policyHardeningReport: { status: "warning" },
+      mcpReadonlyConsistencyReport: { status: "warning" },
+      sandboxEscapeReport: { status: "warning" },
+      replayCompletenessReport: { status: "warning" }
+    });
+
+    expect(blocked.status).toBe("blocked");
+    expect(blocked.findings.map((finding) => finding.code)).toEqual(
+      expect.arrayContaining([
+        "BLOCKED_POLICY_HARDENING_REPORT",
+        "BLOCKED_MCP_READONLY_CONSISTENCY_REPORT",
+        "BLOCKED_SANDBOX_ESCAPE_REPORT",
+        "BLOCKED_REPLAY_COMPLETENESS_REPORT"
+      ])
+    );
+    expect(warning.status).toBe("warning");
+    expect(warning.findings.map((finding) => finding.code)).toEqual(
+      expect.arrayContaining([
+        "WARNING_POLICY_HARDENING_REPORT",
+        "WARNING_MCP_READONLY_CONSISTENCY_REPORT",
+        "WARNING_SANDBOX_ESCAPE_REPORT",
+        "WARNING_REPLAY_COMPLETENESS_REPORT"
+      ])
+    );
+    expectNoExecution(blocked);
+    expectNoExecution(warning);
   });
 
   it("blocks execution readiness and issued leases", () => {

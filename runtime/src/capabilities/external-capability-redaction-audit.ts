@@ -12,6 +12,11 @@ export type ExternalCapabilityRedactionAuditInput = {
   brokerIntegrationResult?:
     | ExternalCapabilityBrokerIntegrationResult
     | undefined;
+  policyHardeningReport?: unknown;
+  mcpReadonlyConsistencyReport?: unknown;
+  sandboxEscapeReport?: unknown;
+  replayCompletenessReport?: unknown;
+  externalResultSummaries?: unknown[] | undefined;
   appSurfaceSummary?: unknown;
   createdAt?: string | undefined;
   idGenerator?: (() => string) | undefined;
@@ -54,6 +59,11 @@ export type ExternalCapabilityAuditSourceCounts = {
   mcpDiscoveryResultCount: number;
   pluginSkillScanResultCount: number;
   brokerIntegrationResultCount: number;
+  policyHardeningReportCount: number;
+  mcpReadonlyConsistencyReportCount: number;
+  sandboxEscapeReportCount: number;
+  replayCompletenessReportCount: number;
+  externalResultSummaryCount: number;
   appSurfaceSummaryCount: number;
 };
 
@@ -77,6 +87,10 @@ export type ExternalCapabilityRawLeakBooleans = {
   rawSourceDetected: boolean;
   rawDiffDetected: boolean;
   rawResponseDetected: boolean;
+  rawToolOutputDetected: boolean;
+  rawPackageContentDetected: boolean;
+  rawStdoutDetected: boolean;
+  rawStderrDetected: boolean;
   executionFieldDetected: boolean;
   secretUrlDetected: boolean;
   leaseIssuedDetected: boolean;
@@ -128,11 +142,22 @@ const forbiddenFieldCodes = new Map<string, string>([
   [rawPrefix + "source", "RAW_SOURCE_FIELD_REJECTED"],
   [rawPrefix + "diff", "RAW_DIFF_FIELD_REJECTED"],
   [rawPrefix + "response", "RAW_RESPONSE_FIELD_REJECTED"],
+  [rawPrefix + "tooloutput", "RAW_TOOL_OUTPUT_FIELD_REJECTED"],
+  [rawPrefix + "output", "RAW_TOOL_OUTPUT_FIELD_REJECTED"],
+  [rawPrefix + "packagecontent", "RAW_PACKAGE_CONTENT_FIELD_REJECTED"],
+  [rawPrefix + "stdout", "RAW_STDOUT_FIELD_REJECTED"],
+  [rawPrefix + "stderr", "RAW_STDERR_FIELD_REJECTED"],
+  ["stdout", "RAW_STDOUT_FIELD_REJECTED"],
+  ["stderr", "RAW_STDERR_FIELD_REJECTED"],
   ["command", "COMMAND_FIELD_REJECTED"],
   ["shellcommand", "SHELL_COMMAND_FIELD_REJECTED"],
   ["gitcommand", "GIT_COMMAND_FIELD_REJECTED"],
   ["nativecommand", "NATIVE_COMMAND_FIELD_REJECTED"],
+  ["nativebridge", "NATIVE_BRIDGE_FIELD_REJECTED"],
   ["desktopaction", "DESKTOP_ACTION_FIELD_REJECTED"],
+  ["childprocess", "CHILD_PROCESS_FIELD_REJECTED"],
+  ["exec", "EXEC_FIELD_REJECTED"],
+  ["spawn", "SPAWN_FIELD_REJECTED"],
   ["installscript", "INSTALL_SCRIPT_REJECTED"],
   ["postinstall", "POSTINSTALL_REJECTED"],
   ["preinstall", "PREINSTALL_REJECTED"],
@@ -224,6 +249,11 @@ export function buildExternalCapabilityRedactionAudit(
       sourceCounts.mcpDiscoveryResultCount +
       sourceCounts.pluginSkillScanResultCount +
       sourceCounts.brokerIntegrationResultCount +
+      sourceCounts.policyHardeningReportCount +
+      sourceCounts.mcpReadonlyConsistencyReportCount +
+      sourceCounts.sandboxEscapeReportCount +
+      sourceCounts.replayCompletenessReportCount +
+      sourceCounts.externalResultSummaryCount +
       sourceCounts.appSurfaceSummaryCount >
     0;
   const status: ExternalCapabilityRedactionAuditStatus = !hasInput
@@ -246,7 +276,9 @@ export function buildExternalCapabilityRedactionAudit(
 
   return {
     status,
-    auditId: `external-capability-redaction-audit-${auditHash.slice(0, 12)}`,
+    auditId:
+      input.idGenerator?.() ??
+      `external-capability-redaction-audit-${auditHash.slice(0, 12)}`,
     sourceCounts,
     descriptorCounts,
     redactedFieldCount,
@@ -272,6 +304,7 @@ export function summarizeExternalCapabilityRedactionAudit(
   | "auditId"
   | "sourceCounts"
   | "descriptorCounts"
+  | "redactedFieldCount"
   | "rawFieldDetectedCount"
   | "rawLeakBooleans"
   | "riskSummary"
@@ -286,6 +319,7 @@ export function summarizeExternalCapabilityRedactionAudit(
     auditId: audit.auditId,
     sourceCounts: audit.sourceCounts,
     descriptorCounts: audit.descriptorCounts,
+    redactedFieldCount: audit.redactedFieldCount,
     rawFieldDetectedCount: audit.rawFieldDetectedCount,
     rawLeakBooleans: audit.rawLeakBooleans,
     riskSummary: audit.riskSummary,
@@ -335,6 +369,65 @@ function auditSourceStatuses(
       "blocker",
       "BLOCKED_BROKER_INTEGRATION_RESULT",
       "Blocked broker integration metadata cannot pass redaction audit."
+    );
+  }
+  auditGenericStatus(
+    input.policyHardeningReport,
+    findings,
+    "policyHardeningReport.status",
+    "BLOCKED_POLICY_HARDENING_REPORT",
+    "WARNING_POLICY_HARDENING_REPORT"
+  );
+  auditGenericStatus(
+    input.mcpReadonlyConsistencyReport,
+    findings,
+    "mcpReadonlyConsistencyReport.status",
+    "BLOCKED_MCP_READONLY_CONSISTENCY_REPORT",
+    "WARNING_MCP_READONLY_CONSISTENCY_REPORT"
+  );
+  auditGenericStatus(
+    input.sandboxEscapeReport,
+    findings,
+    "sandboxEscapeReport.status",
+    "BLOCKED_SANDBOX_ESCAPE_REPORT",
+    "WARNING_SANDBOX_ESCAPE_REPORT"
+  );
+  auditGenericStatus(
+    input.replayCompletenessReport,
+    findings,
+    "replayCompletenessReport.status",
+    "BLOCKED_REPLAY_COMPLETENESS_REPORT",
+    "WARNING_REPLAY_COMPLETENESS_REPORT"
+  );
+}
+
+function auditGenericStatus(
+  value: unknown,
+  findings: ExternalCapabilityRedactionAuditFinding[],
+  path: string,
+  blockedCode: string,
+  warningCode: string
+): void {
+  const status = readStatus(value);
+  if (status === "blocked") {
+    addFinding(
+      findings,
+      "source",
+      "blocker",
+      blockedCode,
+      "Blocked external capability summary artifact cannot pass redaction audit.",
+      path
+    );
+    return;
+  }
+  if (status === "warning") {
+    addFinding(
+      findings,
+      "source",
+      "warning",
+      warningCode,
+      "External capability summary artifact contains warnings.",
+      path
     );
   }
 }
@@ -507,6 +600,16 @@ function sourceCountsFrom(
       input.pluginSkillScanResult === undefined ? 0 : 1,
     brokerIntegrationResultCount:
       input.brokerIntegrationResult === undefined ? 0 : 1,
+    policyHardeningReportCount:
+      input.policyHardeningReport === undefined ? 0 : 1,
+    mcpReadonlyConsistencyReportCount:
+      input.mcpReadonlyConsistencyReport === undefined ? 0 : 1,
+    sandboxEscapeReportCount: input.sandboxEscapeReport === undefined ? 0 : 1,
+    replayCompletenessReportCount:
+      input.replayCompletenessReport === undefined ? 0 : 1,
+    externalResultSummaryCount: Array.isArray(input.externalResultSummaries)
+      ? input.externalResultSummaries.length
+      : 0,
     appSurfaceSummaryCount: input.appSurfaceSummary === undefined ? 0 : 1
   };
 }
@@ -557,6 +660,10 @@ function riskSummaryFrom(
   }
   const appRiskSummary = recordValue(input.appSurfaceSummary, "riskSummary");
   for (const [risk, count] of Object.entries(appRiskSummary ?? {})) {
+    summary[risk] = (summary[risk] ?? 0) + safeCount(count);
+  }
+  const policyRiskSummary = recordValue(input.policyHardeningReport, "riskSummary");
+  for (const [risk, count] of Object.entries(policyRiskSummary ?? {})) {
     summary[risk] = (summary[risk] ?? 0) + safeCount(count);
   }
   return summary;
@@ -669,7 +776,11 @@ function rawFieldKindFor(
     normalizedKey.includes("command") ||
     normalizedKey === "execute" ||
     normalizedKey === "invoke" ||
-    normalizedKey === "desktopaction"
+    normalizedKey === "desktopaction" ||
+    normalizedKey === "nativebridge" ||
+    normalizedKey === "childprocess" ||
+    normalizedKey === "exec" ||
+    normalizedKey === "spawn"
   ) {
     return "execution_field";
   }
@@ -687,6 +798,10 @@ function rawLeakBooleansFrom(
     rawSourceDetected: codes.has("RAW_SOURCE_FIELD_REJECTED"),
     rawDiffDetected: codes.has("RAW_DIFF_FIELD_REJECTED"),
     rawResponseDetected: codes.has("RAW_RESPONSE_FIELD_REJECTED"),
+    rawToolOutputDetected: codes.has("RAW_TOOL_OUTPUT_FIELD_REJECTED"),
+    rawPackageContentDetected: codes.has("RAW_PACKAGE_CONTENT_FIELD_REJECTED"),
+    rawStdoutDetected: codes.has("RAW_STDOUT_FIELD_REJECTED"),
+    rawStderrDetected: codes.has("RAW_STDERR_FIELD_REJECTED"),
     executionFieldDetected: findings.some(
       (finding) => finding.kind === "execution_field"
     ),
@@ -725,6 +840,11 @@ function readinessFor(
     canExecuteShell: false,
     appCanExecute: false
   };
+}
+
+function readStatus(value: unknown): string | undefined {
+  const status = recordValue(value)?.status;
+  return typeof status === "string" ? status : undefined;
 }
 
 function nextActionFor(status: ExternalCapabilityRedactionAuditStatus): string {
