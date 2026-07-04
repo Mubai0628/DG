@@ -74,6 +74,7 @@ import {
 } from "../src/capability-plan-preview-view.js";
 import { buildFixedMultiAgentRunView } from "../src/fixed-multi-agent-run-view.js";
 import { buildFixedAgentReplayProjectionView } from "../src/fixed-agent-replay-projection-view.js";
+import { buildAgentHandoffStateReviewView } from "../src/agent-handoff-state-review-view.js";
 import {
   buildCapabilityHostSurfaceView,
   capabilityHostSurfaceWarningCodes,
@@ -25584,6 +25585,171 @@ describe("desktop source boundaries", () => {
     expect(docsIndex).toContain("runtime-replay-audit-completeness-v0.28.md");
     expect(docsIndex).toContain(
       "app-shell-cross-surface-replay-audit-v0.28.md"
+    );
+  });
+
+  it("previews agent handoff state review without rerunning agents", () => {
+    const view = buildAgentHandoffStateReviewView({
+      handoffJsonText: JSON.stringify({
+        stages: [
+          {
+            stageId: "orchestrator-stage",
+            role: "orchestrator",
+            status: "completed",
+            summary: "Orchestrator handoff summary.",
+            outputRef: "orchestrator-output",
+            dossierHash: "hash-orchestrator",
+            expectedDossierHash: "hash-orchestrator",
+            evidenceRefs: ["objective-ref"],
+            contextRefs: ["context-ref"]
+          },
+          {
+            stageId: "coder-stage",
+            role: "coder",
+            status: "completed",
+            summary: "Coder proposal summary.",
+            outputRef: "coder-output",
+            proposalId: "proposal-1",
+            dossierHash: "hash-coder",
+            expectedDossierHash: "hash-coder",
+            evidenceRefs: ["proposal-ref"],
+            contextRefs: ["context-ref"]
+          },
+          {
+            stageId: "reviewer-stage",
+            role: "reviewer",
+            status: "completed",
+            summary: "Reviewer validation summary.",
+            outputRef: "reviewer-output",
+            dossierHash: "hash-reviewer",
+            expectedDossierHash: "hash-reviewer",
+            evidenceRefs: ["validation-ref"],
+            contextRefs: ["context-ref"]
+          },
+          {
+            stageId: "verifier-stage",
+            role: "verifier",
+            status: "completed",
+            summary: "Verifier result summary.",
+            outputRef: "verifier-output",
+            verificationSummaryRef: "verification-ref",
+            dossierHash: "hash-verifier",
+            expectedDossierHash: "hash-verifier",
+            evidenceRefs: ["verification-ref"],
+            contextRefs: ["context-ref"]
+          }
+        ]
+      }),
+      sourceKind: "fixture"
+    });
+
+    expect(view.status).toBe("review_ready");
+    expect(view.stageCount).toBe(4);
+    expect(view.completedStageCount).toBe(4);
+    expect(view.readiness.canReviewHandoffState).toBe(true);
+    expect(view.readiness.canRerunAgent).toBe(false);
+    expect(view.readiness.canCreateDynamicAgent).toBe(false);
+    expect(view.readiness.canBidAgents).toBe(false);
+    expect(view.readiness.canInvokeTools).toBe(false);
+    expect(view.readiness.canWriteEventStore).toBe(false);
+    expect(view.readiness.canExecuteGit).toBe(false);
+    expect(view.readiness.canExecuteShell).toBe(false);
+    expect(view.readiness.appCanExecute).toBe(false);
+  });
+
+  it("blocks unsafe agent handoff state review summaries", () => {
+    const view = buildAgentHandoffStateReviewView({
+      handoffJsonText: JSON.stringify({
+        stages: [
+          {
+            role: "coder",
+            status: "completed",
+            summary: "Bearer abcdefghijklmnop",
+            rawPrompt: "do not display raw handoff prompt",
+            readiness: {
+              canRerunAgent: true
+            }
+          }
+        ]
+      }),
+      sourceKind: "fixture"
+    });
+    const serialized = JSON.stringify(view);
+
+    expect(view.status).toBe("blocked");
+    expect(view.findingCodes).toEqual(
+      expect.arrayContaining([
+        "FORBIDDEN_RAW_HANDOFF_FIELD",
+        "BEARER_TOKEN_MARKER",
+        "EXECUTION_FLAG_TRUE",
+        "REVIEWER_OR_VERIFIER_SKIPPED"
+      ])
+    );
+    expect(serialized).not.toContain("do not display raw handoff prompt");
+    expect(serialized).not.toContain("Bearer abcdefghijklmnop");
+    expect(view.readiness.canRerunAgent).toBe(false);
+    expect(view.readiness.canInvokeTools).toBe(false);
+    expect(view.readiness.appCanExecute).toBe(false);
+  });
+
+  it("renders the App agent handoff state review panel as read-only", async () => {
+    const appSource = await readFile(
+      path.join(appRoot, "src", "App.tsx"),
+      "utf8"
+    );
+    const viewSource = await readFile(
+      path.join(appRoot, "src", "agent-handoff-state-review-view.ts"),
+      "utf8"
+    );
+
+    expect(appSource).toContain("Agent Handoff State Review");
+    expect(appSource).toContain("Read-only / no agent rerun");
+    expect(appSource).toContain("Preview Handoff Review");
+    expect(appSource).toContain("Clear Handoff Review");
+    expect(appSource).toContain("does not");
+    expect(appSource).toContain("rerun agents");
+    expect(appSource).toContain("create dynamic bidding");
+    expect(appSource).toContain("invoke tools");
+    expect(appSource).not.toContain("Rerun Agent</button>");
+    expect(appSource).not.toContain("Dynamic Bidding</button>");
+    expect(appSource).not.toContain("Execute Handoff Review</button>");
+    expect(viewSource).toContain("app_agent_handoff_state_review");
+    expect(viewSource).not.toContain("safeInvoke");
+    expect(viewSource).not.toContain("fetch(");
+    expect(viewSource).not.toContain("writeFile");
+    expect(viewSource).not.toContain("writeEvent");
+  });
+
+  it("documents agent handoff state review hardening", async () => {
+    const runtimeDoc = await readFile(
+      path.join(repoRoot, "docs", "runtime-agent-handoff-state-review-v0.28.md"),
+      "utf8"
+    );
+    const appDoc = await readFile(
+      path.join(repoRoot, "docs", "app-shell-agent-handoff-state-review-v0.28.md"),
+      "utf8"
+    );
+    const docsIndex = await readFile(
+      path.join(repoRoot, "docs", "README.md"),
+      "utf8"
+    );
+
+    expect(runtimeDoc).toContain("Runtime Agent Handoff State Review v0.28");
+    expect(runtimeDoc).toContain("missing role output");
+    expect(runtimeDoc).toContain("role order mismatch");
+    expect(runtimeDoc).toContain("stale dossier");
+    expect(runtimeDoc).toContain("skipped reviewer or verifier");
+    expect(runtimeDoc).toContain("raw prompt/source/diff");
+    expect(runtimeDoc).toContain("No agent rerun");
+    expect(runtimeDoc).toContain("No dynamic agent bidding");
+    expect(appDoc).toContain("App Shell Agent Handoff State Review v0.28");
+    expect(appDoc).toContain("does not rerun agents");
+    expect(appDoc).toContain("create dynamic bidding");
+    expect(appDoc).toContain("invoke tools");
+    expect(appDoc).toContain("No App execution");
+    expect(docsIndex).toContain("runtime-agent-handoff-state-review-v0.28.md");
+    expect(docsIndex).toContain(
+      "app-shell-agent-handoff-state-review-v0.28.md"
     );
   });
 

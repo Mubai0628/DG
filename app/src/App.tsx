@@ -116,6 +116,11 @@ import {
   type FixedAgentReplayProjectionView
 } from "./fixed-agent-replay-projection-view.js";
 import {
+  buildAgentHandoffStateReviewView,
+  summarizeAgentHandoffStateReviewView,
+  type AgentHandoffStateReviewView
+} from "./agent-handoff-state-review-view.js";
+import {
   buildCapabilityHostSurfaceView,
   capabilityHostSurfaceWarningCodes,
   summarizeCapabilityHostSurfaceView,
@@ -884,6 +889,10 @@ export function DesktopShell(): JSX.Element {
     fixedAgentReplayProjectionPreview,
     setFixedAgentReplayProjectionPreview
   ] = useState<FixedAgentReplayProjectionView | undefined>();
+  const [agentHandoffStateReviewText, setAgentHandoffStateReviewText] =
+    useState("");
+  const [agentHandoffStateReviewPreview, setAgentHandoffStateReviewPreview] =
+    useState<AgentHandoffStateReviewView | undefined>();
   const [mcpReadonlyProfileText, setMcpReadonlyProfileText] = useState(
     defaultMcpReadonlyProfileJson
   );
@@ -1680,6 +1689,17 @@ export function DesktopShell(): JSX.Element {
     );
   const displayedFixedAgentReplayProjection =
     fixedAgentReplayProjectionPreview ?? buildFixedAgentReplayProjectionView();
+  const agentHandoffStateReviewCandidate =
+    useMemo<AgentHandoffStateReviewView>(
+      () =>
+        buildAgentHandoffStateReviewView({
+          handoffJsonText: agentHandoffStateReviewText,
+          sourceKind: "paste"
+        }),
+      [agentHandoffStateReviewText]
+    );
+  const displayedAgentHandoffStateReview =
+    agentHandoffStateReviewPreview ?? buildAgentHandoffStateReviewView();
   const patchProposalValidationCandidate =
     useMemo<AppPatchProposalValidationPreviewView>(
       () =>
@@ -2793,6 +2813,9 @@ export function DesktopShell(): JSX.Element {
     setFixedAgentReplayProjectionPreview(undefined);
   }, [eventSummary, fixedMultiAgentRunPreview]);
   useEffect(() => {
+    setAgentHandoffStateReviewPreview(undefined);
+  }, [agentHandoffStateReviewText]);
+  useEffect(() => {
     setMcpReadonlyConnectionPreview(undefined);
     setMcpReadonlyDiscoverResult(undefined);
     setMcpReadonlyDiscoverError(undefined);
@@ -3530,6 +3553,15 @@ export function DesktopShell(): JSX.Element {
 
   function handleClearFixedAgentReplayProjection(): void {
     setFixedAgentReplayProjectionPreview(undefined);
+  }
+
+  function handlePreviewAgentHandoffStateReview(): void {
+    setAgentHandoffStateReviewPreview(agentHandoffStateReviewCandidate);
+  }
+
+  function handleClearAgentHandoffStateReview(): void {
+    setAgentHandoffStateReviewText("");
+    setAgentHandoffStateReviewPreview(undefined);
   }
 
   function handlePreviewPatchProposal(): void {
@@ -16355,6 +16387,209 @@ export function DesktopShell(): JSX.Element {
 
             <p className="fieldHelp">
               {displayedFixedAgentReplayProjection.nextAction}
+            </p>
+          </section>
+
+          <section
+            className="eventPanel"
+            aria-label="Agent Handoff State Review"
+          >
+            <div className="panelHeader">
+              <h2>Agent Handoff State Review</h2>
+              <span className="muted">Read-only / no agent rerun</span>
+            </div>
+            <p className="fieldHelp">
+              Reviews fixed agent handoff summaries for missing outputs, role
+              order mismatch, stale dossier hashes, skipped reviewer/verifier
+              stages, and interrupted workflow recovery. The App Shell does not
+              rerun agents, create dynamic bidding, invoke tools, apply
+              patches, rollback, write EventStore events, or run Git/shell.
+            </p>
+
+            <label>
+              <span>Agent handoff state refs JSON</span>
+              <textarea
+                className="compactTextarea"
+                value={agentHandoffStateReviewText}
+                onChange={(event) => {
+                  setAgentHandoffStateReviewText(event.target.value);
+                }}
+                placeholder="Paste summary-only agent handoff state refs JSON"
+                spellCheck={false}
+              />
+              <p className="fieldHelp">
+                Accepts summary-only orchestrator, coder, reviewer, and
+                verifier stage refs. Raw prompts, raw source, raw diffs, API
+                keys, command payloads, and execution readiness claims are
+                blocked.
+              </p>
+            </label>
+
+            <div className="buttonRow">
+              <button
+                type="button"
+                className="secondary"
+                onClick={(event) => {
+                  event.preventDefault();
+                  event.stopPropagation();
+                  handlePreviewAgentHandoffStateReview();
+                }}
+              >
+                Preview Handoff Review
+              </button>
+              <button
+                type="button"
+                className="secondary"
+                onClick={(event) => {
+                  event.preventDefault();
+                  event.stopPropagation();
+                  handleClearAgentHandoffStateReview();
+                }}
+              >
+                Clear Handoff Review
+              </button>
+            </div>
+
+            {displayedAgentHandoffStateReview.status === "empty" ? (
+              <p className="empty">
+                No agent handoff state refs loaded. Paste summary-only refs to
+                review long-running handoff state.
+              </p>
+            ) : null}
+
+            {displayedAgentHandoffStateReview.status === "blocked" ? (
+              <div className="errorBox">
+                <strong>Agent handoff review blocked</strong>
+                <p>{displayedAgentHandoffStateReview.nextAction}</p>
+              </div>
+            ) : null}
+
+            <dl className="summaryGrid compact">
+              <div>
+                <dt>Status</dt>
+                <dd>{displayedAgentHandoffStateReview.status}</dd>
+              </div>
+              <div>
+                <dt>Review</dt>
+                <dd>{displayedAgentHandoffStateReview.reviewId}</dd>
+              </div>
+              <div>
+                <dt>Stages</dt>
+                <dd>
+                  {displayedAgentHandoffStateReview.completedStageCount} /{" "}
+                  {displayedAgentHandoffStateReview.stageCount}
+                </dd>
+              </div>
+              <div>
+                <dt>Missing / stale</dt>
+                <dd>
+                  {displayedAgentHandoffStateReview.missingRoleOutputCount} /{" "}
+                  {displayedAgentHandoffStateReview.staleStageCount}
+                </dd>
+              </div>
+              <div>
+                <dt>Skipped roles</dt>
+                <dd>{displayedAgentHandoffStateReview.skippedRoleCount}</dd>
+              </div>
+              <div>
+                <dt>Blockers / warnings</dt>
+                <dd>
+                  {displayedAgentHandoffStateReview.blockerCount} /{" "}
+                  {displayedAgentHandoffStateReview.warningCount}
+                </dd>
+              </div>
+              <div>
+                <dt>Hash</dt>
+                <dd>{displayedAgentHandoffStateReview.hashPrefix ?? "n/a"}</dd>
+              </div>
+              <div>
+                <dt>Review / rerun</dt>
+                <dd>
+                  {displayedAgentHandoffStateReview.readiness
+                    .canReviewHandoffState
+                    ? "yes"
+                    : "no"}{" "}
+                  /{" "}
+                  {displayedAgentHandoffStateReview.readiness.canRerunAgent
+                    ? "yes"
+                    : "no"}
+                </dd>
+              </div>
+              <div>
+                <dt>Dynamic / tools</dt>
+                <dd>
+                  {displayedAgentHandoffStateReview.readiness.canBidAgents
+                    ? "yes"
+                    : "no"}{" "}
+                  /{" "}
+                  {displayedAgentHandoffStateReview.readiness.canInvokeTools
+                    ? "yes"
+                    : "no"}
+                </dd>
+              </div>
+              <div>
+                <dt>EventStore / App execution</dt>
+                <dd>
+                  {displayedAgentHandoffStateReview.readiness
+                    .canWriteEventStore
+                    ? "yes"
+                    : "no"}{" "}
+                  /{" "}
+                  {displayedAgentHandoffStateReview.readiness.appCanExecute
+                    ? "yes"
+                    : "no"}
+                </dd>
+              </div>
+            </dl>
+
+            {displayedAgentHandoffStateReview.roleOrder.length > 0 ? (
+              <p className="fieldHelp">
+                role order{" "}
+                {displayedAgentHandoffStateReview.roleOrder.join(" / ")}
+              </p>
+            ) : null}
+
+            {displayedAgentHandoffStateReview.stageSummaries.length > 0 ? (
+              <ol className="timeline">
+                {displayedAgentHandoffStateReview.stageSummaries.map(
+                  (stage) => (
+                    <li key={stage.stageId}>
+                      <span className="timelineMeta">
+                        {stage.role} · {stage.status} · {stage.summaryHash}
+                      </span>
+                      <span>
+                        output {stage.hasOutput ? "yes" : "no"} · evidence{" "}
+                        {stage.evidenceRefCount} · context{" "}
+                        {stage.contextRefCount}
+                      </span>
+                      {stage.warningCodes.length > 0 ? (
+                        <span className="timelineMeta">
+                          Warnings: {stage.warningCodes.join(", ")}
+                        </span>
+                      ) : null}
+                      {stage.blockerCodes.length > 0 ? (
+                        <span className="timelineMeta">
+                          Blockers: {stage.blockerCodes.join(", ")}
+                        </span>
+                      ) : null}
+                    </li>
+                  )
+                )}
+              </ol>
+            ) : null}
+
+            {displayedAgentHandoffStateReview.findingCodes.length > 0 ? (
+              <p className="muted">
+                findings{" "}
+                {displayedAgentHandoffStateReview.findingCodes.join(", ")}
+              </p>
+            ) : null}
+
+            <p className="fieldHelp">
+              {summarizeAgentHandoffStateReviewView(
+                displayedAgentHandoffStateReview
+              ).source}{" "}
+              · {displayedAgentHandoffStateReview.nextAction}
             </p>
           </section>
 
