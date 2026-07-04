@@ -24251,6 +24251,116 @@ describe("desktop source boundaries", () => {
     expect(combined).not.toContain("autonomous desktop agent is enabled");
   });
 
+  it("documents the v0.27 post-release review and P1F cross-surface workflow roadmap", async () => {
+    const promptDoc = await readFile(
+      path.join(
+        repoRoot,
+        "docs",
+        "v0.28-cross-surface-agent-workflow-rc-prompts.md"
+      ),
+      "utf8"
+    );
+    const review = await readFile(
+      path.join(
+        repoRoot,
+        "docs",
+        "v0.27-approved-expanded-desktop-action-postrelease-review.md"
+      ),
+      "utf8"
+    );
+    const roadmap = await readFile(
+      path.join(
+        repoRoot,
+        "docs",
+        "p1f-cross-surface-agent-workflow-roadmap.md"
+      ),
+      "utf8"
+    );
+    const plan = await readFile(
+      path.join(
+        repoRoot,
+        "docs",
+        "p1f-001-cross-surface-agent-workflow-plan.md"
+      ),
+      "utf8"
+    );
+    const docsIndex = await readFile(
+      path.join(repoRoot, "docs", "README.md"),
+      "utf8"
+    );
+    const rootReadme = await readFile(path.join(repoRoot, "README.md"), "utf8");
+    const combined = `${promptDoc}\n${review}\n${roadmap}\n${plan}\n${docsIndex}\n${rootReadme}`;
+
+    expect(promptDoc).toContain("v0.28 Cross-surface Agent Workflow RC");
+    expect(promptDoc).toContain("DW-P1E-010");
+    expect(promptDoc).toContain("DW-P1F-009");
+    expect(promptDoc).toContain("dynamic agent bidding");
+    expect(promptDoc).toContain("arbitrary Git / shell execution");
+    expect(promptDoc).toContain("clipboard write");
+
+    expect(review).toContain(
+      "v0.27.0-approved-expanded-desktop-action-execution-rc.1"
+    );
+    expect(review).toContain(
+      "Approved expanded desktop actions, narrow click/type only"
+    );
+    expect(review).toContain("App live proposal generation");
+    expect(review).toContain("Approved workspace apply and rollback");
+    expect(review).toContain("Git / shell safe verification lanes");
+    expect(review).toContain("MCP read-only discovery");
+    expect(review).toContain("Plugin / Skill metadata governance");
+    expect(review).toContain("Approved expanded desktop action execution");
+    expect(review).toContain("Broad desktop action");
+    expect(review).toContain("Clipboard write");
+    expect(review).toContain("File dialog automation");
+    expect(review).toContain("Dynamic agent desktop control");
+
+    expect(roadmap).toContain("P1F Cross-surface Agent Workflow Roadmap");
+    expect(roadmap).toContain("User objective");
+    expect(roadmap).toContain("DeepSeek live proposal");
+    expect(roadmap).toContain("fixed multi-agent route");
+    expect(roadmap).toContain("project knowledge recall");
+    expect(roadmap).toContain("MCP read-only evidence");
+    expect(roadmap).toContain("plugin / skill metadata evidence");
+    expect(roadmap).toContain("desktop observer evidence");
+    expect(roadmap).toContain("approved workspace apply");
+    expect(roadmap).toContain("unified replay/audit timeline");
+    expect(roadmap).toContain("DW-P1F-001");
+    expect(roadmap).toContain("DW-P1F-009");
+
+    expect(plan).toContain("P1F-001 Cross-surface Agent Workflow Plan");
+    expect(plan).toContain("Docs and design only");
+    expect(plan).toContain("No workflow planner implementation");
+    expect(plan).toContain("No App composer");
+    expect(plan).toContain("No MCP tool invocation");
+    expect(plan).toContain("No desktop action execution");
+    expect(plan).toContain("No Git/shell execution");
+    expect(plan).toContain("No EventStore write");
+
+    expect(docsIndex).toContain(
+      "v0.28-cross-surface-agent-workflow-rc-prompts.md"
+    );
+    expect(docsIndex).toContain(
+      "v0.27-approved-expanded-desktop-action-postrelease-review.md"
+    );
+    expect(docsIndex).toContain("p1f-cross-surface-agent-workflow-roadmap.md");
+    expect(docsIndex).toContain("p1f-001-cross-surface-agent-workflow-plan.md");
+    expect(rootReadme).toContain(
+      "v0.28-cross-surface-agent-workflow-rc-prompts.md"
+    );
+    expect(rootReadme).toContain("p1f-cross-surface-agent-workflow-roadmap.md");
+    expect(rootReadme).toContain(
+      "P1F prepares the v0.28 Cross-surface Agent Workflow RC"
+    );
+
+    expect(combined).toContain("summary-only");
+    expect(combined).not.toContain("dynamic bidding is enabled");
+    expect(combined).not.toContain("broad desktop action is enabled");
+    expect(combined).not.toContain("arbitrary Git/shell is enabled");
+    expect(combined).not.toContain("mutating MCP tool is enabled");
+    expect(combined).not.toContain("arbitrary plugin/skill runtime is enabled");
+  });
+
   it("documents the P1D desktop action expansion ADR and implementation gate", async () => {
     const adr = await readFile(
       path.join(

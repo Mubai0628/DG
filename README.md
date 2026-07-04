@@ -589,6 +589,19 @@ v0.27 RC references:
 - [Approved Expanded Desktop Action manual QA](docs/approved-expanded-desktop-action-manual-qa.md)
 - [Approved Expanded Desktop Action RC checklist](docs/approved-expanded-desktop-action-rc-checklist.md)
 
+P1F prepares the v0.28 Cross-surface Agent Workflow RC by stitching existing
+safe lanes into a demonstrable workflow: live proposal summary, fixed
+multi-agent route, project knowledge refs, MCP read-only evidence,
+plugin/skill metadata, desktop observer evidence, desktop action proposals,
+approved desktop action lanes, approved workspace apply/rollback, fixed
+Git/shell verification, and unified replay/audit. It does not expand execution
+authority.
+
+- [v0.28 Cross-surface Agent Workflow RC prompts](docs/v0.28-cross-surface-agent-workflow-rc-prompts.md)
+- [v0.27 Approved Expanded Desktop Action post-release review](docs/v0.27-approved-expanded-desktop-action-postrelease-review.md)
+- [P1F Cross-surface Agent Workflow roadmap](docs/p1f-cross-surface-agent-workflow-roadmap.md)
+- [P1F-001 Cross-surface Agent Workflow plan](docs/p1f-001-cross-surface-agent-workflow-plan.md)
+
 - [v0.2 App Shell RC post-release review](docs/v0.2-app-shell-rc-postrelease-review.md)
 - [P0G Coding Workflow roadmap](docs/p0g-coding-workflow-roadmap.md)
 - [P0G-001 Workspace Read / Index plan](docs/p0g-001-workspace-read-index-plan.md)
