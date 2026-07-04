@@ -215,6 +215,11 @@ import {
   type ApprovalConsistencyView
 } from "./approval-consistency-view.js";
 import {
+  buildCapabilityPolicyEnforcementView,
+  summarizeCapabilityPolicyEnforcementView,
+  type CapabilityPolicyEnforcementView
+} from "./capability-policy-enforcement-view.js";
+import {
   buildCrossSurfaceReplayTimelineView,
   summarizeCrossSurfaceReplayTimelineView,
   type CrossSurfaceReplayTimelineView
@@ -843,6 +848,10 @@ export function DesktopShell(): JSX.Element {
     useState("");
   const [approvalConsistencyPreview, setApprovalConsistencyPreview] =
     useState<ApprovalConsistencyView | undefined>();
+  const [capabilityPolicyJsonText, setCapabilityPolicyJsonText] = useState("");
+  const [capabilityPolicyPreview, setCapabilityPolicyPreview] = useState<
+    CapabilityPolicyEnforcementView | undefined
+  >();
   const [crossSurfaceReplayTimelineText, setCrossSurfaceReplayTimelineText] =
     useState("");
   const [
@@ -2475,6 +2484,16 @@ export function DesktopShell(): JSX.Element {
   );
   const displayedApprovalConsistency =
     approvalConsistencyPreview ?? buildApprovalConsistencyView();
+  const capabilityPolicyCandidate = useMemo<CapabilityPolicyEnforcementView>(
+    () =>
+      buildCapabilityPolicyEnforcementView({
+        policyJsonText: capabilityPolicyJsonText,
+        sourceKind: "paste"
+      }),
+    [capabilityPolicyJsonText]
+  );
+  const displayedCapabilityPolicy =
+    capabilityPolicyPreview ?? buildCapabilityPolicyEnforcementView();
   const crossSurfaceReplayTimelineCandidate =
     useMemo<CrossSurfaceReplayTimelineView>(
       () =>
@@ -2711,6 +2730,9 @@ export function DesktopShell(): JSX.Element {
   useEffect(() => {
     setApprovalConsistencyPreview(undefined);
   }, [approvalConsistencyJsonText]);
+  useEffect(() => {
+    setCapabilityPolicyPreview(undefined);
+  }, [capabilityPolicyJsonText]);
   useEffect(() => {
     setCrossSurfaceReplayTimelinePreview(undefined);
   }, [crossSurfaceReplayTimelineText]);
@@ -3817,6 +3839,15 @@ export function DesktopShell(): JSX.Element {
   function handleClearApprovalConsistency(): void {
     setApprovalConsistencyJsonText("");
     setApprovalConsistencyPreview(undefined);
+  }
+
+  function handlePreviewCapabilityPolicy(): void {
+    setCapabilityPolicyPreview(capabilityPolicyCandidate);
+  }
+
+  function handleClearCapabilityPolicy(): void {
+    setCapabilityPolicyJsonText("");
+    setCapabilityPolicyPreview(undefined);
   }
 
   function handlePreviewCrossSurfaceReplayTimeline(): void {
@@ -10011,6 +10042,207 @@ export function DesktopShell(): JSX.Element {
               {summarizeApprovalConsistencyView(displayedApprovalConsistency)
                 .source}{" "}
               · {displayedApprovalConsistency.nextAction}
+            </p>
+          </section>
+
+          <section
+            className="eventPanel"
+            aria-label="Capability Policy Enforcement"
+          >
+            <div className="panelHeader">
+              <h2>Capability Policy Enforcement</h2>
+              <span className="muted">Read-only / policy report</span>
+            </div>
+            <p className="fieldHelp">
+              Checks capability descriptors, broker plan previews, MCP
+              descriptors, plugin and skill descriptors, desktop action
+              proposals, Git/shell lane summaries, and approval consistency
+              reports. The App Shell does not execute capabilities, approve,
+              apply, rollback, issue leases, invoke MCP tools, run plugin or
+              skill runtimes, execute desktop actions, or run Git/shell.
+            </p>
+
+            <label>
+              <span>Capability policy refs JSON</span>
+              <textarea
+                className="compactTextarea"
+                value={capabilityPolicyJsonText}
+                onChange={(event) => {
+                  setCapabilityPolicyJsonText(event.target.value);
+                }}
+                placeholder="Paste summary-only capability policy refs JSON"
+                spellCheck={false}
+              />
+              <p className="fieldHelp">
+                Accepts summary-only capability refs with category, mode, risk,
+                allowlist, fixed-lane, manual approval, and warning metadata.
+                Raw args, raw output, command payloads, EventStore writes,
+                broad leases, and secrets are blocked.
+              </p>
+            </label>
+
+            <div className="buttonRow">
+              <button
+                type="button"
+                className="secondary"
+                onClick={(event) => {
+                  event.preventDefault();
+                  event.stopPropagation();
+                  handlePreviewCapabilityPolicy();
+                }}
+              >
+                Preview Policy Report
+              </button>
+              <button
+                type="button"
+                className="secondary"
+                onClick={(event) => {
+                  event.preventDefault();
+                  event.stopPropagation();
+                  handleClearCapabilityPolicy();
+                }}
+              >
+                Clear Policy Report
+              </button>
+            </div>
+
+            {displayedCapabilityPolicy.status === "empty" ? (
+              <p className="empty">
+                No capability policy refs loaded. Paste summary-only capability
+                refs to preview policy enforcement.
+              </p>
+            ) : null}
+
+            {displayedCapabilityPolicy.status === "blocked" ? (
+              <div className="errorBox">
+                <strong>Capability policy blocked</strong>
+                <p>{displayedCapabilityPolicy.nextAction}</p>
+              </div>
+            ) : null}
+
+            <dl className="summaryGrid compact">
+              <div>
+                <dt>Status</dt>
+                <dd>{displayedCapabilityPolicy.status}</dd>
+              </div>
+              <div>
+                <dt>Policy report</dt>
+                <dd>{displayedCapabilityPolicy.policyId}</dd>
+              </div>
+              <div>
+                <dt>Allowed / total capabilities</dt>
+                <dd>
+                  {displayedCapabilityPolicy.allowedCount} /{" "}
+                  {displayedCapabilityPolicy.capabilityCount}
+                </dd>
+              </div>
+              <div>
+                <dt>Blocked / warnings</dt>
+                <dd>
+                  {displayedCapabilityPolicy.blockedCount} /{" "}
+                  {displayedCapabilityPolicy.warningCount}
+                </dd>
+              </div>
+              <div>
+                <dt>Findings / blockers</dt>
+                <dd>
+                  {displayedCapabilityPolicy.findingCount} /{" "}
+                  {displayedCapabilityPolicy.blockerCount}
+                </dd>
+              </div>
+              <div>
+                <dt>Hash</dt>
+                <dd>{displayedCapabilityPolicy.hashPrefix ?? "n/a"}</dd>
+              </div>
+              <div>
+                <dt>Policy review / approve</dt>
+                <dd>
+                  {displayedCapabilityPolicy.readiness.canUseForPolicyReview
+                    ? "yes"
+                    : "no"}{" "}
+                  /{" "}
+                  {displayedCapabilityPolicy.readiness.canApprove
+                    ? "yes"
+                    : "no"}
+                </dd>
+              </div>
+              <div>
+                <dt>MCP / plugin runtime</dt>
+                <dd>
+                  {displayedCapabilityPolicy.readiness.canInvokeMcpTool
+                    ? "yes"
+                    : "no"}{" "}
+                  /{" "}
+                  {displayedCapabilityPolicy.readiness
+                    .canExecutePluginRuntime
+                    ? "yes"
+                    : "no"}
+                </dd>
+              </div>
+              <div>
+                <dt>Desktop / Git-shell</dt>
+                <dd>
+                  {displayedCapabilityPolicy.readiness.canExecuteDesktopAction
+                    ? "yes"
+                    : "no"}{" "}
+                  /{" "}
+                  {displayedCapabilityPolicy.readiness.canExecuteGit ||
+                  displayedCapabilityPolicy.readiness.canExecuteShell
+                    ? "yes"
+                    : "no"}
+                </dd>
+              </div>
+              <div>
+                <dt>Apply / rollback / lease</dt>
+                <dd>
+                  {displayedCapabilityPolicy.readiness.canApplyPatch ||
+                  displayedCapabilityPolicy.readiness.canRollback ||
+                  displayedCapabilityPolicy.readiness.canIssuePermissionLease
+                    ? "yes"
+                    : "no"}
+                </dd>
+              </div>
+            </dl>
+
+            {displayedCapabilityPolicy.itemSummaries.length > 0 ? (
+              <ol className="timeline">
+                {displayedCapabilityPolicy.itemSummaries.map((item) => (
+                  <li key={item.capabilityId}>
+                    <span className="timelineMeta">
+                      {item.category} · {item.mode} · {item.riskLevel}
+                    </span>
+                    <span>summary {item.summaryHash}</span>
+                    <span className="timelineMeta">
+                      allowed {item.allowed ? "yes" : "no"}
+                    </span>
+                    {item.warningCodes.length > 0 ? (
+                      <span className="timelineMeta">
+                        Warnings: {item.warningCodes.join(", ")}
+                      </span>
+                    ) : null}
+                    {item.blockerCodes.length > 0 ? (
+                      <span className="timelineMeta">
+                        Blockers: {item.blockerCodes.join(", ")}
+                      </span>
+                    ) : null}
+                  </li>
+                ))}
+              </ol>
+            ) : null}
+
+            {displayedCapabilityPolicy.findingCodes.length > 0 ? (
+              <p className="muted">
+                findings {displayedCapabilityPolicy.findingCodes.join(", ")}
+              </p>
+            ) : null}
+
+            <p className="fieldHelp">
+              {
+                summarizeCapabilityPolicyEnforcementView(
+                  displayedCapabilityPolicy
+                ).source
+              }{" "}
+              · {displayedCapabilityPolicy.nextAction}
             </p>
           </section>
 

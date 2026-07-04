@@ -116,6 +116,7 @@ import { buildLiveProposalEvaluationTelemetryAuditView } from "../src/live-propo
 import { buildCrossSurfaceWorkflowView } from "../src/cross-surface-workflow-view.js";
 import { buildCrossSurfaceEvidenceView } from "../src/cross-surface-evidence-view.js";
 import { buildApprovalConsistencyView } from "../src/approval-consistency-view.js";
+import { buildCapabilityPolicyEnforcementView } from "../src/capability-policy-enforcement-view.js";
 import { buildCrossSurfaceReplayTimelineView } from "../src/cross-surface-replay-timeline-view.js";
 import {
   buildCrossSurfaceApprovedSequence,
@@ -24962,6 +24963,175 @@ describe("desktop source boundaries", () => {
     expect(combined).not.toContain("App execution enabled");
     expect(docsIndex).toContain("runtime-approval-consistency-check-v0.28.md");
     expect(docsIndex).toContain("app-shell-approval-consistency-v0.28.md");
+  });
+
+  it("previews capability policy enforcement without enabling execution", () => {
+    const view = buildCapabilityPolicyEnforcementView({
+      policyJsonText: JSON.stringify({
+        capabilities: [
+          {
+            capabilityId: "broker-plan-1",
+            category: "broker_plan_preview",
+            mode: "manual_only",
+            riskLevel: "medium",
+            summary: "Broker plan preview summary.",
+            manualApprovalPresent: true,
+            warningCodes: []
+          },
+          {
+            capabilityId: "desktop-proposal-1",
+            category: "desktop_action_proposal",
+            mode: "approved_lane",
+            riskLevel: "low",
+            summary: "Desktop proposal summary.",
+            actionKind: "focus_window",
+            allowlisted: true,
+            warningCodes: []
+          }
+        ]
+      }),
+      sourceKind: "fixture"
+    });
+
+    expect(view.status).toBe("policy_ready");
+    expect(view.allowedCount).toBe(2);
+    expect(view.blockedCount).toBe(0);
+    expect(view.readiness.canUseForPolicyReview).toBe(true);
+    expect(view.readiness.canExecuteCapability).toBe(false);
+    expect(view.readiness.canApprove).toBe(false);
+    expect(view.readiness.canInvokeMcpTool).toBe(false);
+    expect(view.readiness.canExecuteDesktopAction).toBe(false);
+    expect(view.readiness.canExecuteGit).toBe(false);
+    expect(view.readiness.canExecuteShell).toBe(false);
+    expect(view.readiness.appCanExecute).toBe(false);
+  });
+
+  it("blocks unsafe capability policy summaries", () => {
+    const view = buildCapabilityPolicyEnforcementView({
+      policyJsonText: JSON.stringify({
+        capabilities: [
+          {
+            capabilityId: "mcp-mutating",
+            category: "mcp_descriptor",
+            mode: "manual_only",
+            riskLevel: "high",
+            summary: "MCP mutating descriptor.",
+            canMutate: true,
+            manualApprovalPresent: true,
+            warningCodes: []
+          },
+          {
+            capabilityId: "plugin-runtime",
+            category: "plugin_skill_descriptor",
+            mode: "manual_only",
+            riskLevel: "critical",
+            summary: "Plugin runtime descriptor.",
+            runtimeExecutionRequested: true,
+            manualApprovalPresent: true,
+            warningCodes: []
+          },
+          {
+            capabilityId: "shell-lane",
+            category: "git_shell_lane_summary",
+            mode: "manual_only",
+            riskLevel: "critical",
+            summary: "Bearer abcdefghijklmnop",
+            laneKind: "arbitrary_shell",
+            fixedTemplate: false,
+            manualApprovalPresent: true,
+            rawOutput: "do not display raw output",
+            readiness: {
+              canExecuteShell: true
+            },
+            warningCodes: []
+          }
+        ]
+      }),
+      sourceKind: "fixture"
+    });
+    const serialized = JSON.stringify(view);
+
+    expect(view.status).toBe("blocked");
+    expect(view.findingCodes).toEqual(
+      expect.arrayContaining([
+        "MCP_MUTATING_TOOL_BLOCKED",
+        "PLUGIN_SKILL_RUNTIME_BLOCKED",
+        "ARBITRARY_GIT_SHELL_BLOCKED",
+        "FORBIDDEN_FIELD",
+        "BEARER_TOKEN_MARKER",
+        "EXECUTION_FLAG_TRUE"
+      ])
+    );
+    expect(serialized).not.toContain("do not display raw output");
+    expect(serialized).not.toContain("Bearer abcdefghijklmnop");
+    expect(view.readiness.canExecuteCapability).toBe(false);
+    expect(view.readiness.canExecuteShell).toBe(false);
+    expect(view.readiness.appCanExecute).toBe(false);
+  });
+
+  it("renders the App capability policy panel as read-only", async () => {
+    const appSource = await readFile(
+      path.join(appRoot, "src", "App.tsx"),
+      "utf8"
+    );
+    const viewSource = await readFile(
+      path.join(appRoot, "src", "capability-policy-enforcement-view.ts"),
+      "utf8"
+    );
+
+    expect(appSource).toContain("Capability Policy Enforcement");
+    expect(appSource).toContain("Read-only / policy report");
+    expect(appSource).toContain("Preview Policy Report");
+    expect(appSource).toContain("Clear Policy Report");
+    expect(appSource).toContain("does not execute capabilities");
+    expect(appSource).not.toContain("Execute Policy Report");
+    expect(appSource).not.toContain("Approve Policy Report");
+    expect(viewSource).toContain("capability-policy-enforcement");
+    expect(viewSource).not.toContain("safeInvoke");
+    expect(viewSource).not.toContain("fetch(");
+    expect(viewSource).not.toContain("writeFile");
+    expect(viewSource).not.toContain("readFile");
+  });
+
+  it("documents capability policy enforcement hardening", async () => {
+    const runtimeDoc = await readFile(
+      path.join(
+        repoRoot,
+        "docs",
+        "runtime-capability-policy-enforcement-v0.28.md"
+      ),
+      "utf8"
+    );
+    const appDoc = await readFile(
+      path.join(
+        repoRoot,
+        "docs",
+        "app-shell-capability-policy-enforcement-v0.28.md"
+      ),
+      "utf8"
+    );
+    const docsIndex = await readFile(
+      path.join(repoRoot, "docs", "README.md"),
+      "utf8"
+    );
+    const combined = `${runtimeDoc}\n${appDoc}`;
+
+    expect(runtimeDoc).toContain("Runtime Capability Policy Enforcement v0.28");
+    expect(runtimeDoc).toContain("MCP mutating tools");
+    expect(runtimeDoc).toContain("plugin/skill runtime execution");
+    expect(runtimeDoc).toContain("arbitrary Git/shell lanes");
+    expect(runtimeDoc).toContain("broad PermissionLease");
+    expect(runtimeDoc).toContain("All execution readiness flags are false");
+    expect(appDoc).toContain("App Shell Capability Policy Enforcement v0.28");
+    expect(appDoc).toContain("Read-only policy report panel");
+    expect(appDoc).toContain("Does not execute capabilities");
+    expect(appDoc).toContain("Does not invoke MCP tools");
+    expect(appDoc).toContain("Does not write EventStore");
+    expect(combined).not.toContain("App execution enabled");
+    expect(docsIndex).toContain("runtime-capability-policy-enforcement-v0.28.md");
+    expect(docsIndex).toContain(
+      "app-shell-capability-policy-enforcement-v0.28.md"
+    );
   });
 
   it("summarizes approved cross-surface lanes without executing them", () => {

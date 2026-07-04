@@ -470,6 +470,8 @@ foundation.
 - [Runtime Cross-surface Failure Recovery v0.28](runtime-cross-surface-failure-recovery-v0.28.md)
 - [Runtime Approval Consistency Check v0.28](runtime-approval-consistency-check-v0.28.md)
 - [App Shell Approval / Receipt Consistency v0.28](app-shell-approval-consistency-v0.28.md)
+- [Runtime Capability Policy Enforcement v0.28](runtime-capability-policy-enforcement-v0.28.md)
+- [App Shell Capability Policy Enforcement v0.28](app-shell-capability-policy-enforcement-v0.28.md)
 - [Runtime Memory Recall Preview v0.3](runtime-memory-recall-preview-v0.3.md)
 - [v0.4.0 Controlled Creation Preview RC release notes](release-notes-v0.4.0-controlled-creation-preview-rc.1.md)
 - [App Shell Controlled Creation manual QA](app-shell-controlled-creation-manual-qa.md)
