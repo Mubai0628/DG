@@ -1,6 +1,7 @@
 export * from "./approved-desktop-action-execution.js";
 export * from "./approved-desktop-action-events.js";
 export * from "./approved-desktop-action-receipt.js";
+export * from "./approved-expanded-action-receipt.js";
 export * from "./action-proposal-schema.js";
 export * from "./capability-integration.js";
 export * from "./desktop-action-privacy-audit.js";

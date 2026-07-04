@@ -116,6 +116,7 @@ import {
 } from "../src/desktop-observer-view.js";
 import { buildDesktopActionProposalView } from "../src/desktop-action-proposal-view.js";
 import { buildExpandedDesktopActionProposalView } from "../src/expanded-desktop-action-proposal-view.js";
+import { buildApprovedExpandedDesktopActionReceiptView } from "../src/approved-expanded-desktop-action-receipt-view.js";
 import { buildApprovedDesktopActionView } from "../src/approved-desktop-action-view.js";
 import { buildDesktopActionReplayView } from "../src/desktop-action-replay-view.js";
 import { buildScreenshotRedactionBoundaryView } from "../src/screenshot-redaction-boundary-view.js";
@@ -28089,6 +28090,158 @@ describe("expanded desktop action proposal app surface", () => {
       "app-shell-expanded-desktop-action-proposal-v0.25.md"
     );
     expect(appReadme).toContain("v0.26 Desktop Action Expansion Proposal RC");
+  });
+
+  it("builds an approved expanded desktop action receipt behind typed confirmation", () => {
+    const proposalView = buildExpandedDesktopActionProposalView({
+      proposalJsonText: JSON.stringify(expandedDesktopActionProposalFixture()),
+      sourceKind: "manual_test"
+    });
+    const empty = buildApprovedExpandedDesktopActionReceiptView();
+    const needsConfirmation = buildApprovedExpandedDesktopActionReceiptView({
+      expandedProposalView: proposalView,
+      typedConfirmation: ""
+    });
+    const ready = buildApprovedExpandedDesktopActionReceiptView({
+      expandedProposalView: proposalView,
+      typedConfirmation: "CLICK OBSERVED TARGET"
+    });
+    const serialized = JSON.stringify(ready);
+
+    expect(empty.status).toBe("empty");
+    expect(needsConfirmation.status).toBe("needs_confirmation");
+    expect(needsConfirmation.typedConfirmationRequired).toBe(
+      "CLICK OBSERVED TARGET"
+    );
+    expect(ready.status).toBe("warning");
+    expect(ready.proposalId).toBe("expanded-action-click-1");
+    expect(ready.actionKind).toBe("click_observed_safe_target");
+    expect(ready.typedConfirmationAccepted).toBe(true);
+    expect(ready.receipt?.status).toBe("ready");
+    expect(ready.readiness.canBuildReceipt).toBe(true);
+    expect(ready.readiness.canEnterSafeClickContract).toBe(true);
+    expect(ready.readiness.canEnterSafeTypeContract).toBe(false);
+    expect(ready.readiness.canExecuteDesktopAction).toBe(false);
+    expect(ready.readiness.canClick).toBe(false);
+    expect(ready.readiness.canType).toBe(false);
+    expect(ready.readiness.canWriteClipboard).toBe(false);
+    expect(ready.readiness.canOpenFileDialog).toBe(false);
+    expect(ready.readiness.canWriteEventStore).toBe(false);
+    expect(ready.readiness.canUseNativeBridge).toBe(false);
+    expect(ready.readiness.appCanExecute).toBe(false);
+    expect(serialized).not.toContain("RAW_SCREENSHOT");
+    expect(serialized).not.toContain("RAW_OCR");
+    expect(serialized).not.toContain("rawTargetText");
+    expect(serialized).not.toContain("apiKey");
+  });
+
+  it("blocks unsupported expanded proposal actions before receipt preview", () => {
+    const unsupportedProposal = buildExpandedDesktopActionProposalView({
+      proposalJsonText: JSON.stringify({
+        ...expandedDesktopActionProposalFixture(),
+        proposalId: "expanded-action-clipboard-1",
+        actionKind: "clipboard_write",
+        targetSummary: {
+          ...expandedDesktopActionProposalFixture().targetSummary,
+          targetKind: "clipboard",
+          targetId: "target-clipboard"
+        }
+      })
+    });
+    const receiptView = buildApprovedExpandedDesktopActionReceiptView({
+      expandedProposalView: unsupportedProposal,
+      typedConfirmation: "CLICK OBSERVED TARGET"
+    });
+
+    expect(receiptView.status).toBe("blocked");
+    expect(receiptView.findings.map((finding) => finding.code)).toContain(
+      "APPROVED_EXPANDED_DESKTOP_ACTION_UNSUPPORTED_ACTION"
+    );
+    expect(receiptView.readiness.canEnterSafeClickContract).toBe(false);
+    expect(receiptView.readiness.canEnterSafeTypeContract).toBe(false);
+    expect(receiptView.readiness.canExecuteDesktopAction).toBe(false);
+    expect(receiptView.readiness.appCanExecute).toBe(false);
+  });
+
+  it("renders the approved expanded desktop action receipt surface as preview-only", async () => {
+    const appSource = await readFile(
+      path.join(appRoot, "src", "App.tsx"),
+      "utf8"
+    );
+    const viewSource = await readFile(
+      path.join(
+        appRoot,
+        "src",
+        "approved-expanded-desktop-action-receipt-view.ts"
+      ),
+      "utf8"
+    );
+
+    expect(appSource).toContain("Approved Expanded Desktop Action Receipt");
+    expect(appSource).toContain("Receipt preview / no desktop action");
+    expect(appSource).toContain("Build Expanded Action Receipt");
+    expect(appSource).toContain("Clear Expanded Action Receipt");
+    expect(appSource).toContain("Execute Approved Click (disabled)");
+    expect(appSource).toContain("Execute Approved Type (disabled)");
+    expect(appSource).not.toMatch(/>\s*Execute Approved Click\s*</);
+    expect(appSource).not.toMatch(/>\s*Execute Approved Type\s*</);
+    expect(viewSource).toContain(
+      "app_approved_expanded_desktop_action_receipt_surface"
+    );
+    expect(viewSource).toContain(
+      "buildApprovedExpandedDesktopActionReceipt"
+    );
+    expect(viewSource).not.toContain("safeInvoke");
+    expect(viewSource).not.toContain("fetch(");
+    expect(viewSource).not.toContain("executeApprovedDesktopAction");
+    expect(viewSource).not.toContain("writeFile");
+    expect(viewSource).not.toContain("readFile");
+  });
+
+  it("documents the approved expanded desktop action receipt boundary", async () => {
+    const runtimeDoc = await readFile(
+      path.join(
+        repoRoot,
+        "docs",
+        "runtime-approved-expanded-desktop-action-receipt-v0.26.md"
+      ),
+      "utf8"
+    );
+    const appDoc = await readFile(
+      path.join(
+        repoRoot,
+        "docs",
+        "app-shell-approved-expanded-desktop-action-receipt-v0.26.md"
+      ),
+      "utf8"
+    );
+    const docsIndex = await readFile(
+      path.join(repoRoot, "docs", "README.md"),
+      "utf8"
+    );
+    const combined = `${runtimeDoc}\n${appDoc}`;
+
+    expect(runtimeDoc).toContain(
+      "Runtime Approved Expanded Desktop Action Receipt v0.26"
+    );
+    expect(appDoc).toContain(
+      "App Shell Approved Expanded Desktop Action Receipt v0.26"
+    );
+    expect(combined).toContain("click_observed_safe_target");
+    expect(combined).toContain("type_into_observed_text_field");
+    expect(combined).toContain("CLICK OBSERVED TARGET");
+    expect(combined).toContain("TYPE INTO OBSERVED FIELD");
+    expect(combined).toContain("No Tauri");
+    expect(combined).toContain("No desktop action execution");
+    expect(combined).toContain("No clipboard write");
+    expect(combined).toContain("No file dialog automation");
+    expect(combined).toContain("No EventStore write");
+    expect(docsIndex).toContain(
+      "runtime-approved-expanded-desktop-action-receipt-v0.26.md"
+    );
+    expect(docsIndex).toContain(
+      "app-shell-approved-expanded-desktop-action-receipt-v0.26.md"
+    );
   });
 
   it("documents the desktop action expansion redaction audit and smoke path", async () => {

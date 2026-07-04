@@ -310,6 +310,9 @@ function isAllowedBoundaryHit(file, line, ruleId) {
   if (isDesktopObserverAppSurfaceCopy(file, line, ruleId)) {
     return true;
   }
+  if (isApprovedExpandedReceiptDenylist(file, line, ruleId)) {
+    return true;
+  }
   if (file === "browser-extension/src/payload.ts") {
     return true;
   }
@@ -362,6 +365,9 @@ function isAllowedSecretHit(file, line, ruleId) {
     return true;
   }
   if (isDesktopObserverProfileSecretDenylist(file, ruleId)) {
+    return true;
+  }
+  if (isApprovedExpandedReceiptSecretDenylist(file, ruleId)) {
     return true;
   }
   return false;
@@ -541,6 +547,35 @@ function isDesktopObserverSchemaFile(file) {
   );
 }
 
+function isApprovedExpandedReceiptDenylist(file, line, ruleId) {
+  // ACCEPTABLE_APPROVED_EXPANDED_ACTION_RECEIPT_DENYLIST: forbidden field names only.
+  if (
+    file === "app/src/approved-expanded-desktop-action-receipt-view.ts" &&
+    ruleId === "clipboard_reference"
+  ) {
+    return line.includes("clipboard");
+  }
+  return (
+    file ===
+      "runtime/src/desktop-action/approved-expanded-action-receipt.ts" &&
+    [
+      "raw_prompt_reference",
+      "raw_dom_reference",
+      "raw_screenshot_reference",
+      "clipboard_reference"
+    ].includes(ruleId)
+  );
+}
+
+function isApprovedExpandedReceiptSecretDenylist(file, ruleId) {
+  // ACCEPTABLE_APPROVED_EXPANDED_ACTION_RECEIPT_DENYLIST: env names are blocked markers.
+  return (
+    file ===
+      "runtime/src/desktop-action/approved-expanded-action-receipt.ts" &&
+    ["deepseek_env_reference", "openai_env_reference"].includes(ruleId)
+  );
+}
+
 function isDesktopActionProposalSchemaFile(file) {
   return (
     file === "runtime/src/desktop/index.ts" ||
@@ -559,6 +594,8 @@ function isDesktopActionProposalSchemaFile(file) {
     file === "runtime/src/desktop-action/capability-integration.ts" ||
     file === "runtime/src/desktop-action/privacy-redaction-audit.ts" ||
     file === "runtime/src/desktop-action/approved-desktop-action-receipt.ts" ||
+    file ===
+      "runtime/src/desktop-action/approved-expanded-action-receipt.ts" ||
     file ===
       "runtime/src/desktop-action/approved-desktop-action-execution.ts" ||
     file === "runtime/src/desktop-action/desktop-action-privacy-audit.ts"

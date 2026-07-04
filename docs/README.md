@@ -431,6 +431,8 @@ foundation.
 - [Approved Expanded Desktop Action threat model v0.26](approved-expanded-desktop-action-threat-model-v0.26.md)
 - [Approved Expanded Desktop Action implementation gate v0.26](approved-expanded-desktop-action-implementation-gate-v0.26.md)
 - [P1E-002 Expanded Desktop Action Approval Receipt plan](p1e-002-expanded-desktop-action-approval-receipt-plan.md)
+- [Runtime Approved Expanded Desktop Action Receipt v0.26](runtime-approved-expanded-desktop-action-receipt-v0.26.md)
+- [App Shell Approved Expanded Desktop Action Receipt v0.26](app-shell-approved-expanded-desktop-action-receipt-v0.26.md)
 - [Runtime Memory Recall Preview v0.3](runtime-memory-recall-preview-v0.3.md)
 - [v0.4.0 Controlled Creation Preview RC release notes](release-notes-v0.4.0-controlled-creation-preview-rc.1.md)
 - [App Shell Controlled Creation manual QA](app-shell-controlled-creation-manual-qa.md)
