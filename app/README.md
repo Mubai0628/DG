@@ -241,6 +241,12 @@ Current scope:
   smoke coverage, release notes, manual QA, and RC checklist while App
   execution, clipboard write, file dialog automation, EventStore writes, and
   native bridge remain disabled
+- prepare the v0.27 Approved Expanded Desktop Action Execution RC with
+  human-approved single safe click and single safe type lanes, typed
+  confirmation, fixed command execution, summary-only events, replay, privacy
+  audit, smoke coverage, release notes, manual QA, and RC checklist while
+  arbitrary click/type, clipboard write, file dialog automation, drag/drop,
+  broad native bridge, and replay re-execution remain disabled
 - prepare the v0.19 MCP Tool Invocation Proposal RC with proposal schema,
   input risk classification, simulated result summaries, broker planning,
   read-only App proposal surface, redaction audit, and smoke hardening while

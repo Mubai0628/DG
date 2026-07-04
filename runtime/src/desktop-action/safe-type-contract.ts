@@ -470,9 +470,7 @@ export function summarizeSafeTypeContract(contract: SafeTypeContract): string {
   ].join(" | ");
 }
 
-function normalizeInput(
-  input: SafeTypeContractInput
-): NormalizedSafeTypeInput {
+function normalizeInput(input: SafeTypeContractInput): NormalizedSafeTypeInput {
   const observation = isRecord(input.observationSummary)
     ? input.observationSummary
     : {};
@@ -511,8 +509,7 @@ function normalizeInput(
       ""
     ),
     riskClassificationId: safeString(
-      input.receipt?.scope.riskClassificationId ??
-        risk.riskClassificationId,
+      input.receipt?.scope.riskClassificationId ?? risk.riskClassificationId,
       ""
     ),
     simulationId: safeString(
@@ -533,7 +530,9 @@ function normalizeInput(
         proposal.displayRef
     ),
     targetHash: safeOptionalString(
-      input.receipt?.scope.targetHash ?? target.targetHash ?? proposal.targetHash
+      input.receipt?.scope.targetHash ??
+        target.targetHash ??
+        proposal.targetHash
     ),
     targetIds: Array.isArray(observation.targetIds)
       ? observation.targetIds
@@ -556,7 +555,7 @@ function normalizeInput(
     allowMultiline: text.allowMultiline === true,
     containsControlCharacters:
       text.containsControlCharacters === true ||
-      /[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F]/.test(textValue ?? ""),
+      containsDisallowedControlCharacter(textValue ?? ""),
     containsSecretMarker:
       text.containsSecretMarker === true ||
       containsSecretLikeMarker(textValue ?? ""),
@@ -657,7 +656,11 @@ function validateReceipt(
     ["receipt observation", receipt.scope.observationId, input.observationId],
     ["receipt target", receipt.scope.targetId, input.targetId],
     ["receipt proposal", receipt.scope.proposalId, input.proposalId],
-    ["receipt risk", receipt.scope.riskClassificationId, input.riskClassificationId],
+    [
+      "receipt risk",
+      receipt.scope.riskClassificationId,
+      input.riskClassificationId
+    ],
     ["receipt simulation", receipt.scope.simulationId, input.simulationId],
     ["receipt window", receipt.scope.windowRef, input.windowRef],
     ["receipt app", receipt.scope.appRef, input.appRef],
@@ -681,7 +684,12 @@ function validateObservation(
   findings: SafeTypeContractFinding[]
 ): void {
   if (!input.observationId) {
-    add(findings, "observation", "blocker", "SAFE_TYPE_CONTRACT_OBSERVATION_MISSING");
+    add(
+      findings,
+      "observation",
+      "blocker",
+      "SAFE_TYPE_CONTRACT_OBSERVATION_MISSING"
+    );
   }
   if (input.targetIds.length > 0 && !input.targetIds.includes(input.targetId)) {
     add(
@@ -701,7 +709,12 @@ function validateObservation(
         "SAFE_TYPE_CONTRACT_OBSERVATION_TIME_INVALID"
       );
     } else if (age > input.staleThresholdMs) {
-      add(findings, "freshness", "blocker", "SAFE_TYPE_CONTRACT_OBSERVATION_STALE");
+      add(
+        findings,
+        "freshness",
+        "blocker",
+        "SAFE_TYPE_CONTRACT_OBSERVATION_STALE"
+      );
     }
   } else {
     add(
@@ -763,7 +776,12 @@ function validateText(
   findings: SafeTypeContractFinding[]
 ): void {
   if (!input.textHash) {
-    add(findings, "text_policy", "blocker", "SAFE_TYPE_CONTRACT_TEXT_HASH_MISSING");
+    add(
+      findings,
+      "text_policy",
+      "blocker",
+      "SAFE_TYPE_CONTRACT_TEXT_HASH_MISSING"
+    );
   }
   if (input.textLength <= 0) {
     add(findings, "text_policy", "blocker", "SAFE_TYPE_CONTRACT_TEXT_EMPTY");
@@ -797,7 +815,8 @@ function validateText(
   }
   if (
     input.shellCommandLike &&
-    (input.destructiveRisk || /high|blocked|destructive|D5|D4/i.test(input.riskLevel ?? ""))
+    (input.destructiveRisk ||
+      /high|blocked|destructive|D5|D4/i.test(input.riskLevel ?? ""))
   ) {
     add(
       findings,
@@ -816,7 +835,10 @@ function validateProposal(
   if (!input.proposalId) {
     add(findings, "proposal", "blocker", "SAFE_TYPE_CONTRACT_PROPOSAL_MISSING");
   }
-  if (proposal?.actionKind !== undefined && proposal.actionKind !== ACTION_KIND) {
+  if (
+    proposal?.actionKind !== undefined &&
+    proposal.actionKind !== ACTION_KIND
+  ) {
     add(
       findings,
       "proposal",
@@ -873,20 +895,46 @@ function validateSimulation(
   findings: SafeTypeContractFinding[]
 ): void {
   if (!input.simulationId) {
-    add(findings, "simulation", "blocker", "SAFE_TYPE_CONTRACT_SIMULATION_MISSING");
+    add(
+      findings,
+      "simulation",
+      "blocker",
+      "SAFE_TYPE_CONTRACT_SIMULATION_MISSING"
+    );
   }
   if (
     input.simulationBlockerCodes.length > 0 ||
     input.simulationSafeForType === false ||
     /\b(blocked|unsafe|failed)\b/i.test(input.simulationStatus ?? "")
   ) {
-    add(findings, "simulation", "blocker", "SAFE_TYPE_CONTRACT_SIMULATION_BLOCKED");
+    add(
+      findings,
+      "simulation",
+      "blocker",
+      "SAFE_TYPE_CONTRACT_SIMULATION_BLOCKED"
+    );
   }
-  if (input.simulationStepCount !== undefined && input.simulationStepCount > 1) {
-    add(findings, "simulation", "blocker", "SAFE_TYPE_CONTRACT_MULTI_STEP_BLOCKED");
+  if (
+    input.simulationStepCount !== undefined &&
+    input.simulationStepCount > 1
+  ) {
+    add(
+      findings,
+      "simulation",
+      "blocker",
+      "SAFE_TYPE_CONTRACT_MULTI_STEP_BLOCKED"
+    );
   }
-  if (input.simulationTypeCount !== undefined && input.simulationTypeCount !== 1) {
-    add(findings, "simulation", "blocker", "SAFE_TYPE_CONTRACT_SINGLE_TYPE_REQUIRED");
+  if (
+    input.simulationTypeCount !== undefined &&
+    input.simulationTypeCount !== 1
+  ) {
+    add(
+      findings,
+      "simulation",
+      "blocker",
+      "SAFE_TYPE_CONTRACT_SINGLE_TYPE_REQUIRED"
+    );
   }
 }
 
@@ -918,7 +966,12 @@ function scanForbiddenInput(value: unknown): SafeTypeContractFinding[] {
     }
     if (typeof node === "string") {
       if (containsSecretLikeMarker(node)) {
-        add(findings, "secret_marker", "blocker", "SAFE_TYPE_CONTRACT_SECRET_MARKER");
+        add(
+          findings,
+          "secret_marker",
+          "blocker",
+          "SAFE_TYPE_CONTRACT_SECRET_MARKER"
+        );
       }
       if (rawMarkers.some((marker) => node.includes(marker))) {
         add(findings, "raw_field", "blocker", "SAFE_TYPE_CONTRACT_RAW_MARKER");
@@ -933,7 +986,8 @@ function freshnessStatusFor(
 ): SafeTypeContractPlan["freshnessStatus"] {
   if (
     findings.some(
-      (finding) => finding.kind === "freshness" && finding.severity === "blocker"
+      (finding) =>
+        finding.kind === "freshness" && finding.severity === "blocker"
     )
   ) {
     return "blocked";
@@ -1015,8 +1069,7 @@ function safeMessageFor(code: string): string {
       "Receipt readiness does not allow safe type contract handoff.",
     SAFE_TYPE_CONTRACT_RECEIPT_SCOPE_MISMATCH:
       "Receipt scope does not match observation, target, proposal, risk, or simulation summaries.",
-    SAFE_TYPE_CONTRACT_OBSERVATION_MISSING:
-      "Observation summary is required.",
+    SAFE_TYPE_CONTRACT_OBSERVATION_MISSING: "Observation summary is required.",
     SAFE_TYPE_CONTRACT_TARGET_NOT_IN_OBSERVATION:
       "Target id does not appear in the observation summary.",
     SAFE_TYPE_CONTRACT_OBSERVATION_TIME_INVALID:
@@ -1050,14 +1103,12 @@ function safeMessageFor(code: string): string {
       "Proposal action kind must match type_into_observed_text_field.",
     SAFE_TYPE_CONTRACT_PROPOSAL_SCOPE_MISMATCH:
       "Proposal summary does not match target refs.",
-    SAFE_TYPE_CONTRACT_RISK_MISSING:
-      "Risk classification summary is required.",
+    SAFE_TYPE_CONTRACT_RISK_MISSING: "Risk classification summary is required.",
     SAFE_TYPE_CONTRACT_RISK_BLOCKED:
       "High or destructive risk blocks safe type contract planning.",
     SAFE_TYPE_CONTRACT_SENSITIVE_TARGET_BLOCKED:
       "Risk classification blocked the target as sensitive.",
-    SAFE_TYPE_CONTRACT_SIMULATION_MISSING:
-      "Simulation summary is required.",
+    SAFE_TYPE_CONTRACT_SIMULATION_MISSING: "Simulation summary is required.",
     SAFE_TYPE_CONTRACT_SIMULATION_BLOCKED:
       "Simulation summary is blocked or unsafe for typing.",
     SAFE_TYPE_CONTRACT_MULTI_STEP_BLOCKED:
@@ -1158,6 +1209,19 @@ function safeStringArray(value: unknown): string[] {
         .map((item) => (typeof item === "string" ? item.trim() : ""))
         .filter((item) => item.length > 0)
     : [];
+}
+
+function containsDisallowedControlCharacter(value: string): boolean {
+  for (const character of value) {
+    const code = character.charCodeAt(0);
+    if ((code >= 0 && code <= 8) || code === 11 || code === 12) {
+      return true;
+    }
+    if ((code >= 14 && code <= 31) || code === 127) {
+      return true;
+    }
+  }
+  return false;
 }
 
 function containsSecretLikeMarker(value: string): boolean {

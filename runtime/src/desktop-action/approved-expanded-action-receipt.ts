@@ -117,7 +117,9 @@ export type ApprovedExpandedDesktopActionReceiptInput = {
   targetApiKeyLike?: boolean | undefined;
   targetPaymentLike?: boolean | undefined;
   targetSecurityPrompt?: boolean | undefined;
-  allowedActionKinds?: (ApprovedExpandedDesktopActionKind | string)[] | undefined;
+  allowedActionKinds?:
+    | (ApprovedExpandedDesktopActionKind | string)[]
+    | undefined;
   expiresAt?: string | undefined;
   typedConfirmation?: string | undefined;
   maxClicks?: number | undefined;
@@ -471,8 +473,7 @@ function normalizeInput(
   ).slice(0, 12)}`;
   const scopedReceiptId = safeOptionalString(scope.receiptId);
   return {
-    receiptId:
-      scopedReceiptId ?? input.idGenerator?.() ?? fallbackReceiptId,
+    receiptId: scopedReceiptId ?? input.idGenerator?.() ?? fallbackReceiptId,
     receiptIdProvided: scopedReceiptId !== undefined,
     ...base
   };
@@ -484,7 +485,9 @@ function validateNormalizedInput(
 ): ApprovedExpandedDesktopActionFinding[] {
   const findings = scanForbiddenInput(original);
 
-  if (!isRecord((original as ApprovedExpandedDesktopActionReceiptInput).scope)) {
+  if (
+    !isRecord((original as ApprovedExpandedDesktopActionReceiptInput).scope)
+  ) {
     add(
       findings,
       "scope",

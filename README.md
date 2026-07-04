@@ -474,6 +474,9 @@ v0.17 Capability Host MVP references:
 - [v0.26 Desktop Action Expansion Proposal post-release review](docs/v0.26-desktop-action-expansion-proposal-postrelease-review.md)
 - [P1E Approved Expanded Desktop Action Execution roadmap](docs/p1e-approved-expanded-desktop-action-execution-roadmap.md)
 - [P1E-001 Approved Expanded Desktop Action Execution plan](docs/p1e-001-approved-expanded-desktop-action-execution-plan.md)
+- [v0.27.0 Approved Expanded Desktop Action Execution RC release notes](docs/release-notes-v0.27.0-approved-expanded-desktop-action-execution-rc.1.md)
+- [Approved Expanded Desktop Action manual QA](docs/approved-expanded-desktop-action-manual-qa.md)
+- [Approved Expanded Desktop Action RC checklist](docs/approved-expanded-desktop-action-rc-checklist.md)
 
 ## Current roadmap
 
@@ -579,6 +582,12 @@ narrow plan for human-approved single safe click and single safe type lanes only
 Clipboard write, file dialog automation, drag/drop, multi-step automation,
 hidden/background action, broad native bridge, and autonomous desktop agents
 remain deferred.
+
+v0.27 RC references:
+
+- [v0.27.0 Approved Expanded Desktop Action Execution RC release notes](docs/release-notes-v0.27.0-approved-expanded-desktop-action-execution-rc.1.md)
+- [Approved Expanded Desktop Action manual QA](docs/approved-expanded-desktop-action-manual-qa.md)
+- [Approved Expanded Desktop Action RC checklist](docs/approved-expanded-desktop-action-rc-checklist.md)
 
 - [v0.2 App Shell RC post-release review](docs/v0.2-app-shell-rc-postrelease-review.md)
 - [P0G Coding Workflow roadmap](docs/p0g-coding-workflow-roadmap.md)

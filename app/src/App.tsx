@@ -1189,7 +1189,8 @@ export function DesktopShell(): JSX.Element {
       ]
     );
   const displayedApprovedExpandedDesktopAction =
-    approvedExpandedDesktopActionPreview ?? approvedExpandedDesktopActionCandidate;
+    approvedExpandedDesktopActionPreview ??
+    approvedExpandedDesktopActionCandidate;
   const approvedDesktopActionCandidate = useMemo<ApprovedDesktopActionView>(
     () =>
       buildApprovedDesktopActionView({
@@ -1215,7 +1216,8 @@ export function DesktopShell(): JSX.Element {
         commandResult: approvedDesktopActionResult,
         approvedDesktopActionView: displayedApprovedDesktopAction,
         expandedCommandResult: approvedExpandedDesktopActionResult,
-        approvedExpandedDesktopActionView: displayedApprovedExpandedDesktopAction
+        approvedExpandedDesktopActionView:
+          displayedApprovedExpandedDesktopAction
       }),
     [
       approvedDesktopActionResult,
@@ -6684,9 +6686,7 @@ export function DesktopShell(): JSX.Element {
           >
             <div className="panelHeader">
               <h2>Approved Expanded Desktop Action Receipt</h2>
-              <span className="muted">
-                Receipt preview / no desktop action
-              </span>
+              <span className="muted">Receipt preview / no desktop action</span>
             </div>
             <p className="fieldHelp">
               Builds a summary-only approval receipt for a future approved
@@ -6710,8 +6710,7 @@ export function DesktopShell(): JSX.Element {
                   setApprovedExpandedDesktopActionError(undefined);
                 }}
                 placeholder={
-                  displayedApprovedExpandedDesktopActionReceipt
-                    .typedConfirmationRequired ??
+                  displayedApprovedExpandedDesktopActionReceipt.typedConfirmationRequired ??
                   "CLICK OBSERVED TARGET / TYPE INTO OBSERVED FIELD"
                 }
               />
@@ -6755,8 +6754,12 @@ export function DesktopShell(): JSX.Element {
             {displayedApprovedExpandedDesktopActionReceipt.status ===
             "blocked" ? (
               <div className="errorBox">
-                <strong>Approved Expanded Desktop Action Receipt blocked</strong>
-                <p>{displayedApprovedExpandedDesktopActionReceipt.nextAction}</p>
+                <strong>
+                  Approved Expanded Desktop Action Receipt blocked
+                </strong>
+                <p>
+                  {displayedApprovedExpandedDesktopActionReceipt.nextAction}
+                </p>
               </div>
             ) : null}
 
@@ -6816,8 +6819,7 @@ export function DesktopShell(): JSX.Element {
               <div>
                 <dt>Typed confirmation</dt>
                 <dd>
-                  {displayedApprovedExpandedDesktopActionReceipt
-                    .typedConfirmationAccepted
+                  {displayedApprovedExpandedDesktopActionReceipt.typedConfirmationAccepted
                     ? "accepted"
                     : "required"}
                 </dd>
@@ -6921,7 +6923,9 @@ export function DesktopShell(): JSX.Element {
               Executes only fixed approved click/type commands after receipt,
               safe contract, confirmation, freshness, and target checks pass. No
               generic native invoke, clipboard write, file dialog, drag/drop,
-              multi-step automation, or background action is enabled.
+              multi-step automation, or background action is enabled. This v0.27
+              lane remains narrow: one approved safe click or one approved safe
+              type.
             </p>
 
             <div className="buttonRow">
@@ -7020,11 +7024,15 @@ export function DesktopShell(): JSX.Element {
               </div>
               <div>
                 <dt>Action kind</dt>
-                <dd>{displayedApprovedExpandedDesktopAction.actionKind ?? "n/a"}</dd>
+                <dd>
+                  {displayedApprovedExpandedDesktopAction.actionKind ?? "n/a"}
+                </dd>
               </div>
               <div>
                 <dt>Target ref</dt>
-                <dd>{displayedApprovedExpandedDesktopAction.targetRef ?? "n/a"}</dd>
+                <dd>
+                  {displayedApprovedExpandedDesktopAction.targetRef ?? "n/a"}
+                </dd>
               </div>
               <div>
                 <dt>Window / app / display</dt>
@@ -7052,14 +7060,14 @@ export function DesktopShell(): JSX.Element {
               <div>
                 <dt>Receipt status</dt>
                 <dd>
-                  {displayedApprovedExpandedDesktopAction.receiptStatus ?? "n/a"}
+                  {displayedApprovedExpandedDesktopAction.receiptStatus ??
+                    "n/a"}
                 </dd>
               </div>
               <div>
                 <dt>Confirmation</dt>
                 <dd>
-                  {displayedApprovedExpandedDesktopAction
-                    .typedConfirmationAccepted
+                  {displayedApprovedExpandedDesktopAction.typedConfirmationAccepted
                     ? "accepted"
                     : "required"}
                 </dd>
@@ -7073,7 +7081,9 @@ export function DesktopShell(): JSX.Element {
               </div>
               <div>
                 <dt>Event preview</dt>
-                <dd>{displayedApprovedExpandedDesktopAction.eventPreviewStatus}</dd>
+                <dd>
+                  {displayedApprovedExpandedDesktopAction.eventPreviewStatus}
+                </dd>
               </div>
               <div>
                 <dt>Command result</dt>
@@ -7113,8 +7123,10 @@ export function DesktopShell(): JSX.Element {
             undefined ? (
               <p className="muted">
                 result{" "}
-                {displayedApprovedExpandedDesktopAction.commandResultSummary
-                  .status}{" "}
+                {
+                  displayedApprovedExpandedDesktopAction.commandResultSummary
+                    .status
+                }{" "}
                 / hash{" "}
                 {
                   displayedApprovedExpandedDesktopAction.commandResultSummary
@@ -7376,7 +7388,8 @@ export function DesktopShell(): JSX.Element {
             <p className="fieldHelp">
               Projects approved desktop action and expanded click/type summary
               events into a replay surface. Replay can show status, event type,
-              action kind, target refs, timestamp, and warning codes, but cannot execute desktop actions or write events.
+              action kind, target refs, timestamp, and warning codes, but cannot
+              execute desktop actions or write events.
             </p>
 
             {desktopActionReplayView.status === "blocked" ? (

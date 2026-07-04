@@ -705,7 +705,11 @@ export type ApprovedExpandedDesktopActionCommandEventPreview = {
   windowRef: string;
   appRef: string;
   displayRef?: string | undefined;
-  status: "executed" | "unsupported_platform" | "permission_required" | "blocked";
+  status:
+    | "executed"
+    | "unsupported_platform"
+    | "permission_required"
+    | "blocked";
   resultHash: string;
   warningCodes: string[];
   notWritten: true;
@@ -718,7 +722,11 @@ export type ApprovedExpandedDesktopActionCommandEventPreview = {
 
 export type ApprovedExpandedDesktopActionCommandResult = {
   ok: true;
-  status: "executed" | "unsupported_platform" | "permission_required" | "blocked";
+  status:
+    | "executed"
+    | "unsupported_platform"
+    | "permission_required"
+    | "blocked";
   actionExecutionId: string;
   actionKind: ApprovedExpandedDesktopActionKind;
   targetRef: string;
@@ -1663,7 +1671,9 @@ function validateApprovedExpandedDesktopActionCommandRequest(
     request.typedConfirmation !==
     approvedExpandedDesktopActionConfirmation(actionKind)
   ) {
-    throw new Error("Approved expanded desktop action confirmation is required");
+    throw new Error(
+      "Approved expanded desktop action confirmation is required"
+    );
   }
   if (!isRecord(request.receipt)) {
     throw new Error("Approved expanded desktop action receipt is required");
@@ -1697,7 +1707,9 @@ function validateApprovedExpandedDesktopActionCommandRequest(
   }
   if (actionKind === "type_into_observed_text_field") {
     if (!isRecord(request.textPayload)) {
-      throw new Error("Approved expanded type text payload summary is required");
+      throw new Error(
+        "Approved expanded type text payload summary is required"
+      );
     }
     validateApprovedDesktopActionSafeRef(
       request.textPayload.textHash,

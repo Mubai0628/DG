@@ -564,8 +564,7 @@ function isApprovedExpandedReceiptDenylist(file, line, ruleId) {
     return line.includes("clipboard");
   }
   return (
-    file ===
-      "runtime/src/desktop-action/approved-expanded-action-receipt.ts" &&
+    file === "runtime/src/desktop-action/approved-expanded-action-receipt.ts" &&
     [
       "raw_prompt_reference",
       "raw_dom_reference",
@@ -578,8 +577,7 @@ function isApprovedExpandedReceiptDenylist(file, line, ruleId) {
 function isApprovedExpandedReceiptSecretDenylist(file, ruleId) {
   // ACCEPTABLE_APPROVED_EXPANDED_ACTION_RECEIPT_DENYLIST: env names are blocked markers.
   return (
-    file ===
-      "runtime/src/desktop-action/approved-expanded-action-receipt.ts" &&
+    file === "runtime/src/desktop-action/approved-expanded-action-receipt.ts" &&
     ["deepseek_env_reference", "openai_env_reference"].includes(ruleId)
   );
 }
@@ -622,10 +620,8 @@ function isDesktopActionProposalSchemaFile(file) {
     file === "runtime/src/desktop-action/capability-integration.ts" ||
     file === "runtime/src/desktop-action/privacy-redaction-audit.ts" ||
     file === "runtime/src/desktop-action/approved-desktop-action-receipt.ts" ||
-    file ===
-      "runtime/src/desktop-action/approved-expanded-action-receipt.ts" ||
-    file ===
-      "runtime/src/desktop-action/approved-expanded-action-events.ts" ||
+    file === "runtime/src/desktop-action/approved-expanded-action-receipt.ts" ||
+    file === "runtime/src/desktop-action/approved-expanded-action-events.ts" ||
     file === "runtime/src/desktop-action/safe-click-contract.ts" ||
     file === "runtime/src/desktop-action/safe-type-contract.ts" ||
     file ===

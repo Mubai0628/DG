@@ -2454,7 +2454,8 @@ describe("desktop command wrapper", () => {
     expect(appSource).toContain("Replay can show status");
     expect(appSource).toContain("expanded click/type summary");
     expect(appSource).toContain("Desktop action replay preview");
-    expect(appSource).toContain("cannot execute desktop actions");
+    expect(appSource).toContain("but cannot");
+    expect(appSource).toContain("execute desktop actions or write events");
     expect(appSource).toContain("Privacy audit");
     expect(appSource).not.toContain("handleReplayDesktopAction");
     expect(appSource).not.toContain("replayDesktopAction(");
@@ -2467,7 +2468,9 @@ describe("desktop command wrapper", () => {
     expect(viewSource).not.toContain("invoke(");
     expect(viewSource).not.toContain("fetch(");
     expect(viewSource).not.toContain("writeFile(");
-    expect(eventsDoc).toContain("Expanded Desktop Action Events / Replay v0.26");
+    expect(eventsDoc).toContain(
+      "Expanded Desktop Action Events / Replay v0.26"
+    );
     expect(eventsDoc).toContain("desktop_action.expanded.executed");
     expect(eventsDoc).toContain("desktop_action.expanded.blocked");
     expect(eventsDoc).toContain("Replay is a projection only");
@@ -24945,7 +24948,8 @@ describe("desktop source boundaries", () => {
     expect(appSource).toContain("Write Clipboard (disabled)");
     expect(appSource).toContain("Open File Dialog (disabled)");
     expect(appSource).toContain("Summary replay / no re-execution");
-    expect(appSource).toContain("cannot execute desktop actions");
+    expect(appSource).toContain("but cannot");
+    expect(appSource).toContain("execute desktop actions or write events");
     expect(docsIndex).toContain(
       "release-notes-v0.25.0-approved-desktop-action-execution-mvp-rc.1.md"
     );
@@ -28346,8 +28350,9 @@ function expandedDesktopActionProposalFixture() {
 }
 
 function expandedSmokeReceipt(
-  actionKind: "click_observed_safe_target" | "type_into_observed_text_field" =
-    "click_observed_safe_target"
+  actionKind:
+    | "click_observed_safe_target"
+    | "type_into_observed_text_field" = "click_observed_safe_target"
 ) {
   return buildApprovedExpandedDesktopActionReceipt({
     scope: {
@@ -29136,9 +29141,7 @@ describe("expanded desktop action proposal app surface", () => {
     expect(viewSource).toContain(
       "app_approved_expanded_desktop_action_receipt_surface"
     );
-    expect(viewSource).toContain(
-      "buildApprovedExpandedDesktopActionReceipt"
-    );
+    expect(viewSource).toContain("buildApprovedExpandedDesktopActionReceipt");
     expect(viewSource).not.toContain("safeInvoke");
     expect(viewSource).not.toContain("fetch(");
     expect(viewSource).not.toContain("executeApprovedDesktopAction");
@@ -29308,6 +29311,110 @@ describe("expanded desktop action proposal app surface", () => {
     expect(docsIndex).toContain(
       "approved-expanded-desktop-action-smoke-v0.26.md"
     );
+  });
+
+  it("documents the v0.27 approved expanded desktop action RC", async () => {
+    const releaseNotes = await readFile(
+      path.join(
+        repoRoot,
+        "docs",
+        "release-notes-v0.27.0-approved-expanded-desktop-action-execution-rc.1.md"
+      ),
+      "utf8"
+    );
+    const manualQa = await readFile(
+      path.join(
+        repoRoot,
+        "docs",
+        "approved-expanded-desktop-action-manual-qa.md"
+      ),
+      "utf8"
+    );
+    const rcChecklist = await readFile(
+      path.join(
+        repoRoot,
+        "docs",
+        "approved-expanded-desktop-action-rc-checklist.md"
+      ),
+      "utf8"
+    );
+    const docsIndex = await readFile(
+      path.join(repoRoot, "docs", "README.md"),
+      "utf8"
+    );
+    const appSource = await readFile(
+      path.join(appRoot, "src", "App.tsx"),
+      "utf8"
+    );
+
+    expect(releaseNotes).toContain(
+      "v0.27.0-approved-expanded-desktop-action-execution-rc.1"
+    );
+    expect(releaseNotes).toContain(
+      "Approved expanded desktop actions, narrow click/type only"
+    );
+    expect(releaseNotes).toContain("Desktop Observer remains metadata-only.");
+    expect(releaseNotes).toContain(
+      "Desktop Action Proposal remains proposal-first."
+    );
+    expect(releaseNotes).toContain(
+      "Approved expanded desktop action execution supports only single safe click and"
+    );
+    expect(releaseNotes).toContain("single safe type under explicit approval.");
+    expect(releaseNotes).toContain("no arbitrary click/type");
+    expect(releaseNotes).toContain("no clipboard write");
+    expect(releaseNotes).toContain("no file dialog automation");
+    expect(releaseNotes).toContain("no drag/drop");
+    expect(releaseNotes).toContain("no broad native bridge");
+    expect(releaseNotes).toContain("no replay re-execution");
+    expect(releaseNotes).toContain("typed confirmation");
+    expect(releaseNotes).toContain("summary-only event");
+    expect(releaseNotes).toContain("unsupported platform safe result");
+
+    expect(manualQa).toContain("Convert Smoke");
+    expect(manualQa).toContain("Desktop Observer Metadata Smoke");
+    expect(manualQa).toContain("Safe Click Proposal");
+    expect(manualQa).toContain("Safe Type Proposal");
+    expect(manualQa).toContain("Approval Receipt Typed Confirmation");
+    expect(manualQa).toContain("Fixed Action Execution");
+    expect(manualQa).toContain("Event Log / Replay Summary");
+    expect(manualQa).toContain("Privacy Audit");
+    expect(manualQa).toContain("Stale / Mismatch Block");
+    expect(manualQa).toContain("Sensitive / Destructive Target Block");
+    expect(manualQa).toContain("No raw screenshot");
+    expect(manualQa).toContain("No raw OCR");
+    expect(manualQa).toContain("No raw text");
+    expect(manualQa).toContain("No API key");
+
+    expect(rcChecklist).toContain("pnpm verify:ci");
+    expect(rcChecklist).toContain("pnpm release:smoke");
+    expect(rcChecklist).toContain("pnpm app:qa:check");
+    expect(rcChecklist).toContain(
+      "git tag v0.27.0-approved-expanded-desktop-action-execution-rc.1"
+    );
+    expect(rcChecklist).toContain("gh release create");
+    expect(rcChecklist).toContain(
+      "Use full docs path links in the GitHub Release body."
+    );
+    expect(rcChecklist).toContain("Generated build outputs remain ignored.");
+
+    expect(docsIndex).toContain(
+      "release-notes-v0.27.0-approved-expanded-desktop-action-execution-rc.1.md"
+    );
+    expect(docsIndex).toContain(
+      "approved-expanded-desktop-action-manual-qa.md"
+    );
+    expect(docsIndex).toContain(
+      "approved-expanded-desktop-action-rc-checklist.md"
+    );
+
+    expect(appSource).toContain("Human approved / narrow click-type lane");
+    expect(appSource).toContain("This v0.27");
+    expect(appSource).toContain("lane remains narrow");
+    expect(appSource).not.toContain("Execute Arbitrary Desktop Action");
+    expect(appSource).not.toContain("Replay Execute Desktop Action");
+    expect(appSource).not.toContain("Write Clipboard Now");
+    expect(appSource).not.toContain("Open File Dialog Now");
   });
 
   it("documents the desktop action expansion redaction audit and smoke path", async () => {

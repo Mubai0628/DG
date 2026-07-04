@@ -95,10 +95,10 @@ export function buildDesktopActionReplayView(
 
   if (input.expandedCommandResult !== undefined) {
     const commandResult = input.expandedCommandResult;
-    const receipt = input.approvedExpandedDesktopActionView?.commandRequest
-      ?.receipt;
-    const contract = input.approvedExpandedDesktopActionView?.commandRequest
-      ?.contract;
+    const receipt =
+      input.approvedExpandedDesktopActionView?.commandRequest?.receipt;
+    const contract =
+      input.approvedExpandedDesktopActionView?.commandRequest?.contract;
     const eventResult = buildApprovedExpandedDesktopActionEvent({
       status: mapExpandedCommandStatus(commandResult.status),
       actionExecutionId: commandResult.actionExecutionId,

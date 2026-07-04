@@ -187,7 +187,9 @@ describe("safe type contract", () => {
       "SAFE_TYPE_CONTRACT_TARGET_NOT_SAFE_TEXT_FIELD"
     );
     expect(password.status).toBe("blocked");
-    expect(codes(password)).toContain("SAFE_TYPE_CONTRACT_SENSITIVE_TEXT_FIELD");
+    expect(codes(password)).toContain(
+      "SAFE_TYPE_CONTRACT_SENSITIVE_TEXT_FIELD"
+    );
   });
 
   it("blocks stale observation and receipt/proposal mismatches", () => {
@@ -212,7 +214,9 @@ describe("safe type contract", () => {
     expect(stale.status).toBe("blocked");
     expect(codes(stale)).toContain("SAFE_TYPE_CONTRACT_OBSERVATION_STALE");
     expect(mismatch.status).toBe("blocked");
-    expect(codes(mismatch)).toContain("SAFE_TYPE_CONTRACT_PROPOSAL_SCOPE_MISMATCH");
+    expect(codes(mismatch)).toContain(
+      "SAFE_TYPE_CONTRACT_PROPOSAL_SCOPE_MISMATCH"
+    );
   });
 
   it("blocks excessive, multiline, control-character, secret, and password text", () => {

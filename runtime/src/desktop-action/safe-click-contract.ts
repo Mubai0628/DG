@@ -433,7 +433,9 @@ export function validateSafeClickContractInput(
   };
 }
 
-export function summarizeSafeClickContract(contract: SafeClickContract): string {
+export function summarizeSafeClickContract(
+  contract: SafeClickContract
+): string {
   return [
     `status:${contract.status}`,
     `contract:${contract.contractId}`,
@@ -489,8 +491,7 @@ function normalizeInput(
       ""
     ),
     riskClassificationId: safeString(
-      input.receipt?.scope.riskClassificationId ??
-        risk.riskClassificationId,
+      input.receipt?.scope.riskClassificationId ?? risk.riskClassificationId,
       ""
     ),
     simulationId: safeString(
@@ -511,7 +512,9 @@ function normalizeInput(
         proposal.displayRef
     ),
     targetHash: safeOptionalString(
-      input.receipt?.scope.targetHash ?? target.targetHash ?? proposal.targetHash
+      input.receipt?.scope.targetHash ??
+        target.targetHash ??
+        proposal.targetHash
     ),
     boundsHash: safeString(target.boundsHash ?? observation.boundsHash, ""),
     clickPointHash: safeOptionalString(clickPoint.pointHash),
@@ -631,7 +634,11 @@ function validateReceipt(
     ["receipt observation", receipt.scope.observationId, input.observationId],
     ["receipt target", receipt.scope.targetId, input.targetId],
     ["receipt proposal", receipt.scope.proposalId, input.proposalId],
-    ["receipt risk", receipt.scope.riskClassificationId, input.riskClassificationId],
+    [
+      "receipt risk",
+      receipt.scope.riskClassificationId,
+      input.riskClassificationId
+    ],
     ["receipt simulation", receipt.scope.simulationId, input.simulationId],
     ["receipt window", receipt.scope.windowRef, input.windowRef],
     ["receipt app", receipt.scope.appRef, input.appRef],
@@ -771,9 +778,17 @@ function validateProposal(
   findings: SafeClickContractFinding[]
 ): void {
   if (!input.proposalId) {
-    add(findings, "proposal", "blocker", "SAFE_CLICK_CONTRACT_PROPOSAL_MISSING");
+    add(
+      findings,
+      "proposal",
+      "blocker",
+      "SAFE_CLICK_CONTRACT_PROPOSAL_MISSING"
+    );
   }
-  if (proposal?.actionKind !== undefined && proposal.actionKind !== ACTION_KIND) {
+  if (
+    proposal?.actionKind !== undefined &&
+    proposal.actionKind !== ACTION_KIND
+  ) {
     add(
       findings,
       "proposal",
@@ -849,7 +864,10 @@ function validateSimulation(
       "SAFE_CLICK_CONTRACT_SIMULATION_BLOCKED"
     );
   }
-  if (input.simulationStepCount !== undefined && input.simulationStepCount > 1) {
+  if (
+    input.simulationStepCount !== undefined &&
+    input.simulationStepCount > 1
+  ) {
     add(
       findings,
       "simulation",
@@ -857,7 +875,10 @@ function validateSimulation(
       "SAFE_CLICK_CONTRACT_MULTI_STEP_BLOCKED"
     );
   }
-  if (input.simulationClickCount !== undefined && input.simulationClickCount !== 1) {
+  if (
+    input.simulationClickCount !== undefined &&
+    input.simulationClickCount !== 1
+  ) {
     add(
       findings,
       "click_policy",
@@ -931,7 +952,8 @@ function freshnessStatusFor(
 ): SafeClickContractPlan["freshnessStatus"] {
   if (
     findings.some(
-      (finding) => finding.kind === "freshness" && finding.severity === "blocker"
+      (finding) =>
+        finding.kind === "freshness" && finding.severity === "blocker"
     )
   ) {
     return "blocked";
@@ -1019,8 +1041,7 @@ function safeMessageFor(code: string): string {
       "Receipt readiness does not allow safe click contract handoff.",
     SAFE_CLICK_CONTRACT_RECEIPT_SCOPE_MISMATCH:
       "Receipt scope does not match observation, target, proposal, risk, or simulation summaries.",
-    SAFE_CLICK_CONTRACT_OBSERVATION_MISSING:
-      "Observation summary is required.",
+    SAFE_CLICK_CONTRACT_OBSERVATION_MISSING: "Observation summary is required.",
     SAFE_CLICK_CONTRACT_TARGET_NOT_IN_OBSERVATION:
       "Target id does not appear in the observation summary.",
     SAFE_CLICK_CONTRACT_OBSERVATION_TIME_INVALID:
@@ -1053,8 +1074,7 @@ function safeMessageFor(code: string): string {
       "High or destructive risk blocks safe click contract planning.",
     SAFE_CLICK_CONTRACT_SENSITIVE_TARGET_BLOCKED:
       "Risk classification blocked the target as sensitive.",
-    SAFE_CLICK_CONTRACT_SIMULATION_MISSING:
-      "Simulation summary is required.",
+    SAFE_CLICK_CONTRACT_SIMULATION_MISSING: "Simulation summary is required.",
     SAFE_CLICK_CONTRACT_SIMULATION_BLOCKED:
       "Simulation summary is blocked or unsafe for click.",
     SAFE_CLICK_CONTRACT_MULTI_STEP_BLOCKED:

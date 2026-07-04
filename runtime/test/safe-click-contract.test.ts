@@ -208,7 +208,9 @@ describe("safe click contract", () => {
     expect(stale.status).toBe("blocked");
     expect(codes(stale)).toContain("SAFE_CLICK_CONTRACT_OBSERVATION_STALE");
     expect(missingBounds.status).toBe("blocked");
-    expect(codes(missingBounds)).toContain("SAFE_CLICK_CONTRACT_BOUNDS_MISSING");
+    expect(codes(missingBounds)).toContain(
+      "SAFE_CLICK_CONTRACT_BOUNDS_MISSING"
+    );
   });
 
   it("blocks sensitive targets and high risk classification", () => {

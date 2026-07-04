@@ -217,7 +217,6 @@ export function buildApprovedExpandedDesktopActionView(
   }));
   const allFindings = [...findings, ...contractFindings];
   const blockerCount = countSeverity(allFindings, "blocker");
-  const warningCount = countSeverity(allFindings, "warning");
   const commandRequest =
     blockerCount === 0 &&
     scope.typedConfirmationAccepted &&
@@ -317,7 +316,9 @@ function buildView(
     ...(options.scope?.targetRef ? { targetRef: options.scope.targetRef } : {}),
     ...(options.scope?.windowRef ? { windowRef: options.scope.windowRef } : {}),
     ...(options.scope?.appRef ? { appRef: options.scope.appRef } : {}),
-    ...(options.scope?.displayRef ? { displayRef: options.scope.displayRef } : {}),
+    ...(options.scope?.displayRef
+      ? { displayRef: options.scope.displayRef }
+      : {}),
     ...(options.contract
       ? { freshnessStatus: options.contract.freshnessStatus }
       : {}),
@@ -630,7 +631,9 @@ function summarizeCommandResult(
   };
 }
 
-function summarizeContract(contract: SafeClickContract | SafeTypeContract): string {
+function summarizeContract(
+  contract: SafeClickContract | SafeTypeContract
+): string {
   return `${contract.status}:${contract.actionKind}:${contract.targetRef}:${contract.contractHash.slice(0, 12)}`;
 }
 

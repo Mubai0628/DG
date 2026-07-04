@@ -197,7 +197,9 @@ export function buildApprovedExpandedDesktopActionReceiptView(
         ? { maxTextLength: derived.maxTextLength }
         : {})
     },
-    ...(derived.textLength !== undefined ? { textLength: derived.textLength } : {}),
+    ...(derived.textLength !== undefined
+      ? { textLength: derived.textLength }
+      : {}),
     observationObservedAt: input.createdAt ?? defaultCreatedAt,
     createdAt: input.createdAt ?? defaultCreatedAt,
     idGenerator: input.idGenerator
@@ -280,8 +282,7 @@ function buildView(
         .map((finding) => finding.code)
     })
   );
-  const canBuildReceipt =
-    options.derived !== undefined && blockerCount === 0;
+  const canBuildReceipt = options.derived !== undefined && blockerCount === 0;
 
   return {
     status: options.status,
@@ -298,7 +299,9 @@ function buildView(
     ...(options.derived?.actionKind
       ? { actionKind: options.derived.actionKind }
       : {}),
-    ...(options.derived?.targetId ? { targetRef: options.derived.targetId } : {}),
+    ...(options.derived?.targetId
+      ? { targetRef: options.derived.targetId }
+      : {}),
     ...(options.derived?.windowRef
       ? { windowRef: options.derived.windowRef }
       : {}),
@@ -321,8 +324,9 @@ function buildView(
     ...(options.receipt ? { receipt: options.receipt } : {}),
     ...(options.receipt
       ? {
-          receiptSummary:
-            summarizeApprovedExpandedDesktopActionReceipt(options.receipt)
+          receiptSummary: summarizeApprovedExpandedDesktopActionReceipt(
+            options.receipt
+          )
         }
       : {}),
     blockerCount,
