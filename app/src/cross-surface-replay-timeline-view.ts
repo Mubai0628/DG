@@ -74,7 +74,9 @@ export function buildCrossSurfaceReplayTimelineView(
         ? parsed.value.timelineRefs
         : [],
     sourceKind:
-      input.sourceKind === "paste" ? "app_preview" : (input.sourceKind ?? "app_preview"),
+      input.sourceKind === "paste"
+        ? "app_preview"
+        : (input.sourceKind ?? "app_preview"),
     createdAt: input.createdAt,
     idGenerator: input.idGenerator
   });
@@ -112,9 +114,7 @@ function fromTimeline(
     warningCount: timeline.warningCount,
     findingCount: timeline.findingCount,
     items: timeline.items,
-    findingCodes: timeline.findings.map((finding) =>
-      safeCode(finding.code)
-    ),
+    findingCodes: timeline.findings.map((finding) => safeCode(finding.code)),
     hashPrefix: timeline.timelineHash.slice(0, 16),
     readiness: timeline.readiness,
     nextAction: timeline.nextAction,
@@ -122,15 +122,14 @@ function fromTimeline(
   };
 }
 
-function parseTimelineJson(text: string):
+function parseTimelineJson(
+  text: string
+):
   | { ok: true; value: Record<string, unknown> | Record<string, unknown>[] }
   | { ok: false; safeMessage: string } {
   try {
     const value = JSON.parse(text) as unknown;
-    if (
-      Array.isArray(value) ||
-      (value !== null && typeof value === "object")
-    ) {
+    if (Array.isArray(value) || (value !== null && typeof value === "object")) {
       return {
         ok: true,
         value: value as Record<string, unknown> | Record<string, unknown>[]

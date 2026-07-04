@@ -24827,9 +24827,7 @@ describe("desktop source boundaries", () => {
     expect(evidenceDoc).toContain("execute plugin or skill runtimes");
     expect(evidenceDoc).toContain("execute desktop actions");
     expect(evidenceDoc).toContain("write EventStore events");
-    expect(docsIndex).toContain(
-      "cross-surface-evidence-integration-v0.27.md"
-    );
+    expect(docsIndex).toContain("cross-surface-evidence-integration-v0.27.md");
   });
 
   it("summarizes approved cross-surface lanes without executing them", () => {
@@ -25014,9 +25012,7 @@ describe("desktop source boundaries", () => {
     expect(replayDoc).toContain("write EventStore events");
     expect(replayDoc).toContain("raw stdout/stderr");
     expect(replayDoc).toContain("missing critical stages");
-    expect(docsIndex).toContain(
-      "cross-surface-replay-audit-timeline-v0.27.md"
-    );
+    expect(docsIndex).toContain("cross-surface-replay-audit-timeline-v0.27.md");
   });
 
   it("runs the cross-surface workflow smoke fixture through preview surfaces", async () => {
@@ -25053,8 +25049,8 @@ describe("desktop source boundaries", () => {
     });
     const serialized = JSON.stringify({ workflow, evidence, sequence, replay });
 
-    expect((fixture.smokePath as string[])).toContain("user_objective");
-    expect((fixture.smokePath as string[])).toContain(
+    expect(fixture.smokePath as string[]).toContain("user_objective");
+    expect(fixture.smokePath as string[]).toContain(
       "unified_replay_audit_summary"
     );
     expect(workflow.status).toBe("preview_ready");
@@ -25129,6 +25125,106 @@ describe("desktop source boundaries", () => {
     expect(appSource).toContain("Replay Execution (disabled)");
     expect(appSource).toContain("Re-run Actions (disabled)");
     expect(docsIndex).toContain("cross-surface-agent-workflow-manual-qa.md");
+  });
+
+  it("documents the v0.28 cross-surface workflow RC release package", async () => {
+    const releaseNotes = await readFile(
+      path.join(
+        repoRoot,
+        "docs",
+        "release-notes-v0.28.0-cross-surface-agent-workflow-rc.1.md"
+      ),
+      "utf8"
+    );
+    const checklist = await readFile(
+      path.join(
+        repoRoot,
+        "docs",
+        "cross-surface-agent-workflow-rc-checklist.md"
+      ),
+      "utf8"
+    );
+    const manualQa = await readFile(
+      path.join(repoRoot, "docs", "cross-surface-agent-workflow-manual-qa.md"),
+      "utf8"
+    );
+    const docsIndex = await readFile(
+      path.join(repoRoot, "docs", "README.md"),
+      "utf8"
+    );
+    const readme = await readFile(path.join(repoRoot, "README.md"), "utf8");
+    const appReadme = await readFile(path.join(appRoot, "README.md"), "utf8");
+    const appSource = await readFile(
+      path.join(appRoot, "src", "App.tsx"),
+      "utf8"
+    );
+
+    expect(releaseNotes).toContain("v0.28.0-cross-surface-agent-workflow-rc.1");
+    expect(releaseNotes).toContain("Cross-surface agent workflow RC");
+    expect(releaseNotes).toContain(
+      "web_table_to_csv Convert remains the real conversion flow."
+    );
+    expect(releaseNotes).toContain(
+      "App live DeepSeek proposal generation remains explicit opt-in."
+    );
+    expect(releaseNotes).toContain(
+      "Fixed multi-agent route can coordinate orchestrator/coder/reviewer/verifier summaries."
+    );
+    expect(releaseNotes).toContain(
+      "MCP read-only discovery/tool execution can provide summary evidence."
+    );
+    expect(releaseNotes).toContain(
+      "Unified replay/audit timeline can summarize the workflow."
+    );
+    expect(releaseNotes).toContain("no autonomous agent execution");
+    expect(releaseNotes).toContain("no dynamic bidding");
+    expect(releaseNotes).toContain("no arbitrary desktop action");
+    expect(releaseNotes).toContain("no arbitrary Git/shell");
+    expect(releaseNotes).toContain("no raw content in events");
+    expect(releaseNotes).toContain("fixed roles");
+    expect(releaseNotes).toContain("summary-only evidence");
+    expect(releaseNotes).toContain("human approval receipts");
+    expect(releaseNotes).toContain("approved lanes only");
+    expect(releaseNotes).toContain("pnpm verify:ci");
+    expect(releaseNotes).toContain("pnpm release:smoke");
+    expect(releaseNotes).toContain("pnpm app:qa:check");
+    expect(checklist).toContain("Local Scoped Command Gate");
+    expect(checklist).toContain("Full Stage-end Command Gate");
+    expect(checklist).toContain("Visual Smoke Gate");
+    expect(checklist).toContain("GitHub Actions Gate");
+    expect(checklist).toContain("v0.28.0-cross-surface-agent-workflow-rc.1");
+    expect(checklist).toContain(
+      "release-notes-v0.28.0-cross-surface-agent-workflow-rc.1.md"
+    );
+    expect(manualQa).toContain("live proposal generation path");
+    expect(manualQa).toContain("fixed agent route");
+    expect(manualQa).toContain("project knowledge");
+    expect(manualQa).toContain("MCP read-only evidence");
+    expect(manualQa).toContain("plugin/skill metadata");
+    expect(manualQa).toContain("desktop observer evidence");
+    expect(manualQa).toContain("desktop action proposal");
+    expect(manualQa).toContain("approved desktop action lane");
+    expect(manualQa).toContain("approved workspace apply/rollback");
+    expect(manualQa).toContain("Git/shell verification safe lanes");
+    expect(manualQa).toContain("no raw prompt");
+    expect(manualQa).toContain("no broad desktop action");
+    expect(appSource).toContain("Workflow preview / controlled lanes only");
+    expect(appSource).toContain("v0.28 fixed cross-surface workflow");
+    expect(appSource).toContain("Run Cross-surface Workflow (disabled)");
+    expect(appSource).toContain("Auto-execute Workflow (disabled)");
+    expect(appSource).toContain("Replay Execution (disabled)");
+    expect(appSource).not.toContain("Run Cross-surface Workflow</button>");
+    expect(appSource).not.toContain("Auto-execute Workflow</button>");
+    expect(docsIndex).toContain(
+      "release-notes-v0.28.0-cross-surface-agent-workflow-rc.1.md"
+    );
+    expect(docsIndex).toContain("cross-surface-agent-workflow-rc-checklist.md");
+    expect(readme).toContain(
+      "release-notes-v0.28.0-cross-surface-agent-workflow-rc.1.md"
+    );
+    expect(appReadme).toContain(
+      "prepare the v0.28 Cross-surface Agent Workflow RC"
+    );
   });
 
   it("documents the P1D desktop action expansion ADR and implementation gate", async () => {

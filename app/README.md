@@ -247,6 +247,11 @@ Current scope:
   audit, smoke coverage, release notes, manual QA, and RC checklist while
   arbitrary click/type, clipboard write, file dialog automation, drag/drop,
   broad native bridge, and replay re-execution remain disabled
+- prepare the v0.28 Cross-surface Agent Workflow RC with summary-only workflow
+  scenario preview, evidence refs, approved lane sequencing, replay/audit
+  timeline, and smoke/manual QA coverage while autonomous agents, dynamic
+  bidding, broad desktop action, arbitrary MCP/plugin/skill runtime, arbitrary
+  Git/shell, auto-apply, and raw event content remain disabled
 - prepare the v0.19 MCP Tool Invocation Proposal RC with proposal schema,
   input risk classification, simulated result summaries, broker planning,
   read-only App proposal surface, redaction audit, and smoke hardening while

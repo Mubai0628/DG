@@ -148,7 +148,9 @@ describe("cross-surface evidence summary", () => {
     expect(summary.findings.map((finding) => finding.code)).toContain(
       "FORBIDDEN_FIELD"
     );
-    expect(JSON.stringify(summary)).not.toContain("raw MCP output should not appear");
+    expect(JSON.stringify(summary)).not.toContain(
+      "raw MCP output should not appear"
+    );
   });
 
   it("blocks raw desktop screenshot", () => {

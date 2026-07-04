@@ -129,7 +129,9 @@ export function buildCrossSurfaceEvidenceView(
         ? parsed.value.evidenceRefs
         : [],
     sourceKind:
-      input.sourceKind === "paste" ? "app_paste" : (input.sourceKind ?? "app_paste"),
+      input.sourceKind === "paste"
+        ? "app_paste"
+        : (input.sourceKind ?? "app_paste"),
     createdAt: input.createdAt,
     idGenerator: input.idGenerator
   });
@@ -173,8 +175,7 @@ function fromSummary(
     })),
     hashPrefix: summary.evidenceHash.slice(0, 16),
     readiness: {
-      canAttachToWorkflowPreview:
-        summary.readiness.canAttachToWorkflowPreview,
+      canAttachToWorkflowPreview: summary.readiness.canAttachToWorkflowPreview,
       canReadProjectRawMemory: false,
       canReadMcpResourceContent: false,
       canCallMcpTool: false,
@@ -195,21 +196,23 @@ function fromSummary(
   };
 }
 
-function parseEvidenceJson(text: string):
+function parseEvidenceJson(
+  text: string
+):
   | { ok: true; value: Record<string, unknown> | Record<string, unknown>[] }
   | { ok: false; safeMessage: string } {
   try {
     const value = JSON.parse(text) as unknown;
-    if (
-      Array.isArray(value) ||
-      (value !== null && typeof value === "object")
-    ) {
+    if (Array.isArray(value) || (value !== null && typeof value === "object")) {
       return {
         ok: true,
         value: value as Record<string, unknown> | Record<string, unknown>[]
       };
     }
-    return { ok: false, safeMessage: "Evidence JSON must be an object or array." };
+    return {
+      ok: false,
+      safeMessage: "Evidence JSON must be an object or array."
+    };
   } catch (caught) {
     return { ok: false, safeMessage: safeErrorMessage(caught) };
   }

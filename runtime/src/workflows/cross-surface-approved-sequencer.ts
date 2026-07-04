@@ -46,7 +46,10 @@ export type CrossSurfaceApprovedLaneInput = {
   approvalReceiptRef?: string | undefined;
   typedConfirmationRef?: string | undefined;
   verificationTemplateRef?: string | undefined;
-  desktopActionKind?: CrossSurfaceApprovedDesktopActionKind | string | undefined;
+  desktopActionKind?:
+    | CrossSurfaceApprovedDesktopActionKind
+    | string
+    | undefined;
   rollbackCheckpointRef?: string | undefined;
   replaySummaryRef?: string | undefined;
   warningCodes?: string[] | undefined;
@@ -82,7 +85,12 @@ export type CrossSurfaceApprovedSequencerReadiness = {
 
 export type CrossSurfaceApprovedSequencerInput = {
   lanes?: CrossSurfaceApprovedLaneInput[] | undefined;
-  sourceKind?: "runtime" | "app_preview" | "fixture" | "manual_test" | undefined;
+  sourceKind?:
+    | "runtime"
+    | "app_preview"
+    | "fixture"
+    | "manual_test"
+    | undefined;
   createdAt?: string | undefined;
   idGenerator?: (() => string) | undefined;
 };
@@ -116,15 +124,14 @@ const allowedLaneKinds = new Set<CrossSurfaceApprovedLaneKind>([
   "summary_event_replay"
 ]);
 
-const approvedDesktopActionKinds = new Set<CrossSurfaceApprovedDesktopActionKind>(
-  [
+const approvedDesktopActionKinds =
+  new Set<CrossSurfaceApprovedDesktopActionKind>([
     "focus_window",
     "raise_window",
     "activate_window",
     "click_observed_safe_target",
     "type_into_observed_text_field"
-  ]
-);
+  ]);
 
 const emptyReadiness: CrossSurfaceApprovedSequencerReadiness = {
   canExecuteNow: false,
@@ -306,14 +313,12 @@ function buildSequence(input: {
   lanes: CrossSurfaceApprovedLaneSummary[];
   findings: CrossSurfaceApprovedSequencerFinding[];
 }): CrossSurfaceApprovedSequence {
-  const missingApprovals = unique(
-    [
-      ...input.lanes.flatMap((lane) => lane.missingApprovalCodes),
-      ...input.findings
-        .map((findingItem) => findingItem.code)
-        .filter((code) => code.startsWith("MISSING_"))
-    ]
-  );
+  const missingApprovals = unique([
+    ...input.lanes.flatMap((lane) => lane.missingApprovalCodes),
+    ...input.findings
+      .map((findingItem) => findingItem.code)
+      .filter((code) => code.startsWith("MISSING_"))
+  ]);
   const requiredReceipts = unique(
     input.lanes.flatMap((lane) => lane.requiredReceiptRefs)
   );
@@ -356,9 +361,8 @@ function buildSequence(input: {
             input.lanes.filter((lane) => lane.blockerCodes.length > 0).length
           )
         : 0,
-    warningLaneCount: input.lanes.filter(
-      (lane) => lane.warningCodes.length > 0
-    ).length,
+    warningLaneCount: input.lanes.filter((lane) => lane.warningCodes.length > 0)
+      .length,
     requiredReceipts,
     missingApprovals: unique(missingApprovals),
     laneSummaries: input.lanes,
@@ -369,8 +373,7 @@ function buildSequence(input: {
     sequenceHash,
     readiness: {
       ...emptyReadiness,
-      canExecuteNow:
-        input.status === "sequence_ready" && input.lanes.length > 0
+      canExecuteNow: input.status === "sequence_ready" && input.lanes.length > 0
     },
     nextAction: nextActionFor(input.status)
   };
@@ -428,7 +431,11 @@ function validateLanes(
     }
     if (kind === "approved_desktop_action") {
       const actionKind = safeText(lane.desktopActionKind);
-      if (!approvedDesktopActionKinds.has(actionKind as CrossSurfaceApprovedDesktopActionKind)) {
+      if (
+        !approvedDesktopActionKinds.has(
+          actionKind as CrossSurfaceApprovedDesktopActionKind
+        )
+      ) {
         findings.push(
           finding("lane", "blocker", "UNAPPROVED_DESKTOP_ACTION_KIND", path)
         );
@@ -438,7 +445,9 @@ function validateLanes(
   return findings;
 }
 
-function missingApprovalCodesFor(lane: CrossSurfaceApprovedLaneInput): string[] {
+function missingApprovalCodesFor(
+  lane: CrossSurfaceApprovedLaneInput
+): string[] {
   const kind = safeText(lane.kind);
   const missing: string[] = [];
   if (
@@ -524,9 +533,7 @@ function findUnsafeStringMarkers(
     }
     for (const pattern of unsafeTextPatterns) {
       if (pattern.pattern.test(entry.value)) {
-        findings.push(
-          finding("secret", "blocker", pattern.code, entry.path)
-        );
+        findings.push(finding("secret", "blocker", pattern.code, entry.path));
       }
     }
   });
@@ -590,8 +597,7 @@ function safeMessageFor(code: string): string {
       "Desktop action lane kind is outside existing approved lanes.",
     FORBIDDEN_FIELD:
       "Raw, command, dynamic action, or execution fields are not allowed.",
-    EXECUTION_FLAG_TRUE:
-      "Sequencer inputs must not claim execution readiness.",
+    EXECUTION_FLAG_TRUE: "Sequencer inputs must not claim execution readiness.",
     API_KEY_MARKER: "Secret-like API key marker detected.",
     BEARER_TOKEN_MARKER: "Bearer token marker detected.",
     AUTHORIZATION_HEADER_MARKER: "Authorization header marker detected.",

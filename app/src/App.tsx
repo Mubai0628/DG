@@ -824,8 +824,10 @@ export function DesktopShell(): JSX.Element {
     liveProposalEvaluationTelemetryAuditPreview,
     setLiveProposalEvaluationTelemetryAuditPreview
   ] = useState<LiveProposalEvaluationTelemetryAuditView | undefined>();
-  const [crossSurfaceWorkflowScenarioText, setCrossSurfaceWorkflowScenarioText] =
-    useState("");
+  const [
+    crossSurfaceWorkflowScenarioText,
+    setCrossSurfaceWorkflowScenarioText
+  ] = useState("");
   const [crossSurfaceWorkflowPreview, setCrossSurfaceWorkflowPreview] =
     useState<CrossSurfaceWorkflowView | undefined>();
   const [crossSurfaceEvidenceJsonText, setCrossSurfaceEvidenceJsonText] =
@@ -834,8 +836,10 @@ export function DesktopShell(): JSX.Element {
     useState<CrossSurfaceEvidenceView | undefined>();
   const [crossSurfaceReplayTimelineText, setCrossSurfaceReplayTimelineText] =
     useState("");
-  const [crossSurfaceReplayTimelinePreview, setCrossSurfaceReplayTimelinePreview] =
-    useState<CrossSurfaceReplayTimelineView | undefined>();
+  const [
+    crossSurfaceReplayTimelinePreview,
+    setCrossSurfaceReplayTimelinePreview
+  ] = useState<CrossSurfaceReplayTimelineView | undefined>();
   const [fixedMultiAgentRunPreview, setFixedMultiAgentRunPreview] = useState<
     FixedMultiAgentRunView | undefined
   >();
@@ -9768,9 +9772,8 @@ export function DesktopShell(): JSX.Element {
 
             <p className="fieldHelp">
               {
-                summarizeCrossSurfaceEvidenceView(
-                  displayedCrossSurfaceEvidence
-                ).source
+                summarizeCrossSurfaceEvidenceView(displayedCrossSurfaceEvidence)
+                  .source
               }{" "}
               · {displayedCrossSurfaceEvidence.nextAction}
             </p>
@@ -9787,9 +9790,9 @@ export function DesktopShell(): JSX.Element {
               </span>
             </div>
             <p className="fieldHelp">
-              Previews a fixed cross-surface workflow from summary refs only.
-              The App Shell does not run DeepSeek, run agents, call MCP tools,
-              execute desktop actions, apply patches, rollback, or write
+              Previews the v0.28 fixed cross-surface workflow from summary refs
+              only. The App Shell does not run DeepSeek, run agents, call MCP
+              tools, execute desktop actions, apply patches, rollback, or write
               EventStore events.
             </p>
 
@@ -9964,9 +9967,11 @@ export function DesktopShell(): JSX.Element {
             <div className="statusBox">
               <strong>Approved actions sequencer</strong>
               <p>
-                {summarizeCrossSurfaceApprovedSequence(
-                  crossSurfaceApprovedSequence
-                ).source}{" "}
+                {
+                  summarizeCrossSurfaceApprovedSequence(
+                    crossSurfaceApprovedSequence
+                  ).source
+                }{" "}
                 · {crossSurfaceApprovedSequence.status} · lanes{" "}
                 {crossSurfaceApprovedSequence.readyLaneCount} /{" "}
                 {crossSurfaceApprovedSequence.laneCount} · missing approvals{" "}
@@ -10022,9 +10027,8 @@ export function DesktopShell(): JSX.Element {
 
             <p className="fieldHelp">
               {
-                summarizeCrossSurfaceWorkflowView(
-                  displayedCrossSurfaceWorkflow
-                ).source
+                summarizeCrossSurfaceWorkflowView(displayedCrossSurfaceWorkflow)
+                  .source
               }{" "}
               · {displayedCrossSurfaceWorkflow.nextAction}
             </p>
@@ -10128,7 +10132,9 @@ export function DesktopShell(): JSX.Element {
               <div>
                 <dt>Missing critical</dt>
                 <dd>
-                  {displayedCrossSurfaceReplayTimeline.missingCriticalStageCount}
+                  {
+                    displayedCrossSurfaceReplayTimeline.missingCriticalStageCount
+                  }
                 </dd>
               </div>
               <div>

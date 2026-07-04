@@ -69,7 +69,12 @@ export type CrossSurfaceReplayAuditReadiness = {
 
 export type CrossSurfaceReplayAuditInput = {
   timelineRefs?: CrossSurfaceReplayStageInput[] | undefined;
-  sourceKind?: "runtime" | "app_preview" | "fixture" | "manual_test" | undefined;
+  sourceKind?:
+    | "runtime"
+    | "app_preview"
+    | "fixture"
+    | "manual_test"
+    | undefined;
   createdAt?: string | undefined;
   idGenerator?: (() => string) | undefined;
 };
@@ -198,9 +203,14 @@ export function buildCrossSurfaceReplayAuditTimeline(
   const blockerCount = findings.filter(
     (findingItem) => findingItem.severity === "blocker"
   ).length;
-  const items = blockerCount > 0 ? [] : normalizeItems(input.timelineRefs ?? []);
+  const items =
+    blockerCount > 0 ? [] : normalizeItems(input.timelineRefs ?? []);
   const missingCriticalStages =
-    blockerCount > 0 ? [] : stageKinds.filter((stage) => !items.some((item) => item.stage === stage));
+    blockerCount > 0
+      ? []
+      : stageKinds.filter(
+          (stage) => !items.some((item) => item.stage === stage)
+        );
 
   if ((input.timelineRefs ?? []).length === 0) {
     return buildTimeline({
@@ -306,8 +316,7 @@ function buildTimeline(input: {
     timelineHash,
     readiness: {
       ...emptyReadiness,
-      canRenderTimeline:
-        input.status !== "blocked" && input.status !== "empty"
+      canRenderTimeline: input.status !== "blocked" && input.status !== "empty"
     },
     nextAction: nextActionFor(input.status)
   };
@@ -443,7 +452,8 @@ function finding(
 function safeMessageFor(code: string): string {
   const messages: Record<string, string> = {
     MISSING_TIMELINE_REFS: "No replay/audit timeline refs were provided.",
-    MISSING_CRITICAL_STAGE: "A critical cross-surface timeline stage is missing.",
+    MISSING_CRITICAL_STAGE:
+      "A critical cross-surface timeline stage is missing.",
     UNKNOWN_TIMELINE_STAGE: "Timeline stage kind is not allowed.",
     MISSING_REF_ID: "Timeline refs must include safe ref ids.",
     DUPLICATE_TIMELINE_REF: "Timeline refs must not reuse the same ref id.",

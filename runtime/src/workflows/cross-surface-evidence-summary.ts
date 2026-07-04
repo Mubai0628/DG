@@ -597,7 +597,8 @@ function safeMessageFor(code: string): string {
     UNKNOWN_EVIDENCE_KIND: "Evidence ref kind is not allowed.",
     MISSING_SUMMARY: "Each evidence ref must include a summary.",
     SUMMARY_ONLY_REQUIRED: "Evidence refs must be summary-only.",
-    FORBIDDEN_FIELD: "Raw, secret, command, or execution fields are not allowed.",
+    FORBIDDEN_FIELD:
+      "Raw, secret, command, or execution fields are not allowed.",
     EXECUTION_FLAG_TRUE:
       "Evidence summary refs must not claim execution readiness.",
     API_KEY_MARKER: "Secret-like API key marker detected.",

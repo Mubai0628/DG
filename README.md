@@ -601,6 +601,9 @@ authority.
 - [v0.27 Approved Expanded Desktop Action post-release review](docs/v0.27-approved-expanded-desktop-action-postrelease-review.md)
 - [P1F Cross-surface Agent Workflow roadmap](docs/p1f-cross-surface-agent-workflow-roadmap.md)
 - [P1F-001 Cross-surface Agent Workflow plan](docs/p1f-001-cross-surface-agent-workflow-plan.md)
+- [v0.28.0 Cross-surface Agent Workflow RC release notes](docs/release-notes-v0.28.0-cross-surface-agent-workflow-rc.1.md)
+- [Cross-surface Agent Workflow manual QA](docs/cross-surface-agent-workflow-manual-qa.md)
+- [Cross-surface Agent Workflow RC checklist](docs/cross-surface-agent-workflow-rc-checklist.md)
 
 - [v0.2 App Shell RC post-release review](docs/v0.2-app-shell-rc-postrelease-review.md)
 - [P0G Coding Workflow roadmap](docs/p0g-coding-workflow-roadmap.md)

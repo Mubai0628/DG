@@ -24,13 +24,15 @@ const stages: CrossSurfaceReplayStageKind[] = [
   "final_audit"
 ];
 
-const safeTimelineRefs: CrossSurfaceReplayStageInput[] = stages.map((stage) => ({
-  stage,
-  refId: `${stage}-ref`,
-  status: "summary_ready",
-  summary: `${stage} summary ref`,
-  hashPrefix: `${stage.slice(0, 4)}1234`
-}));
+const safeTimelineRefs: CrossSurfaceReplayStageInput[] = stages.map(
+  (stage) => ({
+    stage,
+    refId: `${stage}-ref`,
+    status: "summary_ready",
+    summary: `${stage} summary ref`,
+    hashPrefix: `${stage.slice(0, 4)}1234`
+  })
+);
 
 function expectNoExecution(timeline: CrossSurfaceReplayAuditTimeline): void {
   expect(timeline.readiness.canReplayExecution).toBe(false);

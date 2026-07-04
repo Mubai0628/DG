@@ -1,6 +1,5 @@
 import {
   buildCrossSurfaceWorkflowPlan,
-  summarizeCrossSurfaceWorkflowPlan,
   type CrossSurfaceWorkflowPlan,
   type CrossSurfaceWorkflowPlanStepKind,
   type CrossSurfaceWorkflowPlanStepStatus
@@ -288,7 +287,9 @@ function safeOptional(value: string | undefined): string | undefined {
 }
 
 function safeCode(value: string): string {
-  return safeErrorMessage(value).replace(/[^A-Z0-9_.-]/gi, "_").slice(0, 80);
+  return safeErrorMessage(value)
+    .replace(/[^A-Z0-9_.-]/gi, "_")
+    .slice(0, 80);
 }
 
 function stableStringify(value: unknown): string {
