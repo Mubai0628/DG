@@ -164,7 +164,12 @@ import {
 import {
   buildApprovedDesktopActionPrivacyAudit,
   buildApprovedExpandedDesktopActionEvent,
-  projectApprovedExpandedDesktopActionReplay
+  buildApprovedExpandedDesktopActionReceipt,
+  buildSafeClickContract,
+  buildSafeTypeContract,
+  projectApprovedExpandedDesktopActionReplay,
+  type SafeClickContractInput,
+  type SafeTypeContractInput
 } from "../../runtime/src/desktop-action/index.js";
 import {
   buildPatchRollbackCheckpointPreviewView,
@@ -28340,6 +28345,179 @@ function expandedDesktopActionProposalFixture() {
   };
 }
 
+function expandedSmokeReceipt(
+  actionKind: "click_observed_safe_target" | "type_into_observed_text_field" =
+    "click_observed_safe_target"
+) {
+  return buildApprovedExpandedDesktopActionReceipt({
+    scope: {
+      receiptId: `approved-expanded-smoke-${actionKind}-receipt`,
+      actionKind,
+      observationId: "expanded-smoke-observation",
+      targetId:
+        actionKind === "click_observed_safe_target"
+          ? "target-preferences-button"
+          : "target-search-field",
+      proposalId:
+        actionKind === "click_observed_safe_target"
+          ? "approved-expanded-smoke-click"
+          : "approved-expanded-smoke-type",
+      riskClassificationId: "expanded-smoke-risk",
+      simulationId: "expanded-smoke-simulation",
+      windowRef: "window-smoke",
+      appRef: "app-smoke",
+      displayRef: "display-primary",
+      targetHash:
+        actionKind === "click_observed_safe_target"
+          ? "target-hash-preferences"
+          : "target-hash-search",
+      allowedActionKinds: [actionKind],
+      expiresAt: "2099-01-01T00:00:00.000Z",
+      typedConfirmation:
+        actionKind === "click_observed_safe_target"
+          ? "CLICK OBSERVED TARGET"
+          : "TYPE INTO OBSERVED FIELD",
+      maxClicks: 1,
+      ...(actionKind === "type_into_observed_text_field"
+        ? { maxTextLength: 40 }
+        : {})
+    },
+    ...(actionKind === "type_into_observed_text_field"
+      ? { textLength: 12 }
+      : {}),
+    observationObservedAt: "2026-07-04T10:00:00.000Z",
+    createdAt: "2026-07-04T10:00:30.000Z"
+  });
+}
+
+function expandedSafeClickInput(
+  overrides: Partial<SafeClickContractInput> = {}
+): SafeClickContractInput {
+  return {
+    actionKind: "click_observed_safe_target",
+    receipt: expandedSmokeReceipt("click_observed_safe_target"),
+    observationSummary: {
+      observationId: "expanded-smoke-observation",
+      observedAt: "2026-07-04T10:00:00.000Z",
+      windowRef: "window-smoke",
+      appRef: "app-smoke",
+      displayRef: "display-primary",
+      targetIds: ["target-preferences-button"],
+      targetHash: "target-hash-preferences",
+      boundsHash: "bounds-hash-preferences"
+    },
+    targetSummary: {
+      targetId: "target-preferences-button",
+      targetKind: "button",
+      windowRef: "window-smoke",
+      appRef: "app-smoke",
+      displayRef: "display-primary",
+      targetHash: "target-hash-preferences",
+      boundsHash: "bounds-hash-preferences",
+      safeTarget: true
+    },
+    clickPointSummary: {
+      pointHash: "point-hash-preferences",
+      targetBoundsHash: "bounds-hash-preferences",
+      withinTargetBounds: true
+    },
+    proposalSummary: {
+      proposalId: "approved-expanded-smoke-click",
+      actionKind: "click_observed_safe_target",
+      targetId: "target-preferences-button",
+      windowRef: "window-smoke",
+      appRef: "app-smoke",
+      displayRef: "display-primary",
+      targetHash: "target-hash-preferences",
+      expectedEffectSummary: "Preferences panel would open."
+    },
+    riskClassification: {
+      riskClassificationId: "expanded-smoke-risk",
+      riskLevel: "low",
+      riskClass: "safe",
+      destructiveRisk: false,
+      sensitiveTargetBlocked: false
+    },
+    simulationSummary: {
+      simulationId: "expanded-smoke-simulation",
+      status: "safe",
+      safeForClick: true,
+      stepCount: 1,
+      clickCount: 1
+    },
+    freshnessPolicy: {
+      staleThresholdMs: 60 * 1000
+    },
+    createdAt: "2026-07-04T10:00:30.000Z",
+    ...overrides
+  };
+}
+
+function expandedSafeTypeInput(
+  overrides: Partial<SafeTypeContractInput> = {}
+): SafeTypeContractInput {
+  return {
+    actionKind: "type_into_observed_text_field",
+    receipt: expandedSmokeReceipt("type_into_observed_text_field"),
+    observationSummary: {
+      observationId: "expanded-smoke-observation",
+      observedAt: "2026-07-04T10:00:00.000Z",
+      windowRef: "window-smoke",
+      appRef: "app-smoke",
+      displayRef: "display-primary",
+      targetIds: ["target-search-field"],
+      targetHash: "target-hash-search"
+    },
+    targetSummary: {
+      targetId: "target-search-field",
+      targetKind: "text_field",
+      windowRef: "window-smoke",
+      appRef: "app-smoke",
+      displayRef: "display-primary",
+      targetHash: "target-hash-search",
+      safeTarget: true,
+      textField: true
+    },
+    textSummary: {
+      textHash: "text-hash-summary-only",
+      textLength: 12,
+      textValue: "summary only",
+      multiline: false,
+      allowMultiline: false
+    },
+    proposalSummary: {
+      proposalId: "approved-expanded-smoke-type",
+      actionKind: "type_into_observed_text_field",
+      targetId: "target-search-field",
+      windowRef: "window-smoke",
+      appRef: "app-smoke",
+      displayRef: "display-primary",
+      targetHash: "target-hash-search",
+      expectedEffectSummary: "Search field would receive text."
+    },
+    riskClassification: {
+      riskClassificationId: "expanded-smoke-risk",
+      riskLevel: "low",
+      riskClass: "safe",
+      destructiveRisk: false,
+      sensitiveTargetBlocked: false
+    },
+    simulationSummary: {
+      simulationId: "expanded-smoke-simulation",
+      status: "safe",
+      safeForType: true,
+      stepCount: 1,
+      typeCount: 1
+    },
+    freshnessPolicy: {
+      staleThresholdMs: 60 * 1000
+    },
+    maxTextLength: 40,
+    createdAt: "2026-07-04T10:00:30.000Z",
+    ...overrides
+  };
+}
+
 describe("expanded desktop action proposal app surface", () => {
   it("previews a safe proposal as summary-only and read-only", () => {
     const view = buildExpandedDesktopActionProposalView({
@@ -28642,6 +28820,288 @@ describe("expanded desktop action proposal app surface", () => {
     expect(serialized).not.toContain("apiKey");
   });
 
+  it("runs the approved expanded desktop action smoke fixture through click and type lanes", async () => {
+    type ApprovedExpandedSmokeFixture = {
+      fixtureId: string;
+      smokePath: string[];
+      desktopObserverMetadataRef: {
+        fixturePath: string;
+        observationId: string;
+        summaryOnly: true;
+      };
+      clickProposalDraft: unknown;
+      typeProposalDraft: unknown;
+      clickTypedConfirmation: string;
+      typeTypedConfirmation: string;
+      clickCommandResult: ApprovedExpandedDesktopActionCommandResult;
+      typeCommandResult: ApprovedExpandedDesktopActionCommandResult;
+      expected: {
+        clickProposalStatus: "warning";
+        typeProposalStatus: "warning";
+        receiptStatus: "warning";
+        surfaceCommandStatus: "unsupported";
+        replayStatus: "projected";
+        privacyAuditStatus: "audit_ready";
+        unsupportedPlatformIsSafe: true;
+        eventSummaryOnly: true;
+      };
+    };
+    const fixture = JSON.parse(
+      await readFile(
+        path.join(
+          appRoot,
+          "test",
+          "fixtures",
+          "approved-expanded-desktop-action-smoke.json"
+        ),
+        "utf8"
+      )
+    ) as ApprovedExpandedSmokeFixture;
+    const observerFixture = JSON.parse(
+      await readFile(
+        path.join(repoRoot, fixture.desktopObserverMetadataRef.fixturePath),
+        "utf8"
+      )
+    ) as {
+      observationSummary: { observationId: string; summaryOnly: true };
+      evidenceSummary: { summaryOnly: true };
+    };
+
+    const clickProposalView = buildExpandedDesktopActionProposalView({
+      proposalJsonText: JSON.stringify(fixture.clickProposalDraft),
+      sourceKind: "fixture"
+    });
+    const typeProposalView = buildExpandedDesktopActionProposalView({
+      proposalJsonText: JSON.stringify(fixture.typeProposalDraft),
+      sourceKind: "fixture"
+    });
+    const clickReceiptView = buildApprovedExpandedDesktopActionReceiptView({
+      expandedProposalView: clickProposalView,
+      typedConfirmation: fixture.clickTypedConfirmation
+    });
+    const typeReceiptView = buildApprovedExpandedDesktopActionReceiptView({
+      expandedProposalView: typeProposalView,
+      typedConfirmation: fixture.typeTypedConfirmation
+    });
+    const clickSurface = buildApprovedExpandedDesktopActionView({
+      expandedProposalView: clickProposalView,
+      receiptView: clickReceiptView,
+      commandStatus: "executed",
+      commandResult: fixture.clickCommandResult
+    });
+    const typeSurface = buildApprovedExpandedDesktopActionView({
+      expandedProposalView: typeProposalView,
+      receiptView: typeReceiptView,
+      commandStatus: "executed",
+      commandResult: fixture.typeCommandResult
+    });
+    const clickReplay = buildDesktopActionReplayView({
+      expandedCommandResult: fixture.clickCommandResult,
+      approvedExpandedDesktopActionView: clickSurface
+    });
+    const typeReplay = buildDesktopActionReplayView({
+      expandedCommandResult: fixture.typeCommandResult,
+      approvedExpandedDesktopActionView: typeSurface
+    });
+    const serialized = JSON.stringify({
+      fixture,
+      clickProposalView,
+      typeProposalView,
+      clickReceiptView,
+      typeReceiptView,
+      clickSurface,
+      typeSurface,
+      clickReplay,
+      typeReplay
+    });
+
+    expect(fixture.fixtureId).toBe(
+      "approved-expanded-desktop-action-smoke-v0.26"
+    );
+    expect(fixture.smokePath).toEqual([
+      "observe_metadata_summary",
+      "expanded_click_proposal",
+      "expanded_type_proposal",
+      "risk_and_simulation_summary",
+      "typed_receipt",
+      "safe_click_contract",
+      "safe_type_contract",
+      "fixed_tauri_command_summary",
+      "summary_event_preview",
+      "replay_projection",
+      "privacy_audit"
+    ]);
+    expect(observerFixture.observationSummary.summaryOnly).toBe(true);
+    expect(observerFixture.evidenceSummary.summaryOnly).toBe(true);
+    expect(clickProposalView.status).toBe(fixture.expected.clickProposalStatus);
+    expect(typeProposalView.status).toBe(fixture.expected.typeProposalStatus);
+    expect(clickReceiptView.status).toBe(fixture.expected.receiptStatus);
+    expect(typeReceiptView.status).toBe(fixture.expected.receiptStatus);
+    expect(clickReceiptView.receipt?.status).toBe("ready");
+    expect(typeReceiptView.receipt?.status).toBe("ready");
+    expect(clickSurface.status).toBe(fixture.expected.surfaceCommandStatus);
+    expect(typeSurface.status).toBe(fixture.expected.surfaceCommandStatus);
+    expect(clickSurface.commandRequest?.actionKind).toBe(
+      "click_observed_safe_target"
+    );
+    expect(typeSurface.commandRequest?.actionKind).toBe(
+      "type_into_observed_text_field"
+    );
+    expect(typeSurface.commandRequest?.textPayload?.textLength).toBeGreaterThan(
+      0
+    );
+    expect(fixture.clickCommandResult.status).toBe("unsupported_platform");
+    expect(fixture.typeCommandResult.status).toBe("unsupported_platform");
+    expect(fixture.clickCommandResult.eventPreview.notWritten).toBe(true);
+    expect(fixture.typeCommandResult.eventPreview.notWritten).toBe(true);
+    expect(clickReplay.status).toBe(fixture.expected.replayStatus);
+    expect(typeReplay.status).toBe(fixture.expected.replayStatus);
+    expect(clickReplay.event?.summaryOnly).toBe(
+      fixture.expected.eventSummaryOnly
+    );
+    expect(typeReplay.event?.summaryOnly).toBe(
+      fixture.expected.eventSummaryOnly
+    );
+    expect(clickReplay.replayProjection.privacyAudit.status).toBe(
+      fixture.expected.privacyAuditStatus
+    );
+    expect(typeReplay.replayProjection.privacyAudit.status).toBe(
+      fixture.expected.privacyAuditStatus
+    );
+    expect(clickReplay.readiness.canReplayDesktopAction).toBe(false);
+    expect(typeReplay.readiness.canReplayDesktopAction).toBe(false);
+    expect(clickReplay.readiness.canExecuteDesktopAction).toBe(false);
+    expect(typeReplay.readiness.canExecuteDesktopAction).toBe(false);
+    expect(clickReplay.readiness.canWriteEventStore).toBe(false);
+    expect(typeReplay.readiness.canWriteEventStore).toBe(false);
+    expect(fixture.expected.unsupportedPlatformIsSafe).toBe(true);
+    expect(serialized).not.toContain("RAW_SCREENSHOT");
+    expect(serialized).not.toContain("RAW_OCR");
+    expect(serialized).not.toContain("RAW_TEXT");
+    expect(serialized).not.toContain("CLIPBOARD_CONTENT");
+    expect(serialized).not.toContain("sk-fake");
+    expect(serialized).not.toContain("Authorization");
+  });
+
+  it("hardens approved expanded desktop action click/type contracts", () => {
+    const stale = buildSafeClickContract(
+      expandedSafeClickInput({
+        observationSummary: {
+          ...expandedSafeClickInput().observationSummary,
+          observedAt: "2026-07-04T09:00:00.000Z"
+        },
+        createdAt: "2026-07-04T10:10:00.000Z"
+      })
+    );
+    const screenMismatch = buildSafeClickContract(
+      expandedSafeClickInput({
+        proposalSummary: {
+          ...expandedSafeClickInput().proposalSummary,
+          displayRef: "display-other"
+        }
+      })
+    );
+    const sensitive = buildSafeClickContract(
+      expandedSafeClickInput({
+        targetSummary: {
+          ...expandedSafeClickInput().targetSummary,
+          passwordLike: true
+        }
+      })
+    );
+    const destructive = buildSafeClickContract(
+      expandedSafeClickInput({
+        riskClassification: {
+          ...expandedSafeClickInput().riskClassification,
+          riskLevel: "high",
+          riskClass: "D5_BLOCKED",
+          destructiveRisk: true
+        }
+      })
+    );
+    const typeRaw = buildSafeTypeContract({
+      ...expandedSafeTypeInput(),
+      textSummary: {
+        ...expandedSafeTypeInput().textSummary,
+        textValue: "RAW_TEXT"
+      }
+    });
+    const codes = (findings: { code: string }[]) =>
+      findings.map((finding) => finding.code);
+
+    expect(stale.status).toBe("blocked");
+    expect(codes(stale.findings)).toContain(
+      "SAFE_CLICK_CONTRACT_OBSERVATION_STALE"
+    );
+    expect(screenMismatch.status).toBe("blocked");
+    expect(codes(screenMismatch.findings)).toContain(
+      "SAFE_CLICK_CONTRACT_PROPOSAL_SCOPE_MISMATCH"
+    );
+    expect(sensitive.status).toBe("blocked");
+    expect(codes(sensitive.findings)).toContain(
+      "SAFE_CLICK_CONTRACT_SENSITIVE_OR_DESTRUCTIVE_TARGET"
+    );
+    expect(destructive.status).toBe("blocked");
+    expect(codes(destructive.findings)).toContain(
+      "SAFE_CLICK_CONTRACT_RISK_BLOCKED"
+    );
+    expect(typeRaw.status).toBe("blocked");
+    expect(codes(typeRaw.findings)).toContain("SAFE_TYPE_CONTRACT_RAW_MARKER");
+    for (const contract of [
+      stale,
+      screenMismatch,
+      sensitive,
+      destructive,
+      typeRaw
+    ]) {
+      expect(contract.readiness.canExecuteDesktopAction).toBe(false);
+      expect(contract.readiness.canWriteClipboard).toBe(false);
+      expect(contract.readiness.canOpenFileDialog).toBe(false);
+      expect(contract.readiness.canDragDrop).toBe(false);
+      expect(contract.readiness.canWriteEventStore).toBe(false);
+      expect(contract.readiness.canUseNativeBridge).toBe(false);
+      expect(contract.readiness.appCanExecute).toBe(false);
+    }
+    expect(JSON.stringify(typeRaw)).not.toContain("RAW_TEXT");
+  });
+
+  it("blocks clipboard file dialog and drag/drop before approved expanded receipts", () => {
+    const blockedKinds = [
+      ["clipboard_write", "clipboard"],
+      ["file_dialog_select", "file_dialog"],
+      ["drag_drop", "control"]
+    ] as const;
+
+    for (const [actionKind, targetKind] of blockedKinds) {
+      const proposalView = buildExpandedDesktopActionProposalView({
+        proposalJsonText: JSON.stringify({
+          ...expandedDesktopActionProposalFixture(),
+          proposalId: `expanded-action-${actionKind}`,
+          actionKind,
+          targetSummary: {
+            ...expandedDesktopActionProposalFixture().targetSummary,
+            targetKind,
+            targetId: `target-${actionKind}`
+          }
+        })
+      });
+      const receiptView = buildApprovedExpandedDesktopActionReceiptView({
+        expandedProposalView: proposalView,
+        typedConfirmation: "CLICK OBSERVED TARGET"
+      });
+
+      expect(receiptView.status).toBe("blocked");
+      expect(receiptView.findings.map((finding) => finding.code)).toContain(
+        "APPROVED_EXPANDED_DESKTOP_ACTION_UNSUPPORTED_ACTION"
+      );
+      expect(receiptView.readiness.canExecuteDesktopAction).toBe(false);
+      expect(receiptView.readiness.canWriteClipboard).toBe(false);
+      expect(receiptView.readiness.canOpenFileDialog).toBe(false);
+      expect(receiptView.readiness.canUseNativeBridge).toBe(false);
+      expect(receiptView.readiness.appCanExecute).toBe(false);
+    }
+  });
+
   it("renders the approved expanded desktop action receipt surface as preview-only", async () => {
     const appSource = await readFile(
       path.join(appRoot, "src", "App.tsx"),
@@ -28817,6 +29277,36 @@ describe("expanded desktop action proposal app surface", () => {
     expect(doc).toContain("no raw text persistence");
     expect(docsIndex).toContain(
       "tauri-approved-expanded-desktop-action-command-v0.26.md"
+    );
+  });
+
+  it("documents the approved expanded desktop action smoke and hardening path", async () => {
+    const doc = await readFile(
+      path.join(
+        repoRoot,
+        "docs",
+        "approved-expanded-desktop-action-smoke-v0.26.md"
+      ),
+      "utf8"
+    );
+    const docsIndex = await readFile(
+      path.join(repoRoot, "docs", "README.md"),
+      "utf8"
+    );
+
+    expect(doc).toContain("Approved Expanded Desktop Action Smoke v0.26");
+    expect(doc).toContain("single safe click");
+    expect(doc).toContain("single safe type");
+    expect(doc).toContain("stale target metadata blocked");
+    expect(doc).toContain("screen/display mismatch blocked");
+    expect(doc).toContain("sensitive target blocked");
+    expect(doc).toContain("destructive target blocked");
+    expect(doc).toContain("clipboard/file dialog/drag/drop blocked");
+    expect(doc).toContain("replay does not execute");
+    expect(doc).toContain("no clipboard write");
+    expect(doc).toContain("no EventStore writer");
+    expect(docsIndex).toContain(
+      "approved-expanded-desktop-action-smoke-v0.26.md"
     );
   });
 

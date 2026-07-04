@@ -438,6 +438,7 @@ foundation.
 - [Tauri Approved Expanded Desktop Action Command v0.26](tauri-approved-expanded-desktop-action-command-v0.26.md)
 - [Expanded Desktop Action Events / Replay v0.26](expanded-desktop-action-events-replay-v0.26.md)
 - [Expanded Desktop Action Privacy Audit v0.26](expanded-desktop-action-privacy-audit-v0.26.md)
+- [Approved Expanded Desktop Action Smoke v0.26](approved-expanded-desktop-action-smoke-v0.26.md)
 - [Runtime Memory Recall Preview v0.3](runtime-memory-recall-preview-v0.3.md)
 - [v0.4.0 Controlled Creation Preview RC release notes](release-notes-v0.4.0-controlled-creation-preview-rc.1.md)
 - [App Shell Controlled Creation manual QA](app-shell-controlled-creation-manual-qa.md)
