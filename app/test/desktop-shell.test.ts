@@ -23969,6 +23969,122 @@ describe("desktop source boundaries", () => {
     expect(combined).not.toContain("dynamic agent desktop control is enabled");
   });
 
+  it("documents the P1E approved expanded desktop action ADR and implementation gate", async () => {
+    const adr = await readFile(
+      path.join(
+        repoRoot,
+        "docs",
+        "adr",
+        "0011-approved-expanded-desktop-action-execution.md"
+      ),
+      "utf8"
+    );
+    const threatModel = await readFile(
+      path.join(
+        repoRoot,
+        "docs",
+        "approved-expanded-desktop-action-threat-model-v0.26.md"
+      ),
+      "utf8"
+    );
+    const implementationGate = await readFile(
+      path.join(
+        repoRoot,
+        "docs",
+        "approved-expanded-desktop-action-implementation-gate-v0.26.md"
+      ),
+      "utf8"
+    );
+    const nextPlan = await readFile(
+      path.join(
+        repoRoot,
+        "docs",
+        "p1e-002-expanded-desktop-action-approval-receipt-plan.md"
+      ),
+      "utf8"
+    );
+    const docsIndex = await readFile(
+      path.join(repoRoot, "docs", "README.md"),
+      "utf8"
+    );
+    const combined = `${adr}\n${threatModel}\n${implementationGate}\n${nextPlan}\n${docsIndex}`;
+
+    expect(adr).toContain(
+      "ADR 0011: Approved Expanded Desktop Action Execution"
+    );
+    expect(adr).toContain("Proposed / Accepted for P1E design gate");
+    expect(adr).toContain("click_observed_safe_target");
+    expect(adr).toContain("type_into_observed_text_field");
+    expect(adr).toContain("Desktop Observer evidence");
+    expect(adr).toContain("Target validation");
+    expect(adr).toContain("Risk classification");
+    expect(adr).toContain("Sequence simulation result");
+    expect(adr).toContain("Approval receipt");
+    expect(adr).toContain("Exact typed confirmation");
+    expect(adr).toContain("Fixed Tauri command");
+    expect(adr).toContain("Summary-only event");
+    expect(adr).toContain("Replay");
+    expect(adr).toContain("must not execute or re-execute");
+
+    expect(threatModel).toContain("Stale screen evidence");
+    expect(threatModel).toContain("Target moved after observation");
+    expect(threatModel).toContain("Wrong window focus");
+    expect(threatModel).toContain("Sensitive target");
+    expect(threatModel).toContain("Destructive UI");
+    expect(threatModel).toContain("Password/API key fields");
+    expect(threatModel).toContain("Payment, submit, delete");
+    expect(threatModel).toContain("Clipboard leakage");
+    expect(threatModel).toContain("Raw screenshot or raw OCR leakage");
+    expect(threatModel).toContain("Approval bypass");
+    expect(threatModel).toContain("Accidental double action");
+    expect(threatModel).toContain("Replay re-execution risk");
+    expect(threatModel).toContain("Accessibility permission issues");
+
+    expect(implementationGate).toContain("Target Metadata Validation");
+    expect(implementationGate).toContain("Freshness and Screen Mismatch");
+    expect(implementationGate).toContain("Sensitive and Destructive UI");
+    expect(implementationGate).toContain(
+      "Approval Receipt and Typed Confirmation"
+    );
+    expect(implementationGate).toContain("Fixed Command Only");
+    expect(implementationGate).toContain("Summary-only Result and Event");
+    expect(implementationGate).toContain("Replay Safety");
+    expect(implementationGate).toContain("App Source-boundary Safety");
+    expect(implementationGate).toContain("CI / Boundary Safety");
+
+    expect(nextPlan).toContain(
+      "P1E-002 Expanded Desktop Action Approval Receipt Plan"
+    );
+    expect(nextPlan).toContain("CLICK OBSERVED TARGET");
+    expect(nextPlan).toContain("TYPE INTO OBSERVED FIELD");
+    expect(nextPlan).toContain("No Tauri command implementation");
+    expect(nextPlan).toContain("No real click");
+    expect(nextPlan).toContain("No real type");
+    expect(nextPlan).toContain("No clipboard write");
+    expect(nextPlan).toContain("No file dialog automation");
+    expect(nextPlan).toContain("No broad native bridge");
+
+    expect(docsIndex).toContain(
+      "adr/0011-approved-expanded-desktop-action-execution.md"
+    );
+    expect(docsIndex).toContain(
+      "approved-expanded-desktop-action-threat-model-v0.26.md"
+    );
+    expect(docsIndex).toContain(
+      "approved-expanded-desktop-action-implementation-gate-v0.26.md"
+    );
+    expect(docsIndex).toContain(
+      "p1e-002-expanded-desktop-action-approval-receipt-plan.md"
+    );
+
+    expect(combined).not.toContain("arbitrary click/type is enabled");
+    expect(combined).not.toContain("clipboard write is enabled");
+    expect(combined).not.toContain("file dialog automation is enabled");
+    expect(combined).not.toContain("drag/drop is enabled");
+    expect(combined).not.toContain("broad native bridge is enabled");
+    expect(combined).not.toContain("replay re-execution is enabled");
+  });
+
   it("documents the P1C approved desktop action execution ADR and gate", async () => {
     const adr = await readFile(
       path.join(
