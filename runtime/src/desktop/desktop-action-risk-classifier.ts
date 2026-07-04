@@ -217,16 +217,6 @@ function readNumber(value: unknown): number | undefined {
     : undefined;
 }
 
-function readStringArray(value: unknown): string[] | undefined {
-  if (!Array.isArray(value)) {
-    return undefined;
-  }
-  const strings = value
-    .map((item) => readString(item))
-    .filter((item): item is string => Boolean(item));
-  return strings.length > 0 ? strings : undefined;
-}
-
 function finding(
   kind: DesktopActionExpansionRiskFindingKind,
   severity: DesktopActionExpansionRiskSeverity,

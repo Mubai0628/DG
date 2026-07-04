@@ -237,7 +237,8 @@ Current scope:
   EventStore writes, and replay re-execution remain disabled
 - prepare the v0.26 Desktop Action Expansion Proposal RC with read-only
   expanded click/type/select/clipboard/file-dialog proposal summaries,
-  freshness checks, risk classification, and sequence simulation while App
+  freshness checks, risk classification, sequence simulation, redaction audit,
+  smoke coverage, release notes, manual QA, and RC checklist while App
   execution, clipboard write, file dialog automation, EventStore writes, and
   native bridge remain disabled
 - prepare the v0.19 MCP Tool Invocation Proposal RC with proposal schema,

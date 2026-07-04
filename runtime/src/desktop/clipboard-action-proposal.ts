@@ -463,7 +463,8 @@ function normalizeContentSummary(
     ...(lengthEstimate !== undefined ? { lengthEstimate } : {}),
     ...(hashPrefix ? { hashPrefix } : {}),
     contentCategory: contentCategory as ClipboardContentCategory,
-    redactionStatus: redactionStatus as ClipboardContentSummary["redactionStatus"],
+    redactionStatus:
+      redactionStatus as ClipboardContentSummary["redactionStatus"],
     userVisibleSummary
   };
 }

@@ -136,19 +136,11 @@ const forbiddenFieldKinds = new Map<
     ],
     [
       "screenshotbytes",
-      [
-        "screenshot_bytes",
-        "SCREENSHOT_BYTES_FIELD",
-        "screenshotBytesDetected"
-      ]
+      ["screenshot_bytes", "SCREENSHOT_BYTES_FIELD", "screenshotBytesDetected"]
     ],
     [
       "imagedata",
-      [
-        "screenshot_bytes",
-        "SCREENSHOT_BYTES_FIELD",
-        "screenshotBytesDetected"
-      ]
+      ["screenshot_bytes", "SCREENSHOT_BYTES_FIELD", "screenshotBytesDetected"]
     ],
     ["rawocr", ["raw_ocr", "RAW_OCR_FIELD", "rawOcrDetected"]],
     ["rawocrtext", ["raw_ocr", "RAW_OCR_FIELD", "rawOcrDetected"]],
@@ -578,7 +570,10 @@ function recordStatus(value: unknown): "accepted" | "warning" | "blocked" {
   return "accepted";
 }
 
-function recordCodes(value: unknown, severity: "blocker" | "warning"): string[] {
+function recordCodes(
+  value: unknown,
+  severity: "blocker" | "warning"
+): string[] {
   if (!isRecord(value)) {
     return severity === "warning" ? ["RECORD_NOT_OBJECT"] : [];
   }
@@ -685,7 +680,8 @@ export function buildDesktopActionExpansionRedactionAudit(
     .filter((item) => item.severity === "warning")
     .map((item) => item.code);
   const privacyRiskSummary: DesktopActionExpansionPrivacyRiskSummary = {
-    riskLevel: status === "blocked" ? "blocked" : warningCount > 0 ? "warning" : "low",
+    riskLevel:
+      status === "blocked" ? "blocked" : warningCount > 0 ? "warning" : "low",
     blockerCodes,
     warningCodes,
     rawLeakDetected: rawFieldDetectedCount > 0,

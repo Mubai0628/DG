@@ -255,9 +255,7 @@ describe("desktop action expansion proposal schema", () => {
 
     expect(result.status).toBe("warning");
     expect(result.summary.warningCodes).toContain("LOW_TARGET_CONFIDENCE");
-    expect(result.summary.warningCodes).toContain(
-      "PASSWORD_LIKE_TARGET_LABEL"
-    );
+    expect(result.summary.warningCodes).toContain("PASSWORD_LIKE_TARGET_LABEL");
   });
 
   it("keeps output summary-only", () => {

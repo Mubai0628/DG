@@ -295,9 +295,7 @@ function finding(
   };
 }
 
-function readiness(
-  canEnterPreview: boolean
-): DesktopActionProposalReadiness {
+function readiness(canEnterPreview: boolean): DesktopActionProposalReadiness {
   return {
     canEnterFreshnessValidation: canEnterPreview,
     canEnterRiskClassification: canEnterPreview,
@@ -498,11 +496,15 @@ function hasSensitiveAppName(value: string | undefined): boolean {
 }
 
 function hasPasswordLikeLabel(value: string | undefined): boolean {
-  return Boolean(value && /password|passcode|secret|token|api key/i.test(value));
+  return Boolean(
+    value && /password|passcode|secret|token|api key/i.test(value)
+  );
 }
 
 function hasDestructiveLabel(value: string | undefined): boolean {
-  return Boolean(value && /delete|remove|wipe|reset|destroy|discard/i.test(value));
+  return Boolean(
+    value && /delete|remove|wipe|reset|destroy|discard/i.test(value)
+  );
 }
 
 function isStaleEvidence(
@@ -816,9 +818,7 @@ function normalizeExpectedEffect(
     summary,
     ...(readString(value.visibleStateChangeSummary)
       ? {
-          visibleStateChangeSummary: readString(
-            value.visibleStateChangeSummary
-          )
+          visibleStateChangeSummary: readString(value.visibleStateChangeSummary)
         }
       : {}),
     ...(readString(value.successConditionSummary)
@@ -1047,7 +1047,11 @@ export function validateDesktopActionExpansionProposal(
     );
   }
 
-  if (actionKind && actionKind !== "wait_for_state" && actionKind !== "scroll") {
+  if (
+    actionKind &&
+    actionKind !== "wait_for_state" &&
+    actionKind !== "scroll"
+  ) {
     findings.push(
       finding(
         "risk",

@@ -89,10 +89,7 @@ describe("desktop action expansion redaction audit", () => {
     expect(audit.redactionSummary.rawScreenshotDetected).toBe(true);
     expect(audit.redactionSummary.screenshotBytesDetected).toBe(true);
     expect(audit.findings.map((item) => item.code)).toEqual(
-      expect.arrayContaining([
-        "RAW_SCREENSHOT_FIELD",
-        "SCREENSHOT_BYTES_FIELD"
-      ])
+      expect.arrayContaining(["RAW_SCREENSHOT_FIELD", "SCREENSHOT_BYTES_FIELD"])
     );
     expectSummaryOnly(audit);
   });
@@ -105,9 +102,7 @@ describe("desktop action expansion redaction audit", () => {
 
     expect(audit.status).toBe("blocked");
     expect(audit.redactionSummary.rawOcrDetected).toBe(true);
-    expect(audit.findings.map((item) => item.code)).toContain(
-      "RAW_OCR_FIELD"
-    );
+    expect(audit.findings.map((item) => item.code)).toContain("RAW_OCR_FIELD");
     expectSummaryOnly(audit);
   });
 
@@ -178,9 +173,7 @@ describe("desktop action expansion redaction audit", () => {
     expect(audit.status).toBe("blocked");
     expect(audit.redactionSummary.apiKeyDetected).toBe(true);
     expect(audit.redactionSummary.secretDetected).toBe(true);
-    expect(audit.findings.map((item) => item.code)).toContain(
-      "API_KEY_MARKER"
-    );
+    expect(audit.findings.map((item) => item.code)).toContain("API_KEY_MARKER");
     expectSummaryOnly(audit);
   });
 

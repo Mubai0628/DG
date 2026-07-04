@@ -465,6 +465,9 @@ v0.17 Capability Host MVP references:
 - [Approved Desktop Action RC checklist](docs/approved-desktop-action-rc-checklist.md)
 - [v0.26 Desktop Action Expansion Proposal prompts](docs/v0.26-desktop-action-expansion-proposal-prompts.md)
 - [v0.25 Approved Desktop Action Execution post-release review](docs/v0.25-approved-desktop-action-execution-postrelease-review.md)
+- [v0.26.0 Desktop Action Expansion Proposal RC release notes](docs/release-notes-v0.26.0-desktop-action-expansion-proposal-rc.1.md)
+- [Desktop Action Expansion Proposal manual QA](docs/desktop-action-expansion-proposal-manual-qa.md)
+- [Desktop Action Expansion Proposal RC checklist](docs/desktop-action-expansion-proposal-rc-checklist.md)
 - [P1D Desktop Action Expansion Proposal roadmap](docs/p1d-desktop-action-expansion-proposal-roadmap.md)
 - [P1D-001 Desktop Action Expansion Proposal gate plan](docs/p1d-001-desktop-action-expansion-proposal-gate-plan.md)
 
@@ -560,12 +563,13 @@ extremely narrow, human-approved observed-window action lane only:
 `activate_observed_window`. It keeps click/type/select, clipboard write, file
 dialog automation, hidden background action, broad native bridge, remote
 control, autonomous desktop agents, and replay re-execution deferred.
-P1D starts the v0.26 Desktop Action Expansion Proposal roadmap. It expands
+P1D is prepared for the v0.26 Desktop Action Expansion Proposal RC. It expands
 future click/type/select/clipboard/file-dialog/drag-drop actions as proposals
 only, with freshness checks, sequence simulation, sensitive/destructive risk
-classification, read-only App display, and redaction audit while preserving no
-real click/type/select, no clipboard write, no file dialog automation, no broad
-native bridge, and no dynamic agent desktop control.
+classification, read-only App display, redaction audit, smoke coverage, release
+notes, manual QA, and RC checklist while preserving no real click/type/select,
+no clipboard write, no file dialog automation, no broad native bridge, and no
+dynamic agent desktop control.
 
 - [v0.2 App Shell RC post-release review](docs/v0.2-app-shell-rc-postrelease-review.md)
 - [P0G Coding Workflow roadmap](docs/p0g-coding-workflow-roadmap.md)

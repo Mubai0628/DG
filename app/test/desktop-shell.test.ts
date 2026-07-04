@@ -23727,7 +23727,7 @@ describe("desktop source boundaries", () => {
       "p1d-desktop-action-expansion-proposal-roadmap.md"
     );
     expect(rootReadme).toContain(
-      "P1D starts the v0.26 Desktop Action Expansion Proposal roadmap"
+      "P1D is prepared for the v0.26 Desktop Action Expansion Proposal RC"
     );
 
     expect(combined).toContain("proposal-only");
@@ -27896,6 +27896,144 @@ describe("expanded desktop action proposal app surface", () => {
       "runtime-desktop-action-expansion-redaction-audit-v0.25.md"
     );
     expect(docsIndex).toContain("desktop-action-expansion-smoke-v0.25.md");
+  });
+
+  it("documents the v0.26 desktop action expansion proposal RC boundary", async () => {
+    const releaseNotes = await readFile(
+      path.join(
+        repoRoot,
+        "docs",
+        "release-notes-v0.26.0-desktop-action-expansion-proposal-rc.1.md"
+      ),
+      "utf8"
+    );
+    const manualQa = await readFile(
+      path.join(
+        repoRoot,
+        "docs",
+        "desktop-action-expansion-proposal-manual-qa.md"
+      ),
+      "utf8"
+    );
+    const rcChecklist = await readFile(
+      path.join(
+        repoRoot,
+        "docs",
+        "desktop-action-expansion-proposal-rc-checklist.md"
+      ),
+      "utf8"
+    );
+    const docsIndex = await readFile(
+      path.join(repoRoot, "docs", "README.md"),
+      "utf8"
+    );
+    const rootReadme = await readFile(path.join(repoRoot, "README.md"), "utf8");
+    const appReadme = await readFile(
+      path.join(repoRoot, "app", "README.md"),
+      "utf8"
+    );
+    const appSource = await readFile(
+      path.join(appRoot, "src", "App.tsx"),
+      "utf8"
+    );
+    const combined = `${releaseNotes}\n${manualQa}\n${rcChecklist}\n${docsIndex}\n${rootReadme}\n${appReadme}\n${appSource}`;
+
+    expect(releaseNotes).toContain(
+      "v0.26.0-desktop-action-expansion-proposal-rc.1"
+    );
+    expect(releaseNotes).toContain(
+      "Desktop action expansion proposals, no click/type execution"
+    );
+    expect(releaseNotes).toContain("Desktop Observer remains metadata-only.");
+    expect(releaseNotes).toContain(
+      "Approved desktop action execution remains limited"
+    );
+    expect(releaseNotes).toContain(
+      "Expanded desktop action types are proposal-only."
+    );
+    expect(releaseNotes).toContain(
+      "Click/type/select/clipboard/file dialog/drag-drop are not executed."
+    );
+    expect(releaseNotes).toContain(
+      "Risk classification, freshness checks, sequence simulation, and redaction audit are summary-only."
+    );
+    expect(releaseNotes).toContain("no real click");
+    expect(releaseNotes).toContain("no real type");
+    expect(releaseNotes).toContain("no real select");
+    expect(releaseNotes).toContain("no clipboard write");
+    expect(releaseNotes).toContain("no file dialog automation");
+    expect(releaseNotes).toContain("no drag/drop execution");
+    expect(releaseNotes).toContain("no broad native bridge");
+    expect(releaseNotes).toContain("proposal-first");
+    expect(releaseNotes).toContain("target freshness");
+    expect(releaseNotes).toContain("simulation only");
+    expect(releaseNotes).toContain("redaction/privacy audit");
+    expect(releaseNotes).toContain(
+      "https://github.com/Mubai0628/DG/blob/v0.26.0-desktop-action-expansion-proposal-rc.1/docs/desktop-action-expansion-proposal-manual-qa.md"
+    );
+
+    expect(manualQa).toContain("Convert Smoke");
+    expect(manualQa).toContain("Desktop Observer Metadata Summary");
+    expect(manualQa).toContain("Expanded Desktop Action Proposal Surface");
+    expect(manualQa).toContain("Stale Target Proposal");
+    expect(manualQa).toContain("Sensitive UI Risk");
+    expect(manualQa).toContain("Clipboard Proposal");
+    expect(manualQa).toContain("File Dialog Proposal");
+    expect(manualQa).toContain("Execute Click (disabled)");
+    expect(manualQa).toContain("Type Text (disabled)");
+    expect(manualQa).toContain("no raw screenshot");
+    expect(manualQa).toContain("No broad native bridge");
+
+    expect(rcChecklist).toContain("pnpm verify:ci");
+    expect(rcChecklist).toContain("pnpm release:smoke");
+    expect(rcChecklist).toContain("pnpm app:qa:check");
+    expect(rcChecklist).toContain(
+      "v0.26.0-desktop-action-expansion-proposal-rc.1"
+    );
+    expect(rcChecklist).toContain("git tag");
+    expect(rcChecklist).toContain("gh release create");
+    expect(rcChecklist).toContain("Use full docs path links");
+    expect(rcChecklist).toContain(
+      "docs/release-notes-v0.26.0-desktop-action-expansion-proposal-rc.1.md"
+    );
+
+    expect(appSource).toContain("Expanded Desktop Action Proposal");
+    expect(appSource).toContain("Proposal only / no desktop action");
+    expect(appSource).toContain("The App Shell cannot execute these");
+    expect(appSource).toContain("Execute Click (disabled)");
+    expect(appSource).toContain("Type Text (disabled)");
+    expect(appSource).toContain("Write Clipboard (disabled)");
+    expect(appSource).toContain("Open File Dialog (disabled)");
+    expect(docsIndex).toContain(
+      "release-notes-v0.26.0-desktop-action-expansion-proposal-rc.1.md"
+    );
+    expect(docsIndex).toContain(
+      "desktop-action-expansion-proposal-manual-qa.md"
+    );
+    expect(docsIndex).toContain(
+      "desktop-action-expansion-proposal-rc-checklist.md"
+    );
+    expect(rootReadme).toContain(
+      "release-notes-v0.26.0-desktop-action-expansion-proposal-rc.1.md"
+    );
+    expect(rootReadme).toContain(
+      "P1D is prepared for the v0.26 Desktop Action Expansion Proposal RC"
+    );
+    expect(appReadme).toContain("redaction audit");
+    expect(appReadme).toContain("smoke coverage");
+
+    expect(combined).not.toContain("real click is enabled");
+    expect(combined).not.toContain("real type is enabled");
+    expect(combined).not.toContain("real select is enabled");
+    expect(combined).not.toContain("clipboard write is enabled");
+    expect(combined).not.toContain("file dialog automation is enabled");
+    expect(combined).not.toContain("drag/drop execution is enabled");
+    expect(combined).not.toContain("native bridge is enabled");
+    expect(combined).not.toContain("autonomous desktop agent is enabled");
+    expect(appSource).not.toMatch(/>\s*Execute Click\s*</);
+    expect(appSource).not.toMatch(/>\s*Type Text\s*</);
+    expect(appSource).not.toMatch(/>\s*Write Clipboard\s*</);
+    expect(appSource).not.toMatch(/>\s*Open File Dialog\s*</);
   });
 });
 
