@@ -141,13 +141,13 @@ function numberOption(
   return { [key]: value[key] };
 }
 
-function parseFreshnessJson(
-  text: string
-):
+function parseFreshnessJson(text: string):
   | {
       ok: true;
       value:
-        | (Record<string, unknown> & { evidenceRefs?: EvidenceFreshnessRefInput[] })
+        | (Record<string, unknown> & {
+            evidenceRefs?: EvidenceFreshnessRefInput[];
+          })
         | EvidenceFreshnessRefInput[];
     }
   | { ok: false; safeMessage: string } {

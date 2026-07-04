@@ -24937,7 +24937,11 @@ describe("desktop source boundaries", () => {
       "utf8"
     );
     const appDoc = await readFile(
-      path.join(repoRoot, "docs", "app-shell-evidence-freshness-drift-v0.28.md"),
+      path.join(
+        repoRoot,
+        "docs",
+        "app-shell-evidence-freshness-drift-v0.28.md"
+      ),
       "utf8"
     );
     const docsIndex = await readFile(
@@ -25064,7 +25068,11 @@ describe("desktop source boundaries", () => {
 
   it("documents approval consistency hardening", async () => {
     const runtimeDoc = await readFile(
-      path.join(repoRoot, "docs", "runtime-approval-consistency-check-v0.28.md"),
+      path.join(
+        repoRoot,
+        "docs",
+        "runtime-approval-consistency-check-v0.28.md"
+      ),
       "utf8"
     );
     const appDoc = await readFile(
@@ -25256,7 +25264,9 @@ describe("desktop source boundaries", () => {
     expect(appDoc).toContain("Does not invoke MCP tools");
     expect(appDoc).toContain("Does not write EventStore");
     expect(combined).not.toContain("App execution enabled");
-    expect(docsIndex).toContain("runtime-capability-policy-enforcement-v0.28.md");
+    expect(docsIndex).toContain(
+      "runtime-capability-policy-enforcement-v0.28.md"
+    );
     expect(docsIndex).toContain(
       "app-shell-capability-policy-enforcement-v0.28.md"
     );
@@ -25722,11 +25732,19 @@ describe("desktop source boundaries", () => {
 
   it("documents agent handoff state review hardening", async () => {
     const runtimeDoc = await readFile(
-      path.join(repoRoot, "docs", "runtime-agent-handoff-state-review-v0.28.md"),
+      path.join(
+        repoRoot,
+        "docs",
+        "runtime-agent-handoff-state-review-v0.28.md"
+      ),
       "utf8"
     );
     const appDoc = await readFile(
-      path.join(repoRoot, "docs", "app-shell-agent-handoff-state-review-v0.28.md"),
+      path.join(
+        repoRoot,
+        "docs",
+        "app-shell-agent-handoff-state-review-v0.28.md"
+      ),
       "utf8"
     );
     const docsIndex = await readFile(
@@ -25899,8 +25917,9 @@ describe("desktop source boundaries", () => {
     expect(coverageIds).toEqual(expect.arrayContaining(requiredCoverage));
     expect(fixture.qaMatrix).toHaveLength(requiredCoverage.length);
     expect(fixture.qaMatrix.every((item) => item.summaryOnly)).toBe(true);
-    expect(Object.values(fixture.smokeGuards).every((value) => value === false))
-      .toBe(true);
+    expect(
+      Object.values(fixture.smokeGuards).every((value) => value === false)
+    ).toBe(true);
     expect(fixture.expected.allMatrixItemsCovered).toBe(true);
     expect(fixture.expected.summaryOnly).toBe(true);
     expect(fixture.expected.appExecutionExpanded).toBe(false);
@@ -25956,6 +25975,103 @@ describe("desktop source boundaries", () => {
     expect(smokeDoc).toContain("pnpm check:secrets");
     expect(docsIndex).toContain("north-star-demo-manual-qa-matrix.md");
     expect(docsIndex).toContain("north-star-demo-release-smoke-v0.28.md");
+  });
+
+  it("documents the v0.29 North Star demo hardening RC release package", async () => {
+    const releaseNotes = await readFile(
+      path.join(
+        repoRoot,
+        "docs",
+        "release-notes-v0.29.0-north-star-demo-hardening-rc.1.md"
+      ),
+      "utf8"
+    );
+    const manualQa = await readFile(
+      path.join(repoRoot, "docs", "north-star-demo-hardening-manual-qa.md"),
+      "utf8"
+    );
+    const checklist = await readFile(
+      path.join(repoRoot, "docs", "north-star-demo-hardening-rc-checklist.md"),
+      "utf8"
+    );
+    const docsIndex = await readFile(
+      path.join(repoRoot, "docs", "README.md"),
+      "utf8"
+    );
+    const rootReadme = await readFile(path.join(repoRoot, "README.md"), "utf8");
+    const appReadme = await readFile(path.join(appRoot, "README.md"), "utf8");
+    const appSource = await readFile(
+      path.join(appRoot, "src", "App.tsx"),
+      "utf8"
+    );
+
+    expect(releaseNotes).toContain("v0.29.0-north-star-demo-hardening-rc.1");
+    expect(releaseNotes).toContain(
+      "North Star demo hardening, policy, and replay safety"
+    );
+    expect(releaseNotes).toContain(
+      "v0.28 cross-surface workflow remains available."
+    );
+    expect(releaseNotes).toContain(
+      "No new broad execution capability is added."
+    );
+    expect(releaseNotes).toContain("approval consistency");
+    expect(releaseNotes).toContain("policy enforcement");
+    expect(releaseNotes).toContain("replay completeness");
+    expect(releaseNotes).toContain("evidence freshness");
+    expect(releaseNotes).toContain("agent handoff review");
+    expect(releaseNotes).toContain("QA matrix");
+    expect(releaseNotes).toContain("summary-only events/replay");
+    expect(releaseNotes).toContain("no dynamic bidding");
+    expect(releaseNotes).toContain("no autonomous tool execution");
+    expect(releaseNotes).toContain("no mutating MCP tools");
+    expect(releaseNotes).toContain("no arbitrary plugin/skill runtime");
+    expect(releaseNotes).toContain("no broad desktop action");
+    expect(releaseNotes).toContain("no clipboard/file dialog automation");
+    expect(releaseNotes).toContain("no native bridge");
+    expect(releaseNotes).toContain("no arbitrary Git/shell");
+    expect(releaseNotes).toContain("no auto-apply");
+    expect(releaseNotes).toContain("pnpm verify:ci");
+    expect(releaseNotes).toContain("pnpm release:smoke");
+    expect(releaseNotes).toContain("pnpm app:qa:check");
+    expect(manualQa).toContain("Convert smoke");
+    expect(manualQa).toContain("live proposal");
+    expect(manualQa).toContain("fixed agent route");
+    expect(manualQa).toContain("project knowledge recall");
+    expect(manualQa).toContain("MCP read-only evidence");
+    expect(manualQa).toContain("plugin/skill metadata evidence");
+    expect(manualQa).toContain("desktop observer evidence");
+    expect(manualQa).toContain("desktop action proposal");
+    expect(manualQa).toContain("approved desktop action");
+    expect(manualQa).toContain("approved workspace apply");
+    expect(manualQa).toContain("Verification");
+    expect(manualQa).toContain("Rollback");
+    expect(manualQa).toContain("Replay/audit");
+    expect(manualQa).toContain("Failure recovery");
+    expect(manualQa).toContain("Redaction checks");
+    expect(checklist).toContain("Local Scoped Command Gate");
+    expect(checklist).toContain("Full Stage-end Command Gate");
+    expect(checklist).toContain("Visual Smoke Gate");
+    expect(checklist).toContain("GitHub Actions Gate");
+    expect(checklist).toContain("gh release create");
+    expect(checklist).toContain(
+      "docs/release-notes-v0.29.0-north-star-demo-hardening-rc.1.md"
+    );
+    expect(appSource).toContain("v0.29 North Star hardening");
+    expect(appSource).toContain("Workflow preview / controlled lanes only");
+    expect(appSource).toContain("Run Cross-surface Workflow (disabled)");
+    expect(appSource).toContain("Auto-execute Workflow (disabled)");
+    expect(appSource).not.toContain("Run Cross-surface Workflow</button>");
+    expect(appSource).not.toContain("Auto-execute Workflow</button>");
+    expect(docsIndex).toContain(
+      "release-notes-v0.29.0-north-star-demo-hardening-rc.1.md"
+    );
+    expect(docsIndex).toContain("north-star-demo-hardening-manual-qa.md");
+    expect(docsIndex).toContain("north-star-demo-hardening-rc-checklist.md");
+    expect(rootReadme).toContain(
+      "release-notes-v0.29.0-north-star-demo-hardening-rc.1.md"
+    );
+    expect(appReadme).toContain("v0.29 North Star Demo Hardening RC");
   });
 
   it("documents the v0.28 cross-surface workflow RC release package", async () => {

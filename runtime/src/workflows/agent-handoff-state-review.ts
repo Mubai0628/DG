@@ -446,7 +446,10 @@ function stageBlockers(stage: AgentHandoffStageInput): string[] {
   ) {
     blockers.push("VERIFIER_MISSING_VERIFICATION_SUMMARY");
   }
-  if (safeStatus(stage.status) === "interrupted" && safeText(stage.nextAction).length === 0) {
+  if (
+    safeStatus(stage.status) === "interrupted" &&
+    safeText(stage.nextAction).length === 0
+  ) {
     blockers.push("INTERRUPTED_RECOVERY_MISSING_NEXT_ACTION");
   }
   return unique(blockers);
@@ -486,7 +489,9 @@ function findForbiddenFields(value: unknown): AgentHandoffStateFinding[] {
   const findings: AgentHandoffStateFinding[] = [];
   visit(value, (entry) => {
     if (forbiddenFieldKeys.has(entry.key.toLowerCase())) {
-      findings.push(finding("blocker", "FORBIDDEN_RAW_HANDOFF_FIELD", entry.path));
+      findings.push(
+        finding("blocker", "FORBIDDEN_RAW_HANDOFF_FIELD", entry.path)
+      );
     }
   });
   return findings;
@@ -570,8 +575,7 @@ function safeMessageFor(code: string): string {
     STALE_DOSSIER_HASH: "Agent handoff dossier hash is stale.",
     MISSING_EVIDENCE_REF: "Agent handoff evidence ref is missing.",
     REVIEWER_OR_VERIFIER_SKIPPED: "Reviewer or verifier stage was skipped.",
-    CODER_OUTPUT_MISSING_PROPOSAL_ID:
-      "Coder output is missing a proposal id.",
+    CODER_OUTPUT_MISSING_PROPOSAL_ID: "Coder output is missing a proposal id.",
     VERIFIER_MISSING_VERIFICATION_SUMMARY:
       "Verifier result is missing a verification summary.",
     LONG_RUNNING_STAGE_STALE: "Long-running agent stage is stale.",
@@ -602,7 +606,9 @@ function nextActionFor(status: AgentHandoffStateReviewStatus): string {
 }
 
 function safeStatus(value: unknown): AgentHandoffStageStatus {
-  return statusSet.has(safeText(value)) ? (safeText(value) as AgentHandoffStageStatus) : "pending";
+  return statusSet.has(safeText(value))
+    ? (safeText(value) as AgentHandoffStageStatus)
+    : "pending";
 }
 
 function safeText(value: unknown, fallback = ""): string {

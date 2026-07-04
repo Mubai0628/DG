@@ -335,9 +335,8 @@ function buildReport(input: {
     input.status === "blocked"
       ? Math.max(
           1,
-          input.scopeSummaries.filter(
-            (scope) => scope.blockerCodes.length > 0
-          ).length
+          input.scopeSummaries.filter((scope) => scope.blockerCodes.length > 0)
+            .length
         )
       : 0;
   const warningScopeCount = input.scopeSummaries.filter(
@@ -493,10 +492,7 @@ function scopeBlockers(scope: ApprovalConsistencyScope): string[] {
   ) {
     blockers.push("APPLY_RECEIPT_USED_FOR_DESKTOP_ACTION");
   }
-  if (
-    kind === "desktop_action_approval" &&
-    stageKind === "workspace_apply"
-  ) {
+  if (kind === "desktop_action_approval" && stageKind === "workspace_apply") {
     blockers.push("DESKTOP_RECEIPT_USED_FOR_WORKSPACE_APPLY");
   }
   if (
@@ -510,11 +506,16 @@ function scopeBlockers(scope: ApprovalConsistencyScope): string[] {
   }
   if (
     Array.isArray(scope.allowedPathRefs) &&
-    scope.allowedPathRefs.some((pathRef) => pathRef === "*" || pathRef === "**/*")
+    scope.allowedPathRefs.some(
+      (pathRef) => pathRef === "*" || pathRef === "**/*"
+    )
   ) {
     blockers.push("BROAD_WILDCARD_SCOPE");
   }
-  if (requiresTypedConfirmation(kind) && scope.typedConfirmationPresent !== true) {
+  if (
+    requiresTypedConfirmation(kind) &&
+    scope.typedConfirmationPresent !== true
+  ) {
     blockers.push("MISSING_TYPED_CONFIRMATION");
   }
   return unique(blockers);
@@ -525,7 +526,10 @@ function scopeWarnings(scope: ApprovalConsistencyScope): string[] {
   if (safeText(scope.expiresAt).length === 0) {
     warnings.push("MISSING_EXPIRATION");
   }
-  if (!Array.isArray(scope.allowedPathRefs) || scope.allowedPathRefs.length === 0) {
+  if (
+    !Array.isArray(scope.allowedPathRefs) ||
+    scope.allowedPathRefs.length === 0
+  ) {
     warnings.push("MISSING_ALLOWED_PATH_REFS");
   }
   return warnings;

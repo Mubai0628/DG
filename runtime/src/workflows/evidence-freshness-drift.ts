@@ -400,7 +400,11 @@ function refWarnings(
   if (ageMs !== undefined && ageMs > staleThresholdMs) {
     warnings.push("STALE_EVIDENCE");
   }
-  if (category === "workspace_index" && ageMs !== undefined && ageMs > staleThresholdMs) {
+  if (
+    category === "workspace_index" &&
+    ageMs !== undefined &&
+    ageMs > staleThresholdMs
+  ) {
     warnings.push("WORKSPACE_SNAPSHOT_OUTDATED");
   }
   if (
@@ -418,7 +422,11 @@ function refBlockers(ref: EvidenceFreshnessRefInput): string[] {
   const category = safeText(ref.category);
   const expectedHash = safeText(ref.expectedHashPrefix);
   const currentHash = safeText(ref.currentHashPrefix);
-  if (expectedHash.length > 0 && currentHash.length > 0 && expectedHash !== currentHash) {
+  if (
+    expectedHash.length > 0 &&
+    currentHash.length > 0 &&
+    expectedHash !== currentHash
+  ) {
     blockers.push(codeForHashDrift(category));
   }
   if (
@@ -453,7 +461,11 @@ function codeForHashDrift(category: string): string {
 function verificationOlderThanApply(ref: EvidenceFreshnessRefInput): boolean {
   const validationMs = Date.parse(ref.validatedAt ?? ref.observedAt ?? "");
   const applyMs = Date.parse(ref.applyCompletedAt ?? "");
-  return Number.isFinite(validationMs) && Number.isFinite(applyMs) && validationMs < applyMs;
+  return (
+    Number.isFinite(validationMs) &&
+    Number.isFinite(applyMs) &&
+    validationMs < applyMs
+  );
 }
 
 function evidenceAgeMs(
@@ -483,7 +495,9 @@ function findForbiddenFields(value: unknown): EvidenceFreshnessFinding[] {
   const findings: EvidenceFreshnessFinding[] = [];
   visit(value, (entry) => {
     if (forbiddenFieldKeys.has(entry.key.toLowerCase())) {
-      findings.push(finding("blocker", "FORBIDDEN_RAW_EVIDENCE_FIELD", entry.path));
+      findings.push(
+        finding("blocker", "FORBIDDEN_RAW_EVIDENCE_FIELD", entry.path)
+      );
     }
   });
   return findings;
@@ -567,8 +581,7 @@ function safeMessageFor(code: string): string {
     MCP_DESCRIPTOR_CHANGED: "MCP descriptor changed after validation.",
     PLUGIN_SKILL_METADATA_CHANGED:
       "Plugin/skill metadata changed after validation.",
-    GIT_DIFF_CHANGED_AFTER_VALIDATION:
-      "Git diff changed after validation.",
+    GIT_DIFF_CHANGED_AFTER_VALIDATION: "Git diff changed after validation.",
     SOURCE_TYPE_MISMATCH: "Evidence source type does not match expectation.",
     VERIFICATION_OLDER_THAN_APPLY:
       "Verification result is older than apply result.",

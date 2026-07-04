@@ -238,7 +238,8 @@ export function buildCrossSurfaceFailureRecoveryPlan(
   const blockerCount = findings.filter(
     (findingItem) => findingItem.severity === "blocker"
   ).length;
-  const failures = blockerCount > 0 ? [] : normalizeFailures(input.failures ?? []);
+  const failures =
+    blockerCount > 0 ? [] : normalizeFailures(input.failures ?? []);
 
   if ((input.failures ?? []).length === 0) {
     return buildPlan({
@@ -246,10 +247,7 @@ export function buildCrossSurfaceFailureRecoveryPlan(
       sourceKind: input.sourceKind ?? "runtime",
       status: blockerCount > 0 ? "blocked" : "empty",
       failureSummaries: failures,
-      findings: [
-        ...findings,
-        finding("warning", "MISSING_FAILURE_SUMMARIES")
-      ]
+      findings: [...findings, finding("warning", "MISSING_FAILURE_SUMMARIES")]
     });
   }
 
@@ -456,9 +454,7 @@ function countFailureKinds(
   ) as Record<CrossSurfaceFailureKind, number>;
 }
 
-function findForbiddenFields(
-  value: unknown
-): CrossSurfaceRecoveryFinding[] {
+function findForbiddenFields(value: unknown): CrossSurfaceRecoveryFinding[] {
   const findings: CrossSurfaceRecoveryFinding[] = [];
   visit(value, (entry) => {
     if (forbiddenFieldKeys.has(entry.key.toLowerCase())) {
@@ -468,9 +464,7 @@ function findForbiddenFields(
   return findings;
 }
 
-function findExecutionClaims(
-  value: unknown
-): CrossSurfaceRecoveryFinding[] {
+function findExecutionClaims(value: unknown): CrossSurfaceRecoveryFinding[] {
   const findings: CrossSurfaceRecoveryFinding[] = [];
   visit(value, (entry) => {
     if (

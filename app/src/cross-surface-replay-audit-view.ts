@@ -151,9 +151,7 @@ function booleanOption(
   return { [key]: value[key] } as Partial<ReplayAuditCompletenessInput>;
 }
 
-function parseReplayAuditJson(
-  text: string
-):
+function parseReplayAuditJson(text: string):
   | {
       ok: true;
       value:

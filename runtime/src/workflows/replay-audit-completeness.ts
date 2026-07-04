@@ -248,10 +248,9 @@ export function buildReplayAuditCompletenessReport(
 ): ReplayAuditCompletenessReport {
   const completenessId =
     input.idGenerator?.() ??
-    `replay-audit-completeness-${stablePreviewHash(stableStringify(input)).slice(
-      0,
-      12
-    )}`;
+    `replay-audit-completeness-${stablePreviewHash(
+      stableStringify(input)
+    ).slice(0, 12)}`;
   const findings = validateReplayAuditCompletenessInput(input);
   const blockerCount = findings.filter(
     (findingItem) => findingItem.severity === "blocker"
@@ -500,21 +499,25 @@ function validateEvents(
       );
       const previous = seenById.get(eventId);
       if (previous !== undefined && previous !== comparable) {
-        findings.push(finding("blocker", "DUPLICATE_CONFLICTING_EVENT_ID", path));
+        findings.push(
+          finding("blocker", "DUPLICATE_CONFLICTING_EVENT_ID", path)
+        );
       }
       if (previous === undefined) {
         seenById.set(eventId, comparable);
       }
     }
-    const orderIndex = expectedOrderIndex.get(kind as ReplayAuditEventKind) ?? 999;
+    const orderIndex =
+      expectedOrderIndex.get(kind as ReplayAuditEventKind) ?? 999;
     if (orderIndex < highestOrder) {
       findings.push(finding("blocker", "OUT_OF_ORDER_EVENT", path));
     }
     highestOrder = Math.max(highestOrder, orderIndex);
-    if (event.claimsExecution === true && safeText(event.resultRef).length === 0) {
-      findings.push(
-        finding("blocker", "EXECUTION_CLAIM_WITHOUT_RESULT", path)
-      );
+    if (
+      event.claimsExecution === true &&
+      safeText(event.resultRef).length === 0
+    ) {
+      findings.push(finding("blocker", "EXECUTION_CLAIM_WITHOUT_RESULT", path));
     }
   });
   return findings;
@@ -539,22 +542,26 @@ function validateEventRelations(
         kind === "desktop_action_execution") &&
       !kinds.has("desktop_observation")
     ) {
-      findings.push(finding("blocker", "DESKTOP_ACTION_WITHOUT_OBSERVER", path));
+      findings.push(
+        finding("blocker", "DESKTOP_ACTION_WITHOUT_OBSERVER", path)
+      );
     }
     if (kind === "mcp_tool_result" && !kinds.has("mcp_tool_approval")) {
-      findings.push(finding("blocker", "MCP_TOOL_RESULT_WITHOUT_APPROVAL", path));
+      findings.push(
+        finding("blocker", "MCP_TOOL_RESULT_WITHOUT_APPROVAL", path)
+      );
     }
   });
   return findings;
 }
 
-function findForbiddenFields(
-  value: unknown
-): ReplayAuditCompletenessFinding[] {
+function findForbiddenFields(value: unknown): ReplayAuditCompletenessFinding[] {
   const findings: ReplayAuditCompletenessFinding[] = [];
   visit(value, (entry) => {
     if (forbiddenFieldKeys.has(entry.key.toLowerCase())) {
-      findings.push(finding("blocker", "FORBIDDEN_RAW_EVENT_FIELD", entry.path));
+      findings.push(
+        finding("blocker", "FORBIDDEN_RAW_EVENT_FIELD", entry.path)
+      );
     }
   });
   return findings;

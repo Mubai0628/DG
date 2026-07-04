@@ -252,6 +252,12 @@ Current scope:
   timeline, and smoke/manual QA coverage while autonomous agents, dynamic
   bidding, broad desktop action, arbitrary MCP/plugin/skill runtime, arbitrary
   Git/shell, auto-apply, and raw event content remain disabled
+- prepare the v0.29 North Star Demo Hardening RC with failure recovery,
+  approval consistency, policy enforcement, replay completeness, evidence
+  freshness, agent handoff review, QA matrix, release smoke hardening, and
+  summary-only replay while dynamic bidding, autonomous tool execution,
+  mutating MCP tools, arbitrary plugin/skill runtime, broad desktop action,
+  arbitrary Git/shell, native bridge, and auto-apply remain disabled
 - prepare the v0.19 MCP Tool Invocation Proposal RC with proposal schema,
   input risk classification, simulated result summaries, broker planning,
   read-only App proposal surface, redaction audit, and smoke hardening while

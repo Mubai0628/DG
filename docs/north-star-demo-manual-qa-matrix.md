@@ -6,23 +6,23 @@ This matrix is the manual QA source for the v0.29 North Star demo hardening path
 
 Coverage keywords: Convert, live proposal, fixed multi-agent route, project knowledge recall, MCP read-only evidence, plugin/skill metadata, desktop observer evidence, desktop action proposal, approved desktop action, approved workspace apply, Git/shell verification, rollback, Replay/audit, Redaction, Failure recovery.
 
-| Area | Manual Check | Expected Boundary |
-| --- | --- | --- |
-| Convert | Run `web_table_to_csv` Convert with the normal demo payload. | Real conversion flow remains available. |
-| Live proposal | Inspect live proposal surfaces. | Runtime live proposal remains explicit opt-in; App does not call DeepSeek by default. |
-| Fixed multi-agent route | Preview fixed orchestrator/coder/reviewer/verifier route. | Fixed roles only; no dynamic bidding. |
-| Project knowledge recall | Preview project knowledge recall summaries. | Summary refs only; no raw memory content. |
-| MCP read-only evidence | Preview MCP read-only metadata/tool evidence. | No mutating MCP tools. |
-| Plugin/skill metadata evidence | Preview plugin and skill metadata summaries. | No plugin or skill runtime execution. |
-| Desktop observer evidence | Preview desktop observer metadata. | Metadata only; no desktop action execution. |
-| Desktop action proposal | Preview desktop action proposal. | Proposal only; no broad desktop action. |
-| Approved desktop action | Inspect existing approved desktop action lane. | Existing receipt/typed-confirmation lane only. |
-| Approved workspace apply | Inspect approved workspace apply lane. | Existing bounded apply lane only. |
-| Git/shell verification | Inspect Git read and shell verification lanes. | Fixed safe lanes only; no arbitrary Git/shell. |
-| Rollback | Inspect rollback checkpoint and receipt summaries. | Existing bounded rollback lane only. |
-| Replay/audit | Inspect replay and audit summaries. | Summary-only replay; no rerun actions. |
-| Redaction | Check all demo summaries for raw/secret leakage. | No raw prompt/source/diff/API key content. |
-| Failure recovery | Inspect failure recovery and `nextAction` summaries. | Safe recovery guidance only; no automatic execution. |
+| Area                           | Manual Check                                                 | Expected Boundary                                                                     |
+| ------------------------------ | ------------------------------------------------------------ | ------------------------------------------------------------------------------------- |
+| Convert                        | Run `web_table_to_csv` Convert with the normal demo payload. | Real conversion flow remains available.                                               |
+| Live proposal                  | Inspect live proposal surfaces.                              | Runtime live proposal remains explicit opt-in; App does not call DeepSeek by default. |
+| Fixed multi-agent route        | Preview fixed orchestrator/coder/reviewer/verifier route.    | Fixed roles only; no dynamic bidding.                                                 |
+| Project knowledge recall       | Preview project knowledge recall summaries.                  | Summary refs only; no raw memory content.                                             |
+| MCP read-only evidence         | Preview MCP read-only metadata/tool evidence.                | No mutating MCP tools.                                                                |
+| Plugin/skill metadata evidence | Preview plugin and skill metadata summaries.                 | No plugin or skill runtime execution.                                                 |
+| Desktop observer evidence      | Preview desktop observer metadata.                           | Metadata only; no desktop action execution.                                           |
+| Desktop action proposal        | Preview desktop action proposal.                             | Proposal only; no broad desktop action.                                               |
+| Approved desktop action        | Inspect existing approved desktop action lane.               | Existing receipt/typed-confirmation lane only.                                        |
+| Approved workspace apply       | Inspect approved workspace apply lane.                       | Existing bounded apply lane only.                                                     |
+| Git/shell verification         | Inspect Git read and shell verification lanes.               | Fixed safe lanes only; no arbitrary Git/shell.                                        |
+| Rollback                       | Inspect rollback checkpoint and receipt summaries.           | Existing bounded rollback lane only.                                                  |
+| Replay/audit                   | Inspect replay and audit summaries.                          | Summary-only replay; no rerun actions.                                                |
+| Redaction                      | Check all demo summaries for raw/secret leakage.             | No raw prompt/source/diff/API key content.                                            |
+| Failure recovery               | Inspect failure recovery and `nextAction` summaries.         | Safe recovery guidance only; no automatic execution.                                  |
 
 ## Smoke Guards
 

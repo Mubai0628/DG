@@ -605,6 +605,20 @@ authority.
 - [Cross-surface Agent Workflow manual QA](docs/cross-surface-agent-workflow-manual-qa.md)
 - [Cross-surface Agent Workflow RC checklist](docs/cross-surface-agent-workflow-rc-checklist.md)
 
+P1G prepares the v0.29 North Star Demo Hardening RC with failure recovery,
+approval consistency, capability policy enforcement, replay completeness,
+evidence freshness, agent handoff review, QA matrix, and release smoke
+hardening. It does not add dynamic bidding, autonomous tool execution,
+mutating MCP tools, arbitrary plugin/skill runtime, broad desktop action,
+clipboard/file dialog automation, native bridge, arbitrary Git/shell, or
+auto-apply.
+
+- [v0.29 North Star Demo Hardening prompts](docs/v0.29-north-star-demo-hardening-prompts.md)
+- [P1G North Star Demo Hardening roadmap](docs/p1g-north-star-demo-hardening-roadmap.md)
+- [v0.29.0 North Star Demo Hardening RC release notes](docs/release-notes-v0.29.0-north-star-demo-hardening-rc.1.md)
+- [North Star Demo Hardening manual QA](docs/north-star-demo-hardening-manual-qa.md)
+- [North Star Demo Hardening RC checklist](docs/north-star-demo-hardening-rc-checklist.md)
+
 - [v0.2 App Shell RC post-release review](docs/v0.2-app-shell-rc-postrelease-review.md)
 - [P0G Coding Workflow roadmap](docs/p0g-coding-workflow-roadmap.md)
 - [P0G-001 Workspace Read / Index plan](docs/p0g-001-workspace-read-index-plan.md)

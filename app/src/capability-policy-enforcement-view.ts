@@ -126,13 +126,14 @@ function fromReport(
   };
 }
 
-function parsePolicyJson(
-  text: string
-):
+function parsePolicyJson(text: string):
   | {
       ok: true;
       value:
-        | { capabilities?: CapabilityPolicyItemInput[]; riskPolicy?: CapabilityPolicyEnforcementInput["riskPolicy"] }
+        | {
+            capabilities?: CapabilityPolicyItemInput[];
+            riskPolicy?: CapabilityPolicyEnforcementInput["riskPolicy"];
+          }
         | CapabilityPolicyItemInput[];
     }
   | { ok: false; safeMessage: string } {

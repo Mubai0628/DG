@@ -85,7 +85,8 @@ export function buildApprovalConsistencyView(
         ? value.expectedWorkflowScenarioId
         : undefined,
     expectedWorkspaceRootRef:
-      !Array.isArray(value) && typeof value.expectedWorkspaceRootRef === "string"
+      !Array.isArray(value) &&
+      typeof value.expectedWorkspaceRootRef === "string"
         ? value.expectedWorkspaceRootRef
         : undefined,
     expectedProposalId:
@@ -147,9 +148,7 @@ function fromReport(
   };
 }
 
-function parseConsistencyJson(
-  text: string
-):
+function parseConsistencyJson(text: string):
   | {
       ok: true;
       value:

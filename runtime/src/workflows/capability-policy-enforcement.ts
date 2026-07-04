@@ -248,8 +248,12 @@ export function buildCapabilityPolicyEnforcementReport(
     });
   }
 
-  const itemBlocked = itemSummaries.some((item) => item.blockerCodes.length > 0);
-  const itemWarning = itemSummaries.some((item) => item.warningCodes.length > 0);
+  const itemBlocked = itemSummaries.some(
+    (item) => item.blockerCodes.length > 0
+  );
+  const itemWarning = itemSummaries.some(
+    (item) => item.warningCodes.length > 0
+  );
 
   return buildReport({
     policyId,
@@ -376,7 +380,10 @@ function normalizeItems(
   return items.map((item, index) => {
     const category = safeText(item.category) as CapabilityPolicyCategory;
     const mode = safeText(item.mode, "unsupported") as CapabilityPolicyMode;
-    const riskLevel = safeText(item.riskLevel, "medium") as CapabilityPolicyRiskLevel;
+    const riskLevel = safeText(
+      item.riskLevel,
+      "medium"
+    ) as CapabilityPolicyRiskLevel;
     const capabilityId = safeText(item.capabilityId, `capability-${index + 1}`);
     const summary = safeText(item.summary, `${category} summary`);
     const blockerCodes = itemBlockers(item, input);
@@ -442,7 +449,9 @@ function itemBlockers(
   const laneKind = safeText(item.laneKind);
   const actionKind = safeText(item.actionKind);
   const allowedDesktopActionKinds = new Set(
-    input.riskPolicy?.allowedDesktopActionKinds ?? [...defaultDesktopActionKinds]
+    input.riskPolicy?.allowedDesktopActionKinds ?? [
+      ...defaultDesktopActionKinds
+    ]
   );
   if (mode === "disabled" && itemClaimsExecution(item)) {
     blockers.push("DISABLED_CAPABILITY_CLAIMS_EXECUTION");
@@ -487,7 +496,10 @@ function itemBlockers(
 
 function itemWarnings(item: CapabilityPolicyItemInput): string[] {
   const warnings: string[] = [];
-  if (safeText(item.riskLevel) === "high" || safeText(item.riskLevel) === "critical") {
+  if (
+    safeText(item.riskLevel) === "high" ||
+    safeText(item.riskLevel) === "critical"
+  ) {
     warnings.push("HIGH_RISK_CAPABILITY");
   }
   if (!Array.isArray(item.warningCodes) && safeText(item.summary).length > 0) {
@@ -619,8 +631,7 @@ function safeMessageFor(code: string): string {
       "Manual-only capability requires explicit approval.",
     READ_ONLY_MUTATION: "Read-only capability cannot mutate.",
     MCP_MUTATING_TOOL_BLOCKED: "MCP mutating tools are blocked.",
-    PLUGIN_SKILL_RUNTIME_BLOCKED:
-      "Plugin/skill runtime execution is blocked.",
+    PLUGIN_SKILL_RUNTIME_BLOCKED: "Plugin/skill runtime execution is blocked.",
     DESKTOP_ACTION_OUTSIDE_ALLOWLIST:
       "Desktop action proposal is outside the allowlist.",
     ARBITRARY_GIT_SHELL_BLOCKED: "Arbitrary Git/shell execution is blocked.",

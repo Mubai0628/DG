@@ -866,8 +866,9 @@ export function DesktopShell(): JSX.Element {
   >();
   const [approvalConsistencyJsonText, setApprovalConsistencyJsonText] =
     useState("");
-  const [approvalConsistencyPreview, setApprovalConsistencyPreview] =
-    useState<ApprovalConsistencyView | undefined>();
+  const [approvalConsistencyPreview, setApprovalConsistencyPreview] = useState<
+    ApprovalConsistencyView | undefined
+  >();
   const [capabilityPolicyJsonText, setCapabilityPolicyJsonText] = useState("");
   const [capabilityPolicyPreview, setCapabilityPolicyPreview] = useState<
     CapabilityPolicyEnforcementView | undefined
@@ -1689,15 +1690,14 @@ export function DesktopShell(): JSX.Element {
     );
   const displayedFixedAgentReplayProjection =
     fixedAgentReplayProjectionPreview ?? buildFixedAgentReplayProjectionView();
-  const agentHandoffStateReviewCandidate =
-    useMemo<AgentHandoffStateReviewView>(
-      () =>
-        buildAgentHandoffStateReviewView({
-          handoffJsonText: agentHandoffStateReviewText,
-          sourceKind: "paste"
-        }),
-      [agentHandoffStateReviewText]
-    );
+  const agentHandoffStateReviewCandidate = useMemo<AgentHandoffStateReviewView>(
+    () =>
+      buildAgentHandoffStateReviewView({
+        handoffJsonText: agentHandoffStateReviewText,
+        sourceKind: "paste"
+      }),
+    [agentHandoffStateReviewText]
+  );
   const displayedAgentHandoffStateReview =
     agentHandoffStateReviewPreview ?? buildAgentHandoffStateReviewView();
   const patchProposalValidationCandidate =
@@ -2554,15 +2554,14 @@ export function DesktopShell(): JSX.Element {
     );
   const displayedCrossSurfaceReplayTimeline =
     crossSurfaceReplayTimelinePreview ?? buildCrossSurfaceReplayTimelineView();
-  const crossSurfaceReplayAuditCandidate =
-    useMemo<CrossSurfaceReplayAuditView>(
-      () =>
-        buildCrossSurfaceReplayAuditView({
-          replayAuditJsonText: crossSurfaceReplayAuditText,
-          sourceKind: "paste"
-        }),
-      [crossSurfaceReplayAuditText]
-    );
+  const crossSurfaceReplayAuditCandidate = useMemo<CrossSurfaceReplayAuditView>(
+    () =>
+      buildCrossSurfaceReplayAuditView({
+        replayAuditJsonText: crossSurfaceReplayAuditText,
+        sourceKind: "paste"
+      }),
+    [crossSurfaceReplayAuditText]
+  );
   const displayedCrossSurfaceReplayAudit =
     crossSurfaceReplayAuditPreview ?? buildCrossSurfaceReplayAuditView();
   const crossSurfaceApprovedSequence = useMemo<CrossSurfaceApprovedSequence>(
@@ -10113,8 +10112,10 @@ export function DesktopShell(): JSX.Element {
             ) : null}
 
             <p className="fieldHelp">
-              {summarizeEvidenceFreshnessDriftView(displayedEvidenceFreshness)
-                .source}{" "}
+              {
+                summarizeEvidenceFreshnessDriftView(displayedEvidenceFreshness)
+                  .source
+              }{" "}
               · {displayedEvidenceFreshness.nextAction}
             </p>
           </section>
@@ -10317,8 +10318,10 @@ export function DesktopShell(): JSX.Element {
             ) : null}
 
             <p className="fieldHelp">
-              {summarizeApprovalConsistencyView(displayedApprovalConsistency)
-                .source}{" "}
+              {
+                summarizeApprovalConsistencyView(displayedApprovalConsistency)
+                  .source
+              }{" "}
               · {displayedApprovalConsistency.nextAction}
             </p>
           </section>
@@ -10354,8 +10357,8 @@ export function DesktopShell(): JSX.Element {
               <p className="fieldHelp">
                 Accepts summary-only capability refs with category, mode, risk,
                 allowlist, fixed-lane, manual approval, and warning metadata.
-                Raw args, raw output, command payloads, EventStore writes,
-                broad leases, and secrets are blocked.
+                Raw args, raw output, command payloads, EventStore writes, broad
+                leases, and secrets are blocked.
               </p>
             </label>
 
@@ -10451,8 +10454,7 @@ export function DesktopShell(): JSX.Element {
                     ? "yes"
                     : "no"}{" "}
                   /{" "}
-                  {displayedCapabilityPolicy.readiness
-                    .canExecutePluginRuntime
+                  {displayedCapabilityPolicy.readiness.canExecutePluginRuntime
                     ? "yes"
                     : "no"}
                 </dd>
@@ -10535,10 +10537,9 @@ export function DesktopShell(): JSX.Element {
               </span>
             </div>
             <p className="fieldHelp">
-              Previews the v0.28 fixed cross-surface workflow from summary refs
-              only. The App Shell does not run DeepSeek, run agents, call MCP
-              tools, execute desktop actions, apply patches, rollback, or write
-              EventStore events.
+              {
+                "Previews the v0.28 fixed cross-surface workflow from summary refs only, with v0.29 North Star hardening for recovery, approval consistency, policy, replay, freshness, and handoff review. The App Shell does not run DeepSeek, run agents, call MCP tools, execute desktop actions, apply patches, rollback, or write EventStore events."
+              }
             </p>
 
             <label>
@@ -11070,7 +11071,9 @@ export function DesktopShell(): JSX.Element {
               </div>
               <div>
                 <dt>Missing required</dt>
-                <dd>{displayedCrossSurfaceReplayAudit.missingRequiredEventCount}</dd>
+                <dd>
+                  {displayedCrossSurfaceReplayAudit.missingRequiredEventCount}
+                </dd>
               </div>
               <div>
                 <dt>Out-of-order / duplicate conflicts</dt>
@@ -11115,7 +11118,8 @@ export function DesktopShell(): JSX.Element {
               </div>
             </dl>
 
-            {displayedCrossSurfaceReplayAudit.missingRequiredKinds.length > 0 ? (
+            {displayedCrossSurfaceReplayAudit.missingRequiredKinds.length >
+            0 ? (
               <p className="muted">
                 missing{" "}
                 {displayedCrossSurfaceReplayAudit.missingRequiredKinds.join(
@@ -11126,24 +11130,26 @@ export function DesktopShell(): JSX.Element {
 
             {displayedCrossSurfaceReplayAudit.eventSummaries.length > 0 ? (
               <ol className="timeline">
-                {displayedCrossSurfaceReplayAudit.eventSummaries.map((event) => (
-                  <li key={event.eventId}>
-                    <span className="timelineMeta">
-                      {event.kind} · {event.status}
-                    </span>
-                    <span>summary {event.summaryHash}</span>
-                    {event.warningCodes.length > 0 ? (
+                {displayedCrossSurfaceReplayAudit.eventSummaries.map(
+                  (event) => (
+                    <li key={event.eventId}>
                       <span className="timelineMeta">
-                        Warnings: {event.warningCodes.join(", ")}
+                        {event.kind} · {event.status}
                       </span>
-                    ) : null}
-                    {event.blockerCodes.length > 0 ? (
-                      <span className="timelineMeta">
-                        Blockers: {event.blockerCodes.join(", ")}
-                      </span>
-                    ) : null}
-                  </li>
-                ))}
+                      <span>summary {event.summaryHash}</span>
+                      {event.warningCodes.length > 0 ? (
+                        <span className="timelineMeta">
+                          Warnings: {event.warningCodes.join(", ")}
+                        </span>
+                      ) : null}
+                      {event.blockerCodes.length > 0 ? (
+                        <span className="timelineMeta">
+                          Blockers: {event.blockerCodes.join(", ")}
+                        </span>
+                      ) : null}
+                    </li>
+                  )
+                )}
               </ol>
             ) : null}
 
@@ -16402,8 +16408,8 @@ export function DesktopShell(): JSX.Element {
               Reviews fixed agent handoff summaries for missing outputs, role
               order mismatch, stale dossier hashes, skipped reviewer/verifier
               stages, and interrupted workflow recovery. The App Shell does not
-              rerun agents, create dynamic bidding, invoke tools, apply
-              patches, rollback, write EventStore events, or run Git/shell.
+              rerun agents, create dynamic bidding, invoke tools, apply patches,
+              rollback, write EventStore events, or run Git/shell.
             </p>
 
             <label>
@@ -16418,10 +16424,9 @@ export function DesktopShell(): JSX.Element {
                 spellCheck={false}
               />
               <p className="fieldHelp">
-                Accepts summary-only orchestrator, coder, reviewer, and
-                verifier stage refs. Raw prompts, raw source, raw diffs, API
-                keys, command payloads, and execution readiness claims are
-                blocked.
+                Accepts summary-only orchestrator, coder, reviewer, and verifier
+                stage refs. Raw prompts, raw source, raw diffs, API keys,
+                command payloads, and execution readiness claims are blocked.
               </p>
             </label>
 
@@ -16530,8 +16535,7 @@ export function DesktopShell(): JSX.Element {
               <div>
                 <dt>EventStore / App execution</dt>
                 <dd>
-                  {displayedAgentHandoffStateReview.readiness
-                    .canWriteEventStore
+                  {displayedAgentHandoffStateReview.readiness.canWriteEventStore
                     ? "yes"
                     : "no"}{" "}
                   /{" "}
@@ -16586,9 +16590,11 @@ export function DesktopShell(): JSX.Element {
             ) : null}
 
             <p className="fieldHelp">
-              {summarizeAgentHandoffStateReviewView(
-                displayedAgentHandoffStateReview
-              ).source}{" "}
+              {
+                summarizeAgentHandoffStateReviewView(
+                  displayedAgentHandoffStateReview
+                ).source
+              }{" "}
               · {displayedAgentHandoffStateReview.nextAction}
             </p>
           </section>

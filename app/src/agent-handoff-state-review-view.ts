@@ -147,9 +147,7 @@ function numberOption(
   return { [key]: value[key] };
 }
 
-function parseHandoffJson(
-  text: string
-):
+function parseHandoffJson(text: string):
   | {
       ok: true;
       value:
