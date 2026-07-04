@@ -24361,6 +24361,119 @@ describe("desktop source boundaries", () => {
     expect(combined).not.toContain("arbitrary plugin/skill runtime is enabled");
   });
 
+  it("documents the P1F cross-surface workflow ADR and implementation gate", async () => {
+    const adr = await readFile(
+      path.join(
+        repoRoot,
+        "docs",
+        "adr",
+        "0011-cross-surface-agent-workflow.md"
+      ),
+      "utf8"
+    );
+    const threatModel = await readFile(
+      path.join(
+        repoRoot,
+        "docs",
+        "cross-surface-agent-workflow-threat-model-v0.27.md"
+      ),
+      "utf8"
+    );
+    const implementationGate = await readFile(
+      path.join(
+        repoRoot,
+        "docs",
+        "cross-surface-agent-workflow-implementation-gate-v0.27.md"
+      ),
+      "utf8"
+    );
+    const scenarioPlan = await readFile(
+      path.join(
+        repoRoot,
+        "docs",
+        "p1f-002-cross-surface-workflow-scenario-schema-plan.md"
+      ),
+      "utf8"
+    );
+    const docsIndex = await readFile(
+      path.join(repoRoot, "docs", "README.md"),
+      "utf8"
+    );
+    const combined = `${adr}\n${threatModel}\n${implementationGate}\n${scenarioPlan}\n${docsIndex}`;
+
+    expect(adr).toContain("ADR 0011: Cross-surface Agent Workflow");
+    expect(adr).toContain("Accepted for P1F design gate");
+    expect(adr).toContain("fixed cross-surface workflow route");
+    expect(adr).toContain("Dynamic agent bidding is not a");
+    expect(adr).toContain("A model proposal cannot execute");
+    expect(adr).toContain("Agents cannot directly execute tools");
+    expect(adr).toContain("already approved lanes");
+    expect(adr).toContain("human approval");
+    expect(adr).toContain("typed confirmation");
+    expect(adr).toContain("fixed safe lanes");
+    expect(adr).toContain("MCP behavior remains read-only");
+    expect(adr).toContain("metadata and simulation only");
+    expect(adr).toContain("Replay and audit are required");
+
+    expect(threatModel).toContain("Cross-surface prompt injection");
+    expect(threatModel).toContain("Stale evidence");
+    expect(threatModel).toContain("Agent handoff mismatch");
+    expect(threatModel).toContain("Capability escalation");
+    expect(threatModel).toContain("Tool result spoofing");
+    expect(threatModel).toContain("Desktop observation mismatch");
+    expect(threatModel).toContain("Desktop action mismatch");
+    expect(threatModel).toContain("Human approval bypass");
+    expect(threatModel).toContain("Replay tampering");
+    expect(threatModel).toContain("Raw data leakage");
+    expect(threatModel).toContain("API key leakage");
+    expect(threatModel).toContain("Reasoning content leakage");
+    expect(threatModel).toContain("Event chain inconsistency");
+    expect(threatModel).toContain("Rollback failure");
+
+    expect(implementationGate).toContain("Scenario Schema Safety");
+    expect(implementationGate).toContain("Evidence Summary Safety");
+    expect(implementationGate).toContain("Agent Route Safety");
+    expect(implementationGate).toContain("Model Proposal Safety");
+    expect(implementationGate).toContain("Capability Broker Safety");
+    expect(implementationGate).toContain("Desktop Observer / Action Safety");
+    expect(implementationGate).toContain("Apply / Rollback Safety");
+    expect(implementationGate).toContain("Verification Lane Safety");
+    expect(implementationGate).toContain("Replay / Audit Safety");
+    expect(implementationGate).toContain("App UI Safety");
+    expect(implementationGate).toContain("CI / Boundary Safety");
+    expect(implementationGate).toContain(
+      "No item may be satisfied by prose alone"
+    );
+
+    expect(scenarioPlan).toContain(
+      "P1F-002 Cross-surface Workflow Scenario Schema Plan"
+    );
+    expect(scenarioPlan).toContain("summary-only stage refs");
+    expect(scenarioPlan).toContain("No dynamic agent bidding");
+    expect(scenarioPlan).toContain("No runtime workflow planner");
+    expect(scenarioPlan).toContain("No App workflow composer");
+    expect(scenarioPlan).toContain("MCP tool invocation");
+    expect(scenarioPlan).toContain("No desktop action execution");
+    expect(scenarioPlan).toContain("No Git or shell execution");
+
+    expect(docsIndex).toContain("adr/0011-cross-surface-agent-workflow.md");
+    expect(docsIndex).toContain(
+      "cross-surface-agent-workflow-threat-model-v0.27.md"
+    );
+    expect(docsIndex).toContain(
+      "cross-surface-agent-workflow-implementation-gate-v0.27.md"
+    );
+    expect(docsIndex).toContain(
+      "p1f-002-cross-surface-workflow-scenario-schema-plan.md"
+    );
+
+    expect(combined).toContain("summary-only");
+    expect(combined).not.toContain("dynamic bidding is enabled");
+    expect(combined).not.toContain("arbitrary tool use is enabled");
+    expect(combined).not.toContain("broad native bridge is enabled");
+    expect(combined).not.toContain("desktop action expansion is enabled");
+  });
+
   it("documents the P1D desktop action expansion ADR and implementation gate", async () => {
     const adr = await readFile(
       path.join(
