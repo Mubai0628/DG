@@ -26408,6 +26408,97 @@ describe("desktop source boundaries", () => {
     expect(combined).not.toContain("auto-apply enabled");
   });
 
+  it("documents the P1H external capability hardening ADR and gate", async () => {
+    const adr = await readFile(
+      path.join(
+        repoRoot,
+        "docs",
+        "adr",
+        "0011-external-capability-execution-hardening.md"
+      ),
+      "utf8"
+    );
+    const threatModel = await readFile(
+      path.join(
+        repoRoot,
+        "docs",
+        "external-capability-execution-hardening-threat-model-v0.30.md"
+      ),
+      "utf8"
+    );
+    const implementationGate = await readFile(
+      path.join(
+        repoRoot,
+        "docs",
+        "external-capability-execution-hardening-implementation-gate-v0.30.md"
+      ),
+      "utf8"
+    );
+    const nextPlan = await readFile(
+      path.join(
+        repoRoot,
+        "docs",
+        "p1h-002-capability-execution-policy-lease-hardening-plan.md"
+      ),
+      "utf8"
+    );
+    const docsIndex = await readFile(
+      path.join(repoRoot, "docs", "README.md"),
+      "utf8"
+    );
+    const combined = `${adr}\n${threatModel}\n${implementationGate}\n${nextPlan}\n${docsIndex}`;
+
+    expect(adr).toContain("ADR 0011: External Capability Execution Hardening");
+    expect(adr).toContain("Accepted for P1H design gate");
+    expect(adr).toContain(
+      "Capability Broker is the single planning/risk/policy entrypoint"
+    );
+    expect(adr).toContain(
+      "MCP read-only tool execution remains the only external tool execution lane"
+    );
+    expect(adr).toContain("Mutating MCP tools remain disabled");
+    expect(adr).toContain(
+      "Plugin/Skill remains metadata and safe simulation only"
+    );
+    expect(adr).toContain("No raw tool args/output persistence");
+    expect(threatModel).toContain("Malicious MCP server metadata");
+    expect(threatModel).toContain("mutating tool as read-only");
+    expect(threatModel).toContain("Plugin manifest spoofing");
+    expect(threatModel).toContain("Skill package metadata poisoning");
+    expect(threatModel).toContain("Approval bypass");
+    expect(threatModel).toContain("App hidden execution path");
+    expect(implementationGate).toContain("Descriptor Safety");
+    expect(implementationGate).toContain("Policy / Lease Safety");
+    expect(implementationGate).toContain("MCP Read-only Tool Safety");
+    expect(implementationGate).toContain("Plugin / Skill Sandbox Safety");
+    expect(implementationGate).toContain("Result Redaction Safety");
+    expect(implementationGate).toContain("Do not enable mutating MCP tools");
+    expect(implementationGate).toContain("arbitrary plugin code execution");
+    expect(implementationGate).toContain("skill runtime in v0.30");
+    expect(nextPlan).toContain(
+      "P1H-002 Capability Execution Policy / Lease Hardening Plan"
+    );
+    expect(nextPlan).toContain("No new external capability execution lane");
+    expect(nextPlan).toContain("No plugin code execution");
+    expect(nextPlan).toContain("DW-P1H-003");
+    expect(docsIndex).toContain(
+      "adr/0011-external-capability-execution-hardening.md"
+    );
+    expect(docsIndex).toContain(
+      "external-capability-execution-hardening-threat-model-v0.30.md"
+    );
+    expect(docsIndex).toContain(
+      "external-capability-execution-hardening-implementation-gate-v0.30.md"
+    );
+    expect(docsIndex).toContain(
+      "p1h-002-capability-execution-policy-lease-hardening-plan.md"
+    );
+    expect(combined).not.toContain("mutating MCP tools enabled");
+    expect(combined).not.toContain("arbitrary plugin code execution enabled");
+    expect(combined).not.toContain("arbitrary skill runtime enabled");
+    expect(combined).not.toContain("broad native bridge enabled");
+  });
+
   it("documents the P1D desktop action expansion ADR and implementation gate", async () => {
     const adr = await readFile(
       path.join(
