@@ -467,6 +467,7 @@ foundation.
 - [North Star Demo Hardening threat model v0.28](north-star-demo-hardening-threat-model-v0.28.md)
 - [North Star Demo Hardening implementation gate v0.28](north-star-demo-hardening-implementation-gate-v0.28.md)
 - [P1G-002 Cross-surface Failure Recovery Contract plan](p1g-002-cross-surface-failure-recovery-contract-plan.md)
+- [Runtime Cross-surface Failure Recovery v0.28](runtime-cross-surface-failure-recovery-v0.28.md)
 - [Runtime Memory Recall Preview v0.3](runtime-memory-recall-preview-v0.3.md)
 - [v0.4.0 Controlled Creation Preview RC release notes](release-notes-v0.4.0-controlled-creation-preview-rc.1.md)
 - [App Shell Controlled Creation manual QA](app-shell-controlled-creation-manual-qa.md)
