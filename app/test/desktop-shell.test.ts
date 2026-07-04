@@ -28244,6 +28244,28 @@ describe("expanded desktop action proposal app surface", () => {
     );
   });
 
+  it("documents the safe click contract boundary", async () => {
+    const doc = await readFile(
+      path.join(repoRoot, "docs", "runtime-safe-click-contract-v0.26.md"),
+      "utf8"
+    );
+    const docsIndex = await readFile(
+      path.join(repoRoot, "docs", "README.md"),
+      "utf8"
+    );
+
+    expect(doc).toContain("Runtime Safe Click Contract v0.26");
+    expect(doc).toContain("click_observed_safe_target");
+    expect(doc).toContain("does not call Tauri");
+    expect(doc).toContain("does not execute a click");
+    expect(doc).toContain("double click");
+    expect(doc).toContain("click point outside the target bounds");
+    expect(doc).toContain("no EventStore write");
+    expect(doc).toContain("no raw screenshot or OCR persistence");
+    expect(doc).toContain("no broad native bridge");
+    expect(docsIndex).toContain("runtime-safe-click-contract-v0.26.md");
+  });
+
   it("documents the desktop action expansion redaction audit and smoke path", async () => {
     const auditDoc = await readFile(
       path.join(
