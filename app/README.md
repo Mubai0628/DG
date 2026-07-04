@@ -76,6 +76,11 @@ Current scope:
   and broker descriptor counts while plugin install, skill runtime, capability
   execution, fetch/network, Tauri calls, EventStore writes, native bridge, and
   desktop action remain disabled
+- preview the P1H External Capability Audit as a read-only summary surface for
+  policy hardening, MCP read-only consistency, plugin/skill sandbox signals,
+  replay completeness, and redaction audit summaries while external capability
+  invocation, plugin/skill runtime, mutating MCP tools, fetch/network, Tauri
+  calls, EventStore writes, native bridge, and desktop action remain disabled
 - preview the P0Y Plugin / Skill Redaction Audit as a summary-only check of
   host metadata boundaries while raw metadata, raw prompt, raw args, raw output,
   install scripts, EventStore writes, plugin execution, skill runtime, native

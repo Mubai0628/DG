@@ -133,6 +133,11 @@ import {
   type CapabilityHostAuditView
 } from "./capability-host-audit-view.js";
 import {
+  buildExternalCapabilityAuditSurfaceView,
+  summarizeExternalCapabilityAuditSurfaceView,
+  type ExternalCapabilityAuditSurfaceView
+} from "./external-capability-audit-surface-view.js";
+import {
   buildPluginSkillHostView,
   summarizePluginSkillHostView,
   type PluginSkillHostView
@@ -946,6 +951,14 @@ export function DesktopShell(): JSX.Element {
   const [capabilityHostAuditPreview, setCapabilityHostAuditPreview] = useState<
     CapabilityHostAuditView | undefined
   >();
+  const [
+    externalCapabilityAuditSummaryText,
+    setExternalCapabilityAuditSummaryText
+  ] = useState("");
+  const [
+    externalCapabilityAuditSurfacePreview,
+    setExternalCapabilityAuditSurfacePreview
+  ] = useState<ExternalCapabilityAuditSurfaceView | undefined>();
   const [pluginSkillPluginManifestText, setPluginSkillPluginManifestText] =
     useState("");
   const [pluginSkillSkillManifestText, setPluginSkillSkillManifestText] =
@@ -1404,6 +1417,21 @@ export function DesktopShell(): JSX.Element {
   );
   const displayedCapabilityHostAudit =
     capabilityHostAuditPreview ?? buildCapabilityHostAuditView();
+  const externalCapabilityAuditSurfaceCandidate =
+    useMemo<ExternalCapabilityAuditSurfaceView>(
+      () =>
+        buildExternalCapabilityAuditSurfaceView({
+          capabilityHostAudit:
+            displayedCapabilityHostAudit.status === "empty"
+              ? undefined
+              : displayedCapabilityHostAudit,
+          hardeningSummaryJsonText: externalCapabilityAuditSummaryText
+        }),
+      [displayedCapabilityHostAudit, externalCapabilityAuditSummaryText]
+    );
+  const displayedExternalCapabilityAuditSurface =
+    externalCapabilityAuditSurfacePreview ??
+    buildExternalCapabilityAuditSurfaceView();
   const pluginSkillHostCandidate = useMemo<PluginSkillHostView>(
     () =>
       buildPluginSkillHostView({
@@ -4088,6 +4116,7 @@ export function DesktopShell(): JSX.Element {
     setCapabilityHostManifestText("");
     setCapabilityHostSurfacePreview(undefined);
     setCapabilityHostAuditPreview(undefined);
+    setExternalCapabilityAuditSurfacePreview(undefined);
     setContextAssemblyPreview(undefined);
   }
 
@@ -4098,6 +4127,18 @@ export function DesktopShell(): JSX.Element {
   function handleClearCapabilityHostAudit(): void {
     setCapabilityHostAuditText("");
     setCapabilityHostAuditPreview(undefined);
+    setExternalCapabilityAuditSurfacePreview(undefined);
+  }
+
+  function handlePreviewExternalCapabilityAuditSurface(): void {
+    setExternalCapabilityAuditSurfacePreview(
+      externalCapabilityAuditSurfaceCandidate
+    );
+  }
+
+  function handleClearExternalCapabilityAuditSurface(): void {
+    setExternalCapabilityAuditSummaryText("");
+    setExternalCapabilityAuditSurfacePreview(undefined);
   }
 
   function handlePreviewPluginSkillHost(): void {
@@ -17640,6 +17681,241 @@ export function DesktopShell(): JSX.Element {
                   .appSource
               }{" "}
               · {displayedCapabilityHostAudit.nextAction}
+            </p>
+          </section>
+
+          <section
+            className="eventPanel"
+            aria-label="External Capability Audit"
+          >
+            <div className="panelHeader">
+              <h2>External Capability Audit</h2>
+              <span className="muted">Read-only / no external execution</span>
+            </div>
+            <p className="fieldHelp">
+              Aggregates external capability hardening summaries for policy,
+              MCP read-only consistency, plugin/skill sandbox signals, replay
+              completeness, and redaction audit. The App Shell does not invoke
+              external capabilities, run plugins or skills, execute mutating MCP
+              tools, fetch network, write events, use Tauri, or show raw output.
+            </p>
+
+            <label>
+              <span>Optional hardening summary JSON</span>
+              <textarea
+                className="compactTextarea"
+                value={externalCapabilityAuditSummaryText}
+                onChange={(event) => {
+                  setExternalCapabilityAuditSummaryText(event.target.value);
+                }}
+                placeholder="Paste external capability hardening summary JSON"
+                spellCheck={false}
+              />
+              <p className="fieldHelp">
+                Empty input aggregates the current Capability Host audit
+                summary. Pasted JSON is treated as summary metadata only.
+              </p>
+            </label>
+
+            <div className="buttonRow">
+              <button
+                type="button"
+                className="secondary"
+                onClick={(event) => {
+                  event.preventDefault();
+                  event.stopPropagation();
+                  handlePreviewExternalCapabilityAuditSurface();
+                }}
+              >
+                Preview External Capability Audit
+              </button>
+              <button
+                type="button"
+                className="secondary"
+                onClick={(event) => {
+                  event.preventDefault();
+                  event.stopPropagation();
+                  handleClearExternalCapabilityAuditSurface();
+                }}
+              >
+                Clear External Capability Audit
+              </button>
+              <button type="button" className="secondary" disabled>
+                Invoke External Capability (disabled)
+              </button>
+              <button type="button" className="secondary" disabled>
+                Run Plugin (disabled)
+              </button>
+              <button type="button" className="secondary" disabled>
+                Run Skill (disabled)
+              </button>
+              <button type="button" className="secondary" disabled>
+                Execute Mutating MCP Tool (disabled)
+              </button>
+            </div>
+
+            {displayedExternalCapabilityAuditSurface.status === "empty" ? (
+              <p className="empty">
+                No external capability audit summary loaded. Preview the
+                current Capability Host audit or paste summary JSON.
+              </p>
+            ) : null}
+
+            {displayedExternalCapabilityAuditSurface.status === "blocked" ? (
+              <div className="errorBox">
+                <strong>External capability audit blocked</strong>
+                <p>{displayedExternalCapabilityAuditSurface.nextAction}</p>
+              </div>
+            ) : null}
+
+            <dl className="summaryGrid compact">
+              <div>
+                <dt>Status</dt>
+                <dd>{displayedExternalCapabilityAuditSurface.status}</dd>
+              </div>
+              <div>
+                <dt>Descriptors</dt>
+                <dd>
+                  {displayedExternalCapabilityAuditSurface.descriptorCount}
+                </dd>
+              </div>
+              <div>
+                <dt>Policy hardening</dt>
+                <dd>
+                  {
+                    displayedExternalCapabilityAuditSurface.policyHardeningStatus
+                  }
+                </dd>
+              </div>
+              <div>
+                <dt>MCP readonly</dt>
+                <dd>
+                  {
+                    displayedExternalCapabilityAuditSurface
+                      .mcpReadonlyConsistencyStatus
+                  }
+                </dd>
+              </div>
+              <div>
+                <dt>Plugin / skill sandbox</dt>
+                <dd>
+                  {
+                    displayedExternalCapabilityAuditSurface
+                      .pluginSkillSandboxStatus
+                  }
+                </dd>
+              </div>
+              <div>
+                <dt>Replay completeness</dt>
+                <dd>
+                  {
+                    displayedExternalCapabilityAuditSurface
+                      .replayCompletenessStatus
+                  }
+                </dd>
+              </div>
+              <div>
+                <dt>Redaction audit</dt>
+                <dd>
+                  {displayedExternalCapabilityAuditSurface.redactionAuditStatus}
+                </dd>
+              </div>
+              <div>
+                <dt>Redacted / raw fields</dt>
+                <dd>
+                  {displayedExternalCapabilityAuditSurface.redactedFieldCount}{" "}
+                  /{" "}
+                  {displayedExternalCapabilityAuditSurface.rawFieldDetectedCount}
+                </dd>
+              </div>
+              <div>
+                <dt>Raw output / secret</dt>
+                <dd>
+                  {displayedExternalCapabilityAuditSurface.rawLeakBooleans
+                    .rawToolOutputDetected
+                    ? "yes"
+                    : "no"}{" "}
+                  /{" "}
+                  {displayedExternalCapabilityAuditSurface.rawLeakBooleans
+                    .secretDetected
+                    ? "yes"
+                    : "no"}
+                </dd>
+              </div>
+              <div>
+                <dt>Blockers / warnings</dt>
+                <dd>
+                  {displayedExternalCapabilityAuditSurface.blockerCount} /{" "}
+                  {displayedExternalCapabilityAuditSurface.warningCount}
+                </dd>
+              </div>
+              <div>
+                <dt>Hash</dt>
+                <dd>
+                  {displayedExternalCapabilityAuditSurface.auditHash.substring(
+                    0,
+                    12
+                  )}
+                </dd>
+              </div>
+              <div>
+                <dt>Preview / invoke</dt>
+                <dd>
+                  {displayedExternalCapabilityAuditSurface.readiness
+                    .canPreviewExternalCapabilityAudit
+                    ? "yes"
+                    : "no"}{" "}
+                  /{" "}
+                  {displayedExternalCapabilityAuditSurface.readiness
+                    .canInvokeExternalCapability
+                    ? "yes"
+                    : "no"}
+                </dd>
+              </div>
+              <div>
+                <dt>Plugin / skill run</dt>
+                <dd>
+                  {displayedExternalCapabilityAuditSurface.readiness.canRunPlugin
+                    ? "yes"
+                    : "no"}{" "}
+                  /{" "}
+                  {displayedExternalCapabilityAuditSurface.readiness.canRunSkill
+                    ? "yes"
+                    : "no"}
+                </dd>
+              </div>
+              <div>
+                <dt>Fetch / event write</dt>
+                <dd>
+                  {displayedExternalCapabilityAuditSurface.readiness
+                    .canFetchNetwork
+                    ? "yes"
+                    : "no"}{" "}
+                  /{" "}
+                  {displayedExternalCapabilityAuditSurface.readiness
+                    .canWriteEventStore
+                    ? "yes"
+                    : "no"}
+                </dd>
+              </div>
+            </dl>
+
+            {displayedExternalCapabilityAuditSurface.findings.length > 0 ? (
+              <p className="muted">
+                findings{" "}
+                {displayedExternalCapabilityAuditSurface.findings
+                  .map((finding) => finding.code)
+                  .join(", ")}
+              </p>
+            ) : null}
+
+            <p className="fieldHelp">
+              {
+                summarizeExternalCapabilityAuditSurfaceView(
+                  displayedExternalCapabilityAuditSurface
+                ).source
+              }{" "}
+              · {displayedExternalCapabilityAuditSurface.nextAction}
             </p>
           </section>
 

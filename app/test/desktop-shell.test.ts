@@ -81,6 +81,7 @@ import {
   summarizeCapabilityHostSurfaceView
 } from "../src/capability-host-surface-view.js";
 import { buildCapabilityHostAuditView } from "../src/capability-host-audit-view.js";
+import { buildExternalCapabilityAuditSurfaceView } from "../src/external-capability-audit-surface-view.js";
 import { buildPluginSkillHostView } from "../src/plugin-skill-host-view.js";
 import { buildPluginSkillRedactionAuditView } from "../src/plugin-skill-redaction-audit-view.js";
 import {
@@ -20588,6 +20589,137 @@ describe("desktop source boundaries", () => {
       "runtime-external-capability-redaction-audit-v0.16.md"
     );
     expect(docsIndex).toContain("app-shell-capability-host-audit-v0.16.md");
+  });
+
+  it("previews the External Capability Audit surface as summary-only read-only state", () => {
+    const safeView = buildExternalCapabilityAuditSurfaceView({
+      hardeningSummaryJsonText: JSON.stringify({
+        policyHardeningReport: {
+          status: "policy_ready",
+          riskSummary: { low: 1 }
+        },
+        mcpReadonlyConsistencyReport: {
+          status: "consistency_ready"
+        },
+        sandboxEscapeReport: {
+          status: "safe_metadata"
+        },
+        replayCompletenessReport: {
+          status: "replay_ready"
+        },
+        redactionAuditSummary: {
+          status: "audit_ready",
+          source: "runtime_external_capability_redaction_audit"
+        }
+      })
+    });
+    const blockedView = buildExternalCapabilityAuditSurfaceView({
+      hardeningSummaryJsonText: JSON.stringify({
+        rawOutput: "RAW_OUTPUT_SENTINEL_VALUE",
+        apiKey: "sk-fake-external-audit-test"
+      })
+    });
+
+    expect(safeView.status).toBe("audit_ready");
+    expect(safeView.policyHardeningStatus).toBe("policy_ready");
+    expect(safeView.mcpReadonlyConsistencyStatus).toBe("consistency_ready");
+    expect(safeView.pluginSkillSandboxStatus).toBe("safe_metadata");
+    expect(safeView.replayCompletenessStatus).toBe("replay_ready");
+    expect(safeView.redactionAuditStatus).toBe("audit_ready");
+    expect(safeView.readiness.canPreviewExternalCapabilityAudit).toBe(true);
+    expect(safeView.readiness.canInvokeExternalCapability).toBe(false);
+    expect(safeView.readiness.canRunPlugin).toBe(false);
+    expect(safeView.readiness.canRunSkill).toBe(false);
+    expect(safeView.readiness.canExecuteMutatingMcpTool).toBe(false);
+    expect(safeView.readiness.canFetchNetwork).toBe(false);
+    expect(safeView.readiness.canWriteEventStore).toBe(false);
+    expect(safeView.readiness.canUseTauri).toBe(false);
+    expect(safeView.readiness.canExecuteGit).toBe(false);
+    expect(safeView.readiness.canExecuteShell).toBe(false);
+    expect(safeView.readiness.appCanExecute).toBe(false);
+
+    expect(blockedView.status).toBe("blocked");
+    expect(blockedView.findings.map((finding) => finding.code)).toContain(
+      "RAW_TOOL_OUTPUT_FIELD_REJECTED"
+    );
+    expect(blockedView.findings.map((finding) => finding.code)).toContain(
+      "API_KEY_FIELD_REJECTED"
+    );
+    expect(JSON.stringify(blockedView)).not.toContain(
+      "RAW_OUTPUT_SENTINEL_VALUE"
+    );
+    expect(JSON.stringify(blockedView)).not.toContain(
+      "sk-fake-external-audit-test"
+    );
+  });
+
+  it("renders the External Capability Audit panel with disabled controls only", async () => {
+    const appSource = await readFile(
+      path.join(appRoot, "src", "App.tsx"),
+      "utf8"
+    );
+    const viewSource = await readFile(
+      path.join(appRoot, "src", "external-capability-audit-surface-view.ts"),
+      "utf8"
+    );
+
+    expect(appSource).toContain("External Capability Audit");
+    expect(appSource).toContain("Read-only / no external execution");
+    expect(appSource).toContain("Preview External Capability Audit");
+    expect(appSource).toContain("Invoke External Capability (disabled)");
+    expect(appSource).toContain("Run Plugin (disabled)");
+    expect(appSource).toContain("Run Skill (disabled)");
+    expect(appSource).toContain("Execute Mutating MCP Tool (disabled)");
+    expect(appSource).not.toMatch(/>\s*Invoke External Capability\s*</);
+    expect(appSource).not.toMatch(/>\s*Run Plugin\s*</);
+    expect(appSource).not.toMatch(/>\s*Run Skill\s*</);
+    expect(appSource).not.toMatch(/>\s*Execute Mutating MCP Tool\s*</);
+    expect(viewSource).not.toContain("safeInvoke");
+    expect(viewSource).not.toMatch(/\binvoke\s*\(/);
+    expect(viewSource).not.toMatch(/\bfetch\s*\(/);
+    expect(viewSource).not.toContain("localStorage");
+    expect(viewSource).not.toContain("sessionStorage");
+    expect(viewSource).toContain("canWriteEventStore: false");
+    expect(viewSource).toContain("canUseTauri: false");
+  });
+
+  it("documents the External Capability Audit surface v0.30", async () => {
+    const appDoc = await readFile(
+      path.join(
+        repoRoot,
+        "docs",
+        "app-shell-external-capability-audit-surface-v0.30.md"
+      ),
+      "utf8"
+    );
+    const docsIndex = await readFile(
+      path.join(repoRoot, "docs", "README.md"),
+      "utf8"
+    );
+    const appReadme = await readFile(path.join(appRoot, "README.md"), "utf8");
+    const combined = `${appDoc}\n${docsIndex}\n${appReadme}`;
+
+    expect(appDoc).toContain("App Shell External Capability Audit Surface v0.30");
+    expect(appDoc).toContain("No Tauri invoke");
+    expect(appDoc).toContain("No EventStore write");
+    expect(appDoc).toContain("No fetch/network");
+    expect(appDoc).toContain("No external capability invocation");
+    expect(appDoc).toContain("No plugin run");
+    expect(appDoc).toContain("No skill run");
+    expect(appDoc).toContain("No mutating MCP tool execution");
+    expect(appDoc).toContain("No raw output input");
+    expect(appDoc).toContain("No API key input");
+    expect(appDoc).toContain("No Git/shell execution");
+    expect(appDoc).toContain("No native bridge");
+    expect(appDoc).toContain("No desktop action");
+    expect(docsIndex).toContain(
+      "app-shell-external-capability-audit-surface-v0.30.md"
+    );
+    expect(combined).toContain("policy hardening");
+    expect(combined).toContain("MCP read-only consistency");
+    expect(combined).toContain("plugin/skill sandbox");
+    expect(combined).toContain("replay completeness");
+    expect(combined).not.toContain("external capability invocation enabled");
   });
 
   it("documents the v0.17 Capability Host RC without external execution", async () => {
