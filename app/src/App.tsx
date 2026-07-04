@@ -14,6 +14,7 @@ import {
   commitProjectKnowledgeCandidate,
   expireProjectKnowledgeEntry,
   executeApprovedDesktopAction,
+  executeApprovedExpandedDesktopAction,
   generateLiveDeepSeekPatchProposal,
   getDesktopAppVersion,
   listProjectKnowledge,
@@ -35,6 +36,7 @@ import {
   type ApprovedUserWorkspaceRollbackResult,
   type ApprovedUserWorkspaceExecutionEventRecordResult,
   type ApprovedDesktopActionCommandResult,
+  type ApprovedExpandedDesktopActionCommandResult,
   type DesktopObservationCommandResult,
   type GitReadLane,
   type GitReadLaneResult,
@@ -216,6 +218,11 @@ import {
   summarizeApprovedExpandedDesktopActionReceiptView,
   type ApprovedExpandedDesktopActionReceiptView
 } from "./approved-expanded-desktop-action-receipt-view.js";
+import {
+  buildApprovedExpandedDesktopActionView,
+  summarizeApprovedExpandedDesktopActionView,
+  type ApprovedExpandedDesktopActionView
+} from "./approved-expanded-desktop-action-view.js";
 import {
   buildApprovedDesktopActionView,
   summarizeApprovedDesktopActionView,
@@ -644,6 +651,22 @@ export function DesktopShell(): JSX.Element {
     approvedExpandedDesktopActionReceiptPreview,
     setApprovedExpandedDesktopActionReceiptPreview
   ] = useState<ApprovedExpandedDesktopActionReceiptView | undefined>();
+  const [
+    approvedExpandedDesktopActionPreview,
+    setApprovedExpandedDesktopActionPreview
+  ] = useState<ApprovedExpandedDesktopActionView | undefined>();
+  const [
+    approvedExpandedDesktopActionStatus,
+    setApprovedExpandedDesktopActionStatus
+  ] = useState<"idle" | "executing" | "executed" | "failed">("idle");
+  const [
+    approvedExpandedDesktopActionResult,
+    setApprovedExpandedDesktopActionResult
+  ] = useState<ApprovedExpandedDesktopActionCommandResult | undefined>();
+  const [
+    approvedExpandedDesktopActionError,
+    setApprovedExpandedDesktopActionError
+  ] = useState<string | undefined>();
   const [
     approvedDesktopActionTypedConfirmation,
     setApprovedDesktopActionTypedConfirmation
@@ -1141,6 +1164,32 @@ export function DesktopShell(): JSX.Element {
   const displayedApprovedExpandedDesktopActionReceipt =
     approvedExpandedDesktopActionReceiptPreview ??
     buildApprovedExpandedDesktopActionReceiptView();
+  const approvedExpandedDesktopActionCandidate =
+    useMemo<ApprovedExpandedDesktopActionView>(
+      () =>
+        buildApprovedExpandedDesktopActionView({
+          expandedProposalView:
+            displayedExpandedDesktopActionProposal.status === "empty"
+              ? undefined
+              : displayedExpandedDesktopActionProposal,
+          receiptView:
+            displayedApprovedExpandedDesktopActionReceipt.status === "empty"
+              ? undefined
+              : displayedApprovedExpandedDesktopActionReceipt,
+          commandStatus: approvedExpandedDesktopActionStatus,
+          commandResult: approvedExpandedDesktopActionResult,
+          commandError: approvedExpandedDesktopActionError
+        }),
+      [
+        approvedExpandedDesktopActionError,
+        approvedExpandedDesktopActionResult,
+        approvedExpandedDesktopActionStatus,
+        displayedApprovedExpandedDesktopActionReceipt,
+        displayedExpandedDesktopActionProposal
+      ]
+    );
+  const displayedApprovedExpandedDesktopAction =
+    approvedExpandedDesktopActionPreview ?? approvedExpandedDesktopActionCandidate;
   const approvedDesktopActionCandidate = useMemo<ApprovedDesktopActionView>(
     () =>
       buildApprovedDesktopActionView({
@@ -3114,6 +3163,10 @@ export function DesktopShell(): JSX.Element {
       expandedDesktopActionProposalCandidate
     );
     setApprovedExpandedDesktopActionReceiptPreview(undefined);
+    setApprovedExpandedDesktopActionPreview(undefined);
+    setApprovedExpandedDesktopActionStatus("idle");
+    setApprovedExpandedDesktopActionResult(undefined);
+    setApprovedExpandedDesktopActionError(undefined);
     setContextAssemblyPreview(undefined);
   }
 
@@ -3122,6 +3175,10 @@ export function DesktopShell(): JSX.Element {
     setExpandedDesktopActionProposalPreview(undefined);
     setApprovedExpandedDesktopActionTypedConfirmation("");
     setApprovedExpandedDesktopActionReceiptPreview(undefined);
+    setApprovedExpandedDesktopActionPreview(undefined);
+    setApprovedExpandedDesktopActionStatus("idle");
+    setApprovedExpandedDesktopActionResult(undefined);
+    setApprovedExpandedDesktopActionError(undefined);
     setContextAssemblyPreview(undefined);
   }
 
@@ -3129,11 +3186,80 @@ export function DesktopShell(): JSX.Element {
     setApprovedExpandedDesktopActionReceiptPreview(
       approvedExpandedDesktopActionReceiptCandidate
     );
+    setApprovedExpandedDesktopActionPreview(undefined);
+    setApprovedExpandedDesktopActionStatus("idle");
+    setApprovedExpandedDesktopActionResult(undefined);
+    setApprovedExpandedDesktopActionError(undefined);
   }
 
   function handleClearApprovedExpandedDesktopActionReceipt(): void {
     setApprovedExpandedDesktopActionTypedConfirmation("");
     setApprovedExpandedDesktopActionReceiptPreview(undefined);
+    setApprovedExpandedDesktopActionPreview(undefined);
+    setApprovedExpandedDesktopActionStatus("idle");
+    setApprovedExpandedDesktopActionResult(undefined);
+    setApprovedExpandedDesktopActionError(undefined);
+  }
+
+  function handlePreviewApprovedExpandedDesktopAction(): void {
+    setApprovedExpandedDesktopActionPreview(
+      approvedExpandedDesktopActionCandidate
+    );
+  }
+
+  async function handleExecuteApprovedExpandedDesktopAction(): Promise<void> {
+    const request =
+      approvedExpandedDesktopActionPreview?.commandRequest ??
+      approvedExpandedDesktopActionCandidate.commandRequest;
+    if (request === undefined) {
+      setApprovedExpandedDesktopActionPreview(
+        approvedExpandedDesktopActionCandidate
+      );
+      return;
+    }
+
+    setApprovedExpandedDesktopActionStatus("executing");
+    setApprovedExpandedDesktopActionError(undefined);
+    setApprovedExpandedDesktopActionPreview(
+      buildApprovedExpandedDesktopActionView({
+        expandedProposalView: displayedExpandedDesktopActionProposal,
+        receiptView: displayedApprovedExpandedDesktopActionReceipt,
+        commandStatus: "executing"
+      })
+    );
+
+    try {
+      const actionResult = await executeApprovedExpandedDesktopAction(request);
+      setApprovedExpandedDesktopActionResult(actionResult);
+      setApprovedExpandedDesktopActionStatus("executed");
+      setApprovedExpandedDesktopActionPreview(
+        buildApprovedExpandedDesktopActionView({
+          expandedProposalView: displayedExpandedDesktopActionProposal,
+          receiptView: displayedApprovedExpandedDesktopActionReceipt,
+          commandStatus: "executed",
+          commandResult: actionResult
+        })
+      );
+    } catch (caught) {
+      const message = safeErrorMessage(caught);
+      setApprovedExpandedDesktopActionError(message);
+      setApprovedExpandedDesktopActionStatus("failed");
+      setApprovedExpandedDesktopActionPreview(
+        buildApprovedExpandedDesktopActionView({
+          expandedProposalView: displayedExpandedDesktopActionProposal,
+          receiptView: displayedApprovedExpandedDesktopActionReceipt,
+          commandStatus: "failed",
+          commandError: message
+        })
+      );
+    }
+  }
+
+  function handleClearApprovedExpandedDesktopAction(): void {
+    setApprovedExpandedDesktopActionPreview(undefined);
+    setApprovedExpandedDesktopActionStatus("idle");
+    setApprovedExpandedDesktopActionResult(undefined);
+    setApprovedExpandedDesktopActionError(undefined);
   }
 
   function handleBuildApprovedDesktopActionReceipt(): void {
@@ -6571,6 +6697,10 @@ export function DesktopShell(): JSX.Element {
                     event.target.value
                   );
                   setApprovedExpandedDesktopActionReceiptPreview(undefined);
+                  setApprovedExpandedDesktopActionPreview(undefined);
+                  setApprovedExpandedDesktopActionStatus("idle");
+                  setApprovedExpandedDesktopActionResult(undefined);
+                  setApprovedExpandedDesktopActionError(undefined);
                 }}
                 placeholder={
                   displayedApprovedExpandedDesktopActionReceipt
@@ -6765,6 +6895,243 @@ export function DesktopShell(): JSX.Element {
               {JSON.stringify(
                 summarizeApprovedExpandedDesktopActionReceiptView(
                   displayedApprovedExpandedDesktopActionReceipt
+                )
+              )}
+            </p>
+          </section>
+
+          <section
+            className="eventPanel"
+            aria-label="Approved Expanded Desktop Action"
+          >
+            <div className="panelHeader">
+              <h2>Approved Expanded Desktop Action</h2>
+              <span className="muted">
+                Human approved / narrow click-type lane
+              </span>
+            </div>
+            <p className="fieldHelp">
+              Executes only fixed approved click/type commands after receipt,
+              safe contract, confirmation, freshness, and target checks pass. No
+              generic native invoke, clipboard write, file dialog, drag/drop,
+              multi-step automation, or background action is enabled.
+            </p>
+
+            <div className="buttonRow">
+              <button
+                type="button"
+                className="secondary"
+                disabled={
+                  displayedApprovedExpandedDesktopActionReceipt.status ===
+                  "empty"
+                }
+                onClick={(event) => {
+                  event.preventDefault();
+                  event.stopPropagation();
+                  handlePreviewApprovedExpandedDesktopAction();
+                }}
+              >
+                Preview Approved Expanded Action
+              </button>
+              <button
+                type="button"
+                className="secondary"
+                disabled={
+                  approvedExpandedDesktopActionStatus === "executing" ||
+                  displayedApprovedExpandedDesktopAction.actionKind !==
+                    "click_observed_safe_target" ||
+                  !displayedApprovedExpandedDesktopAction.readiness
+                    .canExecuteApprovedExpandedDesktopAction
+                }
+                onClick={(event) => {
+                  event.preventDefault();
+                  event.stopPropagation();
+                  void handleExecuteApprovedExpandedDesktopAction();
+                }}
+              >
+                {approvedExpandedDesktopActionStatus === "executing" &&
+                displayedApprovedExpandedDesktopAction.actionKind ===
+                  "click_observed_safe_target"
+                  ? "Executing Approved Click..."
+                  : "Execute Approved Click"}
+              </button>
+              <button
+                type="button"
+                className="secondary"
+                disabled={
+                  approvedExpandedDesktopActionStatus === "executing" ||
+                  displayedApprovedExpandedDesktopAction.actionKind !==
+                    "type_into_observed_text_field" ||
+                  !displayedApprovedExpandedDesktopAction.readiness
+                    .canExecuteApprovedExpandedDesktopAction
+                }
+                onClick={(event) => {
+                  event.preventDefault();
+                  event.stopPropagation();
+                  void handleExecuteApprovedExpandedDesktopAction();
+                }}
+              >
+                {approvedExpandedDesktopActionStatus === "executing" &&
+                displayedApprovedExpandedDesktopAction.actionKind ===
+                  "type_into_observed_text_field"
+                  ? "Executing Approved Type..."
+                  : "Execute Approved Type"}
+              </button>
+              <button
+                type="button"
+                className="secondary"
+                onClick={(event) => {
+                  event.preventDefault();
+                  event.stopPropagation();
+                  handleClearApprovedExpandedDesktopAction();
+                }}
+              >
+                Clear Approved Expanded Action
+              </button>
+              <button type="button" className="secondary" disabled>
+                Write Clipboard (disabled)
+              </button>
+              <button type="button" className="secondary" disabled>
+                Open File Dialog (disabled)
+              </button>
+              <button type="button" className="secondary" disabled>
+                Drag / Drop (disabled)
+              </button>
+            </div>
+
+            {displayedApprovedExpandedDesktopAction.status === "blocked" ? (
+              <div className="errorBox">
+                <strong>Approved Expanded Desktop Action blocked</strong>
+                <p>{displayedApprovedExpandedDesktopAction.nextAction}</p>
+              </div>
+            ) : null}
+
+            <dl className="summaryGrid compact">
+              <div>
+                <dt>Status</dt>
+                <dd>{displayedApprovedExpandedDesktopAction.status}</dd>
+              </div>
+              <div>
+                <dt>Action kind</dt>
+                <dd>{displayedApprovedExpandedDesktopAction.actionKind ?? "n/a"}</dd>
+              </div>
+              <div>
+                <dt>Target ref</dt>
+                <dd>{displayedApprovedExpandedDesktopAction.targetRef ?? "n/a"}</dd>
+              </div>
+              <div>
+                <dt>Window / app / display</dt>
+                <dd>
+                  {displayedApprovedExpandedDesktopAction.windowRef ?? "n/a"} /{" "}
+                  {displayedApprovedExpandedDesktopAction.appRef ?? "n/a"} /{" "}
+                  {displayedApprovedExpandedDesktopAction.displayRef ?? "n/a"}
+                </dd>
+              </div>
+              <div>
+                <dt>Freshness / risk</dt>
+                <dd>
+                  {displayedApprovedExpandedDesktopAction.freshnessStatus ??
+                    "n/a"}{" "}
+                  / {displayedApprovedExpandedDesktopAction.riskStatus ?? "n/a"}
+                </dd>
+              </div>
+              <div>
+                <dt>Simulation</dt>
+                <dd>
+                  {displayedApprovedExpandedDesktopAction.simulationStatus ??
+                    "n/a"}
+                </dd>
+              </div>
+              <div>
+                <dt>Receipt status</dt>
+                <dd>
+                  {displayedApprovedExpandedDesktopAction.receiptStatus ?? "n/a"}
+                </dd>
+              </div>
+              <div>
+                <dt>Confirmation</dt>
+                <dd>
+                  {displayedApprovedExpandedDesktopAction
+                    .typedConfirmationAccepted
+                    ? "accepted"
+                    : "required"}
+                </dd>
+              </div>
+              <div>
+                <dt>Blockers / warnings</dt>
+                <dd>
+                  {displayedApprovedExpandedDesktopAction.blockerCount} /{" "}
+                  {displayedApprovedExpandedDesktopAction.warningCount}
+                </dd>
+              </div>
+              <div>
+                <dt>Event preview</dt>
+                <dd>{displayedApprovedExpandedDesktopAction.eventPreviewStatus}</dd>
+              </div>
+              <div>
+                <dt>Command result</dt>
+                <dd>
+                  {displayedApprovedExpandedDesktopAction.commandResultSummary
+                    ?.status ?? "not called"}
+                </dd>
+              </div>
+              <div>
+                <dt>Fixed command</dt>
+                <dd>
+                  {displayedApprovedExpandedDesktopAction.readiness
+                    .canCallFixedTauriCommand
+                    ? "ready"
+                    : "disabled"}
+                </dd>
+              </div>
+            </dl>
+
+            {displayedApprovedExpandedDesktopAction.receiptSummary !==
+            undefined ? (
+              <p className="muted">
+                receipt summary{" "}
+                {displayedApprovedExpandedDesktopAction.receiptSummary}
+              </p>
+            ) : null}
+
+            {displayedApprovedExpandedDesktopAction.contractSummary !==
+            undefined ? (
+              <p className="muted">
+                contract summary{" "}
+                {displayedApprovedExpandedDesktopAction.contractSummary}
+              </p>
+            ) : null}
+
+            {displayedApprovedExpandedDesktopAction.commandResultSummary !==
+            undefined ? (
+              <p className="muted">
+                result{" "}
+                {displayedApprovedExpandedDesktopAction.commandResultSummary
+                  .status}{" "}
+                / hash{" "}
+                {
+                  displayedApprovedExpandedDesktopAction.commandResultSummary
+                    .resultHashPrefix
+                }
+              </p>
+            ) : null}
+
+            {displayedApprovedExpandedDesktopAction.findings.length > 0 ? (
+              <p className="muted">
+                findings{" "}
+                {displayedApprovedExpandedDesktopAction.findings
+                  .map((finding) => finding.code)
+                  .join(", ")}
+              </p>
+            ) : null}
+
+            <p className="fieldHelp">
+              {displayedApprovedExpandedDesktopAction.nextAction}
+            </p>
+            <p className="srOnly">
+              {JSON.stringify(
+                summarizeApprovedExpandedDesktopActionView(
+                  displayedApprovedExpandedDesktopAction
                 )
               )}
             </p>

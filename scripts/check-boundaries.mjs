@@ -314,6 +314,9 @@ function isAllowedBoundaryHit(file, line, ruleId) {
   if (isApprovedExpandedReceiptDenylist(file, line, ruleId)) {
     return true;
   }
+  if (isApprovedExpandedActionSurfaceCopy(file, line, ruleId)) {
+    return true;
+  }
   if (isApprovedExpandedCommandDenylist(file, line, ruleId)) {
     return true;
   }
@@ -589,6 +592,15 @@ function isApprovedExpandedCommandDenylist(file, line, ruleId) {
     (line.includes("clipboard") ||
       line.includes("clipboardContent") ||
       line.includes("writeclipboard"))
+  );
+}
+
+function isApprovedExpandedActionSurfaceCopy(file, line, ruleId) {
+  // ACCEPTABLE_APPROVED_EXPANDED_ACTION_SURFACE_COPY: disabled UI copy only.
+  return (
+    file === "app/src/App.tsx" &&
+    ruleId === "clipboard_reference" &&
+    line.includes("clipboard write")
   );
 }
 
