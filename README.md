@@ -463,6 +463,10 @@ v0.17 Capability Host MVP references:
 - [v0.25.0 Approved Desktop Action Execution MVP RC release notes](docs/release-notes-v0.25.0-approved-desktop-action-execution-mvp-rc.1.md)
 - [Approved Desktop Action manual QA](docs/approved-desktop-action-manual-qa.md)
 - [Approved Desktop Action RC checklist](docs/approved-desktop-action-rc-checklist.md)
+- [v0.26 Desktop Action Expansion Proposal prompts](docs/v0.26-desktop-action-expansion-proposal-prompts.md)
+- [v0.25 Approved Desktop Action Execution post-release review](docs/v0.25-approved-desktop-action-execution-postrelease-review.md)
+- [P1D Desktop Action Expansion Proposal roadmap](docs/p1d-desktop-action-expansion-proposal-roadmap.md)
+- [P1D-001 Desktop Action Expansion Proposal gate plan](docs/p1d-001-desktop-action-expansion-proposal-gate-plan.md)
 
 ## Current roadmap
 
@@ -556,6 +560,12 @@ extremely narrow, human-approved observed-window action lane only:
 `activate_observed_window`. It keeps click/type/select, clipboard write, file
 dialog automation, hidden background action, broad native bridge, remote
 control, autonomous desktop agents, and replay re-execution deferred.
+P1D starts the v0.26 Desktop Action Expansion Proposal roadmap. It expands
+future click/type/select/clipboard/file-dialog/drag-drop actions as proposals
+only, with freshness checks, sequence simulation, sensitive/destructive risk
+classification, read-only App display, and redaction audit while preserving no
+real click/type/select, no clipboard write, no file dialog automation, no broad
+native bridge, and no dynamic agent desktop control.
 
 - [v0.2 App Shell RC post-release review](docs/v0.2-app-shell-rc-postrelease-review.md)
 - [P0G Coding Workflow roadmap](docs/p0g-coding-workflow-roadmap.md)
