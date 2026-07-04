@@ -25227,6 +25227,72 @@ describe("desktop source boundaries", () => {
     );
   });
 
+  it("documents the v0.28 post-release review and P1G hardening roadmap", async () => {
+    const promptDoc = await readFile(
+      path.join(repoRoot, "docs", "v0.29-north-star-demo-hardening-prompts.md"),
+      "utf8"
+    );
+    const review = await readFile(
+      path.join(
+        repoRoot,
+        "docs",
+        "v0.28-cross-surface-agent-workflow-postrelease-review.md"
+      ),
+      "utf8"
+    );
+    const roadmap = await readFile(
+      path.join(repoRoot, "docs", "p1g-north-star-demo-hardening-roadmap.md"),
+      "utf8"
+    );
+    const plan = await readFile(
+      path.join(repoRoot, "docs", "p1g-001-north-star-hardening-gate-plan.md"),
+      "utf8"
+    );
+    const docsIndex = await readFile(
+      path.join(repoRoot, "docs", "README.md"),
+      "utf8"
+    );
+    const rootReadme = await readFile(path.join(repoRoot, "README.md"), "utf8");
+    const combined = `${promptDoc}\n${review}\n${roadmap}\n${plan}\n${docsIndex}\n${rootReadme}`;
+
+    expect(promptDoc).toContain("v0.29 North Star Demo Hardening");
+    expect(promptDoc).toContain("DW-P1G-009");
+    expect(review).toContain("v0.28.0-cross-surface-agent-workflow-rc.1");
+    expect(review).toContain("Cross-surface agent workflow RC");
+    expect(review).toContain("Convert remains the real");
+    expect(review).toContain("Git/shell verification safe lanes");
+    expect(review).toContain("Cross-surface workflow planner");
+    expect(review).toContain("Dynamic agent bidding is disabled");
+    expect(review).toContain("Mutating MCP tools are disabled");
+    expect(review).toContain("Auto-apply is disabled");
+    expect(roadmap).toContain("P1G North Star Demo Hardening Roadmap");
+    expect(roadmap).toContain(
+      "harden the North Star demo without expanding execution scope"
+    );
+    expect(roadmap).toContain("failure recovery");
+    expect(roadmap).toContain("approval consistency");
+    expect(roadmap).toContain("policy enforcement");
+    expect(roadmap).toContain("replay completeness");
+    expect(roadmap).toContain("evidence freshness");
+    expect(roadmap).toContain("agent handoff");
+    expect(roadmap).toContain("Dynamic bidding");
+    expect(plan).toContain("P1G-001 North Star Hardening Gate Plan");
+    expect(plan).toContain("No runtime feature implementation");
+    expect(plan).toContain("No App execution change");
+    expect(plan).toContain("DW-P1G-002");
+    expect(docsIndex).toContain("v0.29-north-star-demo-hardening-prompts.md");
+    expect(docsIndex).toContain(
+      "v0.28-cross-surface-agent-workflow-postrelease-review.md"
+    );
+    expect(docsIndex).toContain("p1g-north-star-demo-hardening-roadmap.md");
+    expect(docsIndex).toContain("p1g-001-north-star-hardening-gate-plan.md");
+    expect(rootReadme).toContain("p1g-north-star-demo-hardening-roadmap.md");
+    expect(combined).not.toContain("dynamic bidding enabled");
+    expect(combined).not.toContain("mutating MCP tools enabled");
+    expect(combined).not.toContain("broad desktop actions enabled");
+    expect(combined).not.toContain("auto-apply enabled");
+  });
+
   it("documents the P1D desktop action expansion ADR and implementation gate", async () => {
     const adr = await readFile(
       path.join(

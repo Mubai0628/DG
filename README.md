@@ -777,6 +777,8 @@ More detail:
 - [v0.1 architecture](docs/vertical-slice-v0.1.md)
 - [v0.1 threat model](docs/threat-model-v0.1.md)
 - [v0.1 release checklist](docs/release-checklist-v0.1.md)
+- [v0.29 North Star Demo Hardening prompts](docs/v0.29-north-star-demo-hardening-prompts.md)
+- [P1G North Star Demo Hardening roadmap](docs/p1g-north-star-demo-hardening-roadmap.md)
 
 ## License
 
