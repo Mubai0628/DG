@@ -170,7 +170,8 @@ const forbiddenFieldSignals = new Map<
     {
       kind: "script",
       code: "SHELL_SCRIPT_REJECTED",
-      safeMessage: "Shell command fields are outside the metadata-only boundary."
+      safeMessage:
+        "Shell command fields are outside the metadata-only boundary."
     }
   ],
   [
@@ -218,7 +219,8 @@ const forbiddenFieldSignals = new Map<
     {
       kind: "execution",
       code: "SKILL_RUNTIME_REJECTED",
-      safeMessage: "Skill runtime execution is outside the metadata-only boundary."
+      safeMessage:
+        "Skill runtime execution is outside the metadata-only boundary."
     }
   ],
   [
@@ -226,7 +228,8 @@ const forbiddenFieldSignals = new Map<
     {
       kind: "execution",
       code: "PLUGIN_RUNTIME_REJECTED",
-      safeMessage: "Plugin runtime execution is outside the metadata-only boundary."
+      safeMessage:
+        "Plugin runtime execution is outside the metadata-only boundary."
     }
   ],
   [
@@ -234,7 +237,8 @@ const forbiddenFieldSignals = new Map<
     {
       kind: "execution",
       code: "RUNTIME_EXECUTION_REJECTED",
-      safeMessage: "Runtime execution markers are outside the metadata-only boundary."
+      safeMessage:
+        "Runtime execution markers are outside the metadata-only boundary."
     }
   ],
   [
@@ -402,17 +406,61 @@ const stringSignals: Array<{
   { kind: "script", code: "PREINSTALL_REJECTED", pattern: /\bpreinstall\b/i },
   { kind: "native", code: "NATIVE_MODULE_REJECTED", pattern: /\bnode-gyp\b/i },
   { kind: "native", code: "NATIVE_MODULE_REJECTED", pattern: /\.node\b/i },
-  { kind: "binary", code: "BINARY_PAYLOAD_REJECTED", pattern: /\.(exe|dll)\b/i },
-  { kind: "script", code: "SHELL_SCRIPT_REJECTED", pattern: /\.(ps1|sh|cmd|bat)\b/i },
-  { kind: "permission", code: "PROCESS_EXECUTION_PERMISSION_REJECTED", pattern: /\b(child_process|exec\(|spawn\()/i },
-  { kind: "permission", code: "NETWORK_PERMISSION_REJECTED", pattern: /\bfetch\s*\(/i },
-  { kind: "dynamic_code", code: "DYNAMIC_IMPORT_REJECTED", pattern: /\bimport\s*\(/i },
-  { kind: "dynamic_code", code: "EVAL_MARKER_REJECTED", pattern: /\beval\s*\(/i },
-  { kind: "bridge", code: "NATIVE_BRIDGE_MARKER_REJECTED", pattern: /\bnative bridge\b/i },
-  { kind: "desktop", code: "DESKTOP_ACTION_MARKER_REJECTED", pattern: /\bdesktop action\b/i },
-  { kind: "secret", code: "API_KEY_MARKER_REJECTED", pattern: new RegExp(`\\b${"s"}k-[A-Za-z0-9_-]{8,}\\b`) },
-  { kind: "secret", code: "BEARER_TOKEN_MARKER_REJECTED", pattern: /\bBearer\s+[A-Za-z0-9._-]{8,}\b/ },
-  { kind: "secret", code: "AUTHORIZATION_MARKER_REJECTED", pattern: /\bAuthorization\s*[:=]/i }
+  {
+    kind: "binary",
+    code: "BINARY_PAYLOAD_REJECTED",
+    pattern: /\.(exe|dll)\b/i
+  },
+  {
+    kind: "script",
+    code: "SHELL_SCRIPT_REJECTED",
+    pattern: /\.(ps1|sh|cmd|bat)\b/i
+  },
+  {
+    kind: "permission",
+    code: "PROCESS_EXECUTION_PERMISSION_REJECTED",
+    pattern: /\b(child_process|exec\(|spawn\()/i
+  },
+  {
+    kind: "permission",
+    code: "NETWORK_PERMISSION_REJECTED",
+    pattern: /\bfetch\s*\(/i
+  },
+  {
+    kind: "dynamic_code",
+    code: "DYNAMIC_IMPORT_REJECTED",
+    pattern: /\bimport\s*\(/i
+  },
+  {
+    kind: "dynamic_code",
+    code: "EVAL_MARKER_REJECTED",
+    pattern: /\beval\s*\(/i
+  },
+  {
+    kind: "bridge",
+    code: "NATIVE_BRIDGE_MARKER_REJECTED",
+    pattern: /\bnative bridge\b/i
+  },
+  {
+    kind: "desktop",
+    code: "DESKTOP_ACTION_MARKER_REJECTED",
+    pattern: /\bdesktop action\b/i
+  },
+  {
+    kind: "secret",
+    code: "API_KEY_MARKER_REJECTED",
+    pattern: new RegExp(`\\b${"s"}k-[A-Za-z0-9_-]{8,}\\b`)
+  },
+  {
+    kind: "secret",
+    code: "BEARER_TOKEN_MARKER_REJECTED",
+    pattern: /\bBearer\s+[A-Za-z0-9._-]{8,}\b/
+  },
+  {
+    kind: "secret",
+    code: "AUTHORIZATION_MARKER_REJECTED",
+    pattern: /\bAuthorization\s*[:=]/i
+  }
 ];
 
 export function buildPluginSkillSandboxEscapeReport(
@@ -426,7 +474,11 @@ export function buildPluginSkillSandboxEscapeReport(
     (finding) => finding.severity === "warning"
   ).length;
   const status: PluginSkillSandboxEscapeStatus =
-    blockerCount > 0 ? "blocked" : warningCount > 0 ? "warning" : "safe_metadata";
+    blockerCount > 0
+      ? "blocked"
+      : warningCount > 0
+        ? "warning"
+        : "safe_metadata";
   const packages = collectPackages(input);
   const packageSummaries = packages.map((record, index) =>
     summarizePackage(record, findings, `packages.${index}`)
@@ -446,8 +498,7 @@ export function buildPluginSkillSandboxEscapeReport(
     })
   );
   const sandboxCheckId =
-    input.idGenerator?.() ??
-    `plugin-skill-sandbox-${packageHash.slice(0, 12)}`;
+    input.idGenerator?.() ?? `plugin-skill-sandbox-${packageHash.slice(0, 12)}`;
   const blockedSignalCodes = Array.from(
     new Set(
       findings
@@ -733,9 +784,7 @@ function scanString(
   }
 }
 
-function readinessFor(
-  canReview: boolean
-): PluginSkillSandboxEscapeReadiness {
+function readinessFor(canReview: boolean): PluginSkillSandboxEscapeReadiness {
   return {
     canReviewMetadata: canReview,
     canRegisterSafeMetadata: canReview,

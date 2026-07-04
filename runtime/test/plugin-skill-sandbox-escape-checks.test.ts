@@ -74,9 +74,7 @@ describe("plugin skill sandbox escape checks", () => {
     ]);
     expect(result.packageHash).toBeDefined();
     expect(result.riskCounts.safe).toBe(2);
-    expect(summary.source).toBe(
-      "runtime_plugin_skill_sandbox_escape_checks"
-    );
+    expect(summary.source).toBe("runtime_plugin_skill_sandbox_escape_checks");
     expect(result.readiness.canRegisterSafeMetadata).toBe(true);
     expectNoExecution(result);
   });

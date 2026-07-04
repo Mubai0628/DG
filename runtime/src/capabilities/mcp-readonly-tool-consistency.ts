@@ -86,9 +86,29 @@ export type McpReadonlyToolConsistencyInput = {
   contract?: McpReadonlyConsistencyToolContractSummary | undefined;
   toolResult?: McpReadonlyConsistencyToolResultSummary | undefined;
   approvalReceipt?: McpReadonlyConsistencyToolApprovalSummary | undefined;
-  redactionSummary?: { redactedFieldCount?: number; rawFieldDetectedCount?: number; [key: string]: unknown } | undefined;
-  eventSummary?: { eventId?: string; toolId?: string; descriptorId?: string; [key: string]: unknown } | undefined;
-  replayProjection?: { replayId?: string; toolId?: string; descriptorId?: string; [key: string]: unknown } | undefined;
+  redactionSummary?:
+    | {
+        redactedFieldCount?: number;
+        rawFieldDetectedCount?: number;
+        [key: string]: unknown;
+      }
+    | undefined;
+  eventSummary?:
+    | {
+        eventId?: string;
+        toolId?: string;
+        descriptorId?: string;
+        [key: string]: unknown;
+      }
+    | undefined;
+  replayProjection?:
+    | {
+        replayId?: string;
+        toolId?: string;
+        descriptorId?: string;
+        [key: string]: unknown;
+      }
+    | undefined;
   allowlistedToolIds?: string[] | undefined;
   maxTimeoutMs?: number | undefined;
   maxOutputBytes?: number | undefined;
@@ -189,7 +209,10 @@ export function buildMcpReadonlyToolConsistencyReport(
       : warningCount > 0
         ? "warning"
         : "consistency_ready";
-  const toolId = safeText(input.contract?.toolId, safeText(input.toolResult?.toolId));
+  const toolId = safeText(
+    input.contract?.toolId,
+    safeText(input.toolResult?.toolId)
+  );
   const descriptorId = safeText(
     input.contract?.descriptorId,
     safeText(input.toolResult?.descriptorId)
@@ -218,24 +241,35 @@ export function buildMcpReadonlyToolConsistencyReport(
     status,
     consistencyId,
     source: "runtime_mcp_readonly_tool_consistency",
-    toolIdHash: toolId.length > 0 ? stablePreviewHash(toolId).slice(0, 16) : undefined,
+    toolIdHash:
+      toolId.length > 0 ? stablePreviewHash(toolId).slice(0, 16) : undefined,
     descriptorIdHash:
       descriptorId.length > 0
         ? stablePreviewHash(descriptorId).slice(0, 16)
         : undefined,
-    profileRef: safeText(input.contract?.profileId, safeText(input.toolResult?.profileId)) || undefined,
+    profileRef:
+      safeText(
+        input.contract?.profileId,
+        safeText(input.toolResult?.profileId)
+      ) || undefined,
     approvalHash:
       input.approvalReceipt === undefined
         ? undefined
-        : stablePreviewHash(stableStringify(safeApproval(input.approvalReceipt))).slice(0, 16),
+        : stablePreviewHash(
+            stableStringify(safeApproval(input.approvalReceipt))
+          ).slice(0, 16),
     outputSummary: {
       outputBytes,
       maxOutputBytes,
       outputSummaryHash: input.toolResult?.outputSummaryHash
     },
     redactionCounts: {
-      redactedFieldCount: safeNumber(input.redactionSummary?.redactedFieldCount),
-      rawFieldDetectedCount: safeNumber(input.redactionSummary?.rawFieldDetectedCount)
+      redactedFieldCount: safeNumber(
+        input.redactionSummary?.redactedFieldCount
+      ),
+      rawFieldDetectedCount: safeNumber(
+        input.redactionSummary?.rawFieldDetectedCount
+      )
     },
     eventReplayCounts: {
       eventSummaryCount: input.eventSummary === undefined ? 0 : 1,
@@ -447,7 +481,10 @@ function validateResult(
       "toolResult.outputBytes"
     );
   }
-  if (result.redactionSummaryPresent !== true || input.redactionSummary === undefined) {
+  if (
+    result.redactionSummaryPresent !== true ||
+    input.redactionSummary === undefined
+  ) {
     addFinding(
       findings,
       "redaction",
@@ -457,7 +494,10 @@ function validateResult(
       "toolResult.redactionSummaryPresent"
     );
   }
-  if (input.redactionSummary?.rawFieldDetectedCount !== undefined && safeNumber(input.redactionSummary.rawFieldDetectedCount) > 0) {
+  if (
+    input.redactionSummary?.rawFieldDetectedCount !== undefined &&
+    safeNumber(input.redactionSummary.rawFieldDetectedCount) > 0
+  ) {
     addFinding(
       findings,
       "redaction",
@@ -549,7 +589,10 @@ function validateEvents(
 ): void {
   const contract = input.contract;
   const result = input.toolResult;
-  if (result?.eventSummaryPresent !== true || input.eventSummary === undefined) {
+  if (
+    result?.eventSummaryPresent !== true ||
+    input.eventSummary === undefined
+  ) {
     addFinding(
       findings,
       "event",

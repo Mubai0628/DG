@@ -17693,8 +17693,8 @@ export function DesktopShell(): JSX.Element {
               <span className="muted">Read-only / no external execution</span>
             </div>
             <p className="fieldHelp">
-              Aggregates external capability hardening summaries for policy,
-              MCP read-only consistency, plugin/skill sandbox signals, replay
+              Aggregates external capability hardening summaries for policy, MCP
+              read-only consistency, plugin/skill sandbox signals, replay
               completeness, and redaction audit. The App Shell does not invoke
               external capabilities, run plugins or skills, execute mutating MCP
               tools, fetch network, write events, use Tauri, or show raw output.
@@ -17756,8 +17756,8 @@ export function DesktopShell(): JSX.Element {
 
             {displayedExternalCapabilityAuditSurface.status === "empty" ? (
               <p className="empty">
-                No external capability audit summary loaded. Preview the
-                current Capability Host audit or paste summary JSON.
+                No external capability audit summary loaded. Preview the current
+                Capability Host audit or paste summary JSON.
               </p>
             ) : null}
 
@@ -17791,8 +17791,7 @@ export function DesktopShell(): JSX.Element {
                 <dt>MCP readonly</dt>
                 <dd>
                   {
-                    displayedExternalCapabilityAuditSurface
-                      .mcpReadonlyConsistencyStatus
+                    displayedExternalCapabilityAuditSurface.mcpReadonlyConsistencyStatus
                   }
                 </dd>
               </div>
@@ -17800,8 +17799,7 @@ export function DesktopShell(): JSX.Element {
                 <dt>Plugin / skill sandbox</dt>
                 <dd>
                   {
-                    displayedExternalCapabilityAuditSurface
-                      .pluginSkillSandboxStatus
+                    displayedExternalCapabilityAuditSurface.pluginSkillSandboxStatus
                   }
                 </dd>
               </div>
@@ -17809,8 +17807,7 @@ export function DesktopShell(): JSX.Element {
                 <dt>Replay completeness</dt>
                 <dd>
                   {
-                    displayedExternalCapabilityAuditSurface
-                      .replayCompletenessStatus
+                    displayedExternalCapabilityAuditSurface.replayCompletenessStatus
                   }
                 </dd>
               </div>
@@ -17823,9 +17820,10 @@ export function DesktopShell(): JSX.Element {
               <div>
                 <dt>Redacted / raw fields</dt>
                 <dd>
-                  {displayedExternalCapabilityAuditSurface.redactedFieldCount}{" "}
-                  /{" "}
-                  {displayedExternalCapabilityAuditSurface.rawFieldDetectedCount}
+                  {displayedExternalCapabilityAuditSurface.redactedFieldCount} /{" "}
+                  {
+                    displayedExternalCapabilityAuditSurface.rawFieldDetectedCount
+                  }
                 </dd>
               </div>
               <div>
@@ -17875,7 +17873,8 @@ export function DesktopShell(): JSX.Element {
               <div>
                 <dt>Plugin / skill run</dt>
                 <dd>
-                  {displayedExternalCapabilityAuditSurface.readiness.canRunPlugin
+                  {displayedExternalCapabilityAuditSurface.readiness
+                    .canRunPlugin
                     ? "yes"
                     : "no"}{" "}
                   /{" "}

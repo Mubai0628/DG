@@ -53,7 +53,9 @@ export type ExternalCapabilityReplayResultSummary = {
 
 export type ExternalCapabilityReplayCompletenessInput = {
   results?: ExternalCapabilityReplayResultSummary[] | undefined;
-  replayProjection?: { resultIds?: string[]; [key: string]: unknown } | undefined;
+  replayProjection?:
+    | { resultIds?: string[]; [key: string]: unknown }
+    | undefined;
   createdAt?: string | undefined;
   idGenerator?: (() => string) | undefined;
   [key: string]: unknown;
@@ -102,7 +104,10 @@ const forbiddenFieldCodes = new Map<
   ["rawarguments", { kind: "raw_field", code: "RAW_ARGS_FIELD_REJECTED" }],
   ["rawoutput", { kind: "raw_field", code: "RAW_OUTPUT_FIELD_REJECTED" }],
   ["rawtooloutput", { kind: "raw_field", code: "RAW_OUTPUT_FIELD_REJECTED" }],
-  ["rawpackagecontent", { kind: "raw_field", code: "RAW_PACKAGE_CONTENT_REJECTED" }],
+  [
+    "rawpackagecontent",
+    { kind: "raw_field", code: "RAW_PACKAGE_CONTENT_REJECTED" }
+  ],
   ["rawsource", { kind: "raw_field", code: "RAW_SOURCE_FIELD_REJECTED" }],
   ["stdout", { kind: "raw_field", code: "RAW_STDOUT_FIELD_REJECTED" }],
   ["stderr", { kind: "raw_field", code: "RAW_STDERR_FIELD_REJECTED" }],
@@ -116,8 +121,14 @@ const forbiddenFieldCodes = new Map<
   ["shellcommand", { kind: "execution", code: "SHELL_COMMAND_FIELD_REJECTED" }],
   ["gitcommand", { kind: "execution", code: "GIT_COMMAND_FIELD_REJECTED" }],
   ["nativebridge", { kind: "execution", code: "NATIVE_BRIDGE_FIELD_REJECTED" }],
-  ["desktopaction", { kind: "execution", code: "DESKTOP_ACTION_FIELD_REJECTED" }],
-  ["eventstorewrite", { kind: "execution", code: "EVENTSTORE_WRITE_FIELD_REJECTED" }]
+  [
+    "desktopaction",
+    { kind: "execution", code: "DESKTOP_ACTION_FIELD_REJECTED" }
+  ],
+  [
+    "eventstorewrite",
+    { kind: "execution", code: "EVENTSTORE_WRITE_FIELD_REJECTED" }
+  ]
 ]);
 
 const executionReadinessKeys = new Set(
@@ -420,7 +431,9 @@ function riskSummaryPresent(
   if (typeof result.riskSummary === "string") {
     return result.riskSummary.trim().length > 0;
   }
-  return isRecord(result.riskSummary) && Object.keys(result.riskSummary).length > 0;
+  return (
+    isRecord(result.riskSummary) && Object.keys(result.riskSummary).length > 0
+  );
 }
 
 function replayIncludesResult(

@@ -40,9 +40,7 @@ afterEach(async () => {
 });
 
 async function readFixture<T>(name: string): Promise<T> {
-  return JSON.parse(
-    await readFile(path.join(fixtureRoot, name), "utf8")
-  ) as T;
+  return JSON.parse(await readFile(path.join(fixtureRoot, name), "utf8")) as T;
 }
 
 async function createTempWorkspace(): Promise<string> {
@@ -143,9 +141,17 @@ describe("external capability hardening smoke", () => {
   });
 
   it("keeps the App external capability audit surface read-only in source", async () => {
-    const appSource = await readFile(path.join(repoRoot, "app", "src", "App.tsx"), "utf8");
+    const appSource = await readFile(
+      path.join(repoRoot, "app", "src", "App.tsx"),
+      "utf8"
+    );
     const viewSource = await readFile(
-      path.join(repoRoot, "app", "src", "external-capability-audit-surface-view.ts"),
+      path.join(
+        repoRoot,
+        "app",
+        "src",
+        "external-capability-audit-surface-view.ts"
+      ),
       "utf8"
     );
 

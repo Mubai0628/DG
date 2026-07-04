@@ -92,8 +92,11 @@ export function buildExternalCapabilityAuditSurfaceView(
     sandboxEscapeReport:
       parsed.value?.sandboxEscapeReport ?? parsed.value?.pluginSkillSandbox,
     replayCompletenessReport:
-      parsed.value?.replayCompletenessReport ?? parsed.value?.replayCompleteness,
-    externalResultSummaries: Array.isArray(parsed.value?.externalResultSummaries)
+      parsed.value?.replayCompletenessReport ??
+      parsed.value?.replayCompleteness,
+    externalResultSummaries: Array.isArray(
+      parsed.value?.externalResultSummaries
+    )
       ? parsed.value.externalResultSummaries
       : undefined,
     appSurfaceSummary:

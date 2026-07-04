@@ -662,7 +662,10 @@ function riskSummaryFrom(
   for (const [risk, count] of Object.entries(appRiskSummary ?? {})) {
     summary[risk] = (summary[risk] ?? 0) + safeCount(count);
   }
-  const policyRiskSummary = recordValue(input.policyHardeningReport, "riskSummary");
+  const policyRiskSummary = recordValue(
+    input.policyHardeningReport,
+    "riskSummary"
+  );
   for (const [risk, count] of Object.entries(policyRiskSummary ?? {})) {
     summary[risk] = (summary[risk] ?? 0) + safeCount(count);
   }

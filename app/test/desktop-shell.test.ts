@@ -20699,7 +20699,9 @@ describe("desktop source boundaries", () => {
     const appReadme = await readFile(path.join(appRoot, "README.md"), "utf8");
     const combined = `${appDoc}\n${docsIndex}\n${appReadme}`;
 
-    expect(appDoc).toContain("App Shell External Capability Audit Surface v0.30");
+    expect(appDoc).toContain(
+      "App Shell External Capability Audit Surface v0.30"
+    );
     expect(appDoc).toContain("No Tauri invoke");
     expect(appDoc).toContain("No EventStore write");
     expect(appDoc).toContain("No fetch/network");
@@ -26629,6 +26631,121 @@ describe("desktop source boundaries", () => {
     expect(combined).not.toContain("arbitrary plugin code execution enabled");
     expect(combined).not.toContain("arbitrary skill runtime enabled");
     expect(combined).not.toContain("broad native bridge enabled");
+  });
+
+  it("documents the v0.30 External Capability Execution Hardening RC release package", async () => {
+    const releaseNotes = await readFile(
+      path.join(
+        repoRoot,
+        "docs",
+        "release-notes-v0.30.0-external-capability-execution-hardening-rc.1.md"
+      ),
+      "utf8"
+    );
+    const manualQa = await readFile(
+      path.join(
+        repoRoot,
+        "docs",
+        "external-capability-execution-hardening-manual-qa.md"
+      ),
+      "utf8"
+    );
+    const checklist = await readFile(
+      path.join(
+        repoRoot,
+        "docs",
+        "external-capability-execution-hardening-rc-checklist.md"
+      ),
+      "utf8"
+    );
+    const docsIndex = await readFile(
+      path.join(repoRoot, "docs", "README.md"),
+      "utf8"
+    );
+    const rootReadme = await readFile(path.join(repoRoot, "README.md"), "utf8");
+    const appReadme = await readFile(path.join(appRoot, "README.md"), "utf8");
+    const appSource = await readFile(
+      path.join(appRoot, "src", "App.tsx"),
+      "utf8"
+    );
+    const combinedDocs = `${releaseNotes}\n${manualQa}\n${checklist}`;
+
+    expect(releaseNotes).toContain(
+      "v0.30.0-external-capability-execution-hardening-rc.1"
+    );
+    expect(releaseNotes).toContain(
+      "External capability execution hardening, no broad execution"
+    );
+    expect(releaseNotes).toContain(
+      "App approved apply / rollback remains human-approved"
+    );
+    expect(releaseNotes).toContain(
+      "Git / shell verification safe lanes remain fixed"
+    );
+    expect(releaseNotes).toContain("MCP read-only tool execution remains");
+    expect(releaseNotes).toContain(
+      "Plugin / skill remains metadata and safe simulation only"
+    );
+    expect(releaseNotes).toContain("No mutating MCP tools");
+    expect(releaseNotes).toContain("No arbitrary MCP invocation");
+    expect(releaseNotes).toContain("No plugin code execution");
+    expect(releaseNotes).toContain("No skill runtime execution");
+    expect(releaseNotes).toContain("No native bridge");
+    expect(releaseNotes).toContain("No desktop broad action");
+    expect(releaseNotes).toContain("No arbitrary Git/shell execution");
+    expect(releaseNotes).toContain("No broad PermissionLease");
+    expect(manualQa).toContain("External Capability Audit");
+    expect(manualQa).toContain("MCP Read-only Consistency Summary");
+    expect(manualQa).toContain("Plugin / Skill Blocked Signals");
+    expect(manualQa).toContain("raw output is blocked");
+    expect(manualQa).toContain("Invoke External Capability (disabled)");
+    expect(manualQa).toContain("Run Plugin (disabled)");
+    expect(manualQa).toContain("Run Skill (disabled)");
+    expect(manualQa).toContain("Execute Mutating MCP Tool (disabled)");
+    expect(manualQa).toContain("approved apply / rollback");
+    expect(manualQa).toContain("Git / Shell Safe Lanes");
+    expect(checklist).toContain("Local Scoped Command Gate");
+    expect(checklist).toContain("Full Stage-end Command Gate");
+    expect(checklist).toContain("pnpm verify:ci");
+    expect(checklist).toContain("pnpm release:smoke");
+    expect(checklist).toContain("pnpm app:qa:check");
+    expect(checklist).toContain(
+      "v0.30.0-external-capability-execution-hardening-rc.1"
+    );
+    expect(checklist).toContain("gh release create");
+    expect(combinedDocs).toContain("full docs path links");
+    expect(docsIndex).toContain(
+      "release-notes-v0.30.0-external-capability-execution-hardening-rc.1.md"
+    );
+    expect(docsIndex).toContain(
+      "external-capability-execution-hardening-manual-qa.md"
+    );
+    expect(docsIndex).toContain(
+      "external-capability-execution-hardening-rc-checklist.md"
+    );
+    expect(rootReadme).toContain("P1H is complete for the v0.30");
+    expect(rootReadme).toContain(
+      "release-notes-v0.30.0-external-capability-execution-hardening-rc.1.md"
+    );
+    expect(appReadme).toContain(
+      "prepare the v0.30 External Capability Execution Hardening RC"
+    );
+    expect(appSource).toContain("External Capability Audit");
+    expect(appSource).toContain("Read-only / no external execution");
+    expect(appSource).toContain("Preview External Capability Audit");
+    expect(appSource).toContain("Invoke External Capability (disabled)");
+    expect(appSource).toContain("Run Plugin (disabled)");
+    expect(appSource).toContain("Run Skill (disabled)");
+    expect(appSource).toContain("Execute Mutating MCP Tool (disabled)");
+    expect(appSource).not.toMatch(/>\s*Invoke External Capability\s*</);
+    expect(appSource).not.toMatch(/>\s*Run Plugin\s*</);
+    expect(appSource).not.toMatch(/>\s*Run Skill\s*</);
+    expect(appSource).not.toMatch(/>\s*Execute Mutating MCP Tool\s*</);
+    expect(combinedDocs).not.toContain("mutating MCP tools enabled");
+    expect(combinedDocs).not.toContain("plugin code execution enabled");
+    expect(combinedDocs).not.toContain("skill runtime execution enabled");
+    expect(combinedDocs).not.toContain("native bridge enabled");
+    expect(combinedDocs).not.toContain("desktop broad action enabled");
   });
 
   it("documents the P1D desktop action expansion ADR and implementation gate", async () => {

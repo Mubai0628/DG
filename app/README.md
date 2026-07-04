@@ -81,6 +81,12 @@ Current scope:
   replay completeness, and redaction audit summaries while external capability
   invocation, plugin/skill runtime, mutating MCP tools, fetch/network, Tauri
   calls, EventStore writes, native bridge, and desktop action remain disabled
+- prepare the v0.30 External Capability Execution Hardening RC with policy and
+  lease hardening, MCP read-only consistency, plugin/skill sandbox checks,
+  replay completeness, redaction audit, App read-only audit surface, release
+  notes, manual QA, and RC checklist while mutating MCP tools, arbitrary MCP
+  invocation, plugin/skill runtime, native bridge, desktop broad action,
+  arbitrary Git/shell, and broad PermissionLease remain disabled
 - preview the P0Y Plugin / Skill Redaction Audit as a summary-only check of
   host metadata boundaries while raw metadata, raw prompt, raw args, raw output,
   install scripts, EventStore writes, plugin execution, skill runtime, native
