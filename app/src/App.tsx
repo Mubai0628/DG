@@ -210,6 +210,11 @@ import {
   type CrossSurfaceEvidenceView
 } from "./cross-surface-evidence-view.js";
 import {
+  buildCrossSurfaceReplayTimelineView,
+  summarizeCrossSurfaceReplayTimelineView,
+  type CrossSurfaceReplayTimelineView
+} from "./cross-surface-replay-timeline-view.js";
+import {
   buildCrossSurfaceApprovedSequence,
   summarizeCrossSurfaceApprovedSequence,
   type CrossSurfaceApprovedSequence
@@ -827,6 +832,10 @@ export function DesktopShell(): JSX.Element {
     useState("");
   const [crossSurfaceEvidencePreview, setCrossSurfaceEvidencePreview] =
     useState<CrossSurfaceEvidenceView | undefined>();
+  const [crossSurfaceReplayTimelineText, setCrossSurfaceReplayTimelineText] =
+    useState("");
+  const [crossSurfaceReplayTimelinePreview, setCrossSurfaceReplayTimelinePreview] =
+    useState<CrossSurfaceReplayTimelineView | undefined>();
   const [fixedMultiAgentRunPreview, setFixedMultiAgentRunPreview] = useState<
     FixedMultiAgentRunView | undefined
   >();
@@ -2443,6 +2452,17 @@ export function DesktopShell(): JSX.Element {
   );
   const displayedCrossSurfaceEvidence =
     crossSurfaceEvidencePreview ?? buildCrossSurfaceEvidenceView();
+  const crossSurfaceReplayTimelineCandidate =
+    useMemo<CrossSurfaceReplayTimelineView>(
+      () =>
+        buildCrossSurfaceReplayTimelineView({
+          timelineJsonText: crossSurfaceReplayTimelineText,
+          sourceKind: "paste"
+        }),
+      [crossSurfaceReplayTimelineText]
+    );
+  const displayedCrossSurfaceReplayTimeline =
+    crossSurfaceReplayTimelinePreview ?? buildCrossSurfaceReplayTimelineView();
   const crossSurfaceApprovedSequence = useMemo<CrossSurfaceApprovedSequence>(
     () =>
       buildCrossSurfaceApprovedSequence({
@@ -2665,6 +2685,9 @@ export function DesktopShell(): JSX.Element {
   useEffect(() => {
     setCrossSurfaceEvidencePreview(undefined);
   }, [crossSurfaceEvidenceJsonText]);
+  useEffect(() => {
+    setCrossSurfaceReplayTimelinePreview(undefined);
+  }, [crossSurfaceReplayTimelineText]);
   useEffect(() => {
     setFixedMultiAgentRunPreview(undefined);
   }, [
@@ -3759,6 +3782,15 @@ export function DesktopShell(): JSX.Element {
   function handleClearCrossSurfaceEvidence(): void {
     setCrossSurfaceEvidenceJsonText("");
     setCrossSurfaceEvidencePreview(undefined);
+  }
+
+  function handlePreviewCrossSurfaceReplayTimeline(): void {
+    setCrossSurfaceReplayTimelinePreview(crossSurfaceReplayTimelineCandidate);
+  }
+
+  function handleClearCrossSurfaceReplayTimeline(): void {
+    setCrossSurfaceReplayTimelineText("");
+    setCrossSurfaceReplayTimelinePreview(undefined);
   }
 
   async function handleDiscoverMcpReadonlyMetadata(): Promise<void> {
@@ -9995,6 +10027,198 @@ export function DesktopShell(): JSX.Element {
                 ).source
               }{" "}
               · {displayedCrossSurfaceWorkflow.nextAction}
+            </p>
+          </section>
+
+          <section
+            className="eventPanel"
+            aria-label="Cross-surface Replay Audit Timeline"
+          >
+            <div className="panelHeader">
+              <h2>Cross-surface Replay Audit Timeline</h2>
+              <span className="muted">Read-only / no re-run</span>
+            </div>
+            <p className="fieldHelp">
+              Renders summary-only replay and audit refs for the cross-surface
+              workflow. The App Shell does not replay execution, re-run actions,
+              write EventStore events, show raw content, show raw screenshot or
+              OCR, or show raw stdout/stderr.
+            </p>
+
+            <label>
+              <span>Cross-surface replay timeline JSON</span>
+              <textarea
+                className="compactTextarea"
+                value={crossSurfaceReplayTimelineText}
+                onChange={(event) => {
+                  setCrossSurfaceReplayTimelineText(event.target.value);
+                }}
+                placeholder="Paste summary-only replay/audit timeline refs JSON"
+                spellCheck={false}
+              />
+              <p className="fieldHelp">
+                Accepts objective, proposal, route, evidence, desktop, apply,
+                verification, rollback, and final audit summary refs. Raw event
+                payloads, screenshots, OCR, stdout, stderr, source, diffs, and
+                secrets are blocked.
+              </p>
+            </label>
+
+            <div className="buttonRow">
+              <button
+                type="button"
+                className="secondary"
+                onClick={(event) => {
+                  event.preventDefault();
+                  event.stopPropagation();
+                  handlePreviewCrossSurfaceReplayTimeline();
+                }}
+              >
+                Preview Replay Timeline
+              </button>
+              <button
+                type="button"
+                className="secondary"
+                onClick={(event) => {
+                  event.preventDefault();
+                  event.stopPropagation();
+                  handleClearCrossSurfaceReplayTimeline();
+                }}
+              >
+                Clear Replay Timeline
+              </button>
+              <button type="button" className="secondary" disabled>
+                Replay Execution (disabled)
+              </button>
+              <button type="button" className="secondary" disabled>
+                Re-run Actions (disabled)
+              </button>
+            </div>
+
+            {displayedCrossSurfaceReplayTimeline.status === "empty" ? (
+              <p className="empty">
+                No replay/audit timeline loaded. Paste summary-only timeline
+                refs to preview the audit chain.
+              </p>
+            ) : null}
+
+            {displayedCrossSurfaceReplayTimeline.status === "blocked" ? (
+              <div className="errorBox">
+                <strong>Replay/audit timeline blocked</strong>
+                <p>{displayedCrossSurfaceReplayTimeline.nextAction}</p>
+              </div>
+            ) : null}
+
+            <dl className="summaryGrid compact">
+              <div>
+                <dt>Status</dt>
+                <dd>{displayedCrossSurfaceReplayTimeline.status}</dd>
+              </div>
+              <div>
+                <dt>Timeline</dt>
+                <dd>{displayedCrossSurfaceReplayTimeline.timelineId}</dd>
+              </div>
+              <div>
+                <dt>Stages present / total</dt>
+                <dd>
+                  {displayedCrossSurfaceReplayTimeline.presentStageCount} /{" "}
+                  {displayedCrossSurfaceReplayTimeline.stageCount}
+                </dd>
+              </div>
+              <div>
+                <dt>Missing critical</dt>
+                <dd>
+                  {displayedCrossSurfaceReplayTimeline.missingCriticalStageCount}
+                </dd>
+              </div>
+              <div>
+                <dt>Blockers / warnings</dt>
+                <dd>
+                  {displayedCrossSurfaceReplayTimeline.blockerCount} /{" "}
+                  {displayedCrossSurfaceReplayTimeline.warningCount}
+                </dd>
+              </div>
+              <div>
+                <dt>Hash</dt>
+                <dd>
+                  {displayedCrossSurfaceReplayTimeline.hashPrefix ?? "n/a"}
+                </dd>
+              </div>
+              <div>
+                <dt>Render / replay</dt>
+                <dd>
+                  {displayedCrossSurfaceReplayTimeline.readiness
+                    .canRenderTimeline
+                    ? "yes"
+                    : "no"}{" "}
+                  /{" "}
+                  {displayedCrossSurfaceReplayTimeline.readiness
+                    .canReplayExecution
+                    ? "yes"
+                    : "no"}
+                </dd>
+              </div>
+              <div>
+                <dt>Re-run / EventStore</dt>
+                <dd>
+                  {displayedCrossSurfaceReplayTimeline.readiness.canRerunActions
+                    ? "yes"
+                    : "no"}{" "}
+                  /{" "}
+                  {displayedCrossSurfaceReplayTimeline.readiness
+                    .canWriteEventStore
+                    ? "yes"
+                    : "no"}
+                </dd>
+              </div>
+              <div>
+                <dt>Raw content / stdout</dt>
+                <dd>
+                  {displayedCrossSurfaceReplayTimeline.readiness
+                    .canShowRawContent
+                    ? "yes"
+                    : "no"}{" "}
+                  /{" "}
+                  {displayedCrossSurfaceReplayTimeline.readiness
+                    .canShowRawStdoutStderr
+                    ? "yes"
+                    : "no"}
+                </dd>
+              </div>
+            </dl>
+
+            {displayedCrossSurfaceReplayTimeline.items.length > 0 ? (
+              <ol className="timeline">
+                {displayedCrossSurfaceReplayTimeline.items.map((item) => (
+                  <li key={`${item.stage}-${item.refId}`}>
+                    <span className="timelineMeta">
+                      {item.stage} · {item.status}
+                    </span>
+                    <span>{item.summaryHash}</span>
+                    {item.warningCodes.length > 0 ? (
+                      <span className="timelineMeta">
+                        Warnings: {item.warningCodes.join(", ")}
+                      </span>
+                    ) : null}
+                  </li>
+                ))}
+              </ol>
+            ) : null}
+
+            {displayedCrossSurfaceReplayTimeline.findingCodes.length > 0 ? (
+              <p className="muted">
+                findings{" "}
+                {displayedCrossSurfaceReplayTimeline.findingCodes.join(", ")}
+              </p>
+            ) : null}
+
+            <p className="fieldHelp">
+              {
+                summarizeCrossSurfaceReplayTimelineView(
+                  displayedCrossSurfaceReplayTimeline
+                ).source
+              }{" "}
+              · {displayedCrossSurfaceReplayTimeline.nextAction}
             </p>
           </section>
 

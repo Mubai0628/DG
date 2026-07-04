@@ -115,6 +115,7 @@ import {
 import { buildLiveProposalEvaluationTelemetryAuditView } from "../src/live-proposal-evaluation-telemetry-audit-view.js";
 import { buildCrossSurfaceWorkflowView } from "../src/cross-surface-workflow-view.js";
 import { buildCrossSurfaceEvidenceView } from "../src/cross-surface-evidence-view.js";
+import { buildCrossSurfaceReplayTimelineView } from "../src/cross-surface-replay-timeline-view.js";
 import { buildCrossSurfaceApprovedSequence } from "../../runtime/src/workflows/cross-surface-approved-sequencer.js";
 import {
   buildDesktopObserverView,
@@ -24901,6 +24902,117 @@ describe("desktop source boundaries", () => {
     expect(sequencerDoc).toContain("arbitrary shell or Git command fields");
     expect(docsIndex).toContain(
       "runtime-cross-surface-approved-sequencer-v0.27.md"
+    );
+  });
+
+  it("renders cross-surface replay timeline summaries without re-running actions", () => {
+    const timeline = buildCrossSurfaceReplayTimelineView({
+      timelineJsonText: JSON.stringify({
+        timelineRefs: [
+          {
+            stage: "objective",
+            refId: "objective-ref",
+            status: "summary_ready",
+            summary: "Objective summary."
+          },
+          {
+            stage: "final_audit",
+            refId: "final-audit-ref",
+            status: "summary_ready",
+            summary: "Final audit summary."
+          }
+        ]
+      }),
+      sourceKind: "manual_test"
+    });
+
+    expect(timeline.status).toBe("warning");
+    expect(timeline.presentStageCount).toBe(2);
+    expect(timeline.missingCriticalStageCount).toBeGreaterThan(0);
+    expect(timeline.readiness.canRenderTimeline).toBe(true);
+    expect(timeline.readiness.canReplayExecution).toBe(false);
+    expect(timeline.readiness.canRerunActions).toBe(false);
+    expect(timeline.readiness.canWriteEventStore).toBe(false);
+    expect(timeline.readiness.canShowRawContent).toBe(false);
+    expect(timeline.readiness.canShowRawStdoutStderr).toBe(false);
+    expect(timeline.readiness.appCanExecute).toBe(false);
+  });
+
+  it("blocks raw cross-surface replay timeline content", () => {
+    const timeline = buildCrossSurfaceReplayTimelineView({
+      timelineJsonText: JSON.stringify({
+        timelineRefs: [
+          {
+            stage: "desktop_observer",
+            refId: "raw-ref",
+            summary: "Desktop summary.",
+            rawEvent: "do not display raw event",
+            rawScreenshot: "do not display raw screenshot",
+            stdout: "do not display stdout"
+          }
+        ]
+      }),
+      sourceKind: "manual_test"
+    });
+    const serialized = JSON.stringify(timeline);
+
+    expect(timeline.status).toBe("blocked");
+    expect(serialized).not.toContain("do not display raw event");
+    expect(serialized).not.toContain("do not display raw screenshot");
+    expect(serialized).not.toContain("do not display stdout");
+  });
+
+  it("renders the App cross-surface replay timeline as read-only", async () => {
+    const appSource = await readFile(
+      path.join(appRoot, "src", "App.tsx"),
+      "utf8"
+    );
+    const viewSource = await readFile(
+      path.join(appRoot, "src", "cross-surface-replay-timeline-view.ts"),
+      "utf8"
+    );
+
+    expect(appSource).toContain("Cross-surface Replay Audit Timeline");
+    expect(appSource).toContain("Read-only / no re-run");
+    expect(appSource).toContain("Preview Replay Timeline");
+    expect(appSource).toContain("Clear Replay Timeline");
+    expect(appSource).toContain("Replay Execution (disabled)");
+    expect(appSource).toContain("Re-run Actions (disabled)");
+    expect(appSource).toContain("does not replay execution");
+    expect(appSource).toContain("re-run actions");
+    expect(appSource).toContain("raw stdout/stderr");
+    expect(appSource).not.toContain("Replay Execution</button>");
+    expect(appSource).not.toContain("Re-run Actions</button>");
+    expect(viewSource).not.toContain("fetch(");
+    expect(viewSource).not.toContain("invoke(");
+    expect(viewSource).not.toContain("writeEvent");
+  });
+
+  it("documents the cross-surface replay audit timeline", async () => {
+    const replayDoc = await readFile(
+      path.join(
+        repoRoot,
+        "docs",
+        "cross-surface-replay-audit-timeline-v0.27.md"
+      ),
+      "utf8"
+    );
+    const docsIndex = await readFile(
+      path.join(repoRoot, "docs", "README.md"),
+      "utf8"
+    );
+
+    expect(replayDoc).toContain("Cross-surface Replay / Audit Timeline");
+    expect(replayDoc).toContain("objective");
+    expect(replayDoc).toContain("final audit");
+    expect(replayDoc).toContain("does not");
+    expect(replayDoc).toContain("replay execution");
+    expect(replayDoc).toContain("re-run actions");
+    expect(replayDoc).toContain("write EventStore events");
+    expect(replayDoc).toContain("raw stdout/stderr");
+    expect(replayDoc).toContain("missing critical stages");
+    expect(docsIndex).toContain(
+      "cross-surface-replay-audit-timeline-v0.27.md"
     );
   });
 
