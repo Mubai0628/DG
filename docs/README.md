@@ -493,6 +493,7 @@ foundation.
 - [P1H-002 Capability Execution Policy / Lease Hardening plan](p1h-002-capability-execution-policy-lease-hardening-plan.md)
 - [Runtime External Execution Policy Hardening v0.30](runtime-external-execution-policy-hardening-v0.30.md)
 - [Runtime MCP Read-only Tool Consistency v0.30](runtime-mcp-readonly-tool-consistency-v0.30.md)
+- [Runtime Plugin / Skill Sandbox Escape Checks v0.30](runtime-plugin-skill-sandbox-escape-checks-v0.30.md)
 - [Runtime Memory Recall Preview v0.3](runtime-memory-recall-preview-v0.3.md)
 - [v0.4.0 Controlled Creation Preview RC release notes](release-notes-v0.4.0-controlled-creation-preview-rc.1.md)
 - [App Shell Controlled Creation manual QA](app-shell-controlled-creation-manual-qa.md)

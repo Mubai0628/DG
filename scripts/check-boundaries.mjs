@@ -320,6 +320,9 @@ function isAllowedBoundaryHit(file, line, ruleId) {
   if (isApprovedExpandedCommandDenylist(file, line, ruleId)) {
     return true;
   }
+  if (isPluginSkillSandboxEscapeDenylist(file, line, ruleId)) {
+    return true;
+  }
   if (file === "browser-extension/src/payload.ts") {
     return true;
   }
@@ -599,6 +602,16 @@ function isApprovedExpandedActionSurfaceCopy(file, line, ruleId) {
     file === "app/src/App.tsx" &&
     ruleId === "clipboard_reference" &&
     line.includes("clipboard write")
+  );
+}
+
+function isPluginSkillSandboxEscapeDenylist(file, line, ruleId) {
+  // ACCEPTABLE_PLUGIN_SKILL_SANDBOX_ESCAPE_DENYLIST:
+  // blocked signal names and messages only; no clipboard capability is exposed.
+  return (
+    file === "runtime/src/capabilities/plugin-skill-sandbox-escape-checks.ts" &&
+    ruleId === "clipboard_reference" &&
+    line.toLowerCase().includes("clipboard")
   );
 }
 

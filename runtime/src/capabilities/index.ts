@@ -27,6 +27,7 @@ export * from "./package-metadata-scanner.js";
 export * from "./plan-preview.js";
 export * from "./permission-lease.js";
 export * from "./plugin-manifest-schema.js";
+export * from "./plugin-skill-sandbox-escape-checks.js";
 export * from "./plugin-skill-redaction-audit.js";
 export * from "./plugin-skill-sandbox-contract.js";
 export * from "./plugin-skill-metadata-scanner.js";
