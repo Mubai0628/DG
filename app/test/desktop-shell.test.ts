@@ -23739,6 +23739,119 @@ describe("desktop source boundaries", () => {
     expect(combined).not.toContain("dynamic agent desktop control is enabled");
   });
 
+  it("documents the P1D desktop action expansion ADR and implementation gate", async () => {
+    const adr = await readFile(
+      path.join(
+        repoRoot,
+        "docs",
+        "adr",
+        "0011-desktop-action-expansion-proposal-gate.md"
+      ),
+      "utf8"
+    );
+    const threatModel = await readFile(
+      path.join(
+        repoRoot,
+        "docs",
+        "desktop-action-expansion-threat-model-v0.25.md"
+      ),
+      "utf8"
+    );
+    const implementationGate = await readFile(
+      path.join(
+        repoRoot,
+        "docs",
+        "desktop-action-expansion-implementation-gate-v0.25.md"
+      ),
+      "utf8"
+    );
+    const nextPlan = await readFile(
+      path.join(
+        repoRoot,
+        "docs",
+        "p1d-002-desktop-action-expansion-proposal-schema-plan.md"
+      ),
+      "utf8"
+    );
+    const docsIndex = await readFile(
+      path.join(repoRoot, "docs", "README.md"),
+      "utf8"
+    );
+    const combined = `${adr}\n${threatModel}\n${implementationGate}\n${nextPlan}\n${docsIndex}`;
+
+    expect(adr).toContain("ADR 0011: Desktop Action Expansion Proposal Gate");
+    expect(adr).toContain("Proposed / Accepted for P1D design gate");
+    expect(adr).toContain(
+      "v0.26 only expands desktop action proposals, not execution"
+    );
+    expect(adr).toContain("Desktop actions must remain proposal-first");
+    expect(adr).toContain(
+      "No click/type/select/clipboard/file dialog execution"
+    );
+    expect(adr).toContain("observer evidence ref");
+    expect(adr).toContain("target metadata");
+    expect(adr).toContain("expected visible effect summary");
+    expect(adr).toContain("no raw screenshot / no raw OCR by default");
+    expect(adr).toContain("v0.25 focus/raise/activate remains the only");
+
+    expect(threatModel).toContain("Clickjacking");
+    expect(threatModel).toContain("UI spoofing");
+    expect(threatModel).toContain("Stale screenshot/window metadata");
+    expect(threatModel).toContain("Wrong display/window/app target");
+    expect(threatModel).toContain("Destructive UI action");
+    expect(threatModel).toContain("Credential/password fields");
+    expect(threatModel).toContain("Payment/financial UI");
+    expect(threatModel).toContain("System settings or security prompts");
+    expect(threatModel).toContain("Clipboard leakage");
+    expect(threatModel).toContain("File dialog unsafe path");
+    expect(threatModel).toContain("Native bridge expansion");
+    expect(threatModel).toContain("Dynamic agent desktop control");
+    expect(threatModel).toContain("Privacy leakage from raw screenshot/OCR");
+    expect(threatModel).toContain("Action sequence ambiguity");
+
+    expect(implementationGate).toContain("Proposal Schema Safety");
+    expect(implementationGate).toContain("Target Metadata Safety");
+    expect(implementationGate).toContain("Screen Freshness Safety");
+    expect(implementationGate).toContain("Sensitive UI Risk Safety");
+    expect(implementationGate).toContain("Clipboard Safety");
+    expect(implementationGate).toContain("File Dialog Safety");
+    expect(implementationGate).toContain("Sequence Simulation Safety");
+    expect(implementationGate).toContain("App UI Disabled / Read-only Safety");
+    expect(implementationGate).toContain("Redaction / Privacy Safety");
+    expect(implementationGate).toContain("CI / Boundary Safety");
+
+    expect(nextPlan).toContain(
+      "P1D-002 Desktop Action Expansion Proposal Schema Plan"
+    );
+    expect(nextPlan).toContain("No real click");
+    expect(nextPlan).toContain("No real type");
+    expect(nextPlan).toContain("No clipboard write");
+    expect(nextPlan).toContain("No file dialog automation");
+    expect(nextPlan).toContain("No App-side execution");
+    expect(nextPlan).toContain("No Tauri command");
+    expect(nextPlan).toContain("No native bridge");
+
+    expect(docsIndex).toContain(
+      "adr/0011-desktop-action-expansion-proposal-gate.md"
+    );
+    expect(docsIndex).toContain(
+      "desktop-action-expansion-threat-model-v0.25.md"
+    );
+    expect(docsIndex).toContain(
+      "desktop-action-expansion-implementation-gate-v0.25.md"
+    );
+    expect(docsIndex).toContain(
+      "p1d-002-desktop-action-expansion-proposal-schema-plan.md"
+    );
+
+    expect(combined).not.toContain("real click is enabled");
+    expect(combined).not.toContain("real type is enabled");
+    expect(combined).not.toContain("clipboard write is enabled");
+    expect(combined).not.toContain("file dialog automation is enabled");
+    expect(combined).not.toContain("broad native bridge is enabled");
+    expect(combined).not.toContain("dynamic agent desktop control is enabled");
+  });
+
   it("documents the P1C approved desktop action execution ADR and gate", async () => {
     const adr = await readFile(
       path.join(
