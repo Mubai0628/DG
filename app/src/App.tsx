@@ -210,6 +210,11 @@ import {
   type CrossSurfaceEvidenceView
 } from "./cross-surface-evidence-view.js";
 import {
+  buildEvidenceFreshnessDriftView,
+  summarizeEvidenceFreshnessDriftView,
+  type EvidenceFreshnessDriftView
+} from "./evidence-freshness-drift-view.js";
+import {
   buildApprovalConsistencyView,
   summarizeApprovalConsistencyView,
   type ApprovalConsistencyView
@@ -849,6 +854,11 @@ export function DesktopShell(): JSX.Element {
     useState("");
   const [crossSurfaceEvidencePreview, setCrossSurfaceEvidencePreview] =
     useState<CrossSurfaceEvidenceView | undefined>();
+  const [evidenceFreshnessJsonText, setEvidenceFreshnessJsonText] =
+    useState("");
+  const [evidenceFreshnessPreview, setEvidenceFreshnessPreview] = useState<
+    EvidenceFreshnessDriftView | undefined
+  >();
   const [approvalConsistencyJsonText, setApprovalConsistencyJsonText] =
     useState("");
   const [approvalConsistencyPreview, setApprovalConsistencyPreview] =
@@ -2483,6 +2493,16 @@ export function DesktopShell(): JSX.Element {
   );
   const displayedCrossSurfaceEvidence =
     crossSurfaceEvidencePreview ?? buildCrossSurfaceEvidenceView();
+  const evidenceFreshnessCandidate = useMemo<EvidenceFreshnessDriftView>(
+    () =>
+      buildEvidenceFreshnessDriftView({
+        freshnessJsonText: evidenceFreshnessJsonText,
+        sourceKind: "paste"
+      }),
+    [evidenceFreshnessJsonText]
+  );
+  const displayedEvidenceFreshness =
+    evidenceFreshnessPreview ?? buildEvidenceFreshnessDriftView();
   const approvalConsistencyCandidate = useMemo<ApprovalConsistencyView>(
     () =>
       buildApprovalConsistencyView({
@@ -2747,6 +2767,9 @@ export function DesktopShell(): JSX.Element {
   useEffect(() => {
     setCrossSurfaceEvidencePreview(undefined);
   }, [crossSurfaceEvidenceJsonText]);
+  useEffect(() => {
+    setEvidenceFreshnessPreview(undefined);
+  }, [evidenceFreshnessJsonText]);
   useEffect(() => {
     setApprovalConsistencyPreview(undefined);
   }, [approvalConsistencyJsonText]);
@@ -3853,6 +3876,15 @@ export function DesktopShell(): JSX.Element {
   function handleClearCrossSurfaceEvidence(): void {
     setCrossSurfaceEvidenceJsonText("");
     setCrossSurfaceEvidencePreview(undefined);
+  }
+
+  function handlePreviewEvidenceFreshness(): void {
+    setEvidenceFreshnessPreview(evidenceFreshnessCandidate);
+  }
+
+  function handleClearEvidenceFreshness(): void {
+    setEvidenceFreshnessJsonText("");
+    setEvidenceFreshnessPreview(undefined);
   }
 
   function handlePreviewApprovalConsistency(): void {
@@ -9870,6 +9902,188 @@ export function DesktopShell(): JSX.Element {
                   .source
               }{" "}
               · {displayedCrossSurfaceEvidence.nextAction}
+            </p>
+          </section>
+
+          <section
+            className="eventPanel"
+            aria-label="Evidence Freshness / Drift"
+          >
+            <div className="panelHeader">
+              <h2>Evidence Freshness / Drift</h2>
+              <span className="muted">Read-only / no evidence refresh</span>
+            </div>
+            <p className="fieldHelp">
+              Checks workspace index, project knowledge, memory recall, MCP,
+              plugin/skill, desktop observation, desktop action target,
+              Git/diff, shell verification, and agent handoff evidence summary
+              refs for stale timestamps and drift. The App Shell does not read
+              raw evidence, refresh evidence, call MCP tools, execute desktop
+              actions, apply patches, rollback, write EventStore events, or run
+              Git/shell.
+            </p>
+
+            <label>
+              <span>Evidence freshness refs JSON</span>
+              <textarea
+                className="compactTextarea"
+                value={evidenceFreshnessJsonText}
+                onChange={(event) => {
+                  setEvidenceFreshnessJsonText(event.target.value);
+                }}
+                placeholder="Paste summary-only evidence freshness refs JSON"
+                spellCheck={false}
+              />
+              <p className="fieldHelp">
+                Accepts summary-only evidence refs with timestamp, hash,
+                source-type, apply timing, and context-presence metadata. Raw
+                evidence, source, diffs, screenshots, OCR, stdout/stderr,
+                command payloads, and secrets are blocked.
+              </p>
+            </label>
+
+            <div className="buttonRow">
+              <button
+                type="button"
+                className="secondary"
+                onClick={(event) => {
+                  event.preventDefault();
+                  event.stopPropagation();
+                  handlePreviewEvidenceFreshness();
+                }}
+              >
+                Preview Freshness
+              </button>
+              <button
+                type="button"
+                className="secondary"
+                onClick={(event) => {
+                  event.preventDefault();
+                  event.stopPropagation();
+                  handleClearEvidenceFreshness();
+                }}
+              >
+                Clear Freshness
+              </button>
+            </div>
+
+            {displayedEvidenceFreshness.status === "empty" ? (
+              <p className="empty">
+                No evidence freshness refs loaded. Paste summary-only evidence
+                refs to preview freshness and drift.
+              </p>
+            ) : null}
+
+            {displayedEvidenceFreshness.status === "blocked" ? (
+              <div className="errorBox">
+                <strong>Evidence freshness blocked</strong>
+                <p>{displayedEvidenceFreshness.nextAction}</p>
+              </div>
+            ) : null}
+
+            <dl className="summaryGrid compact">
+              <div>
+                <dt>Status</dt>
+                <dd>{displayedEvidenceFreshness.status}</dd>
+              </div>
+              <div>
+                <dt>Freshness report</dt>
+                <dd>{displayedEvidenceFreshness.freshnessId}</dd>
+              </div>
+              <div>
+                <dt>Evidence refs</dt>
+                <dd>{displayedEvidenceFreshness.evidenceCount}</dd>
+              </div>
+              <div>
+                <dt>Stale / drift</dt>
+                <dd>
+                  {displayedEvidenceFreshness.staleCount} /{" "}
+                  {displayedEvidenceFreshness.driftCount}
+                </dd>
+              </div>
+              <div>
+                <dt>Blockers / warnings</dt>
+                <dd>
+                  {displayedEvidenceFreshness.blockerCount} /{" "}
+                  {displayedEvidenceFreshness.warningCount}
+                </dd>
+              </div>
+              <div>
+                <dt>Hash</dt>
+                <dd>{displayedEvidenceFreshness.hashPrefix ?? "n/a"}</dd>
+              </div>
+              <div>
+                <dt>Workflow review / raw evidence</dt>
+                <dd>
+                  {displayedEvidenceFreshness.readiness.canUseForWorkflowReview
+                    ? "yes"
+                    : "no"}{" "}
+                  /{" "}
+                  {displayedEvidenceFreshness.readiness.canReadRawEvidence
+                    ? "yes"
+                    : "no"}
+                </dd>
+              </div>
+              <div>
+                <dt>Refresh / EventStore</dt>
+                <dd>
+                  {displayedEvidenceFreshness.readiness.canRefreshEvidence
+                    ? "yes"
+                    : "no"}{" "}
+                  /{" "}
+                  {displayedEvidenceFreshness.readiness.canWriteEventStore
+                    ? "yes"
+                    : "no"}
+                </dd>
+              </div>
+              <div>
+                <dt>MCP / desktop action</dt>
+                <dd>
+                  {displayedEvidenceFreshness.readiness.canInvokeMcpTool
+                    ? "yes"
+                    : "no"}{" "}
+                  /{" "}
+                  {displayedEvidenceFreshness.readiness.canExecuteDesktopAction
+                    ? "yes"
+                    : "no"}
+                </dd>
+              </div>
+            </dl>
+
+            {displayedEvidenceFreshness.refs.length > 0 ? (
+              <ol className="timeline">
+                {displayedEvidenceFreshness.refs.map((ref) => (
+                  <li key={ref.refId}>
+                    <span className="timelineMeta">
+                      {ref.category} · stale {ref.stale ? "yes" : "no"} · drift{" "}
+                      {ref.drifted ? "yes" : "no"}
+                    </span>
+                    <span>summary {ref.summaryHash}</span>
+                    {ref.warningCodes.length > 0 ? (
+                      <span className="timelineMeta">
+                        Warnings: {ref.warningCodes.join(", ")}
+                      </span>
+                    ) : null}
+                    {ref.blockerCodes.length > 0 ? (
+                      <span className="timelineMeta">
+                        Blockers: {ref.blockerCodes.join(", ")}
+                      </span>
+                    ) : null}
+                  </li>
+                ))}
+              </ol>
+            ) : null}
+
+            {displayedEvidenceFreshness.findingCodes.length > 0 ? (
+              <p className="muted">
+                findings {displayedEvidenceFreshness.findingCodes.join(", ")}
+              </p>
+            ) : null}
+
+            <p className="fieldHelp">
+              {summarizeEvidenceFreshnessDriftView(displayedEvidenceFreshness)
+                .source}{" "}
+              · {displayedEvidenceFreshness.nextAction}
             </p>
           </section>
 

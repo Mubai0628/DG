@@ -115,6 +115,7 @@ import {
 import { buildLiveProposalEvaluationTelemetryAuditView } from "../src/live-proposal-evaluation-telemetry-audit-view.js";
 import { buildCrossSurfaceWorkflowView } from "../src/cross-surface-workflow-view.js";
 import { buildCrossSurfaceEvidenceView } from "../src/cross-surface-evidence-view.js";
+import { buildEvidenceFreshnessDriftView } from "../src/evidence-freshness-drift-view.js";
 import { buildApprovalConsistencyView } from "../src/approval-consistency-view.js";
 import { buildCapabilityPolicyEnforcementView } from "../src/capability-policy-enforcement-view.js";
 import { buildCrossSurfaceReplayTimelineView } from "../src/cross-surface-replay-timeline-view.js";
@@ -24831,6 +24832,131 @@ describe("desktop source boundaries", () => {
     expect(evidenceDoc).toContain("execute desktop actions");
     expect(evidenceDoc).toContain("write EventStore events");
     expect(docsIndex).toContain("cross-surface-evidence-integration-v0.27.md");
+  });
+
+  it("previews evidence freshness and drift without refreshing evidence", () => {
+    const view = buildEvidenceFreshnessDriftView({
+      freshnessJsonText: JSON.stringify({
+        createdAt: "2026-07-05T00:02:00.000Z",
+        evidenceRefs: [
+          {
+            refId: "workspace-index",
+            category: "workspace_index",
+            summary: "Workspace index summary.",
+            observedAt: "2026-07-05T00:00:00.000Z",
+            expectedHashPrefix: "abcd1234",
+            currentHashPrefix: "abcd1234"
+          }
+        ]
+      }),
+      sourceKind: "fixture"
+    });
+
+    expect(view.status).toBe("fresh");
+    expect(view.evidenceCount).toBe(1);
+    expect(view.staleCount).toBe(0);
+    expect(view.driftCount).toBe(0);
+    expect(view.readiness.canUseForWorkflowReview).toBe(true);
+    expect(view.readiness.canReadRawEvidence).toBe(false);
+    expect(view.readiness.canRefreshEvidence).toBe(false);
+    expect(view.readiness.canInvokeMcpTool).toBe(false);
+    expect(view.readiness.canExecuteDesktopAction).toBe(false);
+    expect(view.readiness.canApplyPatch).toBe(false);
+    expect(view.readiness.canRollback).toBe(false);
+    expect(view.readiness.canWriteEventStore).toBe(false);
+    expect(view.readiness.appCanExecute).toBe(false);
+  });
+
+  it("blocks unsafe evidence freshness and drift summaries", () => {
+    const view = buildEvidenceFreshnessDriftView({
+      freshnessJsonText: JSON.stringify({
+        evidenceRefs: [
+          {
+            refId: "git-drift",
+            category: "git_status_diff",
+            summary: "Bearer abcdefghijklmnop",
+            expectedHashPrefix: "oldgit",
+            currentHashPrefix: "newgit",
+            rawEvidence: "do not display raw evidence",
+            readiness: {
+              canRefreshEvidence: true
+            }
+          }
+        ]
+      }),
+      sourceKind: "fixture"
+    });
+    const serialized = JSON.stringify(view);
+
+    expect(view.status).toBe("blocked");
+    expect(view.findingCodes).toEqual(
+      expect.arrayContaining([
+        "GIT_DIFF_CHANGED_AFTER_VALIDATION",
+        "FORBIDDEN_RAW_EVIDENCE_FIELD",
+        "BEARER_TOKEN_MARKER",
+        "EXECUTION_FLAG_TRUE"
+      ])
+    );
+    expect(serialized).not.toContain("do not display raw evidence");
+    expect(serialized).not.toContain("Bearer abcdefghijklmnop");
+    expect(view.readiness.canRefreshEvidence).toBe(false);
+    expect(view.readiness.canExecuteGit).toBe(false);
+    expect(view.readiness.appCanExecute).toBe(false);
+  });
+
+  it("renders the App evidence freshness drift panel as read-only", async () => {
+    const appSource = await readFile(
+      path.join(appRoot, "src", "App.tsx"),
+      "utf8"
+    );
+    const viewSource = await readFile(
+      path.join(appRoot, "src", "evidence-freshness-drift-view.ts"),
+      "utf8"
+    );
+
+    expect(appSource).toContain("Evidence Freshness / Drift");
+    expect(appSource).toContain("Read-only / no evidence refresh");
+    expect(appSource).toContain("Preview Freshness");
+    expect(appSource).toContain("Clear Freshness");
+    expect(appSource).toContain("does not read");
+    expect(appSource).toContain("raw evidence");
+    expect(appSource).toContain("refresh evidence");
+    expect(appSource).not.toContain("Refresh Evidence</button>");
+    expect(appSource).not.toContain("Read Raw Evidence</button>");
+    expect(viewSource).toContain("evidence-freshness-drift");
+    expect(viewSource).not.toContain("safeInvoke");
+    expect(viewSource).not.toContain("fetch(");
+    expect(viewSource).not.toContain("writeFile");
+    expect(viewSource).not.toContain("writeEvent");
+  });
+
+  it("documents evidence freshness drift hardening", async () => {
+    const runtimeDoc = await readFile(
+      path.join(repoRoot, "docs", "runtime-evidence-freshness-drift-v0.28.md"),
+      "utf8"
+    );
+    const appDoc = await readFile(
+      path.join(repoRoot, "docs", "app-shell-evidence-freshness-drift-v0.28.md"),
+      "utf8"
+    );
+    const docsIndex = await readFile(
+      path.join(repoRoot, "docs", "README.md"),
+      "utf8"
+    );
+
+    expect(runtimeDoc).toContain("Runtime Evidence Freshness / Drift v0.28");
+    expect(runtimeDoc).toContain("stale timestamps");
+    expect(runtimeDoc).toContain("hash mismatch");
+    expect(runtimeDoc).toContain("MCP descriptor changes");
+    expect(runtimeDoc).toContain("Git diff changes after validation");
+    expect(runtimeDoc).toContain("All execution readiness flags are false");
+    expect(appDoc).toContain("App Shell Evidence Freshness / Drift v0.28");
+    expect(appDoc).toContain("Read-only freshness/drift panel");
+    expect(appDoc).toContain("Does not read raw evidence");
+    expect(appDoc).toContain("Does not refresh evidence");
+    expect(appDoc).toContain("Does not write EventStore");
+    expect(docsIndex).toContain("runtime-evidence-freshness-drift-v0.28.md");
+    expect(docsIndex).toContain("app-shell-evidence-freshness-drift-v0.28.md");
   });
 
   it("previews approval and receipt consistency without enabling execution", () => {
