@@ -1,0 +1,50 @@
+{
+  "schemaVersion": "cross_surface_workflow_scenario.v1",
+  "scenarioId": "cross-surface-blocked-unapproved-action",
+  "title": "Blocked unapproved desktop action scenario",
+  "objectiveSummary": "This scenario tries to turn a proposal into desktop execution.",
+  "routeKind": "fixed_cross_surface_workflow",
+  "stages": [
+    {
+      "stageId": "stage-objective",
+      "kind": "user_objective",
+      "summary": "Objective summary exists.",
+      "summaryRefs": ["objective-summary-ref"],
+      "completed": true
+    },
+    {
+      "stageId": "stage-desktop-proposal",
+      "kind": "desktop_action_proposal",
+      "summary": "Desktop action proposal attempts execution without an approved lane.",
+      "summaryRefs": ["desktop-action-proposal-ref"],
+      "claimsExecution": true,
+      "completed": true
+    },
+    {
+      "stageId": "stage-replay",
+      "kind": "unified_replay_audit",
+      "summary": "Replay stage summary exists.",
+      "summaryRefs": ["replay-summary-ref"],
+      "completed": true
+    }
+  ],
+  "evidenceRefs": [
+    {
+      "refId": "desktop-action-proposal-ref",
+      "kind": "desktop_action_proposal_summary",
+      "summary": "Safe desktop action proposal summary."
+    }
+  ],
+  "expectedOutcome": {
+    "expectedStatus": "blocked",
+    "expectedStageKinds": [
+      "user_objective",
+      "desktop_action_proposal",
+      "unified_replay_audit"
+    ],
+    "expectedSummaryOnly": true,
+    "expectedExecutionEnabled": false,
+    "expectedWarningCodes": [],
+    "expectedBlockerCodes": ["UNAPPROVED_DESKTOP_ACTION_EXECUTION"]
+  }
+}

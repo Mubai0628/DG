@@ -1,4 +1,5 @@
 export * from "./capability-probe.js";
+export * from "./cross-surface-workflow-scenario.js";
 export * from "./deepseek-capability-profile.js";
 export * from "./app-live-proposal-session-receipt.js";
 export * from "./legacy-alias.js";

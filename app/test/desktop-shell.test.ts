@@ -24474,6 +24474,49 @@ describe("desktop source boundaries", () => {
     expect(combined).not.toContain("desktop action expansion is enabled");
   });
 
+  it("documents the P1F cross-surface workflow scenario schema", async () => {
+    const runtimeDoc = await readFile(
+      path.join(
+        repoRoot,
+        "docs",
+        "runtime-cross-surface-workflow-scenario-v0.27.md"
+      ),
+      "utf8"
+    );
+    const docsIndex = await readFile(
+      path.join(repoRoot, "docs", "README.md"),
+      "utf8"
+    );
+    const runtimeSource = await readFile(
+      path.join(
+        repoRoot,
+        "runtime",
+        "src",
+        "models",
+        "cross-surface-workflow-scenario.ts"
+      ),
+      "utf8"
+    );
+
+    expect(runtimeDoc).toContain("Runtime Cross-surface Workflow Scenario");
+    expect(runtimeDoc).toContain("Schema and validator only");
+    expect(runtimeDoc).toContain("Fixed cross-surface route only");
+    expect(runtimeDoc).toContain("No workflow planner");
+    expect(runtimeDoc).toContain("No App composer");
+    expect(runtimeDoc).toContain("No live DeepSeek call");
+    expect(runtimeDoc).toContain("No MCP tool invocation");
+    expect(runtimeDoc).toContain("No desktop action execution");
+    expect(runtimeDoc).toContain("No apply or rollback");
+    expect(runtimeDoc).toContain("No Git or shell execution");
+    expect(runtimeDoc).toContain("raw prompt");
+    expect(runtimeDoc).toContain("reasoning content");
+    expect(runtimeDoc).toContain("every execution flag false");
+    expect(docsIndex).toContain(
+      "runtime-cross-surface-workflow-scenario-v0.27.md"
+    );
+    expect(runtimeSource).not.toContain("fetch(");
+  });
+
   it("documents the P1D desktop action expansion ADR and implementation gate", async () => {
     const adr = await readFile(
       path.join(

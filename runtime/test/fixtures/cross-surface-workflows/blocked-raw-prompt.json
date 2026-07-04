@@ -1,0 +1,39 @@
+{
+  "schemaVersion": "cross_surface_workflow_scenario.v1",
+  "scenarioId": "cross-surface-blocked-raw-prompt",
+  "title": "Blocked raw prompt scenario",
+  "objectiveSummary": "This scenario includes a forbidden raw prompt field.",
+  "routeKind": "fixed_cross_surface_workflow",
+  "rawPrompt": "Synthetic prompt body that must not persist.",
+  "stages": [
+    {
+      "stageId": "stage-objective",
+      "kind": "user_objective",
+      "summary": "Objective summary exists.",
+      "summaryRefs": ["objective-summary-ref"],
+      "completed": true
+    },
+    {
+      "stageId": "stage-replay",
+      "kind": "unified_replay_audit",
+      "summary": "Replay stage summary exists.",
+      "summaryRefs": ["replay-summary-ref"],
+      "completed": true
+    }
+  ],
+  "evidenceRefs": [
+    {
+      "refId": "objective-summary-ref",
+      "kind": "objective_summary",
+      "summary": "Safe objective summary."
+    }
+  ],
+  "expectedOutcome": {
+    "expectedStatus": "blocked",
+    "expectedStageKinds": ["user_objective", "unified_replay_audit"],
+    "expectedSummaryOnly": true,
+    "expectedExecutionEnabled": false,
+    "expectedWarningCodes": [],
+    "expectedBlockerCodes": ["RAW_PROMPT_FIELD_REJECTED"]
+  }
+}

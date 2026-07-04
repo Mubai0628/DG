@@ -1,0 +1,146 @@
+{
+  "schemaVersion": "cross_surface_workflow_scenario.v1",
+  "scenarioId": "cross-surface-golden-docs-task",
+  "title": "Golden docs task cross-surface workflow",
+  "objectiveSummary": "Update a documentation summary through the fixed preview route.",
+  "routeKind": "fixed_cross_surface_workflow",
+  "stages": [
+    {
+      "stageId": "stage-objective",
+      "kind": "user_objective",
+      "summary": "User asks for a documentation summary update.",
+      "summaryRefs": ["objective-summary-ref"],
+      "completed": true
+    },
+    {
+      "stageId": "stage-live-proposal",
+      "kind": "live_proposal",
+      "summary": "Live proposal boundary is explicit opt-in and summary-only.",
+      "summaryRefs": ["live-proposal-summary-ref"],
+      "completed": true
+    },
+    {
+      "stageId": "stage-agent-route",
+      "kind": "fixed_agent_route",
+      "summary": "Fixed agent route is selected without dynamic bidding.",
+      "summaryRefs": ["fixed-route-summary-ref"],
+      "completed": true
+    },
+    {
+      "stageId": "stage-knowledge",
+      "kind": "project_knowledge_recall",
+      "summary": "Project knowledge contributes summary refs only.",
+      "summaryRefs": ["knowledge-summary-ref"],
+      "completed": true
+    },
+    {
+      "stageId": "stage-mcp",
+      "kind": "mcp_readonly_evidence",
+      "summary": "MCP read-only evidence is available as metadata.",
+      "summaryRefs": ["mcp-readonly-summary-ref"],
+      "completed": true
+    },
+    {
+      "stageId": "stage-plugin-skill",
+      "kind": "plugin_skill_metadata_evidence",
+      "summary": "Plugin and skill metadata are projected without runtime execution.",
+      "summaryRefs": ["plugin-skill-summary-ref"],
+      "completed": true
+    },
+    {
+      "stageId": "stage-desktop-observer",
+      "kind": "desktop_observer_evidence",
+      "summary": "Desktop observer contributes metadata only.",
+      "summaryRefs": ["desktop-observer-summary-ref"],
+      "completed": true
+    },
+    {
+      "stageId": "stage-desktop-proposal",
+      "kind": "desktop_action_proposal",
+      "summary": "Desktop action proposal is preview-only.",
+      "summaryRefs": ["desktop-action-proposal-ref"],
+      "completed": true
+    },
+    {
+      "stageId": "stage-approved-desktop",
+      "kind": "approved_desktop_action_optional",
+      "summary": "Approved desktop action receipt is optional and existing-lane only.",
+      "summaryRefs": ["approved-desktop-action-ref"],
+      "approvedLaneReceiptRef": "approved-desktop-receipt-ref",
+      "completed": true
+    },
+    {
+      "stageId": "stage-approved-apply",
+      "kind": "approved_workspace_apply",
+      "summary": "Workspace apply is represented by approved receipt and typed confirmation refs.",
+      "summaryRefs": ["approved-apply-summary-ref"],
+      "receiptRef": "approved-apply-receipt-ref",
+      "typedConfirmationRef": "typed-confirmation-ref",
+      "completed": true
+    },
+    {
+      "stageId": "stage-verify",
+      "kind": "git_shell_verification",
+      "summary": "Git read lane and shell verification summaries are attached.",
+      "summaryRefs": ["git-read-summary-ref", "shell-verification-summary-ref"],
+      "completed": true
+    },
+    {
+      "stageId": "stage-rollback",
+      "kind": "rollback_optional",
+      "summary": "Rollback checkpoint is represented as a summary ref.",
+      "summaryRefs": ["rollback-checkpoint-summary-ref"],
+      "completed": false
+    },
+    {
+      "stageId": "stage-replay",
+      "kind": "unified_replay_audit",
+      "summary": "Unified replay and audit timeline summarizes every stage.",
+      "summaryRefs": ["unified-replay-audit-summary-ref"],
+      "completed": true
+    }
+  ],
+  "evidenceRefs": [
+    {
+      "refId": "objective-summary-ref",
+      "kind": "objective_summary",
+      "summary": "Documentation objective summary.",
+      "hashPrefix": "abc12345"
+    },
+    {
+      "refId": "unified-replay-audit-summary-ref",
+      "kind": "replay_audit_summary",
+      "summary": "Replay/audit summary for the golden demo.",
+      "hashPrefix": "def67890"
+    }
+  ],
+  "noCompressRefs": [
+    "objective-summary-ref",
+    "unified-replay-audit-summary-ref"
+  ],
+  "expectedOutcome": {
+    "expectedStatus": "preview_ready",
+    "expectedStageKinds": [
+      "user_objective",
+      "live_proposal",
+      "fixed_agent_route",
+      "project_knowledge_recall",
+      "mcp_readonly_evidence",
+      "plugin_skill_metadata_evidence",
+      "desktop_observer_evidence",
+      "desktop_action_proposal",
+      "approved_desktop_action_optional",
+      "approved_workspace_apply",
+      "git_shell_verification",
+      "rollback_optional",
+      "unified_replay_audit"
+    ],
+    "expectedSummaryOnly": true,
+    "expectedExecutionEnabled": false,
+    "expectedWarningCodes": [],
+    "expectedBlockerCodes": []
+  },
+  "forbiddenPolicySummary": "No dynamic bidding, arbitrary tools, raw data, or execution expansion.",
+  "createdAt": "2026-07-04T00:00:00.000Z",
+  "source": "p1f_golden_demo_fixture"
+}
