@@ -116,7 +116,10 @@ import { buildLiveProposalEvaluationTelemetryAuditView } from "../src/live-propo
 import { buildCrossSurfaceWorkflowView } from "../src/cross-surface-workflow-view.js";
 import { buildCrossSurfaceEvidenceView } from "../src/cross-surface-evidence-view.js";
 import { buildCrossSurfaceReplayTimelineView } from "../src/cross-surface-replay-timeline-view.js";
-import { buildCrossSurfaceApprovedSequence } from "../../runtime/src/workflows/cross-surface-approved-sequencer.js";
+import {
+  buildCrossSurfaceApprovedSequence,
+  type CrossSurfaceApprovedLaneInput
+} from "../../runtime/src/workflows/cross-surface-approved-sequencer.js";
 import {
   buildDesktopObserverView,
   desktopObserverEvidenceRefs
@@ -25014,6 +25017,118 @@ describe("desktop source boundaries", () => {
     expect(docsIndex).toContain(
       "cross-surface-replay-audit-timeline-v0.27.md"
     );
+  });
+
+  it("runs the cross-surface workflow smoke fixture through preview surfaces", async () => {
+    const fixture = JSON.parse(
+      await readFile(
+        path.join(
+          appRoot,
+          "test",
+          "fixtures",
+          "cross-surface-agent-workflow-smoke.json"
+        ),
+        "utf8"
+      )
+    ) as Record<string, unknown>;
+    const workflow = buildCrossSurfaceWorkflowView({
+      scenarioJsonText: JSON.stringify(fixture.scenario),
+      sourceKind: "fixture"
+    });
+    const evidence = buildCrossSurfaceEvidenceView({
+      evidenceJsonText: JSON.stringify({
+        evidenceRefs: fixture.evidenceRefs
+      }),
+      sourceKind: "fixture"
+    });
+    const sequence = buildCrossSurfaceApprovedSequence({
+      lanes: fixture.approvedLanes as CrossSurfaceApprovedLaneInput[],
+      sourceKind: "fixture"
+    });
+    const replay = buildCrossSurfaceReplayTimelineView({
+      timelineJsonText: JSON.stringify({
+        timelineRefs: fixture.timelineRefs
+      }),
+      sourceKind: "fixture"
+    });
+    const serialized = JSON.stringify({ workflow, evidence, sequence, replay });
+
+    expect((fixture.smokePath as string[])).toContain("user_objective");
+    expect((fixture.smokePath as string[])).toContain(
+      "unified_replay_audit_summary"
+    );
+    expect(workflow.status).toBe("preview_ready");
+    expect(workflow.stages.length).toBeGreaterThanOrEqual(13);
+    expect(workflow.readiness.canPreviewWorkflow).toBe(true);
+    expect(workflow.readiness.canRunWorkflow).toBe(false);
+    expect(workflow.readiness.canRunAgents).toBe(false);
+    expect(workflow.readiness.canInvokeMcpTools).toBe(false);
+    expect(workflow.readiness.canExecuteDesktopAction).toBe(false);
+    expect(evidence.status).not.toBe("blocked");
+    expect(evidence.evidenceCount).toBe(7);
+    expect(evidence.readiness.canCallMcpTool).toBe(false);
+    expect(evidence.readiness.canExecutePluginRuntime).toBe(false);
+    expect(sequence.status).toBe("sequence_ready");
+    expect(sequence.laneCount).toBe(5);
+    expect(sequence.readiness.sequencerExecutes).toBe(false);
+    expect(sequence.readiness.canExecuteDesktopAction).toBe(false);
+    expect(sequence.readiness.canApplyPatch).toBe(false);
+    expect(replay.status).toBe("timeline_ready");
+    expect(replay.presentStageCount).toBe(13);
+    expect(replay.readiness.canReplayExecution).toBe(false);
+    expect(replay.readiness.canRerunActions).toBe(false);
+    expect(serialized).not.toContain("raw prompt body");
+    expect(serialized).not.toContain("raw response body");
+    expect(serialized).not.toContain("screenshot bytes");
+    expect(serialized).not.toContain("Authorization");
+    expect(serialized).not.toContain("sk-fake");
+  });
+
+  it("documents the cross-surface workflow smoke and manual QA path", async () => {
+    const fixture = await readFile(
+      path.join(
+        appRoot,
+        "test",
+        "fixtures",
+        "cross-surface-agent-workflow-smoke.json"
+      ),
+      "utf8"
+    );
+    const manualQa = await readFile(
+      path.join(repoRoot, "docs", "cross-surface-agent-workflow-manual-qa.md"),
+      "utf8"
+    );
+    const docsIndex = await readFile(
+      path.join(repoRoot, "docs", "README.md"),
+      "utf8"
+    );
+    const appSource = await readFile(
+      path.join(appRoot, "src", "App.tsx"),
+      "utf8"
+    );
+
+    expect(fixture).toContain("cross-surface-agent-workflow-smoke-v0.28");
+    expect(manualQa).toContain("Convert Smoke");
+    expect(manualQa).toContain("live proposal generation path");
+    expect(manualQa).toContain("fixed agent route");
+    expect(manualQa).toContain("project knowledge");
+    expect(manualQa).toContain("MCP read-only evidence");
+    expect(manualQa).toContain("plugin/skill metadata");
+    expect(manualQa).toContain("desktop observer evidence");
+    expect(manualQa).toContain("desktop action proposal");
+    expect(manualQa).toContain("approved desktop action lane");
+    expect(manualQa).toContain("approved workspace apply/rollback");
+    expect(manualQa).toContain("Git/shell verification safe lanes");
+    expect(manualQa).toContain("cross-surface replay timeline");
+    expect(manualQa).toContain("no raw prompt");
+    expect(manualQa).toContain("no dynamic bidding");
+    expect(manualQa).toContain("no broad desktop action");
+    expect(appSource).toContain("Convert");
+    expect(appSource).toContain("Run Cross-surface Workflow (disabled)");
+    expect(appSource).toContain("Auto-execute Workflow (disabled)");
+    expect(appSource).toContain("Replay Execution (disabled)");
+    expect(appSource).toContain("Re-run Actions (disabled)");
+    expect(docsIndex).toContain("cross-surface-agent-workflow-manual-qa.md");
   });
 
   it("documents the P1D desktop action expansion ADR and implementation gate", async () => {

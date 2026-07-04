@@ -456,6 +456,7 @@ foundation.
 - [Cross-surface Evidence Integration v0.27](cross-surface-evidence-integration-v0.27.md)
 - [Runtime Cross-surface Approved Sequencer v0.27](runtime-cross-surface-approved-sequencer-v0.27.md)
 - [Cross-surface Replay / Audit Timeline v0.27](cross-surface-replay-audit-timeline-v0.27.md)
+- [Cross-surface Agent Workflow manual QA](cross-surface-agent-workflow-manual-qa.md)
 - [Runtime Memory Recall Preview v0.3](runtime-memory-recall-preview-v0.3.md)
 - [v0.4.0 Controlled Creation Preview RC release notes](release-notes-v0.4.0-controlled-creation-preview-rc.1.md)
 - [App Shell Controlled Creation manual QA](app-shell-controlled-creation-manual-qa.md)

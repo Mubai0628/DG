@@ -1,0 +1,355 @@
+{
+  "fixtureId": "cross-surface-agent-workflow-smoke-v0.28",
+  "smokePath": [
+    "user_objective",
+    "deepseek_proposal_summary",
+    "fixed_agent_route_summary",
+    "project_knowledge_summary",
+    "mcp_readonly_evidence_summary",
+    "plugin_skill_metadata_summary",
+    "desktop_observer_evidence_summary",
+    "desktop_action_proposal_summary",
+    "approved_desktop_action_summary",
+    "approved_workspace_apply_summary",
+    "git_shell_verification_summary",
+    "rollback_optional_summary",
+    "unified_replay_audit_summary"
+  ],
+  "scenario": {
+    "schemaVersion": "cross_surface_workflow_scenario.v1",
+    "scenarioId": "cross-surface-agent-workflow-smoke",
+    "title": "Cross-surface agent workflow smoke",
+    "objectiveSummary": "Update a release checklist summary through the fixed cross-surface preview chain.",
+    "routeKind": "fixed_cross_surface_workflow",
+    "stages": [
+      {
+        "stageId": "stage-objective",
+        "kind": "user_objective",
+        "summary": "User asks for a release checklist summary update.",
+        "summaryRefs": ["objective-summary-ref"],
+        "completed": true
+      },
+      {
+        "stageId": "stage-live-proposal",
+        "kind": "live_proposal",
+        "summary": "DeepSeek proposal is represented by an explicit opt-in summary ref.",
+        "summaryRefs": ["deepseek-proposal-summary-ref"],
+        "completed": true
+      },
+      {
+        "stageId": "stage-agent-route",
+        "kind": "fixed_agent_route",
+        "summary": "Fixed orchestrator/coder/reviewer/verifier route summary is selected without dynamic bidding.",
+        "summaryRefs": ["fixed-agent-route-summary-ref"],
+        "completed": true
+      },
+      {
+        "stageId": "stage-knowledge",
+        "kind": "project_knowledge_recall",
+        "summary": "Project knowledge contributes summary refs only.",
+        "summaryRefs": ["project-knowledge-summary-ref"],
+        "completed": true
+      },
+      {
+        "stageId": "stage-mcp",
+        "kind": "mcp_readonly_evidence",
+        "summary": "MCP read-only evidence is represented by metadata and tool summary refs.",
+        "summaryRefs": ["mcp-readonly-evidence-summary-ref"],
+        "completed": true
+      },
+      {
+        "stageId": "stage-plugin-skill",
+        "kind": "plugin_skill_metadata_evidence",
+        "summary": "Plugin and skill metadata are used as summaries without runtime execution.",
+        "summaryRefs": ["plugin-skill-metadata-summary-ref"],
+        "completed": true
+      },
+      {
+        "stageId": "stage-desktop-observer",
+        "kind": "desktop_observer_evidence",
+        "summary": "Desktop observer evidence is metadata-only.",
+        "summaryRefs": ["desktop-observer-evidence-summary-ref"],
+        "completed": true
+      },
+      {
+        "stageId": "stage-desktop-proposal",
+        "kind": "desktop_action_proposal",
+        "summary": "Desktop action proposal is modeled as preview-only.",
+        "summaryRefs": ["desktop-action-proposal-summary-ref"],
+        "completed": true
+      },
+      {
+        "stageId": "stage-approved-desktop",
+        "kind": "approved_desktop_action_optional",
+        "summary": "Approved desktop action stays inside existing approved lanes.",
+        "summaryRefs": ["approved-desktop-action-summary-ref"],
+        "approvedLaneReceiptRef": "desktop-receipt-ref",
+        "completed": true
+      },
+      {
+        "stageId": "stage-approved-apply",
+        "kind": "approved_workspace_apply",
+        "summary": "Approved workspace apply is represented by receipt and typed confirmation refs.",
+        "summaryRefs": ["approved-workspace-apply-summary-ref"],
+        "receiptRef": "apply-receipt-ref",
+        "typedConfirmationRef": "typed-confirm-apply",
+        "completed": true
+      },
+      {
+        "stageId": "stage-verify",
+        "kind": "git_shell_verification",
+        "summary": "Git read lane and shell verification summaries are attached.",
+        "summaryRefs": ["git-shell-verification-summary-ref"],
+        "completed": true
+      },
+      {
+        "stageId": "stage-rollback",
+        "kind": "rollback_optional",
+        "summary": "Rollback checkpoint summary is available for review.",
+        "summaryRefs": ["rollback-checkpoint-summary-ref"],
+        "receiptRef": "rollback-receipt-ref",
+        "completed": true
+      },
+      {
+        "stageId": "stage-replay",
+        "kind": "unified_replay_audit",
+        "summary": "Unified replay and audit timeline summarizes the workflow.",
+        "summaryRefs": ["unified-replay-audit-summary-ref"],
+        "completed": true
+      }
+    ],
+    "evidenceRefs": [
+      {
+        "refId": "objective-summary-ref",
+        "kind": "objective_summary",
+        "summary": "Release checklist objective summary.",
+        "hashPrefix": "objective123"
+      },
+      {
+        "refId": "unified-replay-audit-summary-ref",
+        "kind": "replay_audit_summary",
+        "summary": "Replay/audit summary for the smoke fixture.",
+        "hashPrefix": "replay456"
+      }
+    ],
+    "noCompressRefs": [
+      "objective-summary-ref",
+      "unified-replay-audit-summary-ref"
+    ],
+    "expectedOutcome": {
+      "expectedStatus": "preview_ready",
+      "expectedStageKinds": [
+        "user_objective",
+        "live_proposal",
+        "fixed_agent_route",
+        "project_knowledge_recall",
+        "mcp_readonly_evidence",
+        "plugin_skill_metadata_evidence",
+        "desktop_observer_evidence",
+        "desktop_action_proposal",
+        "approved_desktop_action_optional",
+        "approved_workspace_apply",
+        "git_shell_verification",
+        "rollback_optional",
+        "unified_replay_audit"
+      ],
+      "expectedSummaryOnly": true,
+      "expectedExecutionEnabled": false,
+      "expectedWarningCodes": [],
+      "expectedBlockerCodes": []
+    },
+    "forbiddenPolicySummary": "No dynamic bidding, arbitrary tools, raw data, or execution expansion.",
+    "createdAt": "2026-07-04T00:00:00.000Z",
+    "source": "p1f_smoke_fixture"
+  },
+  "evidenceRefs": [
+    {
+      "refId": "project-knowledge-summary-ref",
+      "kind": "project_knowledge",
+      "status": "summary_ready",
+      "summary": "Project knowledge summary for release checklist conventions.",
+      "hashPrefix": "know1234",
+      "summaryOnly": true
+    },
+    {
+      "refId": "mcp-readonly-evidence-summary-ref",
+      "kind": "mcp_readonly_tool_summary",
+      "status": "summary_ready",
+      "summary": "MCP read-only evidence summary with counts and hashes only.",
+      "hashPrefix": "mcp12345",
+      "summaryOnly": true
+    },
+    {
+      "refId": "plugin-metadata-summary-ref",
+      "kind": "plugin_metadata",
+      "status": "summary_ready",
+      "summary": "Plugin metadata summary, no runtime execution.",
+      "hashPrefix": "plug1234",
+      "summaryOnly": true
+    },
+    {
+      "refId": "skill-metadata-summary-ref",
+      "kind": "skill_metadata",
+      "status": "summary_ready",
+      "summary": "Skill metadata summary, no skill runtime execution.",
+      "hashPrefix": "skill123",
+      "summaryOnly": true
+    },
+    {
+      "refId": "desktop-observer-evidence-summary-ref",
+      "kind": "desktop_observer_metadata",
+      "status": "summary_ready",
+      "summary": "Desktop observer metadata-only evidence summary.",
+      "hashPrefix": "desk1234",
+      "summaryOnly": true
+    },
+    {
+      "refId": "desktop-action-proposal-summary-ref",
+      "kind": "desktop_action_proposal_summary",
+      "status": "summary_ready",
+      "summary": "Desktop action proposal summary for an approved existing lane.",
+      "hashPrefix": "dact1234",
+      "summaryOnly": true
+    },
+    {
+      "refId": "mcp-readonly-metadata-summary-ref",
+      "kind": "mcp_readonly_metadata",
+      "status": "summary_ready",
+      "summary": "MCP metadata descriptor summary.",
+      "hashPrefix": "mcpm1234",
+      "summaryOnly": true
+    }
+  ],
+  "approvedLanes": [
+    {
+      "laneId": "apply-lane",
+      "kind": "approved_workspace_apply",
+      "status": "summary_ready",
+      "summary": "Approved workspace apply summary.",
+      "approvalReceiptRef": "apply-receipt-ref",
+      "typedConfirmationRef": "typed-confirm-apply"
+    },
+    {
+      "laneId": "verification-lane",
+      "kind": "git_shell_verification",
+      "status": "summary_ready",
+      "summary": "Fixed Git/shell verification summary.",
+      "verificationTemplateRef": "shell-template.app.typecheck"
+    },
+    {
+      "laneId": "desktop-lane",
+      "kind": "approved_desktop_action",
+      "status": "summary_ready",
+      "summary": "Approved desktop action summary.",
+      "desktopActionKind": "focus_window",
+      "approvalReceiptRef": "desktop-receipt-ref",
+      "typedConfirmationRef": "typed-confirm-desktop"
+    },
+    {
+      "laneId": "rollback-lane",
+      "kind": "approved_rollback",
+      "status": "summary_ready",
+      "summary": "Approved rollback checkpoint summary.",
+      "approvalReceiptRef": "rollback-receipt-ref",
+      "typedConfirmationRef": "typed-confirm-rollback",
+      "rollbackCheckpointRef": "rollback-checkpoint-summary-ref"
+    },
+    {
+      "laneId": "replay-lane",
+      "kind": "summary_event_replay",
+      "status": "summary_ready",
+      "summary": "Summary replay projection ref.",
+      "replaySummaryRef": "unified-replay-audit-summary-ref"
+    }
+  ],
+  "timelineRefs": [
+    {
+      "stage": "objective",
+      "refId": "objective-summary-ref",
+      "status": "summary_ready",
+      "summary": "User objective summary."
+    },
+    {
+      "stage": "proposal",
+      "refId": "deepseek-proposal-summary-ref",
+      "status": "summary_ready",
+      "summary": "DeepSeek proposal summary."
+    },
+    {
+      "stage": "agent_route",
+      "refId": "fixed-agent-route-summary-ref",
+      "status": "summary_ready",
+      "summary": "Fixed agent route summary."
+    },
+    {
+      "stage": "knowledge_recall",
+      "refId": "project-knowledge-summary-ref",
+      "status": "summary_ready",
+      "summary": "Project knowledge summary."
+    },
+    {
+      "stage": "mcp_evidence",
+      "refId": "mcp-readonly-evidence-summary-ref",
+      "status": "summary_ready",
+      "summary": "MCP read-only evidence summary."
+    },
+    {
+      "stage": "plugin_skill_metadata",
+      "refId": "plugin-skill-metadata-summary-ref",
+      "status": "summary_ready",
+      "summary": "Plugin and skill metadata summary."
+    },
+    {
+      "stage": "desktop_observer",
+      "refId": "desktop-observer-evidence-summary-ref",
+      "status": "summary_ready",
+      "summary": "Desktop observer evidence summary."
+    },
+    {
+      "stage": "desktop_proposal",
+      "refId": "desktop-action-proposal-summary-ref",
+      "status": "summary_ready",
+      "summary": "Desktop action proposal summary."
+    },
+    {
+      "stage": "desktop_approved_action",
+      "refId": "approved-desktop-action-summary-ref",
+      "status": "summary_ready",
+      "summary": "Approved desktop action summary."
+    },
+    {
+      "stage": "workspace_apply",
+      "refId": "approved-workspace-apply-summary-ref",
+      "status": "summary_ready",
+      "summary": "Approved workspace apply summary."
+    },
+    {
+      "stage": "verification",
+      "refId": "git-shell-verification-summary-ref",
+      "status": "summary_ready",
+      "summary": "Git/shell verification summary."
+    },
+    {
+      "stage": "rollback",
+      "refId": "rollback-checkpoint-summary-ref",
+      "status": "summary_ready",
+      "summary": "Rollback checkpoint summary."
+    },
+    {
+      "stage": "final_audit",
+      "refId": "unified-replay-audit-summary-ref",
+      "status": "summary_ready",
+      "summary": "Unified replay audit summary."
+    }
+  ],
+  "expected": {
+    "workflowStatus": "preview_ready",
+    "evidenceStatus": "warning",
+    "sequenceStatus": "sequence_ready",
+    "replayStatus": "timeline_ready",
+    "summaryOnly": true,
+    "autoRunDisabled": true,
+    "convertPreserved": true,
+    "approvedExecutionBoundariesPreserved": true
+  }
+}
