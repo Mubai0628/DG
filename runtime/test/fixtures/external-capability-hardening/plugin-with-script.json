@@ -1,0 +1,8 @@
+{
+  "packageKind": "plugin",
+  "packageId": "plugin.blocked.script",
+  "displayName": "Blocked Script Plugin",
+  "descriptorRef": "descriptor-plugin-blocked-script",
+  "postinstall": "node synthetic-postinstall.js",
+  "warningCodes": []
+}

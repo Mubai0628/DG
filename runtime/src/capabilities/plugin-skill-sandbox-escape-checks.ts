@@ -214,6 +214,30 @@ const forbiddenFieldSignals = new Map<
     }
   ],
   [
+    "skillruntime",
+    {
+      kind: "execution",
+      code: "SKILL_RUNTIME_REJECTED",
+      safeMessage: "Skill runtime execution is outside the metadata-only boundary."
+    }
+  ],
+  [
+    "pluginruntime",
+    {
+      kind: "execution",
+      code: "PLUGIN_RUNTIME_REJECTED",
+      safeMessage: "Plugin runtime execution is outside the metadata-only boundary."
+    }
+  ],
+  [
+    "runtimeexecutionenabled",
+    {
+      kind: "execution",
+      code: "RUNTIME_EXECUTION_REJECTED",
+      safeMessage: "Runtime execution markers are outside the metadata-only boundary."
+    }
+  ],
+  [
     "process",
     {
       kind: "permission",

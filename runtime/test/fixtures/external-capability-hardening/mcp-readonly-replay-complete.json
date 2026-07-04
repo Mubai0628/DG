@@ -1,0 +1,15 @@
+{
+  "resultId": "mcp-readonly-smoke-result",
+  "descriptorRef": "descriptor-mcp-readonly-smoke",
+  "sourceType": "mcp_readonly_tool",
+  "riskSummary": "Read-only MCP smoke result summary.",
+  "requiresApproval": true,
+  "policySummaryPresent": true,
+  "approvalSummaryPresent": true,
+  "leaseSummaryPresent": true,
+  "redactionSummaryPresent": true,
+  "eventWritten": true,
+  "eventSummaryPresent": true,
+  "replayProjectionIncludesResult": true,
+  "warningCodes": []
+}

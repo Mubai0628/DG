@@ -1,0 +1,10 @@
+{
+  "externalResultSummaries": [
+    {
+      "resultId": "external-raw-output-smoke",
+      "descriptorRef": "descriptor-raw-output-smoke",
+      "sourceType": "mcp_readonly_tool",
+      "rawToolOutput": "RAW_TOOL_OUTPUT_SMOKE_SENTINEL"
+    }
+  ]
+}

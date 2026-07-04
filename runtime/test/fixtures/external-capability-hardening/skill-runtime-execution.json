@@ -1,0 +1,9 @@
+{
+  "packageKind": "skill",
+  "skillId": "skill.blocked.runtime",
+  "displayName": "Blocked Runtime Skill",
+  "descriptorRef": "descriptor-skill-blocked-runtime",
+  "skillRuntime": true,
+  "runtimeExecutionEnabled": true,
+  "warningCodes": []
+}
