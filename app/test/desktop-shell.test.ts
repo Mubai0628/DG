@@ -26461,6 +26461,101 @@ describe("desktop source boundaries", () => {
     expect(combined).not.toContain("broad PermissionLease enabled");
   });
 
+  it("documents the v0.30 post-release review and P1I desktop operator recovery roadmap", async () => {
+    const promptDoc = await readFile(
+      path.join(
+        repoRoot,
+        "docs",
+        "v0.31-desktop-operator-recovery-hardening-prompts.md"
+      ),
+      "utf8"
+    );
+    const review = await readFile(
+      path.join(
+        repoRoot,
+        "docs",
+        "v0.30-external-capability-execution-hardening-postrelease-review.md"
+      ),
+      "utf8"
+    );
+    const roadmap = await readFile(
+      path.join(
+        repoRoot,
+        "docs",
+        "p1i-desktop-operator-recovery-hardening-roadmap.md"
+      ),
+      "utf8"
+    );
+    const plan = await readFile(
+      path.join(
+        repoRoot,
+        "docs",
+        "p1i-001-desktop-operator-recovery-hardening-plan.md"
+      ),
+      "utf8"
+    );
+    const docsIndex = await readFile(
+      path.join(repoRoot, "docs", "README.md"),
+      "utf8"
+    );
+    const rootReadme = await readFile(path.join(repoRoot, "README.md"), "utf8");
+    const combined = `${promptDoc}\n${review}\n${roadmap}\n${plan}\n${docsIndex}\n${rootReadme}`;
+
+    expect(promptDoc).toContain(
+      "v0.31 Desktop Operator Recovery / Action Hardening"
+    );
+    expect(promptDoc).toContain("DW-P1I-009");
+    expect(review).toContain(
+      "v0.30.0-external-capability-execution-hardening-rc.1"
+    );
+    expect(review).toContain(
+      "External capability execution hardening, no broad execution"
+    );
+    expect(review).toContain("Desktop Observer remains metadata-only");
+    expect(review).toContain(
+      "Approved narrow and expanded desktop actions remain bounded"
+    );
+    expect(review).toContain("External capability execution hardening now");
+    expect(review).toContain("Broad desktop automation is disabled");
+    expect(review).toContain("Remote control is disabled");
+    expect(review).toContain("Screen recording is disabled");
+    expect(roadmap).toContain(
+      "P1I Desktop Operator Recovery / Action Hardening Roadmap"
+    );
+    expect(roadmap).toContain(
+      "harden desktop operator recovery, mismatch handling"
+    );
+    expect(roadmap).toContain("No replay re-execution");
+    expect(roadmap).toContain("Desktop action mismatch recovery contracts");
+    expect(roadmap).toContain("Undo / compensating action summary model");
+    expect(plan).toContain(
+      "P1I-001 Desktop Operator Recovery Hardening Gate Plan"
+    );
+    expect(plan).toContain("No runtime feature implementation in P1I-001");
+    expect(plan).toContain("No retry execution");
+    expect(plan).toContain("DW-P1I-002");
+    expect(docsIndex).toContain(
+      "v0.31-desktop-operator-recovery-hardening-prompts.md"
+    );
+    expect(docsIndex).toContain(
+      "v0.30-external-capability-execution-hardening-postrelease-review.md"
+    );
+    expect(docsIndex).toContain(
+      "p1i-desktop-operator-recovery-hardening-roadmap.md"
+    );
+    expect(docsIndex).toContain(
+      "p1i-001-desktop-operator-recovery-hardening-plan.md"
+    );
+    expect(rootReadme).toContain(
+      "p1i-desktop-operator-recovery-hardening-roadmap.md"
+    );
+    expect(combined).not.toContain("broad desktop automation enabled");
+    expect(combined).not.toContain("remote control enabled");
+    expect(combined).not.toContain("screen recording enabled");
+    expect(combined).not.toContain("replay re-execution enabled");
+    expect(combined).not.toContain("arbitrary native bridge enabled");
+  });
+
   it("documents the P1G north star demo hardening ADR and gate", async () => {
     const adr = await readFile(
       path.join(repoRoot, "docs", "adr", "0011-north-star-demo-hardening.md"),

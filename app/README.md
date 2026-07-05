@@ -87,6 +87,13 @@ Current scope:
   notes, manual QA, and RC checklist while mutating MCP tools, arbitrary MCP
   invocation, plugin/skill runtime, native bridge, desktop broad action,
   arbitrary Git/shell, and broad PermissionLease remain disabled
+- prepare the v0.31 Desktop Operator Recovery / Action Hardening roadmap with
+  mismatch recovery, stale target blockers, interruption and focus loss
+  summaries, undo / compensation summaries, replay privacy audit, App
+  read-only recovery surface, golden smoke, and manual QA while broad desktop
+  automation, remote control, hidden background actions, screen recording,
+  clipboard write by default, file dialog automation by default, native bridge,
+  arbitrary Git/shell, and broad PermissionLease remain disabled
 - preview the P0Y Plugin / Skill Redaction Audit as a summary-only check of
   host metadata boundaries while raw metadata, raw prompt, raw args, raw output,
   install scripts, EventStore writes, plugin execution, skill runtime, native

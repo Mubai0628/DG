@@ -350,6 +350,25 @@ v0.15 MVP Hardening / Recovery references:
 - [P0S MVP Hardening / Recovery roadmap](docs/p0s-mvp-hardening-recovery-roadmap.md)
 - [P0S-001 MVP Hardening / Recovery plan](docs/p0s-001-mvp-hardening-recovery-plan.md)
 
+## v0.31 Desktop Operator Recovery / Action Hardening status
+
+P1I starts the v0.31 Desktop Operator Recovery / Action Hardening roadmap
+after the v0.30 External Capability Execution Hardening release. The phase
+hardens desktop action mismatch handling, stale screen / target blockers,
+interruption and focus loss summaries, undo / compensating action summaries,
+replay completeness, privacy redaction, App read-only recovery surfaces, golden
+smoke, and manual QA while preserving no broad desktop automation, no remote
+control, no screen recording, no hidden background control, no clipboard write
+by default, no file dialog automation by default, no arbitrary native bridge,
+no arbitrary Git/shell, and no broad PermissionLease.
+
+v0.31 Desktop Operator Recovery / Action Hardening references:
+
+- [v0.31 Desktop Operator Recovery / Action Hardening prompts](docs/v0.31-desktop-operator-recovery-hardening-prompts.md)
+- [v0.30 External Capability Execution Hardening post-release review](docs/v0.30-external-capability-execution-hardening-postrelease-review.md)
+- [P1I Desktop Operator Recovery / Action Hardening roadmap](docs/p1i-desktop-operator-recovery-hardening-roadmap.md)
+- [P1I-001 Desktop Operator Recovery Hardening gate plan](docs/p1i-001-desktop-operator-recovery-hardening-plan.md)
+
 ## v0.30 External Capability Execution Hardening status
 
 Recommended tag:
