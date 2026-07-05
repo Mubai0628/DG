@@ -67,6 +67,11 @@ Current scope:
   rollback guidance while App Shell live calls, API key reads, fetch/network,
   autonomous coding, arbitrary desktop automation, mutating MCP, arbitrary
   plugin/skill runtime, cloud sync, and auto-update remain disabled
+- prepare the v0.33.0 v1 candidate polish RC with release notes, manual QA, and
+  RC checklist while App Shell broad native bridge, arbitrary desktop
+  automation, mutating MCP tools, arbitrary plugin/skill execution, arbitrary
+  Git/shell, destructive migration, telemetry upload, cloud sync, and
+  auto-update without confirmation remain disabled
 - prepare the v0.11 App-side Approved Execution MVP RC with narrow
   human-approved apply and rollback, exact typed confirmations, private
   checkpoints, summary-only approved execution events, replay counts, and E2E

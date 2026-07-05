@@ -21,6 +21,8 @@ Start here:
 - [Known Limitations v1 Candidate](docs/known-limitations-v1-candidate.md)
 - [Manual QA Index v1 Candidate](docs/manual-qa-index-v1-candidate.md)
 - [Release Rollback Guide v1 Candidate](docs/release-rollback-guide-v1-candidate.md)
+- [v0.33.0 v1 Candidate Polish RC release notes](docs/release-notes-v0.33.0-v1-candidate-polish-rc.1.md)
+- [v1 Candidate RC Checklist](docs/v1-candidate-rc-checklist.md)
 
 ## v0.1.0 scope
 

@@ -34430,6 +34430,101 @@ describe("expanded desktop action proposal app surface", () => {
     expect(combined).not.toContain("mutating MCP tool is enabled");
     expect(combined).not.toContain("auto-update is enabled");
   });
+
+  it("documents the v0.33 v1 candidate RC release notes and final checklist", async () => {
+    const releaseNotes = await readFile(
+      path.join(
+        repoRoot,
+        "docs",
+        "release-notes-v0.33.0-v1-candidate-polish-rc.1.md"
+      ),
+      "utf8"
+    );
+    const manualQa = await readFile(
+      path.join(repoRoot, "docs", "v1-candidate-manual-qa.md"),
+      "utf8"
+    );
+    const rcChecklist = await readFile(
+      path.join(repoRoot, "docs", "v1-candidate-rc-checklist.md"),
+      "utf8"
+    );
+    const docsIndex = await readFile(
+      path.join(repoRoot, "docs", "README.md"),
+      "utf8"
+    );
+    const rootReadme = await readFile(path.join(repoRoot, "README.md"), "utf8");
+    const appReadme = await readFile(
+      path.join(repoRoot, "app", "README.md"),
+      "utf8"
+    );
+    const combined = `${releaseNotes}\n${manualQa}\n${rcChecklist}\n${docsIndex}\n${rootReadme}\n${appReadme}`;
+
+    [
+      "v1 candidate readiness artifacts",
+      "security audit matrix",
+      "capability boundary matrix",
+      "golden regression dashboard",
+      "package artifact hygiene",
+      "migration dry-run review",
+      "onboarding / quickstart / limitations / rollback guide",
+      "North Star manual QA matrix"
+    ].forEach((item) => expect(releaseNotes).toContain(item));
+
+    [
+      "web_table_to_csv Convert baseline",
+      "DeepSeek live proposal",
+      "approved apply / rollback",
+      "Git/shell safe lanes",
+      "Project Knowledge",
+      "MCP read-only connection/tool",
+      "Plugin/Skill metadata governance",
+      "Fixed multi-agent workflow",
+      "Desktop Observer",
+      "Approved Desktop Actions",
+      "Cross-surface workflow",
+      "Replay/audit"
+    ].forEach((item) => expect(releaseNotes).toContain(item));
+
+    [
+      "no broad native bridge",
+      "no arbitrary desktop automation",
+      "no mutating MCP tools",
+      "no arbitrary plugin/skill execution",
+      "no arbitrary Git/shell",
+      "no cloud sync",
+      "no telemetry upload",
+      "no destructive migration",
+      "no auto-update without confirmation"
+    ].forEach((item) =>
+      expect(releaseNotes.toLowerCase()).toContain(item.toLowerCase())
+    );
+
+    expect(manualQa).toContain("Convert Baseline");
+    expect(manualQa).toContain("Approved Apply / Rollback");
+    expect(manualQa).toContain("Git/shell Safe Lanes");
+    expect(manualQa).toContain("MCP / Plugin / Skill");
+    expect(manualQa).toContain("Packaging / Migration");
+    expect(rcChecklist).toContain("pnpm verify:ci");
+    expect(rcChecklist).toContain("pnpm release:smoke");
+    expect(rcChecklist).toContain("git push origin main");
+    expect(rcChecklist).toContain("v0.33.0-v1-candidate-polish-rc.1");
+    expect(rcChecklist).toContain("full docs path links");
+    expect(docsIndex).toContain(
+      "release-notes-v0.33.0-v1-candidate-polish-rc.1.md"
+    );
+    expect(docsIndex).toContain("v1-candidate-manual-qa.md");
+    expect(docsIndex).toContain("v1-candidate-rc-checklist.md");
+    expect(rootReadme).toContain(
+      "v0.33.0 v1 Candidate Polish RC release notes"
+    );
+    expect(appReadme).toContain("v0.33.0 v1 candidate polish RC");
+    expect(combined).not.toContain("broad native bridge is enabled");
+    expect(combined).not.toContain("arbitrary desktop automation is enabled");
+    expect(combined).not.toContain("mutating MCP tools are enabled");
+    expect(combined).not.toContain("arbitrary Git/shell is enabled");
+    expect(combined).not.toContain("cloud sync is enabled");
+    expect(combined).not.toContain("telemetry upload is enabled");
+  });
 });
 
 describe("desktop dev scripts", () => {
