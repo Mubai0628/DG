@@ -33809,6 +33809,99 @@ describe("expanded desktop action proposal app surface", () => {
       "auto-update without confirmation is enabled"
     );
   });
+
+  it("documents the P1K v1 candidate readiness ADR and implementation gate", async () => {
+    const adr = await readFile(
+      path.join(repoRoot, "docs", "adr", "0011-v1-candidate-readiness.md"),
+      "utf8"
+    );
+    const threatModel = await readFile(
+      path.join(
+        repoRoot,
+        "docs",
+        "v1-candidate-readiness-threat-model-v0.32.md"
+      ),
+      "utf8"
+    );
+    const gate = await readFile(
+      path.join(repoRoot, "docs", "v1-candidate-implementation-gate-v0.32.md"),
+      "utf8"
+    );
+    const p1k002Plan = await readFile(
+      path.join(repoRoot, "docs", "p1k-002-security-audit-matrix-plan.md"),
+      "utf8"
+    );
+    const docsIndex = await readFile(
+      path.join(repoRoot, "docs", "README.md"),
+      "utf8"
+    );
+    const combined = `${adr}\n${threatModel}\n${gate}\n${p1k002Plan}\n${docsIndex}`;
+
+    expect(adr).toContain("ADR 0011: v1 Candidate Readiness");
+    expect(adr).toContain("Accepted for the P1K v1 candidate design gate");
+    expect(adr).toContain(
+      "v1 candidate readiness is evidence-based, not capability-based"
+    );
+    expect(adr).toContain("No new broad execution");
+    expect(adr).toContain("No broad native bridge");
+    expect(adr).toContain("Existing execution lanes must remain approved");
+    expect(adr).toContain("Data migration paths must be dry-run reviewed");
+
+    expect(threatModel).toContain("Release artifact mismatch");
+    expect(threatModel).toContain("Installer / update failure");
+    expect(threatModel).toContain("Data migration corruption");
+    expect(threatModel).toContain("Backup / restore mismatch");
+    expect(threatModel).toContain("Capability boundary regression");
+    expect(threatModel).toContain("Event / replay incompleteness");
+    expect(threatModel).toContain("Raw data leakage");
+    expect(threatModel).toContain("Cross-surface workflow drift");
+    expect(threatModel).toContain("Desktop action recovery failure");
+    expect(threatModel).toContain("MCP / plugin / skill boundary escape");
+    expect(threatModel).toContain(
+      "PermissionLease / approval receipt scope drift"
+    );
+    expect(threatModel).toContain("GitHub release / tag mismatch");
+    expect(threatModel).toContain("Manual QA gaps");
+
+    expect(gate).toContain("Release Artifact Gate");
+    expect(gate).toContain("Security Audit Gate");
+    expect(gate).toContain("Capability Boundary Gate");
+    expect(gate).toContain("Migration Dry-run Gate");
+    expect(gate).toContain("QA Matrix Gate");
+    expect(gate).toContain("Golden Regression Gate");
+    expect(gate).toContain("Event / Replay Gate");
+    expect(gate).toContain("Redaction / Secrets Gate");
+    expect(gate).toContain("Installer / Package Hygiene Gate");
+    expect(gate).toContain("Docs / Onboarding Gate");
+    expect(gate).toContain("Rollback Guidance Gate");
+    expect(gate).toContain("Do not release v0.33 until every gate");
+
+    expect(p1k002Plan).toContain("P1K-002 Security Audit Matrix Plan");
+    expect(p1k002Plan).toContain("web_table_to_csv");
+    expect(p1k002Plan).toContain("App approved apply / rollback");
+    expect(p1k002Plan).toContain("Git safe lanes");
+    expect(p1k002Plan).toContain("MCP read-only tool execution");
+    expect(p1k002Plan).toContain("Desktop Observer");
+    expect(p1k002Plan).toContain("Packaging / migration");
+    expect(p1k002Plan).toContain("raw data policy");
+    expect(p1k002Plan).toContain("boundary checker coverage");
+
+    expect(combined).toContain("0011-v1-candidate-readiness.md");
+    expect(combined).toContain("v1-candidate-readiness-threat-model-v0.32.md");
+    expect(combined).toContain("v1-candidate-implementation-gate-v0.32.md");
+    expect(combined).toContain("p1k-002-security-audit-matrix-plan.md");
+    expect(combined).toContain("No arbitrary Git / shell");
+    expect(combined).toContain("No mutating MCP tools");
+    expect(combined).toContain("No arbitrary plugin / skill execution");
+    expect(combined).toContain("No destructive migration");
+    expect(combined).toContain("No auto-update without confirmation");
+
+    expect(combined).not.toContain("broad native bridge is enabled");
+    expect(combined).not.toContain("mutating MCP tools are enabled");
+    expect(combined).not.toContain("arbitrary plugin execution is enabled");
+    expect(combined).not.toContain("arbitrary Git execution is enabled");
+    expect(combined).not.toContain("destructive migration is enabled");
+  });
 });
 
 describe("desktop dev scripts", () => {
