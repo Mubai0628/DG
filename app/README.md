@@ -63,6 +63,10 @@ Current scope:
 - prepare the v0.33 v1 candidate polish with security audit and capability
   boundary matrices while App live calls, broad Git/shell, native bridge,
   unapproved desktop actions, and disabled capability lanes remain blocked
+- document v1 candidate onboarding, manual QA, known limitations, and release
+  rollback guidance while App Shell live calls, API key reads, fetch/network,
+  autonomous coding, arbitrary desktop automation, mutating MCP, arbitrary
+  plugin/skill runtime, cloud sync, and auto-update remain disabled
 - prepare the v0.11 App-side Approved Execution MVP RC with narrow
   human-approved apply and rollback, exact typed confirmations, private
   checkpoints, summary-only approved execution events, replay counts, and E2E

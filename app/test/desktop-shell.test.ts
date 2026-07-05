@@ -34298,6 +34298,75 @@ describe("expanded desktop action proposal app surface", () => {
     expect(combined).not.toContain("cloud sync is enabled");
     expect(combined).not.toContain("telemetry upload is enabled");
   });
+
+  it("documents v1 candidate onboarding, limitations, QA index, and rollback guidance", async () => {
+    const quickstart = await readFile(
+      path.join(repoRoot, "docs", "quickstart-v1-candidate.md"),
+      "utf8"
+    );
+    const limitations = await readFile(
+      path.join(repoRoot, "docs", "known-limitations-v1-candidate.md"),
+      "utf8"
+    );
+    const rollback = await readFile(
+      path.join(repoRoot, "docs", "release-rollback-guide-v1-candidate.md"),
+      "utf8"
+    );
+    const qaIndex = await readFile(
+      path.join(repoRoot, "docs", "manual-qa-index-v1-candidate.md"),
+      "utf8"
+    );
+    const docsIndex = await readFile(
+      path.join(repoRoot, "docs", "README.md"),
+      "utf8"
+    );
+    const rootReadme = await readFile(path.join(repoRoot, "README.md"), "utf8");
+    const appReadme = await readFile(
+      path.join(repoRoot, "app", "README.md"),
+      "utf8"
+    );
+    const combined = `${quickstart}\n${limitations}\n${rollback}\n${qaIndex}\n${docsIndex}\n${rootReadme}\n${appReadme}`;
+
+    expect(quickstart).toContain("Install / Run Prerequisites");
+    expect(quickstart).toContain("pnpm install");
+    expect(quickstart).toContain("pnpm app:dev");
+    expect(quickstart).toContain("Convert Smoke");
+    expect(quickstart).toContain("Live Proposal Opt-in Warning");
+    expect(quickstart).toContain("Approved Apply / Rollback Warning");
+    expect(quickstart).toContain("Git/shell Lane Warning");
+    expect(quickstart).toContain("MCP / Plugin / Desktop Boundaries");
+    expect(quickstart).toContain("Manual QA Docs Index");
+
+    [
+      "No arbitrary desktop automation",
+      "No mutating MCP tools",
+      "No arbitrary plugin execution",
+      "No arbitrary skill runtime",
+      "No broad native bridge",
+      "No arbitrary Git/shell",
+      "No cloud sync",
+      "No auto-update",
+      "No autonomous coding loop"
+    ].forEach((limit) => expect(limitations).toContain(limit));
+
+    expect(rollback).toContain("Rollback Release Tag");
+    expect(rollback).toContain("Workspace Checkpoint Rollback");
+    expect(rollback).toContain("EventStore Summary Replay");
+    expect(rollback).toContain("Data Backup Guidance");
+    expect(rollback).toContain("What Not To Delete");
+    expect(qaIndex).toContain("Manual QA Evidence Rules");
+    expect(docsIndex).toContain("quickstart-v1-candidate.md");
+    expect(docsIndex).toContain("known-limitations-v1-candidate.md");
+    expect(docsIndex).toContain("release-rollback-guide-v1-candidate.md");
+    expect(docsIndex).toContain("manual-qa-index-v1-candidate.md");
+    expect(rootReadme).toContain("v1 Candidate Review");
+    expect(appReadme).toContain("document v1 candidate onboarding");
+    expect(combined).not.toContain("arbitrary desktop automation is enabled");
+    expect(combined).not.toContain("mutating MCP tools are enabled");
+    expect(combined).not.toContain("broad native bridge is enabled");
+    expect(combined).not.toContain("cloud sync is enabled");
+    expect(combined).not.toContain("auto-update is enabled");
+  });
 });
 
 describe("desktop dev scripts", () => {

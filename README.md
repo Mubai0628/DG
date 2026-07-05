@@ -6,6 +6,22 @@ auditable, user-approved workflows.
 This is an unofficial community project. It is not produced, endorsed, or
 supported by DeepSeek.
 
+## v1 Candidate Review
+
+The v1 candidate polish line adds release-readiness docs for onboarding,
+security audit, capability boundaries, golden regression, artifact hygiene, data
+migration dry-run review, manual QA, and rollback guidance. The App Shell still
+does not call DeepSeek, read API keys, fetch network, run evaluation, execute
+arbitrary Git/shell, enable a broad native bridge, run arbitrary desktop
+automation, or bypass approved apply/rollback receipts.
+
+Start here:
+
+- [v1 Candidate Quickstart](docs/quickstart-v1-candidate.md)
+- [Known Limitations v1 Candidate](docs/known-limitations-v1-candidate.md)
+- [Manual QA Index v1 Candidate](docs/manual-qa-index-v1-candidate.md)
+- [Release Rollback Guide v1 Candidate](docs/release-rollback-guide-v1-candidate.md)
+
 ## v0.1.0 scope
 
 The first release focuses on one vertical slice: convert a visible table from a
