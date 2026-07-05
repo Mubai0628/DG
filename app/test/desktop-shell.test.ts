@@ -123,6 +123,10 @@ import {
   buildMigrationDryRunView,
   summarizeMigrationDryRunView
 } from "../src/migration-dry-run-view.js";
+import {
+  buildBackupRestorePlanView,
+  summarizeBackupRestorePlanView
+} from "../src/backup-restore-plan-view.js";
 import { buildDesktopOperatorRecoveryView } from "../src/desktop-operator-recovery-view.js";
 import { buildDesktopActionReplayPrivacyAuditView } from "../src/desktop-action-replay-privacy-audit-view.js";
 import { buildCrossSurfaceWorkflowView } from "../src/cross-surface-workflow-view.js";
@@ -26815,7 +26819,7 @@ describe("desktop source boundaries", () => {
       canWriteEventStore: false,
       appCanExecute: false
     });
-    expect(appSource).not.toContain("Restore Backup");
+    expect(appSource).not.toContain("restoreBackup(");
     expect(viewSource).not.toContain("safeInvoke");
     expect(viewSource).not.toContain("recordControlRunDraftEvent");
     expect(viewSource).not.toContain("process.env");
@@ -26945,6 +26949,115 @@ describe("desktop source boundaries", () => {
     expect(combinedLower).toContain("no desktop action");
     expect(docsIndex).toContain("runtime-migration-dry-run-v0.32.md");
     expect(docsIndex).toContain("app-shell-migration-dry-run-v0.32.md");
+  });
+
+  it("renders backup restore plans as dry-run only with disabled archive and restore controls", async () => {
+    const appSource = await readFile(
+      path.join(appRoot, "src", "App.tsx"),
+      "utf8"
+    );
+    const viewSource = await readFile(
+      path.join(appRoot, "src", "backup-restore-plan-view.ts"),
+      "utf8"
+    );
+    const normalizedAppSource = appSource.replace(/\s+/g, " ");
+    const view = buildBackupRestorePlanView({
+      backupPlan: {
+        packageId: "backup-safe",
+        itemCount: 1,
+        byteCount: 0,
+        schemaVersions: ["event_log.v1"],
+        includedDirectoryKinds: ["event_log"],
+        excludedDirectoryKinds: ["node_modules", "dist", "target", ".git"],
+        hashPrefixes: ["backup"],
+        manualVerificationSteps: ["Confirm manifest."],
+        sourceWorkspaceRootRef: "workspace-root",
+        targetWorkspaceRootRef: "workspace-root",
+        schemaRegistryPresent: true
+      },
+      restorePlan: {
+        packageId: "restore-safe",
+        itemCount: 1,
+        byteCount: 0,
+        schemaVersions: ["event_log.v1"],
+        includedDirectoryKinds: ["event_log"],
+        excludedDirectoryKinds: ["node_modules", "dist", "target", ".git"],
+        hashPrefixes: ["restore"],
+        manualVerificationSteps: ["Confirm target."],
+        sourceWorkspaceRootRef: "workspace-root",
+        targetWorkspaceRootRef: "workspace-root",
+        schemaRegistryPresent: true
+      },
+      rollbackPackagePlan: {
+        packageId: "rollback-safe",
+        itemCount: 0,
+        byteCount: 0,
+        schemaVersions: ["checkpoint.v1"],
+        includedDirectoryKinds: ["checkpoint_dir"],
+        excludedDirectoryKinds: ["node_modules", "dist", "target", ".git"],
+        hashPrefixes: ["rollback"],
+        manualVerificationSteps: ["Confirm registry."],
+        sourceWorkspaceRootRef: "workspace-root",
+        targetWorkspaceRootRef: "workspace-root",
+        schemaRegistryPresent: true
+      }
+    });
+    const summary = summarizeBackupRestorePlanView(view);
+
+    expect(appSource).toContain("Backup / Restore Plan");
+    expect(appSource).toContain("Dry-run only / no archive created");
+    expect(appSource).toContain("Create Backup Archive (disabled)");
+    expect(appSource).toContain("Restore Backup (disabled)");
+    expect(appSource).toContain("Delete Data (disabled)");
+    expect(normalizedAppSource).toContain("does not create archives");
+    expect(normalizedAppSource).toContain("restore backups");
+    expect(normalizedAppSource).toContain("delete data");
+    expect(normalizedAppSource).toContain("invoke Tauri");
+    expect(view.status).toBe("plan_ready");
+    expect(summary.packageCount).toBe(3);
+    expect(view.readiness).toMatchObject({
+      canCreateArchive: false,
+      canRestoreBackup: false,
+      canDeleteData: false,
+      canWriteFilesystem: false,
+      canWriteEventStore: false,
+      appCanExecute: false
+    });
+    expect(viewSource).not.toContain("safeInvoke");
+    expect(viewSource).not.toContain("recordControlRunDraftEvent");
+    expect(viewSource).not.toContain("process.env");
+    expect(viewSource).not.toContain("fetch(");
+  });
+
+  it("documents the backup restore dry-run boundary", async () => {
+    const runtimeDoc = await readFile(
+      path.join(repoRoot, "docs", "runtime-backup-restore-plan-v0.32.md"),
+      "utf8"
+    );
+    const appDoc = await readFile(
+      path.join(repoRoot, "docs", "app-shell-backup-restore-plan-v0.32.md"),
+      "utf8"
+    );
+    const docsIndex = await readFile(
+      path.join(repoRoot, "docs", "README.md"),
+      "utf8"
+    );
+    const combined = `${runtimeDoc}\n${appDoc}\n${docsIndex}`;
+    const combinedLower = combined.toLowerCase();
+
+    expect(combined).toContain("Runtime Backup / Restore Plan v0.32");
+    expect(combined).toContain("App Shell Backup / Restore Plan v0.32");
+    expect(combined).toContain("Dry-run only / no archive created");
+    expect(combinedLower).toContain("no archive creation");
+    expect(combinedLower).toContain("no restore execution");
+    expect(combinedLower).toContain("no data deletion");
+    expect(combinedLower).toContain("no filesystem write");
+    expect(combinedLower).toContain("no eventstore write");
+    expect(combinedLower).toContain("no git/shell execution");
+    expect(combinedLower).toContain("no native bridge");
+    expect(combinedLower).toContain("no desktop action");
+    expect(docsIndex).toContain("runtime-backup-restore-plan-v0.32.md");
+    expect(docsIndex).toContain("app-shell-backup-restore-plan-v0.32.md");
   });
 
   it("documents the P1I desktop operator recovery ADR and gate", async () => {

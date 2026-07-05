@@ -533,6 +533,8 @@ foundation.
 - [App Shell App Data Inventory / Schema Registry v0.32](app-shell-app-data-inventory-v0.32.md)
 - [Runtime Migration Dry-run v0.32](runtime-migration-dry-run-v0.32.md)
 - [App Shell Migration Dry-run v0.32](app-shell-migration-dry-run-v0.32.md)
+- [Runtime Backup / Restore Plan v0.32](runtime-backup-restore-plan-v0.32.md)
+- [App Shell Backup / Restore Plan v0.32](app-shell-backup-restore-plan-v0.32.md)
 - [Runtime Memory Recall Preview v0.3](runtime-memory-recall-preview-v0.3.md)
 - [v0.4.0 Controlled Creation Preview RC release notes](release-notes-v0.4.0-controlled-creation-preview-rc.1.md)
 - [App Shell Controlled Creation manual QA](app-shell-controlled-creation-manual-qa.md)

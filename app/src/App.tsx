@@ -220,6 +220,11 @@ import {
   type MigrationDryRunView
 } from "./migration-dry-run-view.js";
 import {
+  buildBackupRestorePlanView,
+  summarizeBackupRestorePlanView,
+  type BackupRestorePlanView
+} from "./backup-restore-plan-view.js";
+import {
   buildDesktopOperatorRecoveryView,
   summarizeDesktopOperatorRecoveryView,
   type DesktopOperatorRecoveryView
@@ -2658,6 +2663,57 @@ export function DesktopShell(): JSX.Element {
         }
       }),
     [displayedAppDataInventorySchema]
+  );
+  const displayedBackupRestorePlan = useMemo<BackupRestorePlanView>(
+    () =>
+      buildBackupRestorePlanView({
+        backupPlan: {
+          packageId: "app-shell-readonly-backup-plan",
+          itemCount: displayedAppDataInventorySchema.itemCount,
+          byteCount: 0,
+          schemaVersions: ["event_log.v1", "project_knowledge.v1"],
+          includedDirectoryKinds: ["event_log", "project_knowledge_store"],
+          excludedDirectoryKinds: ["node_modules", "dist", "target", ".git"],
+          hashPrefixes: [displayedAppDataInventorySchema.inventoryHashPrefix],
+          manualVerificationSteps: [
+            "Confirm package manifest counts match inventory summary."
+          ],
+          sourceWorkspaceRootRef: "workspace_root_ref",
+          targetWorkspaceRootRef: "workspace_root_ref",
+          schemaRegistryPresent: true
+        },
+        restorePlan: {
+          packageId: "app-shell-readonly-restore-plan",
+          itemCount: displayedAppDataInventorySchema.itemCount,
+          byteCount: 0,
+          schemaVersions: ["event_log.v1", "project_knowledge.v1"],
+          includedDirectoryKinds: ["event_log", "project_knowledge_store"],
+          excludedDirectoryKinds: ["node_modules", "dist", "target", ".git"],
+          hashPrefixes: [displayedAppDataInventorySchema.registryHashPrefix],
+          manualVerificationSteps: [
+            "Verify target workspace root ref before any future restore."
+          ],
+          sourceWorkspaceRootRef: "workspace_root_ref",
+          targetWorkspaceRootRef: "workspace_root_ref",
+          schemaRegistryPresent: true
+        },
+        rollbackPackagePlan: {
+          packageId: "app-shell-readonly-rollback-package-plan",
+          itemCount: 0,
+          byteCount: 0,
+          schemaVersions: ["checkpoint.v1"],
+          includedDirectoryKinds: ["checkpoint_dir"],
+          excludedDirectoryKinds: ["node_modules", "dist", "target", ".git"],
+          hashPrefixes: [displayedMigrationDryRun.planHashPrefix],
+          manualVerificationSteps: [
+            "Confirm rollback package schema registry summary exists."
+          ],
+          sourceWorkspaceRootRef: "workspace_root_ref",
+          targetWorkspaceRootRef: "workspace_root_ref",
+          schemaRegistryPresent: true
+        }
+      }),
+    [displayedAppDataInventorySchema, displayedMigrationDryRun]
   );
   const desktopOperatorRecoveryCandidate = useMemo<DesktopOperatorRecoveryView>(
     () =>
@@ -10185,6 +10241,127 @@ export function DesktopShell(): JSX.Element {
             <p className="fieldHelp">
               {summarizeMigrationDryRunView(displayedMigrationDryRun).status} ·{" "}
               {displayedMigrationDryRun.nextAction}
+            </p>
+          </section>
+
+          <section className="eventPanel" aria-label="Backup / Restore Plan">
+            <div className="panelHeader">
+              <h2>Backup / Restore Plan</h2>
+              <span className="muted">Dry-run only / no archive created</span>
+            </div>
+            <p className="fieldHelp">
+              Displays summary-only backup, restore, and rollback package plans.
+              The App Shell does not create archives, restore backups, delete
+              data, invoke Tauri, or write events.
+            </p>
+
+            <div className="buttonRow">
+              <button type="button" className="secondary" disabled>
+                Create Backup Archive (disabled)
+              </button>
+              <button type="button" className="secondary" disabled>
+                Restore Backup (disabled)
+              </button>
+              <button type="button" className="secondary" disabled>
+                Delete Data (disabled)
+              </button>
+            </div>
+
+            <dl className="summaryGrid compact">
+              <div>
+                <dt>Status</dt>
+                <dd>{displayedBackupRestorePlan.status}</dd>
+              </div>
+              <div>
+                <dt>Packages</dt>
+                <dd>{displayedBackupRestorePlan.packageCount}</dd>
+              </div>
+              <div>
+                <dt>Items / bytes</dt>
+                <dd>
+                  {displayedBackupRestorePlan.itemCount} /{" "}
+                  {displayedBackupRestorePlan.byteCount}
+                </dd>
+              </div>
+              <div>
+                <dt>Schema versions</dt>
+                <dd>{displayedBackupRestorePlan.schemaVersionCount}</dd>
+              </div>
+              <div>
+                <dt>Manual checks</dt>
+                <dd>
+                  {displayedBackupRestorePlan.manualVerificationStepCount}
+                </dd>
+              </div>
+              <div>
+                <dt>Blockers / warnings</dt>
+                <dd>
+                  {displayedBackupRestorePlan.blockerCount} /{" "}
+                  {displayedBackupRestorePlan.warningCount}
+                </dd>
+              </div>
+              <div>
+                <dt>Create archive</dt>
+                <dd>
+                  {displayedBackupRestorePlan.readiness.canCreateArchive
+                    ? "yes"
+                    : "no"}
+                </dd>
+              </div>
+              <div>
+                <dt>Restore / delete</dt>
+                <dd>
+                  {displayedBackupRestorePlan.readiness.canRestoreBackup
+                    ? "yes"
+                    : "no"}{" "}
+                  /{" "}
+                  {displayedBackupRestorePlan.readiness.canDeleteData
+                    ? "yes"
+                    : "no"}
+                </dd>
+              </div>
+              <div>
+                <dt>Write filesystem</dt>
+                <dd>
+                  {displayedBackupRestorePlan.readiness.canWriteFilesystem
+                    ? "yes"
+                    : "no"}
+                </dd>
+              </div>
+            </dl>
+
+            {displayedBackupRestorePlan.packageSummaries.length > 0 ? (
+              <ol className="timeline">
+                {displayedBackupRestorePlan.packageSummaries.map((summary) => (
+                  <li key={`${summary.planKind}-${summary.packageId}`}>
+                    <span className="timelineMeta">
+                      {summary.planKind} · {summary.status} ·{" "}
+                      {summary.hashPrefix}
+                    </span>
+                    <span>
+                      {summary.itemCount} item(s),{" "}
+                      {summary.manualVerificationStepCount} manual check(s)
+                    </span>
+                  </li>
+                ))}
+              </ol>
+            ) : null}
+
+            {displayedBackupRestorePlan.findings.length > 0 ? (
+              <p className="muted">
+                findings{" "}
+                {displayedBackupRestorePlan.findings
+                  .map((finding) => finding.code)
+                  .join(", ")}
+              </p>
+            ) : null}
+
+            <p className="fieldHelp">
+              {
+                summarizeBackupRestorePlanView(displayedBackupRestorePlan)
+                  .status
+              }{" "}
+              · {displayedBackupRestorePlan.nextAction}
             </p>
           </section>
 
