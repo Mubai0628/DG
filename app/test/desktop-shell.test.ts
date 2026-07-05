@@ -34628,6 +34628,113 @@ describe("expanded desktop action proposal app surface", () => {
     expect(combined).not.toContain("Git push execution is enabled");
     expect(combined).not.toContain("autonomous loop execution is enabled");
   });
+
+  it("documents the permission mode automation ADR and implementation gate", async () => {
+    const adr = await readFile(
+      path.join(
+        repoRoot,
+        "docs",
+        "adr",
+        "0011-permission-mode-high-privilege-automation.md"
+      ),
+      "utf8"
+    );
+    const threatModel = await readFile(
+      path.join(
+        repoRoot,
+        "docs",
+        "permission-mode-high-privilege-threat-model-v0.33.md"
+      ),
+      "utf8"
+    );
+    const gate = await readFile(
+      path.join(
+        repoRoot,
+        "docs",
+        "permission-mode-implementation-gate-v0.33.md"
+      ),
+      "utf8"
+    );
+    const p1l002Plan = await readFile(
+      path.join(
+        repoRoot,
+        "docs",
+        "p1l-002-permission-mode-matrix-session-lease-plan.md"
+      ),
+      "utf8"
+    );
+    const docsIndex = await readFile(
+      path.join(repoRoot, "docs", "README.md"),
+      "utf8"
+    );
+    const combined = `${adr}\n${threatModel}\n${gate}\n${p1l002Plan}\n${docsIndex}`;
+
+    expect(adr).toContain("Accepted for the P1L permission mode design gate");
+    expect(adr).toContain(
+      "High-privilege capabilities must be controlled by Permission Mode"
+    );
+    expect(adr).toContain("The default mode is Approval Mode");
+    expect(adr).toContain("Full Access is not the default mode");
+    expect(adr).toContain("Execution Policy Engine");
+    [
+      "read_only_preview",
+      "approval_mode",
+      "autonomous_safe_mode",
+      "advanced_workspace_mode",
+      "full_access_mode",
+      "break_glass_mode"
+    ].forEach((mode) => expect(adr).toContain(mode));
+
+    [
+      "User accidentally enables Full Access",
+      "Model-induced permission escalation",
+      "Prompt injection requests command execution",
+      "Destructive command",
+      "Recursive delete",
+      "Git push to wrong remote",
+      "Raw output leaks secret",
+      "Background process",
+      "Runaway loop",
+      "Kill switch failure",
+      "Stale session lease",
+      "Replay / audit tampering",
+      "Workspace escape / system path mutation",
+      "Desktop action escalation"
+    ].forEach((threat) => expect(threatModel).toContain(threat));
+
+    [
+      "Mode Schema Safety",
+      "Session Lease Safety",
+      "Capability Mapping Safety",
+      "Risk Budget Safety",
+      "Kill Switch Safety",
+      "UI Safety",
+      "Audit / Replay Safety",
+      "Boundary Checker Safety"
+    ].forEach((category) => expect(gate).toContain(category));
+
+    expect(gate).toContain("Do not implement arbitrary shell");
+    expect(p1l002Plan).toContain("No arbitrary shell");
+    expect(p1l002Plan).toContain("No recursive delete");
+    expect(p1l002Plan).toContain("No Git commit or push");
+    expect(p1l002Plan).toContain("No autonomous loop");
+    expect(p1l002Plan).toContain("No raw output persistence");
+    expect(docsIndex).toContain(
+      "adr/0011-permission-mode-high-privilege-automation.md"
+    );
+    expect(docsIndex).toContain(
+      "permission-mode-high-privilege-threat-model-v0.33.md"
+    );
+    expect(docsIndex).toContain("permission-mode-implementation-gate-v0.33.md");
+    expect(docsIndex).toContain(
+      "p1l-002-permission-mode-matrix-session-lease-plan.md"
+    );
+    expect(combined).not.toContain("Full Access execution is enabled");
+    expect(combined).not.toContain("arbitrary shell execution is enabled");
+    expect(combined).not.toContain("recursive delete execution is enabled");
+    expect(combined).not.toContain("Git push execution is enabled");
+    expect(combined).not.toContain("autonomous loop execution is enabled");
+  });
 });
 
 describe("desktop dev scripts", () => {
