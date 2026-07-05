@@ -27163,6 +27163,53 @@ describe("desktop source boundaries", () => {
     expect(docsIndex).toContain("app-shell-release-update-policy-v0.32.md");
   });
 
+  it("documents packaging artifact hygiene and cross-platform path checks", async () => {
+    const hygieneDoc = await readFile(
+      path.join(repoRoot, "docs", "packaging-artifact-hygiene-v0.32.md"),
+      "utf8"
+    );
+    const pathDoc = await readFile(
+      path.join(repoRoot, "docs", "cross-platform-packaging-paths-v0.32.md"),
+      "utf8"
+    );
+    const artifactScript = await readFile(
+      path.join(repoRoot, "scripts", "check-artifact-hygiene.mjs"),
+      "utf8"
+    );
+    const pathScript = await readFile(
+      path.join(repoRoot, "scripts", "check-packaging-paths.mjs"),
+      "utf8"
+    );
+    const docsIndex = await readFile(
+      path.join(repoRoot, "docs", "README.md"),
+      "utf8"
+    );
+    const combined = `${hygieneDoc}\n${pathDoc}\n${artifactScript}\n${pathScript}\n${docsIndex}`;
+
+    expect(hygieneDoc).toContain("Packaging Artifact Hygiene v0.32");
+    expect(pathDoc).toContain("Cross-platform Packaging Paths v0.32");
+    expect(combined).toContain("app/dist ignored");
+    expect(combined).toContain("runtime/dist ignored");
+    expect(combined).toContain("browser-extension/dist ignored");
+    expect(combined).toContain("app/src-tauri/target ignored");
+    expect(combined).toContain("conformance/results ignored");
+    expect(combined).toContain("no generated artifacts staged");
+    expect(combined).toContain("Tauri bundle identifier warning");
+    expect(combined).toContain("Vite chunk-size warning");
+    expect(combined).toContain("Windows path examples use safe escaping");
+    expect(combined).toContain("D:\\\\workspaces\\\\demo");
+    expect(combined).toContain("PowerShell `-LiteralPath`");
+    expect(combined).toContain("no filesystem mutation");
+    expect(combined).toContain("no Git/shell execution");
+    expect(combined).toContain("no native bridge");
+    expect(combined).toContain("no desktop action");
+    expect(artifactScript).toContain('"check-ignore"');
+    expect(artifactScript).toContain('"diff", "--cached"');
+    expect(pathScript).toContain("cross-platform-packaging-paths-v0.32.md");
+    expect(docsIndex).toContain("packaging-artifact-hygiene-v0.32.md");
+    expect(docsIndex).toContain("cross-platform-packaging-paths-v0.32.md");
+  });
+
   it("documents the P1I desktop operator recovery ADR and gate", async () => {
     const adr = await readFile(
       path.join(

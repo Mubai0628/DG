@@ -537,6 +537,8 @@ foundation.
 - [App Shell Backup / Restore Plan v0.32](app-shell-backup-restore-plan-v0.32.md)
 - [Runtime Release / Update Policy v0.32](runtime-release-update-policy-v0.32.md)
 - [App Shell Release / Update Policy v0.32](app-shell-release-update-policy-v0.32.md)
+- [Packaging Artifact Hygiene v0.32](packaging-artifact-hygiene-v0.32.md)
+- [Cross-platform Packaging Paths v0.32](cross-platform-packaging-paths-v0.32.md)
 - [Runtime Memory Recall Preview v0.3](runtime-memory-recall-preview-v0.3.md)
 - [v0.4.0 Controlled Creation Preview RC release notes](release-notes-v0.4.0-controlled-creation-preview-rc.1.md)
 - [App Shell Controlled Creation manual QA](app-shell-controlled-creation-manual-qa.md)

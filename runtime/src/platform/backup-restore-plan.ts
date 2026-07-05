@@ -381,14 +381,14 @@ function buildPlan<TKind extends BackupRestorePlanKind>(
     );
   }
 
-  for (const code of warningCodes) {
+  for (let index = 0; index < warningCodes.length; index += 1) {
     findings.push(
       finding(
         findings.length + 1,
         "safety",
         "warning",
         "PLAN_WARNING_CODE",
-        "Backup/restore plan contains a caller-provided warning code."
+        `Backup/restore plan contains caller-provided warning code #${index + 1}.`
       )
     );
   }

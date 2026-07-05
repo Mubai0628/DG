@@ -451,14 +451,14 @@ function buildRegistry(
       );
     }
 
-    for (const code of entry.warningCodes ?? []) {
+    for (let index = 0; index < (entry.warningCodes ?? []).length; index += 1) {
       findings.push(
         finding(
           findings.length + 1,
           "compatibility",
           "warning",
           "SCHEMA_ENTRY_WARNING_CODE",
-          "Schema registry entry contains a caller-provided warning code."
+          `Schema registry entry contains caller-provided warning code #${index + 1}.`
         )
       );
     }

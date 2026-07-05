@@ -502,14 +502,14 @@ function buildPlan(input: MigrationDryRunInput): MigrationDryRunPlan {
       status = "blocked";
     }
 
-    for (const code of step.warningCodes ?? []) {
+    for (let index = 0; index < (step.warningCodes ?? []).length; index += 1) {
       findings.push(
         finding(
           findings.length + 1,
           "step",
           "warning",
           "STEP_WARNING_CODE",
-          "Migration dry-run step contains a caller-provided warning code.",
+          `Migration dry-run step contains caller-provided warning code #${index + 1}.`,
           stepId
         )
       );
