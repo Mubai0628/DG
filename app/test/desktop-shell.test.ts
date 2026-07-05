@@ -27032,6 +27032,112 @@ describe("desktop source boundaries", () => {
     expect(appSource).not.toMatch(/>\s*Write Events\s*</);
   });
 
+  it("loads the desktop operator recovery golden smoke as summary-only App previews", async () => {
+    const fixtureText = await readFile(
+      path.join(
+        appRoot,
+        "test",
+        "fixtures",
+        "desktop-operator-recovery-smoke.json"
+      ),
+      "utf8"
+    );
+    const fixture = JSON.parse(fixtureText) as Record<string, unknown>;
+    const replayPrivacyAudit = fixture.replayPrivacyAudit as Record<
+      string,
+      unknown
+    >;
+    const recoveryView = buildDesktopOperatorRecoveryView({
+      recoveryJsonText: fixtureText,
+      sourceKind: "fixture"
+    });
+    const replayAuditView = buildDesktopActionReplayPrivacyAuditView({
+      auditJsonText: JSON.stringify(replayPrivacyAudit)
+    });
+    const appSource = await readFile(
+      path.join(appRoot, "src", "App.tsx"),
+      "utf8"
+    );
+    const smokeDoc = await readFile(
+      path.join(repoRoot, "docs", "desktop-operator-recovery-smoke-v0.31.md"),
+      "utf8"
+    );
+    const manualQaDoc = await readFile(
+      path.join(
+        repoRoot,
+        "docs",
+        "desktop-operator-recovery-manual-qa-v0.31.md"
+      ),
+      "utf8"
+    );
+    const docsIndex = await readFile(
+      path.join(repoRoot, "docs", "README.md"),
+      "utf8"
+    );
+
+    expect(fixture.fixtureId).toBe("desktop-operator-recovery-smoke-v0.31");
+    expect(fixture.smokePath).toEqual([
+      "desktop_observe_metadata",
+      "action_proposal",
+      "approved_focus_click_type_result_summary",
+      "mismatch_recovery_summary",
+      "freshness_recovery_summary",
+      "interruption_recovery_summary",
+      "compensation_recommendation_summary",
+      "replay_privacy_audit",
+      "app_recovery_surface"
+    ]);
+    expect(fixtureText).not.toContain("RAW_SCREENSHOT");
+    expect(fixtureText).not.toContain("RAW_OCR");
+    expect(fixtureText).not.toContain("RAW_TARGET_TEXT");
+    expect(fixtureText).not.toContain("RAW_CLIPBOARD");
+    expect(fixtureText).not.toContain("DEEPSEEK_API_KEY");
+    expect(fixtureText).not.toContain("OPENAI_API_KEY");
+    expect(fixtureText).not.toMatch(/\bsk-[A-Za-z0-9_-]{8,}\b/);
+
+    expect(recoveryView.status).toBe("summary_ready");
+    expect(recoveryView.stageCount).toBe(4);
+    expect(recoveryView.presentStageCount).toBe(4);
+    expect(recoveryView.blockerCount).toBe(0);
+    expect(recoveryView.readiness.canPreviewRecoverySummary).toBe(true);
+    expect(recoveryView.readiness.canRetryDesktopAction).toBe(false);
+    expect(recoveryView.readiness.canRunUndoAction).toBe(false);
+    expect(recoveryView.readiness.canExecuteDesktopAction).toBe(false);
+    expect(recoveryView.readiness.canReplayDesktopAction).toBe(false);
+    expect(recoveryView.readiness.canUseNativeBridge).toBe(false);
+    expect(recoveryView.readiness.appCanExecute).toBe(false);
+
+    expect(replayAuditView.status).toBe("summary_ready");
+    expect(replayAuditView.missingEventRefCount).toBe(0);
+    expect(replayAuditView.privacyLeakDetected).toBe(false);
+    expect(replayAuditView.readiness.canPreviewReplayAudit).toBe(true);
+    expect(replayAuditView.readiness.canReplayExecuteAction).toBe(false);
+    expect(replayAuditView.readiness.canExecuteDesktopAction).toBe(false);
+    expect(replayAuditView.readiness.canUseNativeBridge).toBe(false);
+    expect(replayAuditView.readiness.appCanExecute).toBe(false);
+
+    expect(appSource).toContain("Retry Desktop Action (disabled)");
+    expect(appSource).toContain("Run Undo Action (disabled)");
+    expect(appSource).toContain("Replay Execution (disabled)");
+    expect(appSource).toContain("Re-run Desktop Action (disabled)");
+    expect(appSource).not.toMatch(/>\s*Retry Desktop Action\s*</);
+    expect(appSource).not.toMatch(/>\s*Run Undo Action\s*</);
+    expect(appSource).not.toMatch(/>\s*Replay Execution\s*</);
+    expect(appSource).not.toMatch(/>\s*Re-run Desktop Action\s*</);
+    expect(appSource).not.toMatch(/>\s*Execute Desktop Action\s*</);
+
+    expect(smokeDoc).toContain("desktop observe metadata");
+    expect(smokeDoc).toContain("no raw screenshot or OCR persistence");
+    expect(manualQaDoc).toContain("Retry Desktop Action is disabled");
+    expect(manualQaDoc).toContain("Replay Execution is disabled");
+    expect(manualQaDoc).toContain("no raw screenshot");
+    expect(manualQaDoc).toContain("No broad desktop automation");
+    expect(docsIndex).toContain("desktop-operator-recovery-smoke-v0.31.md");
+    expect(docsIndex).toContain(
+      "desktop-operator-recovery-manual-qa-v0.31.md"
+    );
+  });
+
   it("documents the P1G north star demo hardening ADR and gate", async () => {
     const adr = await readFile(
       path.join(repoRoot, "docs", "adr", "0011-north-star-demo-hardening.md"),

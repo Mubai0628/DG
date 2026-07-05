@@ -1,0 +1,121 @@
+{
+  "fixtureId": "desktop-operator-recovery-smoke-v0.31",
+  "summaryOnly": true,
+  "smokePath": [
+    "desktop_observe_metadata",
+    "action_proposal",
+    "approved_focus_click_type_result_summary",
+    "mismatch_recovery_summary",
+    "freshness_recovery_summary",
+    "interruption_recovery_summary",
+    "compensation_recommendation_summary",
+    "replay_privacy_audit",
+    "app_recovery_surface"
+  ],
+  "desktopObserveMetadata": {
+    "observationId": "desktop-operator-recovery-smoke-observation",
+    "observedAt": "2026-07-05T08:00:00.000Z",
+    "windowIdHash": "window-hash-recovery-smoke",
+    "appIdHash": "app-hash-recovery-smoke",
+    "displayIdHash": "display-hash-primary",
+    "boundsHash": "bounds-hash-recovery-smoke",
+    "titleHash": "title-hash-recovery-smoke",
+    "evidenceRefId": "desktop-operator-recovery-smoke-evidence",
+    "summary": "Summary-only observed desktop metadata for the recovery smoke path."
+  },
+  "actionProposalSummary": {
+    "proposalId": "desktop-operator-recovery-smoke-proposal",
+    "proposalKind": "approved_focus_click_type_summary",
+    "objectiveSummary": "Preview recovery after a bounded focus, click, and type sequence without executing a real desktop action.",
+    "operationCount": 3,
+    "operationKinds": ["focus_window", "click_target", "type_text"],
+    "evidenceRefCount": 1,
+    "riskLevel": "bounded_manual_approval_required",
+    "summary": "Action proposal remains proposal-first and summary-only."
+  },
+  "approvedResultSummary": {
+    "approvalReceiptId": "desktop-operator-recovery-smoke-approval",
+    "executionResultId": "desktop-operator-recovery-smoke-result",
+    "status": "summary_recorded",
+    "actionKinds": ["focus_window", "click_target", "type_text"],
+    "resultHash": "result-hash-recovery-smoke",
+    "typedInputLength": 12,
+    "typedInputHash": "typed-input-hash-smoke",
+    "summary": "Approved result summary is represented by hashes, counts, and warning codes only.",
+    "warningCodes": []
+  },
+  "mismatchRecovery": {
+    "status": "recovery_ready",
+    "summary": "Detected target hash mismatch after the approved action summary and recommended a fresh observation before any retry.",
+    "blockerCount": 0,
+    "warningCount": 0,
+    "recommendationCodes": ["RERUN_OBSERVATION_REQUIRED"]
+  },
+  "freshnessRecovery": {
+    "status": "fresh",
+    "summary": "Observation age, window hash, app hash, display hash, bounds hash, and title hash match the approved summary refs.",
+    "ageMs": 1800,
+    "blockerCount": 0,
+    "warningCount": 0
+  },
+  "interruptionRecovery": {
+    "status": "no_interruption",
+    "summary": "No focus loss, user interruption, platform timeout, or permission revocation is present in the smoke summary.",
+    "blockerCount": 0,
+    "warningCount": 0
+  },
+  "compensationSummary": {
+    "status": "summary_ready",
+    "summary": "Compensation recommendation is manual review plus fresh observation; no undo action is executed.",
+    "compensationKinds": [
+      "manual_user_review_required",
+      "rerun_observation_required"
+    ],
+    "blockerCount": 0,
+    "warningCount": 0
+  },
+  "replayPrivacyAudit": {
+    "status": "replay_ready",
+    "observerEventSummary": {
+      "eventRefId": "desktop-operator-recovery-smoke-observer-event",
+      "evidenceRefId": "desktop-operator-recovery-smoke-evidence"
+    },
+    "actionProposalEventSummary": {
+      "eventRefId": "desktop-operator-recovery-smoke-proposal-event",
+      "proposalId": "desktop-operator-recovery-smoke-proposal"
+    },
+    "approvalReceiptSummary": {
+      "receiptId": "desktop-operator-recovery-smoke-approval"
+    },
+    "executionResultSummary": {
+      "resultId": "desktop-operator-recovery-smoke-result",
+      "resultHash": "result-hash-recovery-smoke"
+    },
+    "missingEventRefs": [],
+    "privacyLeakCounts": {},
+    "redactionSummary": {
+      "replayCanReexecute": false,
+      "summaryOnly": true
+    },
+    "blockerCount": 0,
+    "warningCount": 0
+  },
+  "appRecoverySurfaceSummary": {
+    "surface": "Desktop Operator Recovery",
+    "status": "read_only_preview",
+    "recoveryStageCount": 4,
+    "replayAuditIncluded": true,
+    "retryControl": "disabled",
+    "undoControl": "disabled",
+    "actionExecutionControl": "absent",
+    "summary": "The App recovery surface renders summary-only recovery and replay audit status without retry or undo execution."
+  },
+  "expected": {
+    "recoveryStatus": "summary_ready",
+    "replayAuditStatus": "summary_ready",
+    "eventSummaryOnly": true,
+    "realDesktopActionExecuted": false,
+    "retryUndoExecutionEnabled": false,
+    "privacyLeakDetected": false
+  }
+}

@@ -516,6 +516,8 @@ foundation.
 - [App Shell Desktop Operator Recovery v0.31](app-shell-desktop-operator-recovery-v0.31.md)
 - [Runtime Desktop Action Replay Privacy Audit v0.31](runtime-desktop-action-replay-privacy-audit-v0.31.md)
 - [App Shell Desktop Action Replay Privacy Audit v0.31](app-shell-desktop-action-replay-privacy-audit-v0.31.md)
+- [Desktop Operator Recovery Smoke v0.31](desktop-operator-recovery-smoke-v0.31.md)
+- [Desktop Operator Recovery Manual QA v0.31](desktop-operator-recovery-manual-qa-v0.31.md)
 - [Runtime Memory Recall Preview v0.3](runtime-memory-recall-preview-v0.3.md)
 - [v0.4.0 Controlled Creation Preview RC release notes](release-notes-v0.4.0-controlled-creation-preview-rc.1.md)
 - [App Shell Controlled Creation manual QA](app-shell-controlled-creation-manual-qa.md)
