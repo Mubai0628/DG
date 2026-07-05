@@ -10409,7 +10409,8 @@ export function DesktopShell(): JSX.Element {
               Summarizes release channel policy and first-run upgrade state. The
               App Shell does not check for updates, fetch network, download
               installers, install updates, run upgrade migration, invoke Tauri,
-              or write events.
+              or write events. No auto-update, no destructive migration, and no
+              silent data deletion are enabled.
             </p>
 
             <div className="buttonRow">

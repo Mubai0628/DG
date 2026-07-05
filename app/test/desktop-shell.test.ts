@@ -27269,6 +27269,121 @@ describe("desktop source boundaries", () => {
     expect(docsIndex).toContain("north-star-qa-matrix-v0.32.md");
   });
 
+  it("documents the v0.32 packaging update migration RC release", async () => {
+    const releaseNotes = await readFile(
+      path.join(
+        repoRoot,
+        "docs",
+        "release-notes-v0.32.0-packaging-update-migration-qa-rc.1.md"
+      ),
+      "utf8"
+    );
+    const manualQa = await readFile(
+      path.join(repoRoot, "docs", "packaging-update-migration-manual-qa.md"),
+      "utf8"
+    );
+    const rcChecklist = await readFile(
+      path.join(repoRoot, "docs", "packaging-update-migration-rc-checklist.md"),
+      "utf8"
+    );
+    const docsIndex = await readFile(
+      path.join(repoRoot, "docs", "README.md"),
+      "utf8"
+    );
+    const rootReadme = await readFile(path.join(repoRoot, "README.md"), "utf8");
+    const appReadme = await readFile(path.join(appRoot, "README.md"), "utf8");
+    const appSource = await readFile(
+      path.join(appRoot, "src", "App.tsx"),
+      "utf8"
+    );
+    const combined = `${releaseNotes}\n${manualQa}\n${rcChecklist}\n${docsIndex}\n${rootReadme}\n${appReadme}\n${appSource}`;
+
+    expect(releaseNotes).toContain(
+      "v0.32.0-packaging-update-migration-qa-rc.1"
+    );
+    expect(releaseNotes).toContain(
+      "Packaging, update, migration, and QA matrix hardening"
+    );
+    expect(releaseNotes).toContain(
+      "web_table_to_csv Convert remains the real baseline conversion flow."
+    );
+    expect(releaseNotes).toContain(
+      "App-side approved execution remains human-approved and rollbackable."
+    );
+    expect(releaseNotes).toContain(
+      "Packaging/update/migration models are dry-run / read-only."
+    );
+    expect(releaseNotes).toContain(
+      "No auto-update, no destructive migration, no silent deletion."
+    );
+    for (const required of [
+      "App data inventory / schema registry",
+      "Migration dry-run plan",
+      "Backup / restore plan",
+      "Release channel / update policy",
+      "First-run upgrade state",
+      "Packaging artifact hygiene",
+      "Manual QA matrix",
+      "Release smoke matrix"
+    ]) {
+      expect(releaseNotes).toContain(required);
+    }
+    expect(releaseNotes).toContain("no auto-update without confirmation");
+    expect(releaseNotes).toContain("no destructive migration");
+    expect(releaseNotes).toContain("no silent data deletion");
+    expect(releaseNotes).toContain("no cloud sync");
+    expect(releaseNotes).toContain("no telemetry upload");
+    expect(releaseNotes).toContain("no new execution capability");
+    expect(releaseNotes).toContain("ignored artifacts remain ignored");
+    expect(releaseNotes).toContain("pnpm verify:ci");
+    expect(releaseNotes).toContain("pnpm release:smoke");
+    expect(manualQa).toContain("Convert smoke");
+    expect(manualQa).toContain("App approved apply/rollback smoke");
+    expect(manualQa).toContain("Git/shell safe lanes smoke");
+    expect(manualQa).toContain("Project Knowledge surface");
+    expect(manualQa).toContain("MCP read-only surface");
+    expect(manualQa).toContain("Plugin/skill metadata surface");
+    expect(manualQa).toContain("Fixed multi-agent surface");
+    expect(manualQa).toContain("Desktop Observer / Action surfaces");
+    expect(manualQa).toContain("Data inventory panel");
+    expect(manualQa).toContain("Migration dry-run panel");
+    expect(manualQa).toContain("Backup/restore plan panel");
+    expect(manualQa).toContain("Release/update policy panel");
+    expect(manualQa).toContain("No auto-update");
+    expect(manualQa).toContain("No migration execution");
+    expect(manualQa).toContain("No deletion");
+    expect(manualQa).toContain("Ignored artifacts not shown as committed");
+    expect(rcChecklist).toContain("Scoped Gates");
+    expect(rcChecklist).toContain("Full Gates");
+    expect(rcChecklist).toContain("GitHub Actions");
+    expect(rcChecklist).toContain("manual QA");
+    expect(rcChecklist).toContain("Artifact Hygiene");
+    expect(rcChecklist).toContain("Tag / Release Commands");
+    expect(rcChecklist).toContain("Rollback Guidance");
+    expect(rcChecklist).toContain("Known Warnings");
+    expect(rcChecklist).toContain(
+      "full docs path links in GitHub Release body"
+    );
+    expect(combined).toContain("No auto-update");
+    expect(combined).toContain("no destructive migration");
+    expect(combined).toContain("no silent data deletion");
+    expect(combined).toContain("no cloud sync");
+    expect(combined).toContain("no telemetry upload");
+    expect(appSource).toContain("Check for Updates (disabled)");
+    expect(appSource).toContain("Install Update (disabled)");
+    expect(appSource).toContain("Run Upgrade Migration (disabled)");
+    expect(appSource).toContain("No auto-update, no destructive migration");
+    expect(docsIndex).toContain(
+      "release-notes-v0.32.0-packaging-update-migration-qa-rc.1.md"
+    );
+    expect(docsIndex).toContain("packaging-update-migration-manual-qa.md");
+    expect(docsIndex).toContain("packaging-update-migration-rc-checklist.md");
+    expect(rootReadme).toContain("v0.32 Packaging / Update / Data Migration");
+    expect(appReadme).toContain(
+      "prepare the v0.32 Packaging / Update / Data Migration / QA Matrix RC"
+    );
+  });
+
   it("documents the P1I desktop operator recovery ADR and gate", async () => {
     const adr = await readFile(
       path.join(

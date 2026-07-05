@@ -95,6 +95,12 @@ Current scope:
   actions, screen recording, clipboard write by default, file dialog automation
   by default, native bridge, arbitrary Git/shell, and broad PermissionLease
   remain disabled
+- prepare the v0.32 Packaging / Update / Data Migration / QA Matrix RC with
+  App data inventory, schema registry, migration dry-run, backup/restore plan,
+  and release/update policy panels while auto-update, destructive migration,
+  silent deletion, archive creation, restore execution, EventStore write,
+  fetch/network, native bridge, desktop action, and new App execution remain
+  disabled
 - show the Desktop Operator Recovery surface as a read-only summary-only App
   panel; retry, undo, click, type, clipboard, file dialog, replay execution,
   EventStore write, and native bridge controls remain disabled
