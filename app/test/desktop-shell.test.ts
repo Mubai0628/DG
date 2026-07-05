@@ -34173,6 +34173,80 @@ describe("expanded desktop action proposal app surface", () => {
     expect(combined).not.toContain("arbitrary Git is enabled");
     expect(combined).not.toContain("native bridge is enabled");
   });
+
+  it("documents package artifact hygiene and keeps the artifact check read-only", async () => {
+    const hygiene = await readFile(
+      path.join(
+        repoRoot,
+        "docs",
+        "installer-package-artifact-hygiene-v0.33.md"
+      ),
+      "utf8"
+    );
+    const allowlist = await readFile(
+      path.join(repoRoot, "docs", "package-artifact-allowlist-v0.33.md"),
+      "utf8"
+    );
+    const checklist = await readFile(
+      path.join(
+        repoRoot,
+        "docs",
+        "package-artifact-release-checklist-v0.33.md"
+      ),
+      "utf8"
+    );
+    const docsIndex = await readFile(
+      path.join(repoRoot, "docs", "README.md"),
+      "utf8"
+    );
+    const rootPackage = JSON.parse(
+      await readFile(path.join(repoRoot, "package.json"), "utf8")
+    ) as PackageJson;
+    const script = await readFile(
+      path.join(repoRoot, "scripts", "check-package-artifacts.mjs"),
+      "utf8"
+    );
+    const combined = `${hygiene}\n${allowlist}\n${checklist}\n${docsIndex}`;
+
+    [
+      "app/dist",
+      "app/src-tauri/target",
+      "runtime/dist",
+      "browser-extension/dist",
+      "conformance/results",
+      ".tmp",
+      "node_modules",
+      "release zips",
+      "logs",
+      "screenshots",
+      "coverage"
+    ].forEach((artifact) => expect(combined).toContain(artifact));
+
+    expect(rootPackage.scripts["check:artifacts"]).toBe(
+      "node scripts/check-package-artifacts.mjs"
+    );
+    expect(script).toContain("readFileSync");
+    expect(script).toContain("noDelete");
+    expect(script).toContain("noUpload");
+    expect(script).toContain("noNetwork");
+    expect(script).toContain("noWriteOutsideStdout");
+    expect(script).not.toContain("writeFile");
+    expect(script).not.toContain("appendFile");
+    expect(script).not.toContain("fetch(");
+    expect(script).not.toContain("exec(");
+    expect(script).not.toContain("spawn(");
+
+    expect(combined).toContain("No auto-update");
+    expect(combined).toContain("No destructive install/uninstall");
+    expect(combined).toContain("No silent deletion");
+    expect(combined).toContain("No telemetry upload");
+    expect(docsIndex).toContain("installer-package-artifact-hygiene-v0.33.md");
+    expect(docsIndex).toContain("package-artifact-allowlist-v0.33.md");
+    expect(docsIndex).toContain("package-artifact-release-checklist-v0.33.md");
+    expect(combined).not.toContain("auto-update is enabled");
+    expect(combined).not.toContain("destructive uninstall is enabled");
+    expect(combined).not.toContain("telemetry upload is enabled");
+  });
 });
 
 describe("desktop dev scripts", () => {
