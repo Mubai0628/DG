@@ -402,7 +402,10 @@ function readCompensationKinds(
   if (Array.isArray(record.compensationKinds)) {
     record.compensationKinds.forEach((item, index) => {
       const kind = readString(item);
-      if (!kind || !compensationKinds.includes(kind as DesktopActionCompensationKind)) {
+      if (
+        !kind ||
+        !compensationKinds.includes(kind as DesktopActionCompensationKind)
+      ) {
         findings.push(
           finding(
             "schema",

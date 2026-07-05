@@ -393,7 +393,9 @@ function scanUnsafeFields(
   }
 }
 
-function readSummaryRecord(value: unknown): Record<string, unknown> | undefined {
+function readSummaryRecord(
+  value: unknown
+): Record<string, unknown> | undefined {
   return isRecord(value) ? value : undefined;
 }
 
@@ -534,7 +536,8 @@ function buildReport(
     actionId: readString(input.record?.actionId),
     proposalId: readString(input.record?.proposalId),
     evidenceRefId: readString(input.evidence?.evidenceRefId),
-    targetId: readString(input.target?.targetId) ?? readString(input.record?.targetId),
+    targetId:
+      readString(input.target?.targetId) ?? readString(input.record?.targetId),
     ageSummary: input.ageSummary,
     staleReasonCodes: input.staleReasonCodes,
     hashComparisons: input.hashComparisons.map((comparison) => ({

@@ -866,10 +866,8 @@ export function DesktopShell(): JSX.Element {
   ] = useState<LiveProposalEvaluationTelemetryAuditView | undefined>();
   const [desktopOperatorRecoveryText, setDesktopOperatorRecoveryText] =
     useState("");
-  const [
-    desktopOperatorRecoveryPreview,
-    setDesktopOperatorRecoveryPreview
-  ] = useState<DesktopOperatorRecoveryView | undefined>();
+  const [desktopOperatorRecoveryPreview, setDesktopOperatorRecoveryPreview] =
+    useState<DesktopOperatorRecoveryView | undefined>();
   const [
     desktopActionReplayPrivacyAuditText,
     setDesktopActionReplayPrivacyAuditText
@@ -2545,15 +2543,14 @@ export function DesktopShell(): JSX.Element {
   const displayedLiveProposalEvaluationTelemetryAudit =
     liveProposalEvaluationTelemetryAuditPreview ??
     buildLiveProposalEvaluationTelemetryAuditView();
-  const desktopOperatorRecoveryCandidate =
-    useMemo<DesktopOperatorRecoveryView>(
-      () =>
-        buildDesktopOperatorRecoveryView({
-          recoveryJsonText: desktopOperatorRecoveryText,
-          sourceKind: "paste"
-        }),
-      [desktopOperatorRecoveryText]
-    );
+  const desktopOperatorRecoveryCandidate = useMemo<DesktopOperatorRecoveryView>(
+    () =>
+      buildDesktopOperatorRecoveryView({
+        recoveryJsonText: desktopOperatorRecoveryText,
+        sourceKind: "paste"
+      }),
+    [desktopOperatorRecoveryText]
+  );
   const displayedDesktopOperatorRecovery =
     desktopOperatorRecoveryPreview ?? buildDesktopOperatorRecoveryView();
   const desktopActionReplayPrivacyAuditCandidate =
@@ -10071,11 +10068,11 @@ export function DesktopShell(): JSX.Element {
               <span className="muted">Read-only / no replay execution</span>
             </div>
             <p className="fieldHelp">
-              Audits desktop observer, action proposal, approval, execution,
-              and recovery summaries for replay completeness and privacy
-              redaction. The App Shell does not re-execute desktop actions,
-              click, type, use clipboard, open file dialogs, write events, or
-              invoke native bridge.
+              Audits desktop observer, action proposal, approval, execution, and
+              recovery summaries for replay completeness and privacy redaction.
+              The App Shell does not re-execute desktop actions, click, type,
+              use clipboard, open file dialogs, write events, or invoke native
+              bridge.
             </p>
 
             <label>

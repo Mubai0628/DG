@@ -26907,9 +26907,7 @@ describe("desktop source boundaries", () => {
     expect(combined).toContain("No Tauri command");
     expect(combined).toContain("No EventStore write");
     expect(combined).toContain("No native bridge");
-    expect(docsIndex).toContain(
-      "app-shell-desktop-operator-recovery-v0.31.md"
-    );
+    expect(docsIndex).toContain("app-shell-desktop-operator-recovery-v0.31.md");
     expect(appSource).not.toMatch(/>\s*Retry Desktop Action\s*</);
     expect(appSource).not.toMatch(/>\s*Run Undo Action\s*</);
     expect(appSource).not.toMatch(/>\s*Click\s*</);
@@ -27008,8 +27006,12 @@ describe("desktop source boundaries", () => {
     expect(viewSource).not.toContain("invoke(");
     expect(viewSource).not.toContain("executeApprovedDesktopAction");
     expect(viewSource).not.toContain("recordControlRunDraftEvent");
-    expect(combined).toContain("observer event summaries include an evidence ref");
-    expect(combined).toContain("action proposal event summaries include a proposal id");
+    expect(combined).toContain(
+      "observer event summaries include an evidence ref"
+    );
+    expect(combined).toContain(
+      "action proposal event summaries include a proposal id"
+    );
     expect(combined).toContain("approval receipt summaries exist");
     expect(combined).toContain("execution result summaries exist");
     expect(combined).toContain("raw screenshot");
@@ -27133,9 +27135,131 @@ describe("desktop source boundaries", () => {
     expect(manualQaDoc).toContain("no raw screenshot");
     expect(manualQaDoc).toContain("No broad desktop automation");
     expect(docsIndex).toContain("desktop-operator-recovery-smoke-v0.31.md");
-    expect(docsIndex).toContain(
-      "desktop-operator-recovery-manual-qa-v0.31.md"
+    expect(docsIndex).toContain("desktop-operator-recovery-manual-qa-v0.31.md");
+  });
+
+  it("documents the v0.31 desktop operator recovery RC release gates", async () => {
+    const releaseNotes = await readFile(
+      path.join(
+        repoRoot,
+        "docs",
+        "release-notes-v0.31.0-desktop-operator-recovery-hardening-rc.1.md"
+      ),
+      "utf8"
     );
+    const manualQa = await readFile(
+      path.join(
+        repoRoot,
+        "docs",
+        "desktop-operator-recovery-hardening-manual-qa.md"
+      ),
+      "utf8"
+    );
+    const rcChecklist = await readFile(
+      path.join(
+        repoRoot,
+        "docs",
+        "desktop-operator-recovery-hardening-rc-checklist.md"
+      ),
+      "utf8"
+    );
+    const docsIndex = await readFile(
+      path.join(repoRoot, "docs", "README.md"),
+      "utf8"
+    );
+    const rootReadme = await readFile(path.join(repoRoot, "README.md"), "utf8");
+    const appReadme = await readFile(path.join(appRoot, "README.md"), "utf8");
+    const appSource = await readFile(
+      path.join(appRoot, "src", "App.tsx"),
+      "utf8"
+    );
+    const combinedDocs = `${releaseNotes}\n${manualQa}\n${rcChecklist}\n${docsIndex}\n${rootReadme}\n${appReadme}`;
+
+    expect(releaseNotes).toContain(
+      "v0.31.0-desktop-operator-recovery-hardening-rc.1"
+    );
+    expect(releaseNotes).toContain(
+      "Desktop operator recovery and action hardening"
+    );
+    expect(releaseNotes).toContain("Desktop Observer remains metadata-only.");
+    expect(releaseNotes).toContain(
+      "Desktop Action Proposal remains proposal-first."
+    );
+    expect(releaseNotes).toContain(
+      "Approved desktop actions remain bounded and human-approved."
+    );
+    expect(releaseNotes).toContain(
+      "Desktop action mismatch / stale target / interruption / compensation"
+    );
+    expect(releaseNotes).toContain(
+      "App recovery surfaces are read-only and do not retry or execute actions."
+    );
+    expect(releaseNotes).toContain("No broad desktop automation.");
+    expect(releaseNotes).toContain("No replay re-execution.");
+    expect(releaseNotes).toContain(
+      "No raw screenshot/OCR/target text persistence."
+    );
+    expect(releaseNotes).toContain("Privacy/redaction audit");
+
+    expect(manualQa).toContain("Convert Smoke");
+    expect(manualQa).toContain("Desktop Observer Panel");
+    expect(manualQa).toContain("Desktop Action Proposal Panel");
+    expect(manualQa).toContain("Approved Desktop Action Surface");
+    expect(manualQa).toContain("Expanded Action Proposal Surface");
+    expect(manualQa).toContain("Recovery Surface");
+    expect(manualQa).toContain("Replay Privacy Audit");
+    expect(manualQa).toContain("Retry Desktop Action is disabled");
+    expect(manualQa).toContain("Run Undo Action is disabled");
+    expect(manualQa).toContain("no raw screenshot");
+    expect(manualQa).toContain("no raw OCR");
+    expect(manualQa).toContain("no API key");
+    expect(manualQa).toContain("No remote control.");
+
+    expect(rcChecklist).toContain("pnpm verify:ci");
+    expect(rcChecklist).toContain("pnpm release:smoke");
+    expect(rcChecklist).toContain("pnpm app:qa:check");
+    expect(rcChecklist).toContain("GitHub Actions is green for `main`");
+    expect(rcChecklist).toContain(
+      "v0.31.0-desktop-operator-recovery-hardening-rc.1"
+    );
+    expect(rcChecklist).toContain(
+      "docs/desktop-operator-recovery-hardening-manual-qa.md"
+    );
+
+    expect(appSource).toContain("Desktop Operator Recovery");
+    expect(appSource).toContain("Read-only / no desktop action");
+    expect(appSource).toContain("Desktop Action Replay Privacy Audit");
+    expect(appSource).toContain("Read-only / no replay execution");
+    expect(appSource).toContain("Retry Desktop Action (disabled)");
+    expect(appSource).toContain("Run Undo Action (disabled)");
+    expect(appSource).toContain("Replay Execution (disabled)");
+    expect(appSource).toContain("Re-run Desktop Action (disabled)");
+    expect(appSource).not.toMatch(/>\s*Retry Desktop Action\s*</);
+    expect(appSource).not.toMatch(/>\s*Run Undo Action\s*</);
+    expect(appSource).not.toMatch(/>\s*Replay Execution\s*</);
+    expect(appSource).not.toMatch(/>\s*Re-run Desktop Action\s*</);
+    expect(appSource).not.toMatch(/>\s*Desktop Action\s*</);
+    expect(appSource).not.toMatch(/>\s*Undo Action\s*</);
+
+    expect(docsIndex).toContain(
+      "release-notes-v0.31.0-desktop-operator-recovery-hardening-rc.1.md"
+    );
+    expect(docsIndex).toContain(
+      "desktop-operator-recovery-hardening-manual-qa.md"
+    );
+    expect(docsIndex).toContain(
+      "desktop-operator-recovery-hardening-rc-checklist.md"
+    );
+    expect(rootReadme).toContain(
+      "P1I is complete for the v0.31 Desktop Operator Recovery / Action Hardening RC"
+    );
+    expect(appReadme).toContain(
+      "prepare the v0.31 Desktop Operator Recovery / Action Hardening RC"
+    );
+    expect(combinedDocs).not.toContain("broad desktop automation enabled");
+    expect(combinedDocs).not.toContain("native bridge enabled");
+    expect(combinedDocs).not.toContain("replay re-execution enabled");
+    expect(combinedDocs).not.toContain("retry execution enabled");
   });
 
   it("documents the P1G north star demo hardening ADR and gate", async () => {

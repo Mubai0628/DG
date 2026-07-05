@@ -87,13 +87,14 @@ Current scope:
   notes, manual QA, and RC checklist while mutating MCP tools, arbitrary MCP
   invocation, plugin/skill runtime, native bridge, desktop broad action,
   arbitrary Git/shell, and broad PermissionLease remain disabled
-- prepare the v0.31 Desktop Operator Recovery / Action Hardening roadmap with
+- prepare the v0.31 Desktop Operator Recovery / Action Hardening RC with
   mismatch recovery, stale target blockers, interruption and focus loss
   summaries, undo / compensation summaries, replay privacy audit, App
-  read-only recovery surface, golden smoke, and manual QA while broad desktop
-  automation, remote control, hidden background actions, screen recording,
-  clipboard write by default, file dialog automation by default, native bridge,
-  arbitrary Git/shell, and broad PermissionLease remain disabled
+  read-only recovery surface, golden smoke, manual QA, release notes, and RC
+  checklist while broad desktop automation, remote control, hidden background
+  actions, screen recording, clipboard write by default, file dialog automation
+  by default, native bridge, arbitrary Git/shell, and broad PermissionLease
+  remain disabled
 - show the Desktop Operator Recovery surface as a read-only summary-only App
   panel; retry, undo, click, type, clipboard, file dialog, replay execution,
   EventStore write, and native bridge controls remain disabled

@@ -214,7 +214,9 @@ function emptyLeakCounts(): DesktopActionReplayPrivacyLeakCounts {
   };
 }
 
-function readiness(canReplayForAudit: boolean): DesktopActionReplayPrivacyReadiness {
+function readiness(
+  canReplayForAudit: boolean
+): DesktopActionReplayPrivacyReadiness {
   return {
     canReplayForAudit,
     canReplayExecuteAction: false,
@@ -345,7 +347,10 @@ function scanUnsafeFields(
       if (normalizedKey.includes("ocr")) {
         leakCounts.rawOcrCount += 1;
       }
-      if (normalizedKey.includes("targettext") || normalizedKey === "targettext") {
+      if (
+        normalizedKey.includes("targettext") ||
+        normalizedKey === "targettext"
+      ) {
         leakCounts.rawTargetTextCount += 1;
       }
       findings.push(
@@ -516,10 +521,26 @@ function buildReport(
       : warningCount > 0
         ? "warning"
         : "replay_ready";
-  const observer = recordFor(record ?? {}, "observerEventSummary", "observerSummary");
-  const proposal = recordFor(record ?? {}, "actionProposalEventSummary", "proposalSummary");
-  const approval = recordFor(record ?? {}, "approvalReceiptSummary", "approvalSummary");
-  const execution = recordFor(record ?? {}, "executionResultSummary", "executionSummary");
+  const observer = recordFor(
+    record ?? {},
+    "observerEventSummary",
+    "observerSummary"
+  );
+  const proposal = recordFor(
+    record ?? {},
+    "actionProposalEventSummary",
+    "proposalSummary"
+  );
+  const approval = recordFor(
+    record ?? {},
+    "approvalReceiptSummary",
+    "approvalSummary"
+  );
+  const execution = recordFor(
+    record ?? {},
+    "executionResultSummary",
+    "executionSummary"
+  );
   const recovery = recordFor(
     record ?? {},
     "recoverySummary",
@@ -538,7 +559,8 @@ function buildReport(
     proposalId: readString(proposal?.proposalId),
     approvalReceiptId: readString(approval?.approvalReceiptId),
     executionResultId:
-      readString(execution?.executionResultId) ?? readString(execution?.resultId),
+      readString(execution?.executionResultId) ??
+      readString(execution?.resultId),
     recoverySummaryId: readString(recovery?.recoveryId),
     missingEventRefs,
     privacyLeakCounts,

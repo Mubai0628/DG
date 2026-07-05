@@ -403,7 +403,10 @@ function readInterruptionKinds(
   if (Array.isArray(record.interruptionKinds)) {
     record.interruptionKinds.forEach((item, index) => {
       const kind = readString(item);
-      if (!kind || !interruptionKinds.includes(kind as DesktopActionInterruptionKind)) {
+      if (
+        !kind ||
+        !interruptionKinds.includes(kind as DesktopActionInterruptionKind)
+      ) {
         findings.push(
           finding(
             "schema",

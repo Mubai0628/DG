@@ -365,7 +365,9 @@ function scanUnsafeFields(
   }
 }
 
-function readSummaryRecord(value: unknown): Record<string, unknown> | undefined {
+function readSummaryRecord(
+  value: unknown
+): Record<string, unknown> | undefined {
   return isRecord(value) ? value : undefined;
 }
 
@@ -430,10 +432,7 @@ function buildRecommendations(
       )
     ];
   }
-  if (
-    mismatchKinds.includes("bounds_changed") &&
-    mismatchKinds.length === 1
-  ) {
+  if (mismatchKinds.includes("bounds_changed") && mismatchKinds.length === 1) {
     return [
       recommendation(
         "refresh_observation",
@@ -472,7 +471,9 @@ function buildReport(
         : warningCount > 0
           ? "warning"
           : "recovery_ready";
-  const proposal = readSummaryRecord(input.record?.desktopActionProposalSummary);
+  const proposal = readSummaryRecord(
+    input.record?.desktopActionProposalSummary
+  );
   const receipt = readSummaryRecord(input.record?.approvalReceiptSummary);
   const execution = readSummaryRecord(input.record?.executionResultSummary);
   const evidence = readSummaryRecord(input.record?.observerEvidenceSummary);
