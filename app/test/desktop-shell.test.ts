@@ -26677,6 +26677,42 @@ describe("desktop source boundaries", () => {
     expect(combined).not.toContain("desktop action execution enabled");
   });
 
+  it("documents runtime desktop target freshness recovery v0.31", async () => {
+    const runtimeDoc = await readFile(
+      path.join(
+        repoRoot,
+        "docs",
+        "runtime-desktop-target-freshness-recovery-v0.31.md"
+      ),
+      "utf8"
+    );
+    const docsIndex = await readFile(
+      path.join(repoRoot, "docs", "README.md"),
+      "utf8"
+    );
+    const combined = `${runtimeDoc}\n${docsIndex}`;
+
+    expect(runtimeDoc).toContain(
+      "Runtime Desktop Target Freshness Recovery v0.31"
+    );
+    expect(runtimeDoc).toContain("runtime pure helper only");
+    expect(runtimeDoc).toContain("stale desktop observation evidence");
+    expect(runtimeDoc).toContain("observation too old");
+    expect(runtimeDoc).toContain("window id mismatch");
+    expect(runtimeDoc).toContain("foreground/focus mismatch");
+    expect(runtimeDoc).toContain("stale screenshot metadata");
+    expect(runtimeDoc).toContain("stale target metadata");
+    expect(runtimeDoc).toContain("raw screenshot");
+    expect(runtimeDoc).toContain("raw OCR");
+    expect(runtimeDoc).toContain("all execution readiness flags false");
+    expect(docsIndex).toContain(
+      "runtime-desktop-target-freshness-recovery-v0.31.md"
+    );
+    expect(combined).not.toContain("automatic retry enabled");
+    expect(combined).not.toContain("replay re-execution enabled");
+    expect(combined).not.toContain("native bridge enabled");
+  });
+
   it("documents the P1G north star demo hardening ADR and gate", async () => {
     const adr = await readFile(
       path.join(repoRoot, "docs", "adr", "0011-north-star-demo-hardening.md"),
