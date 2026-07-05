@@ -26556,6 +26556,90 @@ describe("desktop source boundaries", () => {
     expect(combined).not.toContain("arbitrary native bridge enabled");
   });
 
+  it("documents the P1I desktop operator recovery ADR and gate", async () => {
+    const adr = await readFile(
+      path.join(
+        repoRoot,
+        "docs",
+        "adr",
+        "0018-desktop-operator-recovery-hardening.md"
+      ),
+      "utf8"
+    );
+    const threatModel = await readFile(
+      path.join(
+        repoRoot,
+        "docs",
+        "desktop-operator-recovery-threat-model-v0.30.md"
+      ),
+      "utf8"
+    );
+    const implementationGate = await readFile(
+      path.join(
+        repoRoot,
+        "docs",
+        "desktop-operator-recovery-implementation-gate-v0.30.md"
+      ),
+      "utf8"
+    );
+    const nextPlan = await readFile(
+      path.join(
+        repoRoot,
+        "docs",
+        "p1i-002-desktop-action-mismatch-recovery-contract-plan.md"
+      ),
+      "utf8"
+    );
+    const docsIndex = await readFile(
+      path.join(repoRoot, "docs", "README.md"),
+      "utf8"
+    );
+    const combined = `${adr}\n${threatModel}\n${implementationGate}\n${nextPlan}\n${docsIndex}`;
+
+    expect(adr).toContain(
+      "ADR 0018: Desktop Operator Recovery / Action Hardening"
+    );
+    expect(adr).toContain("Accepted for P1I design gate");
+    expect(adr).toContain("does not expand the desktop action set");
+    expect(adr).toContain("summary-only");
+    expect(adr).toContain("Raw screenshot, OCR, and target text");
+    expect(threatModel).toContain("Stale screen evidence");
+    expect(threatModel).toContain("Focus loss");
+    expect(threatModel).toContain("Action interrupted");
+    expect(threatModel).toContain("Replay re-execution");
+    expect(threatModel).toContain("Compensating action overreach");
+    expect(threatModel).toContain("Native bridge expansion risk");
+    expect(implementationGate).toContain("Observation Freshness");
+    expect(implementationGate).toContain("Target Identity");
+    expect(implementationGate).toContain("Focus / Window Consistency");
+    expect(implementationGate).toContain("Undo / Compensation Summary");
+    expect(implementationGate).toContain("Replay Completeness");
+    expect(implementationGate).toContain("Privacy / Redaction");
+    expect(nextPlan).toContain(
+      "P1I-002 Desktop Action Mismatch Recovery Contract Plan"
+    );
+    expect(nextPlan).toContain("No desktop action execution");
+    expect(nextPlan).toContain("target_window_missing");
+    expect(nextPlan).toContain("privacy_boundary_blocked");
+    expect(docsIndex).toContain(
+      "adr/0018-desktop-operator-recovery-hardening.md"
+    );
+    expect(docsIndex).toContain(
+      "desktop-operator-recovery-threat-model-v0.30.md"
+    );
+    expect(docsIndex).toContain(
+      "desktop-operator-recovery-implementation-gate-v0.30.md"
+    );
+    expect(docsIndex).toContain(
+      "p1i-002-desktop-action-mismatch-recovery-contract-plan.md"
+    );
+    expect(combined).not.toContain("broad desktop automation enabled");
+    expect(combined).not.toContain("automatic retry enabled");
+    expect(combined).not.toContain("undo execution enabled");
+    expect(combined).not.toContain("replay re-execution enabled");
+    expect(combined).not.toContain("native bridge enabled");
+  });
+
   it("documents the P1G north star demo hardening ADR and gate", async () => {
     const adr = await readFile(
       path.join(repoRoot, "docs", "adr", "0011-north-star-demo-hardening.md"),
