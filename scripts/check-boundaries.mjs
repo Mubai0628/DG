@@ -535,6 +535,9 @@ function isDesktopObserverAppSurfaceCopy(file, line, ruleId) {
       line.includes("clipboard, file") ||
       line.includes("clipboard, and file-dialog") ||
       line.includes("Clipboard / file dialog") ||
+      line.includes("raw clipboard") ||
+      line.includes("clipboard, API keys") ||
+      line.includes("clipboard leaks") ||
       line.includes("canWriteClipboard") ||
       line.includes('? "clipboard"') ||
       line.includes("no clipboard")
@@ -627,6 +630,7 @@ function isDesktopActionProposalSchemaFile(file) {
     file === "runtime/src/desktop/desktop-action-compensation-summary.ts" ||
     file === "runtime/src/desktop/desktop-action-interruption-recovery.ts" ||
     file === "runtime/src/desktop/desktop-action-mismatch-recovery.ts" ||
+    file === "runtime/src/desktop/desktop-action-replay-privacy-audit.ts" ||
     file === "runtime/src/desktop/desktop-target-freshness-recovery.ts" ||
     file === "runtime/src/desktop/desktop-target-freshness.ts" ||
     file === "runtime/src/desktop/file-dialog-action-proposal.ts" ||

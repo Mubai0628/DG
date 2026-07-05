@@ -215,6 +215,11 @@ import {
   type DesktopOperatorRecoveryView
 } from "./desktop-operator-recovery-view.js";
 import {
+  buildDesktopActionReplayPrivacyAuditView,
+  summarizeDesktopActionReplayPrivacyAuditView,
+  type DesktopActionReplayPrivacyAuditView
+} from "./desktop-action-replay-privacy-audit-view.js";
+import {
   buildCrossSurfaceWorkflowView,
   summarizeCrossSurfaceWorkflowView,
   type CrossSurfaceWorkflowView
@@ -865,6 +870,14 @@ export function DesktopShell(): JSX.Element {
     desktopOperatorRecoveryPreview,
     setDesktopOperatorRecoveryPreview
   ] = useState<DesktopOperatorRecoveryView | undefined>();
+  const [
+    desktopActionReplayPrivacyAuditText,
+    setDesktopActionReplayPrivacyAuditText
+  ] = useState("");
+  const [
+    desktopActionReplayPrivacyAuditPreview,
+    setDesktopActionReplayPrivacyAuditPreview
+  ] = useState<DesktopActionReplayPrivacyAuditView | undefined>();
   const [
     crossSurfaceWorkflowScenarioText,
     setCrossSurfaceWorkflowScenarioText
@@ -2543,6 +2556,17 @@ export function DesktopShell(): JSX.Element {
     );
   const displayedDesktopOperatorRecovery =
     desktopOperatorRecoveryPreview ?? buildDesktopOperatorRecoveryView();
+  const desktopActionReplayPrivacyAuditCandidate =
+    useMemo<DesktopActionReplayPrivacyAuditView>(
+      () =>
+        buildDesktopActionReplayPrivacyAuditView({
+          auditJsonText: desktopActionReplayPrivacyAuditText
+        }),
+      [desktopActionReplayPrivacyAuditText]
+    );
+  const displayedDesktopActionReplayPrivacyAudit =
+    desktopActionReplayPrivacyAuditPreview ??
+    buildDesktopActionReplayPrivacyAuditView();
   const crossSurfaceWorkflowCandidate = useMemo<CrossSurfaceWorkflowView>(
     () =>
       buildCrossSurfaceWorkflowView({
@@ -2833,6 +2857,9 @@ export function DesktopShell(): JSX.Element {
   useEffect(() => {
     setDesktopOperatorRecoveryPreview(undefined);
   }, [desktopOperatorRecoveryText]);
+  useEffect(() => {
+    setDesktopActionReplayPrivacyAuditPreview(undefined);
+  }, [desktopActionReplayPrivacyAuditText]);
   useEffect(() => {
     setCrossSurfaceWorkflowPreview(undefined);
   }, [crossSurfaceWorkflowScenarioText]);
@@ -3951,6 +3978,17 @@ export function DesktopShell(): JSX.Element {
   function handleClearDesktopOperatorRecovery(): void {
     setDesktopOperatorRecoveryText("");
     setDesktopOperatorRecoveryPreview(undefined);
+  }
+
+  function handlePreviewDesktopActionReplayPrivacyAudit(): void {
+    setDesktopActionReplayPrivacyAuditPreview(
+      desktopActionReplayPrivacyAuditCandidate
+    );
+  }
+
+  function handleClearDesktopActionReplayPrivacyAudit(): void {
+    setDesktopActionReplayPrivacyAuditText("");
+    setDesktopActionReplayPrivacyAuditPreview(undefined);
   }
 
   function handlePreviewCrossSurfaceWorkflow(): void {
@@ -10021,6 +10059,204 @@ export function DesktopShell(): JSX.Element {
                 ).source
               }{" "}
               · {displayedDesktopOperatorRecovery.nextAction}
+            </p>
+          </section>
+
+          <section
+            className="eventPanel"
+            aria-label="Desktop Action Replay Privacy Audit"
+          >
+            <div className="panelHeader">
+              <h2>Desktop Action Replay Privacy Audit</h2>
+              <span className="muted">Read-only / no replay execution</span>
+            </div>
+            <p className="fieldHelp">
+              Audits desktop observer, action proposal, approval, execution,
+              and recovery summaries for replay completeness and privacy
+              redaction. The App Shell does not re-execute desktop actions,
+              click, type, use clipboard, open file dialogs, write events, or
+              invoke native bridge.
+            </p>
+
+            <label>
+              <span>Summary-only replay privacy audit JSON</span>
+              <textarea
+                className="compactTextarea"
+                value={desktopActionReplayPrivacyAuditText}
+                onChange={(event) => {
+                  setDesktopActionReplayPrivacyAuditText(event.target.value);
+                }}
+                placeholder="Paste summary-only desktop action replay privacy audit JSON"
+                spellCheck={false}
+              />
+              <p className="fieldHelp">
+                Accepts missing ref counts, privacy leak counts, and redaction
+                summaries only. Raw screenshots, raw OCR, raw target text, raw
+                clipboard, API keys, and replay execution flags are blocked.
+              </p>
+            </label>
+
+            <div className="buttonRow">
+              <button
+                type="button"
+                className="secondary"
+                onClick={(event) => {
+                  event.preventDefault();
+                  event.stopPropagation();
+                  handlePreviewDesktopActionReplayPrivacyAudit();
+                }}
+              >
+                Preview Replay Privacy Audit
+              </button>
+              <button
+                type="button"
+                className="secondary"
+                onClick={(event) => {
+                  event.preventDefault();
+                  event.stopPropagation();
+                  handleClearDesktopActionReplayPrivacyAudit();
+                }}
+              >
+                Clear Replay Privacy Audit
+              </button>
+              <button type="button" className="secondary" disabled>
+                Replay Execution (disabled)
+              </button>
+              <button type="button" className="secondary" disabled>
+                Re-run Desktop Action (disabled)
+              </button>
+            </div>
+
+            {displayedDesktopActionReplayPrivacyAudit.status === "empty" ? (
+              <p className="empty">
+                No replay privacy audit loaded. Paste summary-only audit JSON to
+                inspect replay completeness and redaction status.
+              </p>
+            ) : null}
+
+            {displayedDesktopActionReplayPrivacyAudit.status === "blocked" ? (
+              <div className="errorBox">
+                <strong>Replay privacy audit blocked</strong>
+                <p>{displayedDesktopActionReplayPrivacyAudit.nextAction}</p>
+              </div>
+            ) : null}
+
+            <dl className="summaryGrid compact">
+              <div>
+                <dt>Status</dt>
+                <dd>{displayedDesktopActionReplayPrivacyAudit.status}</dd>
+              </div>
+              <div>
+                <dt>Audit</dt>
+                <dd>{displayedDesktopActionReplayPrivacyAudit.auditId}</dd>
+              </div>
+              <div>
+                <dt>Missing refs</dt>
+                <dd>
+                  {
+                    displayedDesktopActionReplayPrivacyAudit.missingEventRefCount
+                  }
+                </dd>
+              </div>
+              <div>
+                <dt>Raw fields</dt>
+                <dd>
+                  {
+                    displayedDesktopActionReplayPrivacyAudit.rawFieldDetectedCount
+                  }
+                </dd>
+              </div>
+              <div>
+                <dt>Screenshot / OCR leaks</dt>
+                <dd>
+                  {displayedDesktopActionReplayPrivacyAudit.rawScreenshotCount}{" "}
+                  / {displayedDesktopActionReplayPrivacyAudit.rawOcrCount}
+                </dd>
+              </div>
+              <div>
+                <dt>Target / clipboard leaks</dt>
+                <dd>
+                  {displayedDesktopActionReplayPrivacyAudit.rawTargetTextCount}{" "}
+                  / {displayedDesktopActionReplayPrivacyAudit.rawClipboardCount}
+                </dd>
+              </div>
+              <div>
+                <dt>API key markers</dt>
+                <dd>
+                  {displayedDesktopActionReplayPrivacyAudit.apiKeyMarkerCount}
+                </dd>
+              </div>
+              <div>
+                <dt>Privacy leak / replay execute</dt>
+                <dd>
+                  {displayedDesktopActionReplayPrivacyAudit.privacyLeakDetected
+                    ? "yes"
+                    : "no"}{" "}
+                  /{" "}
+                  {displayedDesktopActionReplayPrivacyAudit.replayCanReexecute
+                    ? "yes"
+                    : "no"}
+                </dd>
+              </div>
+              <div>
+                <dt>Blockers / warnings</dt>
+                <dd>
+                  {displayedDesktopActionReplayPrivacyAudit.blockerCount} /{" "}
+                  {displayedDesktopActionReplayPrivacyAudit.warningCount}
+                </dd>
+              </div>
+              <div>
+                <dt>Hash</dt>
+                <dd>
+                  {displayedDesktopActionReplayPrivacyAudit.hashPrefix ?? "n/a"}
+                </dd>
+              </div>
+              <div>
+                <dt>Preview / replay execution</dt>
+                <dd>
+                  {displayedDesktopActionReplayPrivacyAudit.readiness
+                    .canPreviewReplayAudit
+                    ? "yes"
+                    : "no"}{" "}
+                  /{" "}
+                  {displayedDesktopActionReplayPrivacyAudit.readiness
+                    .canReplayExecuteAction
+                    ? "yes"
+                    : "no"}
+                </dd>
+              </div>
+              <div>
+                <dt>Event write / native bridge</dt>
+                <dd>
+                  {displayedDesktopActionReplayPrivacyAudit.readiness
+                    .canWriteEventStore
+                    ? "yes"
+                    : "no"}{" "}
+                  /{" "}
+                  {displayedDesktopActionReplayPrivacyAudit.readiness
+                    .canUseNativeBridge
+                    ? "yes"
+                    : "no"}
+                </dd>
+              </div>
+            </dl>
+
+            {displayedDesktopActionReplayPrivacyAudit.findings.length > 0 ? (
+              <p className="muted">
+                findings{" "}
+                {displayedDesktopActionReplayPrivacyAudit.findings
+                  .map((finding) => finding.code)
+                  .join(", ")}
+              </p>
+            ) : null}
+
+            <p className="fieldHelp">
+              {
+                summarizeDesktopActionReplayPrivacyAuditView(
+                  displayedDesktopActionReplayPrivacyAudit
+                ).source
+              }{" "}
+              · {displayedDesktopActionReplayPrivacyAudit.nextAction}
             </p>
           </section>
 

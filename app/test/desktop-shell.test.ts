@@ -116,6 +116,7 @@ import {
 } from "../src/live-proposal-evaluation-summary-view.js";
 import { buildLiveProposalEvaluationTelemetryAuditView } from "../src/live-proposal-evaluation-telemetry-audit-view.js";
 import { buildDesktopOperatorRecoveryView } from "../src/desktop-operator-recovery-view.js";
+import { buildDesktopActionReplayPrivacyAuditView } from "../src/desktop-action-replay-privacy-audit-view.js";
 import { buildCrossSurfaceWorkflowView } from "../src/cross-surface-workflow-view.js";
 import { buildCrossSurfaceEvidenceView } from "../src/cross-surface-evidence-view.js";
 import { buildEvidenceFreshnessDriftView } from "../src/evidence-freshness-drift-view.js";
@@ -26911,6 +26912,121 @@ describe("desktop source boundaries", () => {
     );
     expect(appSource).not.toMatch(/>\s*Retry Desktop Action\s*</);
     expect(appSource).not.toMatch(/>\s*Run Undo Action\s*</);
+    expect(appSource).not.toMatch(/>\s*Click\s*</);
+    expect(appSource).not.toMatch(/>\s*Type\s*</);
+    expect(appSource).not.toMatch(/>\s*Write Events\s*</);
+  });
+
+  it("previews desktop action replay privacy audits as read-only state", () => {
+    const safeView = buildDesktopActionReplayPrivacyAuditView({
+      auditJsonText: JSON.stringify({
+        status: "replay_ready",
+        missingEventRefs: [],
+        privacyLeakCounts: {
+          rawFieldCount: 0,
+          rawScreenshotCount: 0,
+          rawOcrCount: 0,
+          rawTargetTextCount: 0,
+          rawClipboardCount: 0,
+          apiKeyMarkerCount: 0
+        },
+        redactionSummary: {
+          rawFieldDetectedCount: 0,
+          replayCanReexecute: false
+        }
+      })
+    });
+    const unsafeView = buildDesktopActionReplayPrivacyAuditView({
+      auditJsonText: JSON.stringify({
+        status: "blocked",
+        rawScreenshot: "RAW_SCREENSHOT",
+        rawOcr: "RAW_OCR",
+        rawTargetText: "RAW_TARGET_TEXT",
+        rawClipboard: "RAW_CLIPBOARD",
+        readiness: {
+          canReplayExecuteAction: true
+        }
+      })
+    });
+
+    expect(safeView.status).toBe("summary_ready");
+    expect(safeView.readiness.canPreviewReplayAudit).toBe(true);
+    expect(safeView.readiness.canReplayExecuteAction).toBe(false);
+    expect(safeView.readiness.canExecuteDesktopAction).toBe(false);
+    expect(safeView.readiness.canClick).toBe(false);
+    expect(safeView.readiness.canType).toBe(false);
+    expect(safeView.readiness.canWriteClipboard).toBe(false);
+    expect(safeView.readiness.canOpenFileDialog).toBe(false);
+    expect(safeView.readiness.canWriteEventStore).toBe(false);
+    expect(safeView.readiness.canUseNativeBridge).toBe(false);
+    expect(unsafeView.status).toBe("blocked");
+    expect(unsafeView.findings.map((finding) => finding.code)).toContain(
+      "RAWSCREENSHOT_FIELD_REJECTED"
+    );
+    expect(unsafeView.findings.map((finding) => finding.code)).toContain(
+      "REPLAY_EXECUTION_FLAG_TRUE"
+    );
+  });
+
+  it("keeps desktop action replay privacy audit App surface read-only", async () => {
+    const appSource = await readFile(
+      path.join(appRoot, "src", "App.tsx"),
+      "utf8"
+    );
+    const viewSource = await readFile(
+      path.join(appRoot, "src", "desktop-action-replay-privacy-audit-view.ts"),
+      "utf8"
+    );
+    const runtimeDoc = await readFile(
+      path.join(
+        repoRoot,
+        "docs",
+        "runtime-desktop-action-replay-privacy-audit-v0.31.md"
+      ),
+      "utf8"
+    );
+    const appDoc = await readFile(
+      path.join(
+        repoRoot,
+        "docs",
+        "app-shell-desktop-action-replay-privacy-audit-v0.31.md"
+      ),
+      "utf8"
+    );
+    const docsIndex = await readFile(
+      path.join(repoRoot, "docs", "README.md"),
+      "utf8"
+    );
+    const combined = `${appSource}\n${viewSource}\n${runtimeDoc}\n${appDoc}\n${docsIndex}`;
+
+    expect(appSource).toContain("Desktop Action Replay Privacy Audit");
+    expect(appSource).toContain("Read-only / no replay execution");
+    expect(appSource).toContain("Preview Replay Privacy Audit");
+    expect(appSource).toContain("Replay Execution (disabled)");
+    expect(appSource).toContain("Re-run Desktop Action (disabled)");
+    expect(viewSource).not.toContain("safeInvoke");
+    expect(viewSource).not.toContain("invoke(");
+    expect(viewSource).not.toContain("executeApprovedDesktopAction");
+    expect(viewSource).not.toContain("recordControlRunDraftEvent");
+    expect(combined).toContain("observer event summaries include an evidence ref");
+    expect(combined).toContain("action proposal event summaries include a proposal id");
+    expect(combined).toContain("approval receipt summaries exist");
+    expect(combined).toContain("execution result summaries exist");
+    expect(combined).toContain("raw screenshot");
+    expect(combined).toContain("raw OCR");
+    expect(combined).toContain("raw target text");
+    expect(combined).toContain("raw clipboard");
+    expect(combined).toContain("No replay re-execution");
+    expect(combined).toContain("No EventStore write");
+    expect(combined).toContain("No native bridge");
+    expect(docsIndex).toContain(
+      "runtime-desktop-action-replay-privacy-audit-v0.31.md"
+    );
+    expect(docsIndex).toContain(
+      "app-shell-desktop-action-replay-privacy-audit-v0.31.md"
+    );
+    expect(appSource).not.toMatch(/>\s*Replay Execution\s*</);
+    expect(appSource).not.toMatch(/>\s*Re-run Desktop Action\s*</);
     expect(appSource).not.toMatch(/>\s*Click\s*</);
     expect(appSource).not.toMatch(/>\s*Type\s*</);
     expect(appSource).not.toMatch(/>\s*Write Events\s*</);

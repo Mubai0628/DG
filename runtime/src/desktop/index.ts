@@ -5,6 +5,7 @@ export * from "./desktop-action-risk-classifier.js";
 export * from "./desktop-action-expansion-redaction-audit.js";
 export * from "./desktop-action-interruption-recovery.js";
 export * from "./desktop-action-mismatch-recovery.js";
+export * from "./desktop-action-replay-privacy-audit.js";
 export * from "./desktop-action-sequence-simulation.js";
 export * from "./desktop-target-freshness-recovery.js";
 export * from "./desktop-target-freshness.js";
