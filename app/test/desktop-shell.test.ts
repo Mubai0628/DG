@@ -26747,6 +26747,40 @@ describe("desktop source boundaries", () => {
     expect(combined).not.toContain("desktop action execution enabled");
   });
 
+  it("documents runtime desktop action compensation summary v0.31", async () => {
+    const runtimeDoc = await readFile(
+      path.join(
+        repoRoot,
+        "docs",
+        "runtime-desktop-action-compensation-summary-v0.31.md"
+      ),
+      "utf8"
+    );
+    const docsIndex = await readFile(
+      path.join(repoRoot, "docs", "README.md"),
+      "utf8"
+    );
+    const combined = `${runtimeDoc}\n${docsIndex}`;
+
+    expect(runtimeDoc).toContain(
+      "Runtime Desktop Action Compensation Summary v0.31"
+    );
+    expect(runtimeDoc).toContain("summary-only recommendations");
+    expect(runtimeDoc).toContain("no_safe_undo");
+    expect(runtimeDoc).toContain("refocus_previous_window");
+    expect(runtimeDoc).toContain("clear_pending_text_input");
+    expect(runtimeDoc).toContain("rollback_workspace_action_if_linked");
+    expect(runtimeDoc).toContain("No undo execution");
+    expect(runtimeDoc).toContain("No apply or rollback");
+    expect(runtimeDoc).toContain("No EventStore write");
+    expect(docsIndex).toContain(
+      "runtime-desktop-action-compensation-summary-v0.31.md"
+    );
+    expect(combined).not.toContain("undo execution enabled");
+    expect(combined).not.toContain("rollback execution enabled");
+    expect(combined).not.toContain("desktop action execution enabled");
+  });
+
   it("documents the P1G north star demo hardening ADR and gate", async () => {
     const adr = await readFile(
       path.join(repoRoot, "docs", "adr", "0011-north-star-demo-hardening.md"),

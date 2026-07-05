@@ -512,6 +512,7 @@ foundation.
 - [Runtime Desktop Action Mismatch Recovery v0.31](runtime-desktop-action-mismatch-recovery-v0.31.md)
 - [Runtime Desktop Target Freshness Recovery v0.31](runtime-desktop-target-freshness-recovery-v0.31.md)
 - [Runtime Desktop Action Interruption Recovery v0.31](runtime-desktop-action-interruption-recovery-v0.31.md)
+- [Runtime Desktop Action Compensation Summary v0.31](runtime-desktop-action-compensation-summary-v0.31.md)
 - [Runtime Memory Recall Preview v0.3](runtime-memory-recall-preview-v0.3.md)
 - [v0.4.0 Controlled Creation Preview RC release notes](release-notes-v0.4.0-controlled-creation-preview-rc.1.md)
 - [App Shell Controlled Creation manual QA](app-shell-controlled-creation-manual-qa.md)
