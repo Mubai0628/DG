@@ -127,6 +127,10 @@ import {
   buildBackupRestorePlanView,
   summarizeBackupRestorePlanView
 } from "../src/backup-restore-plan-view.js";
+import {
+  buildReleaseUpdatePolicyView,
+  summarizeReleaseUpdatePolicyView
+} from "../src/release-update-policy-view.js";
 import { buildDesktopOperatorRecoveryView } from "../src/desktop-operator-recovery-view.js";
 import { buildDesktopActionReplayPrivacyAuditView } from "../src/desktop-action-replay-privacy-audit-view.js";
 import { buildCrossSurfaceWorkflowView } from "../src/cross-surface-workflow-view.js";
@@ -27058,6 +27062,105 @@ describe("desktop source boundaries", () => {
     expect(combinedLower).toContain("no desktop action");
     expect(docsIndex).toContain("runtime-backup-restore-plan-v0.32.md");
     expect(docsIndex).toContain("app-shell-backup-restore-plan-v0.32.md");
+  });
+
+  it("renders release update policy as read-only with disabled update controls", async () => {
+    const appSource = await readFile(
+      path.join(appRoot, "src", "App.tsx"),
+      "utf8"
+    );
+    const viewSource = await readFile(
+      path.join(appRoot, "src", "release-update-policy-view.ts"),
+      "utf8"
+    );
+    const normalizedAppSource = appSource.replace(/\s+/g, " ");
+    const view = buildReleaseUpdatePolicyView({
+      releaseChannelPolicy: {
+        policyId: "release-policy-test",
+        channel: "rc",
+        currentVersion: "v0.32.0",
+        targetVersion: "v0.32.0",
+        updatePolicy: {
+          requireUserConfirmation: true,
+          allowAutomaticUpdate: false,
+          allowNetworkFetch: false,
+          allowDownload: false,
+          allowInstall: false,
+          allowAutoMigration: false
+        }
+      },
+      firstRunUpgradeState: {
+        stateId: "first-run-upgrade-test",
+        previousVersion: "v0.31.0",
+        currentVersion: "v0.32.0",
+        firstRun: true,
+        migrationPlanStatus: "plan_ready",
+        backupPlanStatus: "plan_ready",
+        schemaVersions: ["event_log.v1"],
+        manualReviewRequired: true
+      }
+    });
+    const summary = summarizeReleaseUpdatePolicyView(view);
+
+    expect(appSource).toContain("Release / Update Policy");
+    expect(appSource).toContain("Read-only / no auto-update");
+    expect(appSource).toContain("Check for Updates (disabled)");
+    expect(appSource).toContain("Install Update (disabled)");
+    expect(appSource).toContain("Run Upgrade Migration (disabled)");
+    expect(normalizedAppSource).toContain("does not check for updates");
+    expect(normalizedAppSource).toContain("fetch network");
+    expect(normalizedAppSource).toContain("download installers");
+    expect(normalizedAppSource).toContain("run upgrade migration");
+    expect(normalizedAppSource).toContain("invoke Tauri");
+    expect(view.status).toBe("warning");
+    expect(summary.channel).toBe("rc");
+    expect(view.readiness).toMatchObject({
+      canCheckForUpdates: false,
+      canDownloadUpdate: false,
+      canInstallUpdate: false,
+      canRunUpgradeMigration: false,
+      canFetchNetwork: false,
+      canWriteFilesystem: false,
+      canWriteEventStore: false,
+      appCanExecute: false
+    });
+    expect(viewSource).not.toContain("safeInvoke");
+    expect(viewSource).not.toContain("recordControlRunDraftEvent");
+    expect(viewSource).not.toContain("process.env");
+    expect(viewSource).not.toContain("fetch(");
+  });
+
+  it("documents the release update policy boundary", async () => {
+    const runtimeDoc = await readFile(
+      path.join(repoRoot, "docs", "runtime-release-update-policy-v0.32.md"),
+      "utf8"
+    );
+    const appDoc = await readFile(
+      path.join(repoRoot, "docs", "app-shell-release-update-policy-v0.32.md"),
+      "utf8"
+    );
+    const docsIndex = await readFile(
+      path.join(repoRoot, "docs", "README.md"),
+      "utf8"
+    );
+    const combined = `${runtimeDoc}\n${appDoc}\n${docsIndex}`;
+    const combinedLower = combined.toLowerCase();
+
+    expect(combined).toContain("Runtime Release / Update Policy v0.32");
+    expect(combined).toContain("App Shell Release / Update Policy v0.32");
+    expect(combined).toContain("Read-only / no auto-update");
+    expect(combinedLower).toContain("no automatic update");
+    expect(combinedLower).toContain("no network fetch");
+    expect(combinedLower).toContain("no download");
+    expect(combinedLower).toContain("no install");
+    expect(combinedLower).toContain("no auto-migration");
+    expect(combinedLower).toContain("no filesystem write");
+    expect(combinedLower).toContain("no eventstore write");
+    expect(combinedLower).toContain("no git/shell execution");
+    expect(combinedLower).toContain("no native bridge");
+    expect(combinedLower).toContain("no desktop action");
+    expect(docsIndex).toContain("runtime-release-update-policy-v0.32.md");
+    expect(docsIndex).toContain("app-shell-release-update-policy-v0.32.md");
   });
 
   it("documents the P1I desktop operator recovery ADR and gate", async () => {

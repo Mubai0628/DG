@@ -225,6 +225,11 @@ import {
   type BackupRestorePlanView
 } from "./backup-restore-plan-view.js";
 import {
+  buildReleaseUpdatePolicyView,
+  summarizeReleaseUpdatePolicyView,
+  type ReleaseUpdatePolicyView
+} from "./release-update-policy-view.js";
+import {
   buildDesktopOperatorRecoveryView,
   summarizeDesktopOperatorRecoveryView,
   type DesktopOperatorRecoveryView
@@ -2714,6 +2719,36 @@ export function DesktopShell(): JSX.Element {
         }
       }),
     [displayedAppDataInventorySchema, displayedMigrationDryRun]
+  );
+  const displayedReleaseUpdatePolicy = useMemo<ReleaseUpdatePolicyView>(
+    () =>
+      buildReleaseUpdatePolicyView({
+        releaseChannelPolicy: {
+          policyId: "app-shell-readonly-release-update-policy",
+          channel: "rc",
+          currentVersion: "v0.32.0-packaging-update-migration-qa-rc.1",
+          targetVersion: "v0.32.0-packaging-update-migration-qa-rc.1",
+          updatePolicy: {
+            requireUserConfirmation: true,
+            allowAutomaticUpdate: false,
+            allowNetworkFetch: false,
+            allowDownload: false,
+            allowInstall: false,
+            allowAutoMigration: false
+          }
+        },
+        firstRunUpgradeState: {
+          stateId: "app-shell-readonly-first-run-upgrade-state",
+          previousVersion: "v0.31.0-desktop-operator-recovery-rc.1",
+          currentVersion: "v0.32.0-packaging-update-migration-qa-rc.1",
+          firstRun: true,
+          migrationPlanStatus: displayedMigrationDryRun.status,
+          backupPlanStatus: displayedBackupRestorePlan.status,
+          schemaVersions: ["event_log.v1", "project_knowledge.v1"],
+          manualReviewRequired: true
+        }
+      }),
+    [displayedBackupRestorePlan, displayedMigrationDryRun]
   );
   const desktopOperatorRecoveryCandidate = useMemo<DesktopOperatorRecoveryView>(
     () =>
@@ -10362,6 +10397,123 @@ export function DesktopShell(): JSX.Element {
                   .status
               }{" "}
               · {displayedBackupRestorePlan.nextAction}
+            </p>
+          </section>
+
+          <section className="eventPanel" aria-label="Release / Update Policy">
+            <div className="panelHeader">
+              <h2>Release / Update Policy</h2>
+              <span className="muted">Read-only / no auto-update</span>
+            </div>
+            <p className="fieldHelp">
+              Summarizes release channel policy and first-run upgrade state. The
+              App Shell does not check for updates, fetch network, download
+              installers, install updates, run upgrade migration, invoke Tauri,
+              or write events.
+            </p>
+
+            <div className="buttonRow">
+              <button type="button" className="secondary" disabled>
+                Check for Updates (disabled)
+              </button>
+              <button type="button" className="secondary" disabled>
+                Install Update (disabled)
+              </button>
+              <button type="button" className="secondary" disabled>
+                Run Upgrade Migration (disabled)
+              </button>
+            </div>
+
+            <dl className="summaryGrid compact">
+              <div>
+                <dt>Status</dt>
+                <dd>{displayedReleaseUpdatePolicy.status}</dd>
+              </div>
+              <div>
+                <dt>Channel</dt>
+                <dd>{displayedReleaseUpdatePolicy.channel}</dd>
+              </div>
+              <div>
+                <dt>Policy</dt>
+                <dd>{displayedReleaseUpdatePolicy.policyId}</dd>
+              </div>
+              <div>
+                <dt>First run</dt>
+                <dd>{displayedReleaseUpdatePolicy.firstRun ? "yes" : "no"}</dd>
+              </div>
+              <div>
+                <dt>Upgrade detected</dt>
+                <dd>
+                  {displayedReleaseUpdatePolicy.upgradeDetected ? "yes" : "no"}
+                </dd>
+              </div>
+              <div>
+                <dt>Manual review</dt>
+                <dd>
+                  {displayedReleaseUpdatePolicy.manualReviewRequired
+                    ? "yes"
+                    : "no"}
+                </dd>
+              </div>
+              <div>
+                <dt>Schema versions</dt>
+                <dd>{displayedReleaseUpdatePolicy.schemaVersionCount}</dd>
+              </div>
+              <div>
+                <dt>Blockers / warnings</dt>
+                <dd>
+                  {displayedReleaseUpdatePolicy.blockerCount} /{" "}
+                  {displayedReleaseUpdatePolicy.warningCount}
+                </dd>
+              </div>
+              <div>
+                <dt>Check / fetch</dt>
+                <dd>
+                  {displayedReleaseUpdatePolicy.readiness.canCheckForUpdates
+                    ? "yes"
+                    : "no"}{" "}
+                  /{" "}
+                  {displayedReleaseUpdatePolicy.readiness.canFetchNetwork
+                    ? "yes"
+                    : "no"}
+                </dd>
+              </div>
+              <div>
+                <dt>Install / migrate</dt>
+                <dd>
+                  {displayedReleaseUpdatePolicy.readiness.canInstallUpdate
+                    ? "yes"
+                    : "no"}{" "}
+                  /{" "}
+                  {displayedReleaseUpdatePolicy.readiness.canRunUpgradeMigration
+                    ? "yes"
+                    : "no"}
+                </dd>
+              </div>
+              <div>
+                <dt>Hashes</dt>
+                <dd>
+                  {displayedReleaseUpdatePolicy.policyHashPrefix} /{" "}
+                  {displayedReleaseUpdatePolicy.stateHashPrefix}
+                </dd>
+              </div>
+            </dl>
+
+            {displayedReleaseUpdatePolicy.findings.length > 0 ? (
+              <p className="muted">
+                findings{" "}
+                {displayedReleaseUpdatePolicy.findings
+                  .map((finding) => finding.code)
+                  .join(", ")}
+              </p>
+            ) : null}
+
+            <p className="fieldHelp">
+              {
+                summarizeReleaseUpdatePolicyView(displayedReleaseUpdatePolicy)
+                  .status
+              }{" "}
+              · {displayedReleaseUpdatePolicy.nextAction}
             </p>
           </section>
 
