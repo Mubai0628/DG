@@ -34525,6 +34525,109 @@ describe("expanded desktop action proposal app surface", () => {
     expect(combined).not.toContain("cloud sync is enabled");
     expect(combined).not.toContain("telemetry upload is enabled");
   });
+
+  it("documents the v0.33 post-release review and P1L permission mode roadmap", async () => {
+    const prompt = await readFile(
+      path.join(
+        repoRoot,
+        "docs",
+        "v0.34-permission-mode-execution-policy-prompts.md"
+      ),
+      "utf8"
+    );
+    const review = await readFile(
+      path.join(
+        repoRoot,
+        "docs",
+        "v0.33-v1-candidate-polish-postrelease-review.md"
+      ),
+      "utf8"
+    );
+    const roadmap = await readFile(
+      path.join(
+        repoRoot,
+        "docs",
+        "p1l-permission-mode-execution-policy-roadmap.md"
+      ),
+      "utf8"
+    );
+    const plan = await readFile(
+      path.join(repoRoot, "docs", "p1l-001-permission-mode-foundation-plan.md"),
+      "utf8"
+    );
+    const docsIndex = await readFile(
+      path.join(repoRoot, "docs", "README.md"),
+      "utf8"
+    );
+    const rootReadme = await readFile(path.join(repoRoot, "README.md"), "utf8");
+    const combined = `${prompt}\n${review}\n${roadmap}\n${plan}\n${docsIndex}\n${rootReadme}`;
+
+    expect(review).toContain("v0.33.0-v1-candidate-polish-rc.1");
+    expect(review).toContain(
+      "v1 candidate polish, security audit, and release readiness"
+    );
+    expect(review).toContain("App approved apply and rollback");
+    expect(review).toContain("Git / shell safe lanes");
+    expect(review).toContain("MCP read-only connection");
+    expect(review).toContain("Plugin / Skill sandbox governance");
+    expect(review).toContain("Approved Desktop Action Execution");
+    expect(review).toContain("v1 candidate readiness artifacts");
+
+    [
+      "arbitrary shell",
+      "auto apply",
+      "recursive delete",
+      "Git commit or Git push",
+      "autonomous loop",
+      "raw output persistence",
+      "broad native bridge",
+      "mutating MCP tools",
+      "arbitrary plugin or skill runtime"
+    ].forEach((boundary) => expect(combined).toContain(boundary));
+
+    [
+      "P1L-001",
+      "P1L-002",
+      "P1L-003",
+      "P1L-004",
+      "P1L-005",
+      "P1L-006",
+      "P1L-007",
+      "P1L-008"
+    ].forEach((taskId) => expect(roadmap).toContain(taskId));
+
+    expect(roadmap).toContain("Permission Mode / Execution Policy Foundation");
+    expect(roadmap).toContain("v0.34 does not open arbitrary shell");
+    expect(roadmap).toContain("v0.34 does not open auto apply");
+    expect(roadmap).toContain("v0.34 does not open recursive delete");
+    expect(roadmap).toContain("v0.34 does not open Git commit or Git push");
+    expect(roadmap).toContain("v0.34 does not open autonomous loop execution");
+    expect(roadmap).toContain("v0.34 does not open raw output persistence");
+
+    expect(plan).toContain("No runtime feature implementation");
+    expect(plan).toContain("No App UI feature implementation");
+    expect(plan).toContain("Full Access is not default");
+    expect(plan).toContain("Execution Policy Engine");
+    expect(plan).toContain("Kill switch");
+    expect(docsIndex).toContain(
+      "v0.34-permission-mode-execution-policy-prompts.md"
+    );
+    expect(docsIndex).toContain(
+      "v0.33-v1-candidate-polish-postrelease-review.md"
+    );
+    expect(docsIndex).toContain(
+      "p1l-permission-mode-execution-policy-roadmap.md"
+    );
+    expect(docsIndex).toContain("p1l-001-permission-mode-foundation-plan.md");
+    expect(rootReadme).toContain(
+      "v0.34 Permission Mode / Execution Policy Foundation status"
+    );
+    expect(combined).not.toContain("Full Access execution is enabled");
+    expect(combined).not.toContain("App arbitrary shell is enabled");
+    expect(combined).not.toContain("recursive delete execution is enabled");
+    expect(combined).not.toContain("Git push execution is enabled");
+    expect(combined).not.toContain("autonomous loop execution is enabled");
+  });
 });
 
 describe("desktop dev scripts", () => {

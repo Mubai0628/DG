@@ -413,6 +413,26 @@ v0.33 v1 Candidate Polish references:
 - [P1K v1 Candidate Polish roadmap](docs/p1k-v1-candidate-polish-roadmap.md)
 - [P1K-001 v1 Candidate Readiness plan](docs/p1k-001-v1-candidate-readiness-plan.md)
 
+## v0.34 Permission Mode / Execution Policy Foundation status
+
+Recommended tag: `v0.34.0-permission-mode-execution-policy-rc.1`.
+
+P1L starts the permission mode and execution policy foundation after the v0.33
+v1 candidate polish prerelease. It models approval, autonomous safe, advanced
+workspace, full access, and break-glass modes as policy metadata, session
+leases, capability gates, risk budgets, kill switch state, App previews, and
+summary-only audit/replay. v0.34 does not enable arbitrary shell, auto apply,
+recursive delete, Git commit/push, autonomous loops, raw output persistence,
+broad native bridge, mutating MCP tools, arbitrary plugin/skill runtime, or
+arbitrary desktop automation.
+
+v0.34 Permission Mode / Execution Policy references:
+
+- [v0.34 Permission Mode / Execution Policy prompts](docs/v0.34-permission-mode-execution-policy-prompts.md)
+- [v0.33 v1 Candidate Polish post-release review](docs/v0.33-v1-candidate-polish-postrelease-review.md)
+- [P1L Permission Mode / Execution Policy roadmap](docs/p1l-permission-mode-execution-policy-roadmap.md)
+- [P1L-001 Permission Mode Foundation plan](docs/p1l-001-permission-mode-foundation-plan.md)
+
 ## v0.31 Desktop Operator Recovery / Action Hardening status
 
 Recommended tag:
