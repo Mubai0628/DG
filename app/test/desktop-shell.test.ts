@@ -34247,6 +34247,57 @@ describe("expanded desktop action proposal app surface", () => {
     expect(combined).not.toContain("destructive uninstall is enabled");
     expect(combined).not.toContain("telemetry upload is enabled");
   });
+
+  it("documents the v1 data migration dry-run review and rollback plan", async () => {
+    const review = await readFile(
+      path.join(
+        repoRoot,
+        "docs",
+        "data-migration-final-dry-run-review-v0.33.md"
+      ),
+      "utf8"
+    );
+    const rollback = await readFile(
+      path.join(repoRoot, "docs", "data-migration-rollback-plan-v0.33.md"),
+      "utf8"
+    );
+    const risks = await readFile(
+      path.join(repoRoot, "docs", "data-migration-risk-register-v0.33.md"),
+      "utf8"
+    );
+    const docsIndex = await readFile(
+      path.join(repoRoot, "docs", "README.md"),
+      "utf8"
+    );
+    const combined = `${review}\n${rollback}\n${risks}\n${docsIndex}`;
+
+    [
+      "EventStore",
+      "Project Knowledge store",
+      "Checkpoints / preimages",
+      "Replay summaries",
+      "Workspace-local `.deepseek-workbench` dir",
+      "App settings if any",
+      "Release channel metadata",
+      "Migration version registry",
+      "Backup / restore dry-run plan"
+    ].forEach((surface) => expect(combined).toContain(surface));
+
+    expect(combined).toContain("No destructive migration");
+    expect(combined).toContain("No silent data deletion");
+    expect(combined).toContain("No cloud sync");
+    expect(combined).toContain("No telemetry upload");
+    expect(combined).toContain("No auto-update without confirmation");
+    expect(combined).toContain("summary-only");
+    expect(combined).toContain("does not enable real migration");
+    expect(docsIndex).toContain("data-migration-final-dry-run-review-v0.33.md");
+    expect(docsIndex).toContain("data-migration-rollback-plan-v0.33.md");
+    expect(docsIndex).toContain("data-migration-risk-register-v0.33.md");
+    expect(combined).not.toContain("destructive migration is enabled");
+    expect(combined).not.toContain("silent deletion is enabled");
+    expect(combined).not.toContain("cloud sync is enabled");
+    expect(combined).not.toContain("telemetry upload is enabled");
+  });
 });
 
 describe("desktop dev scripts", () => {
