@@ -115,6 +115,10 @@ import {
   parseLiveProposalEvaluationSummaryJson
 } from "../src/live-proposal-evaluation-summary-view.js";
 import { buildLiveProposalEvaluationTelemetryAuditView } from "../src/live-proposal-evaluation-telemetry-audit-view.js";
+import {
+  buildAppDataInventorySchemaView,
+  summarizeAppDataInventorySchemaView
+} from "../src/app-data-inventory-view.js";
 import { buildDesktopOperatorRecoveryView } from "../src/desktop-operator-recovery-view.js";
 import { buildDesktopActionReplayPrivacyAuditView } from "../src/desktop-action-replay-privacy-audit-view.js";
 import { buildCrossSurfaceWorkflowView } from "../src/cross-surface-workflow-view.js";
@@ -26750,6 +26754,103 @@ describe("desktop source boundaries", () => {
     expect(combined).not.toContain("silent data deletion enabled");
     expect(combined).not.toContain("cloud sync enabled");
     expect(combined).not.toContain("telemetry upload enabled");
+  });
+
+  it("renders the App data inventory and schema registry as read-only metadata", async () => {
+    const appSource = await readFile(
+      path.join(appRoot, "src", "App.tsx"),
+      "utf8"
+    );
+    const viewSource = await readFile(
+      path.join(appRoot, "src", "app-data-inventory-view.ts"),
+      "utf8"
+    );
+    const appView = buildAppDataInventorySchemaView({
+      inventory: {
+        inventoryId: "test-inventory",
+        items: [
+          {
+            pathRef: "events_root_ref",
+            relativePath: "events",
+            kind: "event_log",
+            exists: true,
+            fileCount: 1,
+            byteCount: 0,
+            schemaVersion: "event_log.v1",
+            hashPrefix: "events"
+          }
+        ]
+      },
+      schemaRegistry: {
+        registryId: "test-registry",
+        entries: [
+          {
+            componentId: "event_log",
+            schemaVersion: "event_log.v1",
+            supportedVersions: ["event_log.v1"],
+            latestKnownVersion: "event_log.v1"
+          }
+        ]
+      }
+    });
+    const summary = summarizeAppDataInventorySchemaView(appView);
+
+    expect(appSource).toContain("App Data Inventory / Schema Registry");
+    expect(appSource).toContain("Read-only / no migration");
+    expect(appSource).toContain("does not scan raw data");
+    expect(appSource).toContain("run backup/restore");
+    expect(appSource).toContain("invoke Tauri");
+    expect(appView.status).toBe("ready");
+    expect(summary.itemCount).toBe(1);
+    expect(summary.compatibleSchemaCount).toBe(1);
+    expect(appView.readiness).toMatchObject({
+      canPlanMigration: false,
+      canRunMigration: false,
+      canDeleteData: false,
+      canWriteFilesystem: false,
+      canWriteEventStore: false,
+      appCanExecute: false
+    });
+    expect(appSource).not.toContain("Run Migration");
+    expect(appSource).not.toContain("Delete Data");
+    expect(appSource).not.toContain("Restore Backup");
+    expect(viewSource).not.toContain("safeInvoke");
+    expect(viewSource).not.toContain("recordControlRunDraftEvent");
+    expect(viewSource).not.toContain("process.env");
+    expect(viewSource).not.toContain("fetch(");
+  });
+
+  it("documents the App data inventory and schema registry boundary", async () => {
+    const runtimeDoc = await readFile(
+      path.join(repoRoot, "docs", "runtime-app-data-inventory-schema-v0.32.md"),
+      "utf8"
+    );
+    const appDoc = await readFile(
+      path.join(repoRoot, "docs", "app-shell-app-data-inventory-v0.32.md"),
+      "utf8"
+    );
+    const docsIndex = await readFile(
+      path.join(repoRoot, "docs", "README.md"),
+      "utf8"
+    );
+    const combined = `${runtimeDoc}\n${appDoc}\n${docsIndex}`;
+    const combinedLower = combined.toLowerCase();
+
+    expect(combined).toContain("Runtime App Data Inventory / Schema Registry");
+    expect(combined).toContain(
+      "App Shell App Data Inventory / Schema Registry"
+    );
+    expect(combined).toContain("metadata-only");
+    expect(combined).toContain("summary-only");
+    expect(combinedLower).toContain("no migration runner");
+    expect(combinedLower).toContain("no data write");
+    expect(combinedLower).toContain("no data deletion");
+    expect(combinedLower).toContain("no eventstore write");
+    expect(combinedLower).toContain("no git/shell execution");
+    expect(combinedLower).toContain("no native bridge");
+    expect(combinedLower).toContain("no desktop action");
+    expect(docsIndex).toContain("runtime-app-data-inventory-schema-v0.32.md");
+    expect(docsIndex).toContain("app-shell-app-data-inventory-v0.32.md");
   });
 
   it("documents the P1I desktop operator recovery ADR and gate", async () => {

@@ -52,6 +52,37 @@ export * from "./e2e-task/index.js";
 export * from "./flows/index.js";
 export * from "./workflows/index.js";
 export * as modelPlane from "./models/index.js";
+export * as platformPlane from "./platform/index.js";
+export {
+  buildAppDataInventory,
+  buildSchemaVersionRegistry,
+  summarizeAppDataInventory,
+  summarizeSchemaVersionRegistry,
+  validateAppDataInventory,
+  validateSchemaVersionRegistry
+} from "./platform/index.js";
+export type {
+  AppDataDirectoryKind,
+  AppDataInventory,
+  AppDataInventoryFinding,
+  AppDataInventoryFindingKind,
+  AppDataInventoryInput,
+  AppDataInventoryItem,
+  AppDataInventoryReadiness,
+  AppDataInventorySeverity,
+  AppDataInventoryStatus,
+  AppDataInventorySummary,
+  SchemaCompatibilityStatus,
+  SchemaVersionEntry,
+  SchemaVersionRegistry,
+  SchemaVersionRegistryFinding,
+  SchemaVersionRegistryFindingKind,
+  SchemaVersionRegistryInput,
+  SchemaVersionRegistryReadiness,
+  SchemaVersionRegistrySeverity,
+  SchemaVersionRegistryStatus,
+  SchemaVersionRegistrySummary
+} from "./platform/index.js";
 export {
   getDeepSeekCapabilityProfile,
   listDeepSeekCapabilityProfiles,

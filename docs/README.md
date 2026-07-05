@@ -529,6 +529,8 @@ foundation.
 - [Packaging / Update / Data Migration threat model v0.31](packaging-update-data-migration-threat-model-v0.31.md)
 - [Packaging / Update / Data Migration implementation gate v0.31](packaging-update-data-migration-implementation-gate-v0.31.md)
 - [P1J-002 App Data Inventory / Schema plan](p1j-002-app-data-inventory-schema-plan.md)
+- [Runtime App Data Inventory / Schema Registry v0.32](runtime-app-data-inventory-schema-v0.32.md)
+- [App Shell App Data Inventory / Schema Registry v0.32](app-shell-app-data-inventory-v0.32.md)
 - [Runtime Memory Recall Preview v0.3](runtime-memory-recall-preview-v0.3.md)
 - [v0.4.0 Controlled Creation Preview RC release notes](release-notes-v0.4.0-controlled-creation-preview-rc.1.md)
 - [App Shell Controlled Creation manual QA](app-shell-controlled-creation-manual-qa.md)

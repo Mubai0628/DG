@@ -210,6 +210,11 @@ import {
   type LiveProposalEvaluationTelemetryAuditView
 } from "./live-proposal-evaluation-telemetry-audit-view.js";
 import {
+  buildAppDataInventorySchemaView,
+  summarizeAppDataInventorySchemaView,
+  type AppDataInventorySchemaView
+} from "./app-data-inventory-view.js";
+import {
   buildDesktopOperatorRecoveryView,
   summarizeDesktopOperatorRecoveryView,
   type DesktopOperatorRecoveryView
@@ -2543,6 +2548,70 @@ export function DesktopShell(): JSX.Element {
   const displayedLiveProposalEvaluationTelemetryAudit =
     liveProposalEvaluationTelemetryAuditPreview ??
     buildLiveProposalEvaluationTelemetryAuditView();
+  const displayedAppDataInventorySchema = useMemo<AppDataInventorySchemaView>(
+    () =>
+      buildAppDataInventorySchemaView({
+        inventory: {
+          inventoryId: "app-shell-readonly-inventory-preview",
+          items: [
+            {
+              pathRef: "app_data_root_ref",
+              relativePath: "events",
+              kind: "event_log",
+              exists: true,
+              fileCount: 1,
+              byteCount: 0,
+              schemaVersion: "event_log.v1",
+              hashPrefix: "events-summary"
+            },
+            {
+              pathRef: "project_knowledge_ref",
+              relativePath: "project-knowledge",
+              kind: "project_knowledge_store",
+              exists: true,
+              fileCount: 1,
+              byteCount: 0,
+              schemaVersion: "project_knowledge.v1",
+              hashPrefix: "knowledge-summary"
+            },
+            {
+              pathRef: "checkpoint_root_ref",
+              relativePath: "checkpoints",
+              kind: "checkpoint_dir",
+              exists: false,
+              fileCount: 0,
+              byteCount: 0,
+              schemaVersion: "checkpoint.v1",
+              hashPrefix: "checkpoint-summary"
+            }
+          ]
+        },
+        schemaRegistry: {
+          registryId: "app-shell-readonly-schema-registry-preview",
+          entries: [
+            {
+              componentId: "event_log",
+              schemaVersion: "event_log.v1",
+              supportedVersions: ["event_log.v1"],
+              latestKnownVersion: "event_log.v1"
+            },
+            {
+              componentId: "project_knowledge_store",
+              schemaVersion: "project_knowledge.v1",
+              supportedVersions: ["project_knowledge.v1"],
+              latestKnownVersion: "project_knowledge.v1"
+            },
+            {
+              componentId: "checkpoint_dir",
+              schemaVersion: "checkpoint.v1",
+              supportedVersions: ["checkpoint.v1"],
+              latestKnownVersion: "checkpoint.v1"
+            }
+          ]
+        }
+      }),
+    []
+  );
   const desktopOperatorRecoveryCandidate = useMemo<DesktopOperatorRecoveryView>(
     () =>
       buildDesktopOperatorRecoveryView({
@@ -9837,6 +9906,112 @@ export function DesktopShell(): JSX.Element {
                 ).source
               }{" "}
               · {displayedLiveProposalEvaluationTelemetryAudit.nextAction}
+            </p>
+          </section>
+
+          <section
+            className="eventPanel"
+            aria-label="App Data Inventory / Schema Registry"
+          >
+            <div className="panelHeader">
+              <h2>App Data Inventory / Schema Registry</h2>
+              <span className="muted">Read-only / no migration</span>
+            </div>
+            <p className="fieldHelp">
+              Shows summary-only App data directory and schema version metadata.
+              The App Shell does not scan raw data, migrate data, delete data,
+              run backup/restore, invoke Tauri, or write events.
+            </p>
+
+            <dl className="summaryGrid compact">
+              <div>
+                <dt>Status</dt>
+                <dd>{displayedAppDataInventorySchema.status}</dd>
+              </div>
+              <div>
+                <dt>Inventory items</dt>
+                <dd>{displayedAppDataInventorySchema.itemCount}</dd>
+              </div>
+              <div>
+                <dt>Existing / missing</dt>
+                <dd>
+                  {displayedAppDataInventorySchema.existingItemCount} /{" "}
+                  {displayedAppDataInventorySchema.missingItemCount}
+                </dd>
+              </div>
+              <div>
+                <dt>Schema versions</dt>
+                <dd>{displayedAppDataInventorySchema.schemaVersionCount}</dd>
+              </div>
+              <div>
+                <dt>Compatible / unknown</dt>
+                <dd>
+                  {displayedAppDataInventorySchema.compatibleSchemaCount} /{" "}
+                  {displayedAppDataInventorySchema.unknownSchemaCount}
+                </dd>
+              </div>
+              <div>
+                <dt>Upgrade / incompatible</dt>
+                <dd>
+                  {displayedAppDataInventorySchema.upgradeAvailableCount} /{" "}
+                  {displayedAppDataInventorySchema.incompatibleSchemaCount}
+                </dd>
+              </div>
+              <div>
+                <dt>Blockers / warnings</dt>
+                <dd>
+                  {displayedAppDataInventorySchema.blockerCount} /{" "}
+                  {displayedAppDataInventorySchema.warningCount}
+                </dd>
+              </div>
+              <div>
+                <dt>Inventory hash</dt>
+                <dd>{displayedAppDataInventorySchema.inventoryHashPrefix}</dd>
+              </div>
+              <div>
+                <dt>Registry hash</dt>
+                <dd>{displayedAppDataInventorySchema.registryHashPrefix}</dd>
+              </div>
+              <div>
+                <dt>Plan migration</dt>
+                <dd>
+                  {displayedAppDataInventorySchema.readiness.canPlanMigration
+                    ? "yes"
+                    : "no"}
+                </dd>
+              </div>
+              <div>
+                <dt>Run migration</dt>
+                <dd>
+                  {displayedAppDataInventorySchema.readiness.canRunMigration
+                    ? "yes"
+                    : "no"}
+                </dd>
+              </div>
+              <div>
+                <dt>Delete data</dt>
+                <dd>
+                  {displayedAppDataInventorySchema.readiness.canDeleteData
+                    ? "yes"
+                    : "no"}
+                </dd>
+              </div>
+            </dl>
+
+            {displayedAppDataInventorySchema.warningCodes.length > 0 ? (
+              <p className="muted">
+                Warnings:{" "}
+                {displayedAppDataInventorySchema.warningCodes.join(", ")}
+              </p>
+            ) : null}
+
+            <p className="fieldHelp">
+              {
+                summarizeAppDataInventorySchemaView(
+                  displayedAppDataInventorySchema
+                ).status
+              }{" "}
+              · {displayedAppDataInventorySchema.nextAction}
             </p>
           </section>
 
