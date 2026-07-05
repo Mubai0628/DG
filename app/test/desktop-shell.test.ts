@@ -33717,6 +33717,98 @@ describe("expanded desktop action proposal app surface", () => {
     expect(appSource).not.toMatch(/>\s*Write Clipboard\s*</);
     expect(appSource).not.toMatch(/>\s*Open File Dialog\s*</);
   });
+
+  it("documents the v0.32 post-release review and P1K v1 candidate roadmap", async () => {
+    const promptDoc = await readFile(
+      path.join(repoRoot, "docs", "v0.33-v1-candidate-polish-prompts.md"),
+      "utf8"
+    );
+    const review = await readFile(
+      path.join(
+        repoRoot,
+        "docs",
+        "v0.32-packaging-update-migration-postrelease-review.md"
+      ),
+      "utf8"
+    );
+    const roadmap = await readFile(
+      path.join(repoRoot, "docs", "p1k-v1-candidate-polish-roadmap.md"),
+      "utf8"
+    );
+    const plan = await readFile(
+      path.join(repoRoot, "docs", "p1k-001-v1-candidate-readiness-plan.md"),
+      "utf8"
+    );
+    const docsIndex = await readFile(
+      path.join(repoRoot, "docs", "README.md"),
+      "utf8"
+    );
+    const rootReadme = await readFile(path.join(repoRoot, "README.md"), "utf8");
+    const combined = `${promptDoc}\n${review}\n${roadmap}\n${plan}\n${docsIndex}\n${rootReadme}`;
+
+    expect(promptDoc).toContain(
+      "v0.33 — v1 Candidate Polish / Security Audit / Release Readiness"
+    );
+    expect(review).toContain("v0.32.0-packaging-update-migration-qa-rc.1");
+    expect(review).toContain(
+      "Packaging, update, migration, and QA matrix hardening"
+    );
+    expect(review).toContain("Status: prerelease");
+    expect(review).toContain("Main CI: success");
+    expect(review).toContain("Tag CI: success");
+    expect(review).toContain("Baseline `web_table_to_csv` Convert");
+    expect(review).toContain("App approved apply and rollback");
+    expect(review).toContain("Git and shell safe lanes");
+    expect(review).toContain("Project Knowledge");
+    expect(review).toContain("MCP read-only connection");
+    expect(review).toContain("Plugin and Skill sandbox governance");
+    expect(review).toContain("Desktop Observer");
+    expect(review).toContain("Cross-surface Agent Workflow");
+    expect(review).toContain("Packaging / migration / QA matrix");
+
+    expect(roadmap).toContain(
+      "P1K v1 Candidate Polish / Security Audit / Release Readiness Roadmap"
+    );
+    expect(roadmap).toContain("v1 candidate readiness checklist");
+    expect(roadmap).toContain("Security audit matrix");
+    expect(roadmap).toContain("Capability boundary matrix");
+    expect(roadmap).toContain("Golden regression dashboard");
+    expect(roadmap).toContain("Installer / package artifact final hygiene");
+    expect(roadmap).toContain("Data migration final dry-run review");
+    expect(roadmap).toContain("Onboarding / quickstart polish");
+    expect(roadmap).toContain("Final North Star manual QA matrix");
+    expect(roadmap).toContain("v0.33 RC release package");
+
+    expect(plan).toContain("v1 candidate readiness ADR");
+    expect(plan).toContain("Threat Model Coverage");
+    expect(plan).toContain("Gate Categories");
+    expect(plan).toContain("No runtime feature implementation");
+    expect(plan).toContain("No App UI feature implementation");
+
+    expect(combined).toContain("no broad native bridge");
+    expect(combined).toContain("No arbitrary desktop automation");
+    expect(combined).toContain("No mutating MCP tools");
+    expect(combined).toContain("No arbitrary plugin / skill execution");
+    expect(combined).toContain("No destructive migration");
+    expect(combined).toContain("No auto-update without confirmation");
+    expect(combined).toContain("v0.33-v1-candidate-polish-prompts.md");
+    expect(combined).toContain(
+      "v0.32-packaging-update-migration-postrelease-review.md"
+    );
+    expect(combined).toContain("p1k-v1-candidate-polish-roadmap.md");
+    expect(combined).toContain("p1k-001-v1-candidate-readiness-plan.md");
+    expect(rootReadme).toContain(
+      "v0.33 v1 Candidate Polish / Security Audit / Release Readiness status"
+    );
+
+    expect(combined).not.toContain("broad native bridge is enabled");
+    expect(combined).not.toContain("arbitrary desktop automation is enabled");
+    expect(combined).not.toContain("mutating MCP tools are enabled");
+    expect(combined).not.toContain("destructive migration is enabled");
+    expect(combined).not.toContain(
+      "auto-update without confirmation is enabled"
+    );
+  });
 });
 
 describe("desktop dev scripts", () => {

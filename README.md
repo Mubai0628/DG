@@ -375,6 +375,26 @@ v0.32 Packaging / Update / Data Migration / QA Matrix references:
 - [Packaging / Update / Migration manual QA](docs/packaging-update-migration-manual-qa.md)
 - [Packaging / Update / Migration RC checklist](docs/packaging-update-migration-rc-checklist.md)
 
+## v0.33 v1 Candidate Polish / Security Audit / Release Readiness status
+
+Recommended tag: `v0.33.0-v1-candidate-polish-rc.1`.
+
+P1K starts the v1 candidate readiness line after the v0.32 Packaging / Update /
+Data Migration / QA Matrix prerelease. It is evidence-first: security audit
+matrix, capability boundary matrix, golden regression dashboard, package
+artifact hygiene, migration dry-run review, onboarding polish, rollback
+guidance, final North Star manual QA, and v0.33 RC release readiness. It does
+not add broad native bridge, arbitrary desktop automation, mutating MCP tools,
+arbitrary plugin / skill execution, arbitrary Git / shell, cloud sync,
+telemetry upload, destructive migration, or auto-update without confirmation.
+
+v0.33 v1 Candidate Polish references:
+
+- [v0.33 v1 Candidate Polish prompts](docs/v0.33-v1-candidate-polish-prompts.md)
+- [v0.32 Packaging / Update / Migration post-release review](docs/v0.32-packaging-update-migration-postrelease-review.md)
+- [P1K v1 Candidate Polish roadmap](docs/p1k-v1-candidate-polish-roadmap.md)
+- [P1K-001 v1 Candidate Readiness plan](docs/p1k-001-v1-candidate-readiness-plan.md)
+
 ## v0.31 Desktop Operator Recovery / Action Hardening status
 
 Recommended tag:
