@@ -27210,6 +27210,65 @@ describe("desktop source boundaries", () => {
     expect(docsIndex).toContain("cross-platform-packaging-paths-v0.32.md");
   });
 
+  it("documents the v0.32 manual QA and release smoke matrices", async () => {
+    const manualQa = await readFile(
+      path.join(repoRoot, "docs", "manual-qa-matrix-v0.32.md"),
+      "utf8"
+    );
+    const releaseSmoke = await readFile(
+      path.join(repoRoot, "docs", "release-smoke-matrix-v0.32.md"),
+      "utf8"
+    );
+    const northStar = await readFile(
+      path.join(repoRoot, "docs", "north-star-qa-matrix-v0.32.md"),
+      "utf8"
+    );
+    const docsIndex = await readFile(
+      path.join(repoRoot, "docs", "README.md"),
+      "utf8"
+    );
+    const combined = `${manualQa}\n${releaseSmoke}\n${northStar}\n${docsIndex}`;
+
+    for (const required of [
+      "Convert baseline",
+      "App approved apply/rollback",
+      "Git/shell safe lanes",
+      "Project Knowledge",
+      "MCP read-only connection/tool",
+      "Plugin/skill metadata",
+      "Fixed multi-agent",
+      "Desktop Observer",
+      "Desktop Action Proposal",
+      "Approved Desktop Action",
+      "Expanded Desktop Action click/type lanes",
+      "Desktop recovery",
+      "Cross-surface workflow",
+      "Data inventory / migration dry-run / backup plan"
+    ]) {
+      expect(combined).toContain(required);
+    }
+
+    expect(releaseSmoke).toContain("Automated");
+    expect(releaseSmoke).toContain("Manual");
+    expect(releaseSmoke).toContain("Not Claimed");
+    expect(releaseSmoke).toContain("Known Warnings");
+    expect(releaseSmoke).toContain("Expected Ignored Artifacts");
+    expect(releaseSmoke).toContain("Release Rollback Guidance");
+    expect(releaseSmoke).toContain("pnpm verify:ci");
+    expect(releaseSmoke).toContain("pnpm app:preflight");
+    expect(releaseSmoke).toContain("pnpm app:smoke");
+    expect(releaseSmoke).toContain("pnpm app:manual-smoke:check");
+    expect(releaseSmoke).toContain("Tauri bundle identifier warning");
+    expect(releaseSmoke).toContain("Vite chunk-size warning");
+    expect(combined).toContain("No App-side auto-update");
+    expect(combined).toContain("No App-side migration execution");
+    expect(combined).toContain("No new native bridge");
+    expect(combined).toContain("No new desktop action");
+    expect(docsIndex).toContain("manual-qa-matrix-v0.32.md");
+    expect(docsIndex).toContain("release-smoke-matrix-v0.32.md");
+    expect(docsIndex).toContain("north-star-qa-matrix-v0.32.md");
+  });
+
   it("documents the P1I desktop operator recovery ADR and gate", async () => {
     const adr = await readFile(
       path.join(
