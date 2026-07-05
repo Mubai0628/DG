@@ -34815,6 +34815,42 @@ describe("expanded desktop action proposal app surface", () => {
     expect(combined).not.toContain("Git push execution is enabled");
     expect(combined).not.toContain("autonomous loop execution is enabled");
   });
+
+  it("documents runtime risk budget session controls and kill switch boundaries", async () => {
+    const runtimeDoc = await readFile(
+      path.join(
+        repoRoot,
+        "docs",
+        "runtime-risk-budget-session-control-v0.34.md"
+      ),
+      "utf8"
+    );
+    const docsIndex = await readFile(
+      path.join(repoRoot, "docs", "README.md"),
+      "utf8"
+    );
+    const combined = `${runtimeDoc}\n${docsIndex}`;
+
+    expect(runtimeDoc).toContain("Runtime Risk Budget / Session Control v0.34");
+    expect(runtimeDoc).toContain("summary-only");
+    expect(runtimeDoc).toContain(
+      "Recursive delete and Git push budgets remain"
+    );
+    expect(runtimeDoc).toContain("Full Access budget metadata requires");
+    expect(runtimeDoc).toContain("The kill switch must remain visible");
+    expect(runtimeDoc).toContain("is disabled in v0.34");
+    expect(runtimeDoc).toContain("not execution grants");
+    expect(runtimeDoc).toContain("No Tauri command");
+    expect(runtimeDoc).toContain("No EventStore write");
+    expect(runtimeDoc).toContain("No workspace mutation");
+    expect(runtimeDoc).toContain("No native bridge or desktop action");
+    expect(docsIndex).toContain("runtime-risk-budget-session-control-v0.34.md");
+    expect(combined).not.toContain("Full Access execution is enabled");
+    expect(combined).not.toContain("arbitrary shell execution is enabled");
+    expect(combined).not.toContain("recursive delete execution is enabled");
+    expect(combined).not.toContain("Git push execution is enabled");
+    expect(combined).not.toContain("autonomous loop execution is enabled");
+  });
 });
 
 describe("desktop dev scripts", () => {
