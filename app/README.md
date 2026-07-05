@@ -60,6 +60,9 @@ Current scope:
   read-only App evaluation summaries, and evaluation telemetry audit while App
   Shell evaluation runs, live calls, API key reads, fetch/network,
   apply/rollback, approval execution, and event writes remain disabled
+- prepare the v0.33 v1 candidate polish with security audit and capability
+  boundary matrices while App live calls, broad Git/shell, native bridge,
+  unapproved desktop actions, and disabled capability lanes remain blocked
 - prepare the v0.11 App-side Approved Execution MVP RC with narrow
   human-approved apply and rollback, exact typed confirmations, private
   checkpoints, summary-only approved execution events, replay counts, and E2E

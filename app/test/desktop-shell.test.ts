@@ -33995,6 +33995,105 @@ describe("expanded desktop action proposal app surface", () => {
     );
     expect(combined).not.toContain("destructive migration is enabled");
   });
+
+  it("documents the v1 capability boundary matrix and regression checklist", async () => {
+    const matrix = await readFile(
+      path.join(repoRoot, "docs", "capability-boundary-matrix-v0.33.md"),
+      "utf8"
+    );
+    const checklist = await readFile(
+      path.join(
+        repoRoot,
+        "docs",
+        "capability-boundary-regression-checklist-v0.33.md"
+      ),
+      "utf8"
+    );
+    const docsIndex = await readFile(
+      path.join(repoRoot, "docs", "README.md"),
+      "utf8"
+    );
+    const appReadme = await readFile(
+      path.join(repoRoot, "app", "README.md"),
+      "utf8"
+    );
+    const combined = `${matrix}\n${checklist}\n${docsIndex}\n${appReadme}`;
+
+    [
+      "Enabled",
+      "Approved-only",
+      "Runtime-only explicit",
+      "Read-only",
+      "Preview-only",
+      "Simulation-only",
+      "Disabled",
+      "Deferred"
+    ].forEach((category) => expect(matrix).toContain(category));
+
+    [
+      "current status",
+      "allowed caller",
+      "approval required",
+      "typed confirmation required",
+      "EventStore behavior",
+      "raw data policy",
+      "replay behavior",
+      "future stage if deferred",
+      "blocking tests"
+    ].forEach((column) =>
+      expect(matrix.toLowerCase()).toContain(column.toLowerCase())
+    );
+
+    [
+      "`web_table_to_csv`",
+      "Record Draft Event",
+      "App approved apply",
+      "App approved rollback",
+      "Git read lane",
+      "Shell verification lane",
+      "Project Knowledge commit/revoke/recall",
+      "MCP discovery",
+      "MCP read-only tool call",
+      "MCP mutating tool",
+      "Plugin metadata scan",
+      "Plugin execution",
+      "Skill metadata scan",
+      "Skill simulation",
+      "Skill runtime execution",
+      "Fixed agent route",
+      "Dynamic agent bidding",
+      "Desktop observer",
+      "Desktop focus/raise/activate",
+      "Desktop safe click/type",
+      "Clipboard write",
+      "File dialog automation",
+      "Drag/drop",
+      "Native bridge",
+      "MCP/plugin broad execution"
+    ].forEach((capability) => expect(matrix).toContain(capability));
+
+    expect(checklist).toContain("Enabled capabilities stay bounded");
+    expect(checklist).toContain("Approved-only capabilities require approval");
+    expect(checklist).toContain("Runtime-only explicit helpers");
+    expect(checklist).toContain("Read-only lanes do not write");
+    expect(checklist).toContain("Preview-only lanes do not execute");
+    expect(checklist).toContain("Simulation-only lanes do not call live");
+    expect(checklist).toContain("Disabled lanes remain unavailable");
+    expect(checklist).toContain("Deferred lanes remain documented and blocked");
+    expect(checklist).toContain("No raw prompt");
+    expect(checklist).toContain("No raw model response");
+    expect(checklist).toContain("No raw reasoning content");
+
+    expect(docsIndex).toContain("capability-boundary-matrix-v0.33.md");
+    expect(docsIndex).toContain(
+      "capability-boundary-regression-checklist-v0.33.md"
+    );
+    expect(appReadme).toContain("v0.33 v1 candidate polish");
+    expect(combined).not.toContain("broad Git/shell is enabled");
+    expect(combined).not.toContain("native bridge is enabled");
+    expect(combined).not.toContain("unapproved desktop actions are enabled");
+    expect(combined).not.toContain("mutating MCP tools are enabled");
+  });
 });
 
 describe("desktop dev scripts", () => {

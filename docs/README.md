@@ -556,6 +556,8 @@ foundation.
 - [Security Audit Matrix v0.33](security-audit-matrix-v0.33.md)
 - [Security Audit Matrix checklist v0.33](security-audit-matrix-checklist-v0.33.md)
 - [Security Audit known risks v0.33](security-audit-known-risks-v0.33.md)
+- [Capability Boundary Matrix v0.33](capability-boundary-matrix-v0.33.md)
+- [Capability Boundary Regression Checklist v0.33](capability-boundary-regression-checklist-v0.33.md)
 - [Runtime Memory Recall Preview v0.3](runtime-memory-recall-preview-v0.3.md)
 - [v0.4.0 Controlled Creation Preview RC release notes](release-notes-v0.4.0-controlled-creation-preview-rc.1.md)
 - [App Shell Controlled Creation manual QA](app-shell-controlled-creation-manual-qa.md)
