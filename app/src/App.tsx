@@ -215,6 +215,11 @@ import {
   type AppDataInventorySchemaView
 } from "./app-data-inventory-view.js";
 import {
+  buildMigrationDryRunView,
+  summarizeMigrationDryRunView,
+  type MigrationDryRunView
+} from "./migration-dry-run-view.js";
+import {
   buildDesktopOperatorRecoveryView,
   summarizeDesktopOperatorRecoveryView,
   type DesktopOperatorRecoveryView
@@ -2611,6 +2616,48 @@ export function DesktopShell(): JSX.Element {
         }
       }),
     []
+  );
+  const displayedMigrationDryRun = useMemo<MigrationDryRunView>(
+    () =>
+      buildMigrationDryRunView({
+        plan: {
+          planId: "app-shell-readonly-migration-dry-run-preview",
+          sourceSchemaVersion: "event_log.v1",
+          targetSchemaVersion: "event_log.v1",
+          steps: [
+            {
+              stepId: "schema-check",
+              kind: "schema_check",
+              sourceSchemaVersion: "event_log.v1",
+              targetSchemaVersion: "event_log.v1",
+              itemCount: displayedAppDataInventorySchema.itemCount,
+              byteCount: 0,
+              hashPrefix: displayedAppDataInventorySchema.inventoryHashPrefix
+            },
+            {
+              stepId: "backup-required",
+              kind: "backup_required",
+              sourceSchemaVersion: "checkpoint.v1",
+              targetSchemaVersion: "checkpoint.v1",
+              itemCount: 0,
+              byteCount: 0,
+              backupRequired: true,
+              hashPrefix: displayedAppDataInventorySchema.registryHashPrefix
+            },
+            {
+              stepId: "event-log-replay-check",
+              kind: "event_log_schema_check",
+              sourceSchemaVersion: "event_log.v1",
+              targetSchemaVersion: "event_log.v1",
+              itemCount: 1,
+              byteCount: 0,
+              replayCompatibilityCheck: true,
+              hashPrefix: "replay-compatible"
+            }
+          ]
+        }
+      }),
+    [displayedAppDataInventorySchema]
   );
   const desktopOperatorRecoveryCandidate = useMemo<DesktopOperatorRecoveryView>(
     () =>
@@ -10012,6 +10059,132 @@ export function DesktopShell(): JSX.Element {
                 ).status
               }{" "}
               · {displayedAppDataInventorySchema.nextAction}
+            </p>
+          </section>
+
+          <section className="eventPanel" aria-label="Migration Dry-run Plan">
+            <div className="panelHeader">
+              <h2>Migration Dry-run Plan</h2>
+              <span className="muted">Plan only / no data migration</span>
+            </div>
+            <p className="fieldHelp">
+              Displays a summary-only migration dry-run plan. The App Shell does
+              not copy data, delete data, rewrite data, run migration, invoke
+              Tauri, or write events.
+            </p>
+
+            <div className="buttonRow">
+              <button type="button" className="secondary" disabled>
+                Run Migration (disabled)
+              </button>
+              <button type="button" className="secondary" disabled>
+                Delete Old Data (disabled)
+              </button>
+            </div>
+
+            <dl className="summaryGrid compact">
+              <div>
+                <dt>Status</dt>
+                <dd>{displayedMigrationDryRun.status}</dd>
+              </div>
+              <div>
+                <dt>Plan</dt>
+                <dd>{displayedMigrationDryRun.planId}</dd>
+              </div>
+              <div>
+                <dt>Steps</dt>
+                <dd>{displayedMigrationDryRun.stepCount}</dd>
+              </div>
+              <div>
+                <dt>Manual review</dt>
+                <dd>{displayedMigrationDryRun.manualReviewCount}</dd>
+              </div>
+              <div>
+                <dt>Backup required</dt>
+                <dd>{displayedMigrationDryRun.backupRequiredCount}</dd>
+              </div>
+              <div>
+                <dt>Replay checks</dt>
+                <dd>
+                  {displayedMigrationDryRun.replayCompatibilityCheckCount}
+                </dd>
+              </div>
+              <div>
+                <dt>Items / bytes</dt>
+                <dd>
+                  {displayedMigrationDryRun.totalItemCount} /{" "}
+                  {displayedMigrationDryRun.totalByteCount}
+                </dd>
+              </div>
+              <div>
+                <dt>Blockers / warnings</dt>
+                <dd>
+                  {displayedMigrationDryRun.blockerCount} /{" "}
+                  {displayedMigrationDryRun.warningCount}
+                </dd>
+              </div>
+              <div>
+                <dt>Hash</dt>
+                <dd>{displayedMigrationDryRun.planHashPrefix}</dd>
+              </div>
+              <div>
+                <dt>Run migration</dt>
+                <dd>
+                  {displayedMigrationDryRun.readiness.canRunMigration
+                    ? "yes"
+                    : "no"}
+                </dd>
+              </div>
+              <div>
+                <dt>Copy / delete</dt>
+                <dd>
+                  {displayedMigrationDryRun.readiness.canCopyData
+                    ? "yes"
+                    : "no"}{" "}
+                  /{" "}
+                  {displayedMigrationDryRun.readiness.canDeleteData
+                    ? "yes"
+                    : "no"}
+                </dd>
+              </div>
+              <div>
+                <dt>Rewrite data</dt>
+                <dd>
+                  {displayedMigrationDryRun.readiness.canRewriteData
+                    ? "yes"
+                    : "no"}
+                </dd>
+              </div>
+            </dl>
+
+            {displayedMigrationDryRun.steps.length > 0 ? (
+              <ol className="timeline">
+                {displayedMigrationDryRun.steps.map((step) => (
+                  <li key={step.stepId}>
+                    <span className="timelineMeta">
+                      {step.kind} · {step.status}
+                    </span>
+                    <span>
+                      {step.sourceSchemaVersion ?? "unknown"} to{" "}
+                      {step.targetSchemaVersion ?? "unknown"}
+                    </span>
+                  </li>
+                ))}
+              </ol>
+            ) : null}
+
+            {displayedMigrationDryRun.findings.length > 0 ? (
+              <p className="muted">
+                findings{" "}
+                {displayedMigrationDryRun.findings
+                  .map((finding) => finding.code)
+                  .join(", ")}
+              </p>
+            ) : null}
+
+            <p className="fieldHelp">
+              {summarizeMigrationDryRunView(displayedMigrationDryRun).status} ·{" "}
+              {displayedMigrationDryRun.nextAction}
             </p>
           </section>
 

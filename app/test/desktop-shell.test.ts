@@ -119,6 +119,10 @@ import {
   buildAppDataInventorySchemaView,
   summarizeAppDataInventorySchemaView
 } from "../src/app-data-inventory-view.js";
+import {
+  buildMigrationDryRunView,
+  summarizeMigrationDryRunView
+} from "../src/migration-dry-run-view.js";
 import { buildDesktopOperatorRecoveryView } from "../src/desktop-operator-recovery-view.js";
 import { buildDesktopActionReplayPrivacyAuditView } from "../src/desktop-action-replay-privacy-audit-view.js";
 import { buildCrossSurfaceWorkflowView } from "../src/cross-surface-workflow-view.js";
@@ -26811,8 +26815,6 @@ describe("desktop source boundaries", () => {
       canWriteEventStore: false,
       appCanExecute: false
     });
-    expect(appSource).not.toContain("Run Migration");
-    expect(appSource).not.toContain("Delete Data");
     expect(appSource).not.toContain("Restore Backup");
     expect(viewSource).not.toContain("safeInvoke");
     expect(viewSource).not.toContain("recordControlRunDraftEvent");
@@ -26851,6 +26853,98 @@ describe("desktop source boundaries", () => {
     expect(combinedLower).toContain("no desktop action");
     expect(docsIndex).toContain("runtime-app-data-inventory-schema-v0.32.md");
     expect(docsIndex).toContain("app-shell-app-data-inventory-v0.32.md");
+  });
+
+  it("renders the migration dry-run plan as plan-only with disabled execution controls", async () => {
+    const appSource = await readFile(
+      path.join(appRoot, "src", "App.tsx"),
+      "utf8"
+    );
+    const viewSource = await readFile(
+      path.join(appRoot, "src", "migration-dry-run-view.ts"),
+      "utf8"
+    );
+    const normalizedAppSource = appSource.replace(/\s+/g, " ");
+    const view = buildMigrationDryRunView({
+      plan: {
+        planId: "test-migration-dry-run",
+        steps: [
+          {
+            stepId: "schema-check",
+            kind: "schema_check",
+            sourceSchemaVersion: "event_log.v1",
+            targetSchemaVersion: "event_log.v2",
+            itemCount: 1,
+            byteCount: 0
+          },
+          {
+            stepId: "event-log-check",
+            kind: "event_log_schema_check",
+            sourceSchemaVersion: "event_log.v1",
+            targetSchemaVersion: "event_log.v2",
+            replayCompatibilityCheck: true,
+            itemCount: 1,
+            byteCount: 0
+          }
+        ]
+      }
+    });
+    const summary = summarizeMigrationDryRunView(view);
+
+    expect(appSource).toContain("Migration Dry-run Plan");
+    expect(appSource).toContain("Plan only / no data migration");
+    expect(appSource).toContain("Run Migration (disabled)");
+    expect(appSource).toContain("Delete Old Data (disabled)");
+    expect(normalizedAppSource).toContain("does not copy data");
+    expect(normalizedAppSource).toContain("delete data");
+    expect(normalizedAppSource).toContain("invoke Tauri");
+    expect(view.status).toBe("plan_ready");
+    expect(summary.stepCount).toBe(2);
+    expect(view.readiness).toMatchObject({
+      canRunMigration: false,
+      canCopyData: false,
+      canDeleteData: false,
+      canRewriteData: false,
+      canWriteFilesystem: false,
+      canWriteEventStore: false,
+      appCanExecute: false
+    });
+    expect(viewSource).not.toContain("safeInvoke");
+    expect(viewSource).not.toContain("recordControlRunDraftEvent");
+    expect(viewSource).not.toContain("process.env");
+    expect(viewSource).not.toContain("fetch(");
+  });
+
+  it("documents the migration dry-run plan boundary", async () => {
+    const runtimeDoc = await readFile(
+      path.join(repoRoot, "docs", "runtime-migration-dry-run-v0.32.md"),
+      "utf8"
+    );
+    const appDoc = await readFile(
+      path.join(repoRoot, "docs", "app-shell-migration-dry-run-v0.32.md"),
+      "utf8"
+    );
+    const docsIndex = await readFile(
+      path.join(repoRoot, "docs", "README.md"),
+      "utf8"
+    );
+    const combined = `${runtimeDoc}\n${appDoc}\n${docsIndex}`;
+    const combinedLower = combined.toLowerCase();
+
+    expect(combined).toContain("Runtime Migration Dry-run v0.32");
+    expect(combined).toContain("App Shell Migration Dry-run v0.32");
+    expect(combined).toContain("Plan only / no data migration");
+    expect(combinedLower).toContain("no migration execution");
+    expect(combinedLower).toContain("no file write");
+    expect(combinedLower).toContain("no data deletion");
+    expect(combinedLower).toContain("no actual copy");
+    expect(combinedLower).toContain("no actual rewrite");
+    expect(combinedLower).toContain("no eventstore write");
+    expect(combinedLower).toContain("no git/shell execution");
+    expect(combinedLower).toContain("no native bridge");
+    expect(combinedLower).toContain("no desktop action");
+    expect(docsIndex).toContain("runtime-migration-dry-run-v0.32.md");
+    expect(docsIndex).toContain("app-shell-migration-dry-run-v0.32.md");
   });
 
   it("documents the P1I desktop operator recovery ADR and gate", async () => {

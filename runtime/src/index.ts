@@ -55,10 +55,13 @@ export * as modelPlane from "./models/index.js";
 export * as platformPlane from "./platform/index.js";
 export {
   buildAppDataInventory,
+  buildMigrationDryRunPlan,
   buildSchemaVersionRegistry,
   summarizeAppDataInventory,
+  summarizeMigrationDryRunPlan,
   summarizeSchemaVersionRegistry,
   validateAppDataInventory,
+  validateMigrationDryRunPlan,
   validateSchemaVersionRegistry
 } from "./platform/index.js";
 export type {
@@ -72,6 +75,17 @@ export type {
   AppDataInventorySeverity,
   AppDataInventoryStatus,
   AppDataInventorySummary,
+  MigrationDryRunFinding,
+  MigrationDryRunFindingKind,
+  MigrationDryRunInput,
+  MigrationDryRunPlan,
+  MigrationDryRunReadiness,
+  MigrationDryRunSeverity,
+  MigrationDryRunStatus,
+  MigrationDryRunSummary,
+  MigrationStepKind,
+  MigrationStepPlan,
+  MigrationStepStatus,
   SchemaCompatibilityStatus,
   SchemaVersionEntry,
   SchemaVersionRegistry,
