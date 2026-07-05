@@ -33902,6 +33902,99 @@ describe("expanded desktop action proposal app surface", () => {
     expect(combined).not.toContain("arbitrary Git execution is enabled");
     expect(combined).not.toContain("destructive migration is enabled");
   });
+
+  it("documents the v1 security audit matrix and checklist", async () => {
+    const matrix = await readFile(
+      path.join(repoRoot, "docs", "security-audit-matrix-v0.33.md"),
+      "utf8"
+    );
+    const checklist = await readFile(
+      path.join(repoRoot, "docs", "security-audit-matrix-checklist-v0.33.md"),
+      "utf8"
+    );
+    const risks = await readFile(
+      path.join(repoRoot, "docs", "security-audit-known-risks-v0.33.md"),
+      "utf8"
+    );
+    const docsIndex = await readFile(
+      path.join(repoRoot, "docs", "README.md"),
+      "utf8"
+    );
+    const combined = `${matrix}\n${checklist}\n${risks}\n${docsIndex}`;
+
+    expect(matrix).toContain("Security Audit Matrix v0.33");
+    expect(matrix).toContain("Current allowed behavior");
+    expect(matrix).toContain("Forbidden behavior");
+    expect(matrix).toContain("Primary risk");
+    expect(matrix).toContain("Required approval / receipt");
+    expect(matrix).toContain("EventStore behavior");
+    expect(matrix).toContain("Raw data policy");
+    expect(matrix).toContain("Redaction audit");
+    expect(matrix).toContain("Replay requirement");
+    expect(matrix).toContain("Boundary checker coverage");
+    expect(matrix).toContain("Test coverage");
+    expect(matrix).toContain("Manual QA coverage");
+    expect(matrix).toContain("Known gaps");
+
+    [
+      "`web_table_to_csv` baseline",
+      "Event Log / Replay",
+      "App approved apply / rollback",
+      "Git safe lanes",
+      "Shell verification safe lanes",
+      "Project Knowledge",
+      "Memory recall",
+      "MCP read-only connection",
+      "MCP read-only tool execution",
+      "Plugin manifest",
+      "Skill manifest",
+      "Capability Broker",
+      "Fixed Multi-Agent",
+      "Desktop Observer",
+      "Desktop Action Proposal",
+      "Approved Desktop Actions",
+      "Expanded Desktop Action Proposal",
+      "Approved Expanded Desktop Actions",
+      "Cross-surface Workflow",
+      "External Capability Hardening",
+      "Packaging / migration"
+    ].forEach((row) => expect(matrix).toContain(row));
+
+    expect(checklist).toContain("No raw prompt");
+    expect(checklist).toContain("No raw source");
+    expect(checklist).toContain("No raw diff");
+    expect(checklist).toContain("No raw model response");
+    expect(checklist).toContain("No broad native bridge");
+    expect(checklist).toContain("No arbitrary Git / shell execution");
+    expect(checklist).toContain("No mutating MCP tools");
+    expect(checklist).toContain("No arbitrary plugin code execution");
+    expect(checklist).toContain("No arbitrary skill runtime");
+    expect(checklist).toContain("No unapproved desktop action");
+    expect(checklist).toContain("No auto-apply");
+    expect(checklist).toContain("No destructive migration");
+    expect(checklist).toContain("No silent update");
+    expect(checklist).toContain("pnpm check:boundaries");
+    expect(checklist).toContain("pnpm check:secrets");
+
+    expect(risks).toContain("GitHub Actions Node warning");
+    expect(risks).toContain("Tauri bundle identifier warning");
+    expect(risks).toContain("Vite chunk-size warning");
+    expect(risks).toContain("Migration destructive behavior");
+    expect(risks).toContain("Silent update behavior");
+    expect(risks).toContain("Raw content leakage");
+    expect(risks).toContain("Capability drift");
+    expect(risks).toContain("Manual QA incompleteness");
+
+    expect(docsIndex).toContain("security-audit-matrix-v0.33.md");
+    expect(docsIndex).toContain("security-audit-matrix-checklist-v0.33.md");
+    expect(docsIndex).toContain("security-audit-known-risks-v0.33.md");
+    expect(combined).not.toContain("broad native bridge is enabled");
+    expect(combined).not.toContain("mutating MCP tools are enabled");
+    expect(combined).not.toContain(
+      "arbitrary plugin code execution is enabled"
+    );
+    expect(combined).not.toContain("destructive migration is enabled");
+  });
 });
 
 describe("desktop dev scripts", () => {
