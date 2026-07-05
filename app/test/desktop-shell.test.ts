@@ -34780,6 +34780,41 @@ describe("expanded desktop action proposal app surface", () => {
     expect(combined).not.toContain("Git push execution is enabled");
     expect(combined).not.toContain("autonomous loop execution is enabled");
   });
+
+  it("documents the runtime execution policy engine guardrail", async () => {
+    const runtimeDoc = await readFile(
+      path.join(repoRoot, "docs", "runtime-execution-policy-engine-v0.34.md"),
+      "utf8"
+    );
+    const docsIndex = await readFile(
+      path.join(repoRoot, "docs", "README.md"),
+      "utf8"
+    );
+    const combined = `${runtimeDoc}\n${docsIndex}`;
+
+    expect(runtimeDoc).toContain("Runtime Execution Policy Engine v0.34");
+    expect(runtimeDoc).toContain("summary-only helper");
+    expect(runtimeDoc).toContain("requires_approval");
+    expect(runtimeDoc).toContain("metadata_only");
+    expect(runtimeDoc).toContain("future_mode_only");
+    expect(runtimeDoc).toContain("Approval mode");
+    expect(runtimeDoc).toContain("fixed shell verification lanes");
+    expect(runtimeDoc).toContain("arbitrary shell");
+    expect(runtimeDoc).toContain("recursive delete");
+    expect(runtimeDoc).toContain("Git push");
+    expect(runtimeDoc).toContain("autonomous loop");
+    expect(runtimeDoc).toContain("Native bridge");
+    expect(runtimeDoc).toContain("No Tauri command");
+    expect(runtimeDoc).toContain("No EventStore write");
+    expect(runtimeDoc).toContain("No workspace mutation");
+    expect(runtimeDoc).toContain("not an execution path");
+    expect(docsIndex).toContain("runtime-execution-policy-engine-v0.34.md");
+    expect(combined).not.toContain("Full Access execution is enabled");
+    expect(combined).not.toContain("arbitrary shell execution is enabled");
+    expect(combined).not.toContain("recursive delete execution is enabled");
+    expect(combined).not.toContain("Git push execution is enabled");
+    expect(combined).not.toContain("autonomous loop execution is enabled");
+  });
 });
 
 describe("desktop dev scripts", () => {
