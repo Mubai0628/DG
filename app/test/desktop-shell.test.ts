@@ -26660,6 +26660,98 @@ describe("desktop source boundaries", () => {
     expect(combined).not.toContain("broad native bridge enabled");
   });
 
+  it("documents the P1J packaging update migration ADR and implementation gate", async () => {
+    const adr = await readFile(
+      path.join(
+        repoRoot,
+        "docs",
+        "adr",
+        "0013-packaging-update-data-migration.md"
+      ),
+      "utf8"
+    );
+    const threatModel = await readFile(
+      path.join(
+        repoRoot,
+        "docs",
+        "packaging-update-data-migration-threat-model-v0.31.md"
+      ),
+      "utf8"
+    );
+    const implementationGate = await readFile(
+      path.join(
+        repoRoot,
+        "docs",
+        "packaging-update-data-migration-implementation-gate-v0.31.md"
+      ),
+      "utf8"
+    );
+    const nextPlan = await readFile(
+      path.join(repoRoot, "docs", "p1j-002-app-data-inventory-schema-plan.md"),
+      "utf8"
+    );
+    const docsIndex = await readFile(
+      path.join(repoRoot, "docs", "README.md"),
+      "utf8"
+    );
+    const combined = `${adr}\n${threatModel}\n${implementationGate}\n${nextPlan}\n${docsIndex}`;
+    const threatModelLower = threatModel.toLowerCase();
+
+    expect(adr).toContain("ADR 0013: Packaging / Update / Data Migration");
+    expect(adr).toContain("Accepted for P1J design gate");
+    expect(adr).toContain("All migrations start as dry-run plans");
+    expect(adr).toContain("Data deletion is forbidden");
+    expect(adr).toContain("No auto-update without explicit user confirmation");
+    expect(adr).toContain("No cloud sync");
+    expect(adr).toContain("No telemetry upload");
+    expect(adr).toContain("Generated artifacts must stay ignored");
+    expect(adr).toContain("Release channels must be explicit");
+    expect(threatModelLower).toContain("migration data loss");
+    expect(threatModelLower).toContain("silent data deletion");
+    expect(threatModelLower).toContain("eventstore corruption");
+    expect(threatModelLower).toContain("project knowledge schema mismatch");
+    expect(threatModelLower).toContain("replay incompatibility");
+    expect(threatModelLower).toContain("backup corruption");
+    expect(threatModelLower).toContain("restore mismatch");
+    expect(threatModelLower).toContain("partial update failure");
+    expect(threatModelLower).toContain("installer overwrite");
+    expect(threatModelLower).toContain("rollback package failure");
+    expect(threatModel).toContain("Path Traversal");
+    expect(threatModelLower).toContain("sensitive data leakage");
+    expect(threatModelLower).toContain("release artifact pollution");
+    expect(threatModelLower).toContain("malicious update source");
+    expect(implementationGate).toContain("Data Inventory Safety");
+    expect(implementationGate).toContain("Schema Registry Safety");
+    expect(implementationGate).toContain("Migration Dry-run Safety");
+    expect(implementationGate).toContain("Backup / Restore Safety");
+    expect(implementationGate).toContain("Release Channel Safety");
+    expect(implementationGate).toContain("Artifact Hygiene");
+    expect(implementationGate).toContain("Cross-platform Path Safety");
+    expect(implementationGate).toContain("App UI Safety");
+    expect(implementationGate).toContain("CI / Release Safety");
+    expect(implementationGate).toContain(
+      "does not implement migration or updater behavior"
+    );
+    expect(nextPlan).toContain("P1J-002 App Data Inventory / Schema Plan");
+    expect(nextPlan).toContain("metadata-only");
+    expect(nextPlan).toContain("schema version registry");
+    expect(nextPlan).toContain("No migration execution");
+    expect(nextPlan).toContain("No data writes");
+    expect(docsIndex).toContain("adr/0013-packaging-update-data-migration.md");
+    expect(docsIndex).toContain(
+      "packaging-update-data-migration-threat-model-v0.31.md"
+    );
+    expect(docsIndex).toContain(
+      "packaging-update-data-migration-implementation-gate-v0.31.md"
+    );
+    expect(docsIndex).toContain("p1j-002-app-data-inventory-schema-plan.md");
+    expect(combined).not.toContain("migration execution enabled");
+    expect(combined).not.toContain("updater execution enabled");
+    expect(combined).not.toContain("silent data deletion enabled");
+    expect(combined).not.toContain("cloud sync enabled");
+    expect(combined).not.toContain("telemetry upload enabled");
+  });
+
   it("documents the P1I desktop operator recovery ADR and gate", async () => {
     const adr = await readFile(
       path.join(
