@@ -1,0 +1,124 @@
+{
+  "schemaVersion": "golden_regression_summary.v0.33",
+  "source": "docs_golden_regression_dashboard",
+  "releaseCandidate": "v0.33",
+  "summaryOnly": true,
+  "caseCount": 15,
+  "lockedCount": 14,
+  "pendingCount": 1,
+  "highRiskCount": 11,
+  "mediumRiskCount": 4,
+  "requiredCommandCount": 15,
+  "manualQaReferenceCount": 15,
+  "forbiddenOutputCodeCount": 15,
+  "rawPayloadIncluded": false,
+  "credentialIncluded": false,
+  "cases": [
+    {
+      "caseId": "GR-CONVERT-01",
+      "scope": "convert_baseline",
+      "status": "locked",
+      "riskLevel": "medium",
+      "lastVerifiedRelease": "v0.32-rc"
+    },
+    {
+      "caseId": "GR-APPLY-01",
+      "scope": "approved_apply_rollback",
+      "status": "locked",
+      "riskLevel": "high",
+      "lastVerifiedRelease": "v0.32-rc"
+    },
+    {
+      "caseId": "GR-GIT-01",
+      "scope": "git_shell_verification",
+      "status": "locked",
+      "riskLevel": "high",
+      "lastVerifiedRelease": "v0.32-rc"
+    },
+    {
+      "caseId": "GR-MEM-01",
+      "scope": "project_knowledge_recall",
+      "status": "locked",
+      "riskLevel": "medium",
+      "lastVerifiedRelease": "v0.32-rc"
+    },
+    {
+      "caseId": "GR-LIVE-01",
+      "scope": "live_proposal_generation",
+      "status": "locked",
+      "riskLevel": "high",
+      "lastVerifiedRelease": "v0.32-rc"
+    },
+    {
+      "caseId": "GR-E2E-01",
+      "scope": "e2e_coding_task",
+      "status": "locked",
+      "riskLevel": "high",
+      "lastVerifiedRelease": "v0.32-rc"
+    },
+    {
+      "caseId": "GR-MCP-01",
+      "scope": "mcp_readonly_discovery",
+      "status": "locked",
+      "riskLevel": "medium",
+      "lastVerifiedRelease": "v0.32-rc"
+    },
+    {
+      "caseId": "GR-MCP-02",
+      "scope": "mcp_readonly_tool",
+      "status": "locked",
+      "riskLevel": "high",
+      "lastVerifiedRelease": "v0.32-rc"
+    },
+    {
+      "caseId": "GR-PLUG-01",
+      "scope": "plugin_skill_metadata",
+      "status": "locked",
+      "riskLevel": "high",
+      "lastVerifiedRelease": "v0.32-rc"
+    },
+    {
+      "caseId": "GR-AGENT-01",
+      "scope": "fixed_multi_agent_route",
+      "status": "locked",
+      "riskLevel": "medium",
+      "lastVerifiedRelease": "v0.32-rc"
+    },
+    {
+      "caseId": "GR-DESK-01",
+      "scope": "desktop_observer",
+      "status": "locked",
+      "riskLevel": "high",
+      "lastVerifiedRelease": "v0.32-rc"
+    },
+    {
+      "caseId": "GR-DESK-02",
+      "scope": "desktop_action_proposal",
+      "status": "locked",
+      "riskLevel": "high",
+      "lastVerifiedRelease": "v0.32-rc"
+    },
+    {
+      "caseId": "GR-DESK-03",
+      "scope": "approved_desktop_action",
+      "status": "locked",
+      "riskLevel": "high",
+      "lastVerifiedRelease": "v0.32-rc"
+    },
+    {
+      "caseId": "GR-XFLOW-01",
+      "scope": "cross_surface_workflow",
+      "status": "locked",
+      "riskLevel": "high",
+      "lastVerifiedRelease": "v0.32-rc"
+    },
+    {
+      "caseId": "GR-PACK-01",
+      "scope": "packaging_migration_dry_run",
+      "status": "pending_v0.33",
+      "riskLevel": "high",
+      "lastVerifiedRelease": "v0.32-rc"
+    }
+  ],
+  "summaryHash": "gr-v033-summary-only-15-cases"
+}

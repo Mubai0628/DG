@@ -34094,6 +34094,85 @@ describe("expanded desktop action proposal app surface", () => {
     expect(combined).not.toContain("unapproved desktop actions are enabled");
     expect(combined).not.toContain("mutating MCP tools are enabled");
   });
+
+  it("documents the v1 golden regression dashboard and summary fixture", async () => {
+    const dashboard = await readFile(
+      path.join(repoRoot, "docs", "golden-regression-dashboard-v0.33.md"),
+      "utf8"
+    );
+    const cases = await readFile(
+      path.join(repoRoot, "docs", "golden-regression-cases-v0.33.md"),
+      "utf8"
+    );
+    const summaryText = await readFile(
+      path.join(repoRoot, "docs", "golden-regression-summary-v0.33.json"),
+      "utf8"
+    );
+    const summary = JSON.parse(summaryText) as {
+      summaryOnly: boolean;
+      caseCount: number;
+      rawPayloadIncluded: boolean;
+      credentialIncluded: boolean;
+      cases: Array<{ caseId: string; scope: string; status: string }>;
+    };
+    const docsIndex = await readFile(
+      path.join(repoRoot, "docs", "README.md"),
+      "utf8"
+    );
+    const combined = `${dashboard}\n${cases}\n${summaryText}\n${docsIndex}`;
+
+    [
+      "Convert baseline",
+      "approved apply/rollback",
+      "Git/shell verification",
+      "Project Knowledge recall",
+      "Live proposal generation",
+      "E2E coding task",
+      "MCP read-only discovery",
+      "MCP read-only tool",
+      "Plugin/Skill metadata",
+      "Fixed multi-agent route",
+      "Desktop Observer",
+      "Desktop Action Proposal",
+      "Approved Desktop Action",
+      "Cross-surface Workflow",
+      "Packaging / migration dry run"
+    ].forEach((scope) => expect(combined).toContain(scope));
+
+    [
+      "Case ID",
+      "Title",
+      "Scope",
+      "Required command",
+      "Manual QA reference",
+      "Expected summary",
+      "Forbidden output",
+      "Current status",
+      "Last verified release",
+      "Risk level"
+    ].forEach((column) => expect(dashboard).toContain(column));
+
+    expect(summary.summaryOnly).toBe(true);
+    expect(summary.caseCount).toBe(15);
+    expect(summary.rawPayloadIncluded).toBe(false);
+    expect(summary.credentialIncluded).toBe(false);
+    expect(summary.cases).toHaveLength(15);
+    expect(summary.cases.map((entry) => entry.caseId)).toContain("GR-PACK-01");
+    expect(summary.cases.map((entry) => entry.scope)).toContain(
+      "cross_surface_workflow"
+    );
+    expect(summaryText).not.toContain("rawPrompt");
+    expect(summaryText).not.toContain("rawSource");
+    expect(summaryText).not.toContain("rawDiff");
+    expect(summaryText).not.toContain("apiKey");
+
+    expect(docsIndex).toContain("golden-regression-dashboard-v0.33.md");
+    expect(docsIndex).toContain("golden-regression-cases-v0.33.md");
+    expect(docsIndex).toContain("golden-regression-summary-v0.33.json");
+    expect(combined).not.toContain("App live call is enabled");
+    expect(combined).not.toContain("arbitrary Git is enabled");
+    expect(combined).not.toContain("native bridge is enabled");
+  });
 });
 
 describe("desktop dev scripts", () => {
