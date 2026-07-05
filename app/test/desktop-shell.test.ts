@@ -26640,6 +26640,43 @@ describe("desktop source boundaries", () => {
     expect(combined).not.toContain("native bridge enabled");
   });
 
+  it("documents runtime desktop action mismatch recovery v0.31", async () => {
+    const runtimeDoc = await readFile(
+      path.join(
+        repoRoot,
+        "docs",
+        "runtime-desktop-action-mismatch-recovery-v0.31.md"
+      ),
+      "utf8"
+    );
+    const docsIndex = await readFile(
+      path.join(repoRoot, "docs", "README.md"),
+      "utf8"
+    );
+    const combined = `${runtimeDoc}\n${docsIndex}`;
+
+    expect(runtimeDoc).toContain(
+      "Runtime Desktop Action Mismatch Recovery v0.31"
+    );
+    expect(runtimeDoc).toContain("Runtime pure helper only");
+    expect(runtimeDoc).toContain("No desktop action execution");
+    expect(runtimeDoc).toContain("No automatic retry");
+    expect(runtimeDoc).toContain("No undo execution");
+    expect(runtimeDoc).toContain("raw screenshot");
+    expect(runtimeDoc).toContain("raw OCR");
+    expect(runtimeDoc).toContain("raw target text");
+    expect(runtimeDoc).toContain("target_window_missing");
+    expect(runtimeDoc).toContain("focus_lost");
+    expect(runtimeDoc).toContain("unsupported_platform");
+    expect(runtimeDoc).toContain("all execution readiness flags false");
+    expect(docsIndex).toContain(
+      "runtime-desktop-action-mismatch-recovery-v0.31.md"
+    );
+    expect(combined).not.toContain("automatic retry enabled");
+    expect(combined).not.toContain("undo execution enabled");
+    expect(combined).not.toContain("desktop action execution enabled");
+  });
+
   it("documents the P1G north star demo hardening ADR and gate", async () => {
     const adr = await readFile(
       path.join(repoRoot, "docs", "adr", "0011-north-star-demo-hardening.md"),
