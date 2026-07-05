@@ -571,6 +571,8 @@ foundation.
 - [Known Limitations v1 Candidate](known-limitations-v1-candidate.md)
 - [Release Rollback Guide v1 Candidate](release-rollback-guide-v1-candidate.md)
 - [Manual QA Index v1 Candidate](manual-qa-index-v1-candidate.md)
+- [North Star Manual QA Matrix v0.33](north-star-manual-qa-matrix-v0.33.md)
+- [North Star Release Readiness Checklist v0.33](north-star-release-readiness-checklist-v0.33.md)
 - [Runtime Memory Recall Preview v0.3](runtime-memory-recall-preview-v0.3.md)
 - [v0.4.0 Controlled Creation Preview RC release notes](release-notes-v0.4.0-controlled-creation-preview-rc.1.md)
 - [App Shell Controlled Creation manual QA](app-shell-controlled-creation-manual-qa.md)

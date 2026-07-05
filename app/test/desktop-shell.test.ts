@@ -34367,6 +34367,69 @@ describe("expanded desktop action proposal app surface", () => {
     expect(combined).not.toContain("cloud sync is enabled");
     expect(combined).not.toContain("auto-update is enabled");
   });
+
+  it("documents the v1 north star manual QA matrix and readiness checklist", async () => {
+    const matrix = await readFile(
+      path.join(repoRoot, "docs", "north-star-manual-qa-matrix-v0.33.md"),
+      "utf8"
+    );
+    const checklist = await readFile(
+      path.join(
+        repoRoot,
+        "docs",
+        "north-star-release-readiness-checklist-v0.33.md"
+      ),
+      "utf8"
+    );
+    const docsIndex = await readFile(
+      path.join(repoRoot, "docs", "README.md"),
+      "utf8"
+    );
+    const combined = `${matrix}\n${checklist}\n${docsIndex}`;
+
+    [
+      "baseline Convert",
+      "approved apply / rollback",
+      "Git/shell verification",
+      "Project Knowledge recall",
+      "Live proposal generation",
+      "E2E coding task",
+      "MCP read-only discovery",
+      "MCP read-only tool execution",
+      "Plugin/skill metadata",
+      "Fixed multi-agent workflow",
+      "Desktop observer",
+      "Desktop action proposal",
+      "Approved desktop actions",
+      "Cross-surface workflow",
+      "Failure recovery",
+      "Replay/audit timeline",
+      "Packaging/migration dry-run"
+    ].forEach((row) => expect(combined).toContain(row));
+
+    [
+      "Setup",
+      "Steps",
+      "Expected result",
+      "Must not happen",
+      "Artifacts to inspect",
+      "Links to docs"
+    ].forEach((column) => expect(matrix).toContain(column));
+
+    expect(checklist).toContain("Release Readiness Gate");
+    expect(checklist).toContain("pnpm check:artifacts");
+    expect(checklist).toContain("pnpm check:boundaries");
+    expect(checklist).toContain("pnpm check:secrets");
+    expect(checklist).toContain("pnpm app:test");
+    expect(docsIndex).toContain("north-star-manual-qa-matrix-v0.33.md");
+    expect(docsIndex).toContain(
+      "north-star-release-readiness-checklist-v0.33.md"
+    );
+    expect(combined).not.toContain("App live DeepSeek call is enabled");
+    expect(combined).not.toContain("arbitrary desktop automation is enabled");
+    expect(combined).not.toContain("mutating MCP tool is enabled");
+    expect(combined).not.toContain("auto-update is enabled");
+  });
 });
 
 describe("desktop dev scripts", () => {
