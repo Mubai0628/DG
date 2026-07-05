@@ -26713,6 +26713,40 @@ describe("desktop source boundaries", () => {
     expect(combined).not.toContain("native bridge enabled");
   });
 
+  it("documents runtime desktop action interruption recovery v0.31", async () => {
+    const runtimeDoc = await readFile(
+      path.join(
+        repoRoot,
+        "docs",
+        "runtime-desktop-action-interruption-recovery-v0.31.md"
+      ),
+      "utf8"
+    );
+    const docsIndex = await readFile(
+      path.join(repoRoot, "docs", "README.md"),
+      "utf8"
+    );
+    const combined = `${runtimeDoc}\n${docsIndex}`;
+
+    expect(runtimeDoc).toContain(
+      "Runtime Desktop Action Interruption Recovery v0.31"
+    );
+    expect(runtimeDoc).toContain("runtime-only and summary-only");
+    expect(runtimeDoc).toContain("focus_lost_before_action");
+    expect(runtimeDoc).toContain("focus_lost_after_action");
+    expect(runtimeDoc).toContain("platform_result_unknown");
+    expect(runtimeDoc).toContain("target_became_sensitive");
+    expect(runtimeDoc).toContain("No automatic retry");
+    expect(runtimeDoc).toContain("No replay re-execution");
+    expect(runtimeDoc).toContain("No desktop action execution");
+    expect(docsIndex).toContain(
+      "runtime-desktop-action-interruption-recovery-v0.31.md"
+    );
+    expect(combined).not.toContain("automatic retry enabled");
+    expect(combined).not.toContain("replay re-execution enabled");
+    expect(combined).not.toContain("desktop action execution enabled");
+  });
+
   it("documents the P1G north star demo hardening ADR and gate", async () => {
     const adr = await readFile(
       path.join(repoRoot, "docs", "adr", "0011-north-star-demo-hardening.md"),
