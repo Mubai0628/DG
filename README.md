@@ -350,6 +350,26 @@ v0.15 MVP Hardening / Recovery references:
 - [P0S MVP Hardening / Recovery roadmap](docs/p0s-mvp-hardening-recovery-roadmap.md)
 - [P0S-001 MVP Hardening / Recovery plan](docs/p0s-001-mvp-hardening-recovery-plan.md)
 
+## v0.32 Packaging / Update / Data Migration / QA Matrix status
+
+P1J starts the v0.32 Packaging / Update / Data Migration / QA Matrix roadmap
+after the v0.31 Desktop Operator Recovery / Action Hardening release. The
+phase focuses on app data directory inventory, schema version registry,
+migration dry-run planning, backup / restore / rollback package plans, release
+channel policy, first-run / upgrade checks, installer / artifact hygiene,
+cross-platform path hardening, manual QA matrix, and release smoke matrix while
+preserving no auto-update without confirmation, no destructive migration, no
+silent data deletion, no cloud sync, no telemetry upload, no broad native
+bridge, no arbitrary desktop automation, no new Git/shell capability, and no
+new App execution capability.
+
+v0.32 Packaging / Update / Data Migration / QA Matrix references:
+
+- [v0.32 Packaging / Update / Data Migration / QA Matrix prompts](docs/v0.32-packaging-update-migration-qa-prompts.md)
+- [v0.31 Desktop Operator Recovery post-release review](docs/v0.31-desktop-operator-recovery-postrelease-review.md)
+- [P1J Packaging / Update / Data Migration / QA Matrix roadmap](docs/p1j-packaging-update-migration-qa-roadmap.md)
+- [P1J-001 Packaging / Update / Migration gate plan](docs/p1j-001-packaging-update-migration-gate-plan.md)
+
 ## v0.31 Desktop Operator Recovery / Action Hardening status
 
 Recommended tag:

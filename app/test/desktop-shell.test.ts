@@ -26558,6 +26558,108 @@ describe("desktop source boundaries", () => {
     expect(combined).not.toContain("arbitrary native bridge enabled");
   });
 
+  it("documents the v0.31 post-release review and P1J packaging roadmap", async () => {
+    const promptDoc = await readFile(
+      path.join(
+        repoRoot,
+        "docs",
+        "v0.32-packaging-update-migration-qa-prompts.md"
+      ),
+      "utf8"
+    );
+    const review = await readFile(
+      path.join(
+        repoRoot,
+        "docs",
+        "v0.31-desktop-operator-recovery-postrelease-review.md"
+      ),
+      "utf8"
+    );
+    const roadmap = await readFile(
+      path.join(
+        repoRoot,
+        "docs",
+        "p1j-packaging-update-migration-qa-roadmap.md"
+      ),
+      "utf8"
+    );
+    const plan = await readFile(
+      path.join(
+        repoRoot,
+        "docs",
+        "p1j-001-packaging-update-migration-gate-plan.md"
+      ),
+      "utf8"
+    );
+    const docsIndex = await readFile(
+      path.join(repoRoot, "docs", "README.md"),
+      "utf8"
+    );
+    const rootReadme = await readFile(path.join(repoRoot, "README.md"), "utf8");
+    const combined = `${promptDoc}\n${review}\n${roadmap}\n${plan}\n${docsIndex}\n${rootReadme}`;
+
+    expect(promptDoc).toContain(
+      "v0.32 — Packaging / Update / Data Migration / QA Matrix"
+    );
+    expect(promptDoc).toContain("DW-P1J-008");
+    expect(review).toContain(
+      "v0.31.0-desktop-operator-recovery-hardening-rc.1"
+    );
+    expect(review).toContain("Desktop operator recovery and action hardening");
+    expect(review).toContain("Convert");
+    expect(review).toContain("App approved apply / rollback");
+    expect(review).toContain("Git / shell safe lanes");
+    expect(review).toContain("Project Knowledge");
+    expect(review).toContain("MCP read-only connection/tool execution");
+    expect(review).toContain("Plugin / Skill metadata governance");
+    expect(review).toContain("Fixed multi-agent execution");
+    expect(review).toContain(
+      "Desktop Observer / Action Proposal / Approved Action lanes"
+    );
+    expect(review).toContain("Desktop Operator recovery / privacy audit");
+    expect(review).toContain("Tauri bundle id warning");
+    expect(review).toContain("Vite chunk-size warning");
+    expect(review).toContain("GitHub Actions Node.js 20 deprecation");
+    expect(roadmap).toContain(
+      "P1J Packaging / Update / Data Migration / QA Matrix Roadmap"
+    );
+    expect(roadmap).toContain(
+      "make the app safer to package, upgrade, recover, and QA"
+    );
+    expect(roadmap).toContain("inventory app/project data directories");
+    expect(roadmap).toContain("schema version registry");
+    expect(roadmap).toContain("migration dry-run validators");
+    expect(roadmap).toContain("backup / restore / rollback package plans");
+    expect(roadmap).toContain("release channels and update policy");
+    expect(roadmap).toContain("manual QA and release smoke matrix");
+    expect(roadmap).toContain("auto-update without confirmation");
+    expect(roadmap).toContain("production auto migration");
+    expect(plan).toContain("P1J-001 Packaging / Update / Migration Gate Plan");
+    expect(plan).toContain("No migration implementation");
+    expect(plan).toContain("No updater implementation");
+    expect(plan).toContain("No data writes");
+    expect(plan).toContain("DW-P1J-002");
+    expect(docsIndex).toContain(
+      "v0.32-packaging-update-migration-qa-prompts.md"
+    );
+    expect(docsIndex).toContain(
+      "v0.31-desktop-operator-recovery-postrelease-review.md"
+    );
+    expect(docsIndex).toContain("p1j-packaging-update-migration-qa-roadmap.md");
+    expect(docsIndex).toContain(
+      "p1j-001-packaging-update-migration-gate-plan.md"
+    );
+    expect(rootReadme).toContain(
+      "p1j-packaging-update-migration-qa-roadmap.md"
+    );
+    expect(combined).not.toContain("auto-update without confirmation enabled");
+    expect(combined).not.toContain("destructive migration enabled");
+    expect(combined).not.toContain("silent data deletion enabled");
+    expect(combined).not.toContain("cloud sync enabled");
+    expect(combined).not.toContain("telemetry upload enabled");
+    expect(combined).not.toContain("broad native bridge enabled");
+  });
+
   it("documents the P1I desktop operator recovery ADR and gate", async () => {
     const adr = await readFile(
       path.join(
