@@ -584,6 +584,7 @@ foundation.
 - [Permission Mode high-privilege threat model v0.33](permission-mode-high-privilege-threat-model-v0.33.md)
 - [Permission Mode implementation gate v0.33](permission-mode-implementation-gate-v0.33.md)
 - [P1L-002 Permission Mode Matrix / Session Lease plan](p1l-002-permission-mode-matrix-session-lease-plan.md)
+- [Runtime Permission Mode / Session Lease v0.34](runtime-permission-mode-session-lease-v0.34.md)
 - [Runtime Memory Recall Preview v0.3](runtime-memory-recall-preview-v0.3.md)
 - [v0.4.0 Controlled Creation Preview RC release notes](release-notes-v0.4.0-controlled-creation-preview-rc.1.md)
 - [App Shell Controlled Creation manual QA](app-shell-controlled-creation-manual-qa.md)

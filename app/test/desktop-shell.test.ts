@@ -34735,6 +34735,51 @@ describe("expanded desktop action proposal app surface", () => {
     expect(combined).not.toContain("Git push execution is enabled");
     expect(combined).not.toContain("autonomous loop execution is enabled");
   });
+
+  it("documents the runtime permission mode session lease schema", async () => {
+    const runtimeDoc = await readFile(
+      path.join(
+        repoRoot,
+        "docs",
+        "runtime-permission-mode-session-lease-v0.34.md"
+      ),
+      "utf8"
+    );
+    const docsIndex = await readFile(
+      path.join(repoRoot, "docs", "README.md"),
+      "utf8"
+    );
+    const combined = `${runtimeDoc}\n${docsIndex}`;
+
+    expect(runtimeDoc).toContain(
+      "Runtime Permission Mode / Session Lease v0.34"
+    );
+    expect(runtimeDoc).toContain("summary-only helpers");
+    expect(runtimeDoc).toContain("approval_mode");
+    expect(runtimeDoc).toContain("autonomous_safe_mode");
+    expect(runtimeDoc).toContain("advanced_workspace_mode");
+    expect(runtimeDoc).toContain("full_access_mode");
+    expect(runtimeDoc).toContain("metadata only in v0.34");
+    expect(runtimeDoc).toContain("ENABLE ADVANCED WORKSPACE MODE");
+    expect(runtimeDoc).toContain("ENABLE FULL ACCESS FOR THIS WORKSPACE");
+    expect(runtimeDoc).toContain("arbitrary shell");
+    expect(runtimeDoc).toContain("recursive delete");
+    expect(runtimeDoc).toContain("Git commit or Git push");
+    expect(runtimeDoc).toContain("autonomous loop");
+    expect(runtimeDoc).toContain("raw output persistence");
+    expect(runtimeDoc).toContain("No Tauri command");
+    expect(runtimeDoc).toContain("No EventStore write");
+    expect(runtimeDoc).toContain("No workspace mutation");
+    expect(runtimeDoc).toContain("No native bridge or desktop action");
+    expect(docsIndex).toContain(
+      "runtime-permission-mode-session-lease-v0.34.md"
+    );
+    expect(combined).not.toContain("Full Access execution is enabled");
+    expect(combined).not.toContain("arbitrary shell execution is enabled");
+    expect(combined).not.toContain("recursive delete execution is enabled");
+    expect(combined).not.toContain("Git push execution is enabled");
+    expect(combined).not.toContain("autonomous loop execution is enabled");
+  });
 });
 
 describe("desktop dev scripts", () => {
