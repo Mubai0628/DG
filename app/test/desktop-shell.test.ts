@@ -115,6 +115,7 @@ import {
   parseLiveProposalEvaluationSummaryJson
 } from "../src/live-proposal-evaluation-summary-view.js";
 import { buildLiveProposalEvaluationTelemetryAuditView } from "../src/live-proposal-evaluation-telemetry-audit-view.js";
+import { buildDesktopOperatorRecoveryView } from "../src/desktop-operator-recovery-view.js";
 import { buildCrossSurfaceWorkflowView } from "../src/cross-surface-workflow-view.js";
 import { buildCrossSurfaceEvidenceView } from "../src/cross-surface-evidence-view.js";
 import { buildEvidenceFreshnessDriftView } from "../src/evidence-freshness-drift-view.js";
@@ -26779,6 +26780,140 @@ describe("desktop source boundaries", () => {
     expect(combined).not.toContain("undo execution enabled");
     expect(combined).not.toContain("rollback execution enabled");
     expect(combined).not.toContain("desktop action execution enabled");
+  });
+
+  it("previews desktop operator recovery summaries as App read-only state", () => {
+    const safeView = buildDesktopOperatorRecoveryView({
+      recoveryJsonText: JSON.stringify({
+        mismatchRecovery: {
+          status: "recovery_ready",
+          summary: "Mismatch recovery summary.",
+          blockerCount: 0,
+          warningCount: 0
+        },
+        freshnessRecovery: {
+          status: "fresh",
+          summary: "Fresh target summary.",
+          blockerCount: 0,
+          warningCount: 0
+        },
+        interruptionRecovery: {
+          status: "no_interruption",
+          summary: "No interruption summary.",
+          blockerCount: 0,
+          warningCount: 0
+        },
+        compensationSummary: {
+          status: "summary_ready",
+          summary: "Compensation summary only.",
+          blockerCount: 0,
+          warningCount: 0
+        }
+      })
+    });
+    const rawScreenshotView = buildDesktopOperatorRecoveryView({
+      recoveryJsonText: JSON.stringify({
+        mismatchRecovery: { status: "blocked", blockerCount: 1 },
+        rawScreenshot: "RAW_SCREENSHOT"
+      })
+    });
+    const rawOcrView = buildDesktopOperatorRecoveryView({
+      recoveryJsonText: JSON.stringify({
+        freshnessRecovery: { status: "blocked", blockerCount: 1 },
+        rawOcr: "RAW_OCR"
+      })
+    });
+    const executionFlagView = buildDesktopOperatorRecoveryView({
+      recoveryJsonText: JSON.stringify({
+        interruptionRecovery: { status: "blocked", blockerCount: 1 },
+        readiness: {
+          canRetryDesktopAction: true,
+          canRunUndoAction: true
+        }
+      })
+    });
+
+    expect(safeView.status).toBe("summary_ready");
+    expect(safeView.stageCount).toBe(4);
+    expect(safeView.presentStageCount).toBe(4);
+    expect(safeView.readiness.canPreviewRecoverySummary).toBe(true);
+    expect(safeView.readiness.canRetryDesktopAction).toBe(false);
+    expect(safeView.readiness.canRunUndoAction).toBe(false);
+    expect(safeView.readiness.canClick).toBe(false);
+    expect(safeView.readiness.canType).toBe(false);
+    expect(safeView.readiness.canUseClipboard).toBe(false);
+    expect(safeView.readiness.canOpenFileDialog).toBe(false);
+    expect(safeView.readiness.canReplayDesktopAction).toBe(false);
+    expect(safeView.readiness.canWriteEventStore).toBe(false);
+    expect(safeView.readiness.canUseNativeBridge).toBe(false);
+    expect(rawScreenshotView.status).toBe("blocked");
+    expect(rawScreenshotView.findings.map((finding) => finding.code)).toContain(
+      "RAWSCREENSHOT_FIELD_REJECTED"
+    );
+    expect(rawOcrView.status).toBe("blocked");
+    expect(rawOcrView.findings.map((finding) => finding.code)).toContain(
+      "RAWOCR_FIELD_REJECTED"
+    );
+    expect(executionFlagView.status).toBe("blocked");
+    expect(executionFlagView.findings.map((finding) => finding.code)).toContain(
+      "RECOVERY_EXECUTION_FLAG_TRUE"
+    );
+  });
+
+  it("keeps desktop operator recovery App surface read-only", async () => {
+    const appSource = await readFile(
+      path.join(appRoot, "src", "App.tsx"),
+      "utf8"
+    );
+    const viewSource = await readFile(
+      path.join(appRoot, "src", "desktop-operator-recovery-view.ts"),
+      "utf8"
+    );
+    const appDoc = await readFile(
+      path.join(
+        repoRoot,
+        "docs",
+        "app-shell-desktop-operator-recovery-v0.31.md"
+      ),
+      "utf8"
+    );
+    const docsIndex = await readFile(
+      path.join(repoRoot, "docs", "README.md"),
+      "utf8"
+    );
+    const combined = `${appSource}\n${viewSource}\n${appDoc}\n${docsIndex}`;
+    const normalizedAppSource = appSource.replace(/\s+/g, " ");
+
+    expect(appSource).toContain("Desktop Operator Recovery");
+    expect(appSource).toContain("Read-only / no desktop action");
+    expect(normalizedAppSource).toContain(
+      "Summarizes mismatch, stale target, interruption, and compensation recommendations. The App Shell does not retry actions, click, type, use clipboard, open file dialogs, replay desktop actions, or invoke native bridge."
+    );
+    expect(appSource).toContain("Preview Recovery Summary");
+    expect(appSource).toContain("Clear Recovery Summary");
+    expect(appSource).toContain("Retry Desktop Action (disabled)");
+    expect(appSource).toContain("Run Undo Action (disabled)");
+    expect(appSource).not.toContain("handleRetryDesktopAction");
+    expect(appSource).not.toContain("handleRunUndoAction");
+    expect(viewSource).not.toContain("safeInvoke");
+    expect(viewSource).not.toContain("invoke(");
+    expect(viewSource).not.toContain("recordControlRunDraftEvent");
+    expect(viewSource).not.toContain("writeRecoveryEvent");
+    expect(viewSource).not.toContain("executeApprovedDesktopAction");
+    expect(combined).toContain("raw screenshot");
+    expect(combined).toContain("raw OCR");
+    expect(combined).toContain("raw target text");
+    expect(combined).toContain("No Tauri command");
+    expect(combined).toContain("No EventStore write");
+    expect(combined).toContain("No native bridge");
+    expect(docsIndex).toContain(
+      "app-shell-desktop-operator-recovery-v0.31.md"
+    );
+    expect(appSource).not.toMatch(/>\s*Retry Desktop Action\s*</);
+    expect(appSource).not.toMatch(/>\s*Run Undo Action\s*</);
+    expect(appSource).not.toMatch(/>\s*Click\s*</);
+    expect(appSource).not.toMatch(/>\s*Type\s*</);
+    expect(appSource).not.toMatch(/>\s*Write Events\s*</);
   });
 
   it("documents the P1G north star demo hardening ADR and gate", async () => {

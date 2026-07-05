@@ -210,6 +210,11 @@ import {
   type LiveProposalEvaluationTelemetryAuditView
 } from "./live-proposal-evaluation-telemetry-audit-view.js";
 import {
+  buildDesktopOperatorRecoveryView,
+  summarizeDesktopOperatorRecoveryView,
+  type DesktopOperatorRecoveryView
+} from "./desktop-operator-recovery-view.js";
+import {
   buildCrossSurfaceWorkflowView,
   summarizeCrossSurfaceWorkflowView,
   type CrossSurfaceWorkflowView
@@ -854,6 +859,12 @@ export function DesktopShell(): JSX.Element {
     liveProposalEvaluationTelemetryAuditPreview,
     setLiveProposalEvaluationTelemetryAuditPreview
   ] = useState<LiveProposalEvaluationTelemetryAuditView | undefined>();
+  const [desktopOperatorRecoveryText, setDesktopOperatorRecoveryText] =
+    useState("");
+  const [
+    desktopOperatorRecoveryPreview,
+    setDesktopOperatorRecoveryPreview
+  ] = useState<DesktopOperatorRecoveryView | undefined>();
   const [
     crossSurfaceWorkflowScenarioText,
     setCrossSurfaceWorkflowScenarioText
@@ -2521,6 +2532,17 @@ export function DesktopShell(): JSX.Element {
   const displayedLiveProposalEvaluationTelemetryAudit =
     liveProposalEvaluationTelemetryAuditPreview ??
     buildLiveProposalEvaluationTelemetryAuditView();
+  const desktopOperatorRecoveryCandidate =
+    useMemo<DesktopOperatorRecoveryView>(
+      () =>
+        buildDesktopOperatorRecoveryView({
+          recoveryJsonText: desktopOperatorRecoveryText,
+          sourceKind: "paste"
+        }),
+      [desktopOperatorRecoveryText]
+    );
+  const displayedDesktopOperatorRecovery =
+    desktopOperatorRecoveryPreview ?? buildDesktopOperatorRecoveryView();
   const crossSurfaceWorkflowCandidate = useMemo<CrossSurfaceWorkflowView>(
     () =>
       buildCrossSurfaceWorkflowView({
@@ -2808,6 +2830,9 @@ export function DesktopShell(): JSX.Element {
     liveProposalEvaluationSummaryText,
     liveProposalEvaluationTelemetryAuditText
   ]);
+  useEffect(() => {
+    setDesktopOperatorRecoveryPreview(undefined);
+  }, [desktopOperatorRecoveryText]);
   useEffect(() => {
     setCrossSurfaceWorkflowPreview(undefined);
   }, [crossSurfaceWorkflowScenarioText]);
@@ -3917,6 +3942,15 @@ export function DesktopShell(): JSX.Element {
   function handleClearLiveProposalEvaluationTelemetryAudit(): void {
     setLiveProposalEvaluationTelemetryAuditText("");
     setLiveProposalEvaluationTelemetryAuditPreview(undefined);
+  }
+
+  function handlePreviewDesktopOperatorRecovery(): void {
+    setDesktopOperatorRecoveryPreview(desktopOperatorRecoveryCandidate);
+  }
+
+  function handleClearDesktopOperatorRecovery(): void {
+    setDesktopOperatorRecoveryText("");
+    setDesktopOperatorRecoveryPreview(undefined);
   }
 
   function handlePreviewCrossSurfaceWorkflow(): void {
@@ -9768,6 +9802,225 @@ export function DesktopShell(): JSX.Element {
                 ).source
               }{" "}
               · {displayedLiveProposalEvaluationTelemetryAudit.nextAction}
+            </p>
+          </section>
+
+          <section
+            className="eventPanel"
+            aria-label="Desktop Operator Recovery"
+          >
+            <div className="panelHeader">
+              <h2>Desktop Operator Recovery</h2>
+              <span className="muted">Read-only / no desktop action</span>
+            </div>
+            <p className="fieldHelp">
+              Summarizes mismatch, stale target, interruption, and compensation
+              recommendations. The App Shell does not retry actions, click,
+              type, use clipboard, open file dialogs, replay desktop actions, or
+              invoke native bridge.
+            </p>
+
+            <label>
+              <span>Summary-only recovery JSON</span>
+              <textarea
+                className="compactTextarea"
+                value={desktopOperatorRecoveryText}
+                onChange={(event) => {
+                  setDesktopOperatorRecoveryText(event.target.value);
+                }}
+                placeholder="Paste summary-only desktop operator recovery JSON"
+                spellCheck={false}
+              />
+              <p className="fieldHelp">
+                Accepts summary-only mismatch, stale target, interruption, and
+                compensation refs. Raw screenshots, raw OCR, raw target text,
+                API keys, retry flags, undo flags, and desktop action execution
+                flags are blocked before display.
+              </p>
+            </label>
+
+            <div className="buttonRow">
+              <button
+                type="button"
+                className="secondary"
+                onClick={(event) => {
+                  event.preventDefault();
+                  event.stopPropagation();
+                  handlePreviewDesktopOperatorRecovery();
+                }}
+              >
+                Preview Recovery Summary
+              </button>
+              <button
+                type="button"
+                className="secondary"
+                onClick={(event) => {
+                  event.preventDefault();
+                  event.stopPropagation();
+                  handleClearDesktopOperatorRecovery();
+                }}
+              >
+                Clear Recovery Summary
+              </button>
+              <button type="button" className="secondary" disabled>
+                Retry Desktop Action (disabled)
+              </button>
+              <button type="button" className="secondary" disabled>
+                Run Undo Action (disabled)
+              </button>
+            </div>
+
+            {displayedDesktopOperatorRecovery.status === "empty" ? (
+              <p className="empty">
+                No recovery summary loaded. Paste summary-only recovery JSON to
+                inspect mismatch, stale target, interruption, and compensation
+                recommendations.
+              </p>
+            ) : null}
+
+            {displayedDesktopOperatorRecovery.status === "blocked" ? (
+              <div className="errorBox">
+                <strong>Desktop recovery summary blocked</strong>
+                <p>{displayedDesktopOperatorRecovery.nextAction}</p>
+              </div>
+            ) : null}
+
+            <dl className="summaryGrid compact">
+              <div>
+                <dt>Status</dt>
+                <dd>{displayedDesktopOperatorRecovery.status}</dd>
+              </div>
+              <div>
+                <dt>Recovery</dt>
+                <dd>{displayedDesktopOperatorRecovery.recoveryId}</dd>
+              </div>
+              <div>
+                <dt>Stages present / total</dt>
+                <dd>
+                  {displayedDesktopOperatorRecovery.presentStageCount} /{" "}
+                  {displayedDesktopOperatorRecovery.stageCount}
+                </dd>
+              </div>
+              <div>
+                <dt>Missing stages</dt>
+                <dd>{displayedDesktopOperatorRecovery.missingStageCount}</dd>
+              </div>
+              <div>
+                <dt>Blocked / warning stages</dt>
+                <dd>
+                  {displayedDesktopOperatorRecovery.blockedStageCount} /{" "}
+                  {displayedDesktopOperatorRecovery.warningStageCount}
+                </dd>
+              </div>
+              <div>
+                <dt>Blockers / warnings</dt>
+                <dd>
+                  {displayedDesktopOperatorRecovery.blockerCount} /{" "}
+                  {displayedDesktopOperatorRecovery.warningCount}
+                </dd>
+              </div>
+              <div>
+                <dt>Hash</dt>
+                <dd>{displayedDesktopOperatorRecovery.hashPrefix ?? "n/a"}</dd>
+              </div>
+              <div>
+                <dt>Preview / retry</dt>
+                <dd>
+                  {displayedDesktopOperatorRecovery.readiness
+                    .canPreviewRecoverySummary
+                    ? "yes"
+                    : "no"}{" "}
+                  /{" "}
+                  {displayedDesktopOperatorRecovery.readiness
+                    .canRetryDesktopAction
+                    ? "yes"
+                    : "no"}
+                </dd>
+              </div>
+              <div>
+                <dt>Undo / replay</dt>
+                <dd>
+                  {displayedDesktopOperatorRecovery.readiness.canRunUndoAction
+                    ? "yes"
+                    : "no"}{" "}
+                  /{" "}
+                  {displayedDesktopOperatorRecovery.readiness
+                    .canReplayDesktopAction
+                    ? "yes"
+                    : "no"}
+                </dd>
+              </div>
+              <div>
+                <dt>Click / type</dt>
+                <dd>
+                  {displayedDesktopOperatorRecovery.readiness.canClick
+                    ? "yes"
+                    : "no"}{" "}
+                  /{" "}
+                  {displayedDesktopOperatorRecovery.readiness.canType
+                    ? "yes"
+                    : "no"}
+                </dd>
+              </div>
+              <div>
+                <dt>Clipboard / file dialog</dt>
+                <dd>
+                  {displayedDesktopOperatorRecovery.readiness.canUseClipboard
+                    ? "yes"
+                    : "no"}{" "}
+                  /{" "}
+                  {displayedDesktopOperatorRecovery.readiness.canOpenFileDialog
+                    ? "yes"
+                    : "no"}
+                </dd>
+              </div>
+              <div>
+                <dt>Event write / native bridge</dt>
+                <dd>
+                  {displayedDesktopOperatorRecovery.readiness.canWriteEventStore
+                    ? "yes"
+                    : "no"}{" "}
+                  /{" "}
+                  {displayedDesktopOperatorRecovery.readiness.canUseNativeBridge
+                    ? "yes"
+                    : "no"}
+                </dd>
+              </div>
+            </dl>
+
+            {displayedDesktopOperatorRecovery.stages.length > 0 ? (
+              <ol className="timeline">
+                {displayedDesktopOperatorRecovery.stages.map((stage) => (
+                  <li key={stage.kind}>
+                    <span className="timelineMeta">
+                      {stage.kind} · {stage.status}
+                    </span>
+                    <span>{stage.summary}</span>
+                    <span className="timelineMeta">
+                      blockers {stage.blockerCount} · warnings{" "}
+                      {stage.warningCount}
+                    </span>
+                  </li>
+                ))}
+              </ol>
+            ) : null}
+
+            {displayedDesktopOperatorRecovery.findings.length > 0 ? (
+              <p className="muted">
+                findings{" "}
+                {displayedDesktopOperatorRecovery.findings
+                  .map((finding) => finding.code)
+                  .join(", ")}
+              </p>
+            ) : null}
+
+            <p className="fieldHelp">
+              {
+                summarizeDesktopOperatorRecoveryView(
+                  displayedDesktopOperatorRecovery
+                ).source
+              }{" "}
+              · {displayedDesktopOperatorRecovery.nextAction}
             </p>
           </section>
 

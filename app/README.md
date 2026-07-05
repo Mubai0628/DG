@@ -94,6 +94,9 @@ Current scope:
   automation, remote control, hidden background actions, screen recording,
   clipboard write by default, file dialog automation by default, native bridge,
   arbitrary Git/shell, and broad PermissionLease remain disabled
+- show the Desktop Operator Recovery surface as a read-only summary-only App
+  panel; retry, undo, click, type, clipboard, file dialog, replay execution,
+  EventStore write, and native bridge controls remain disabled
 - preview the P0Y Plugin / Skill Redaction Audit as a summary-only check of
   host metadata boundaries while raw metadata, raw prompt, raw args, raw output,
   install scripts, EventStore writes, plugin execution, skill runtime, native
