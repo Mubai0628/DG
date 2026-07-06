@@ -587,6 +587,7 @@ foundation.
 - [Runtime Permission Mode / Session Lease v0.34](runtime-permission-mode-session-lease-v0.34.md)
 - [Runtime Execution Policy Engine v0.34](runtime-execution-policy-engine-v0.34.md)
 - [Runtime Risk Budget / Session Control v0.34](runtime-risk-budget-session-control-v0.34.md)
+- [App Shell Execution Mode Switch v0.34](app-shell-execution-mode-switch-v0.34.md)
 - [Runtime Memory Recall Preview v0.3](runtime-memory-recall-preview-v0.3.md)
 - [v0.4.0 Controlled Creation Preview RC release notes](release-notes-v0.4.0-controlled-creation-preview-rc.1.md)
 - [App Shell Controlled Creation manual QA](app-shell-controlled-creation-manual-qa.md)

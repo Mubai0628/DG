@@ -111,6 +111,11 @@ import { buildLiveProposalValidationIntegrationView } from "../src/live-proposal
 import { buildLiveProposalPreviewGateView } from "../src/live-proposal-preview-gate-view.js";
 import { buildLiveProposalTelemetryAuditView } from "../src/live-proposal-telemetry-audit-view.js";
 import {
+  buildExecutionModeSwitchView,
+  expectedExecutionModeConfirmation
+} from "../src/execution-mode-switch-view.js";
+import { buildExecutionPolicySummaryView } from "../src/execution-policy-summary-view.js";
+import {
   buildLiveProposalEvaluationSummaryView,
   parseLiveProposalEvaluationSummaryJson
 } from "../src/live-proposal-evaluation-summary-view.js";
@@ -34845,6 +34850,113 @@ describe("expanded desktop action proposal app surface", () => {
     expect(runtimeDoc).toContain("No workspace mutation");
     expect(runtimeDoc).toContain("No native bridge or desktop action");
     expect(docsIndex).toContain("runtime-risk-budget-session-control-v0.34.md");
+    expect(combined).not.toContain("Full Access execution is enabled");
+    expect(combined).not.toContain("arbitrary shell execution is enabled");
+    expect(combined).not.toContain("recursive delete execution is enabled");
+    expect(combined).not.toContain("Git push execution is enabled");
+    expect(combined).not.toContain("autonomous loop execution is enabled");
+  });
+
+  it("previews execution mode policy without enabling App execution", async () => {
+    const approval = buildExecutionModeSwitchView({
+      mode: "approval_mode",
+      createdAt: "2026-07-06T00:00:00.000Z",
+      expiresAt: "2026-07-06T00:30:00.000Z"
+    });
+    const missingFullConfirmation = buildExecutionModeSwitchView({
+      mode: "full_access_mode",
+      createdAt: "2026-07-06T00:00:00.000Z",
+      expiresAt: "2026-07-06T00:30:00.000Z"
+    });
+    const fullConfirmation =
+      expectedExecutionModeConfirmation("full_access_mode");
+    const confirmedFull = buildExecutionModeSwitchView({
+      mode: "full_access_mode",
+      typedConfirmation: fullConfirmation,
+      createdAt: "2026-07-06T00:00:00.000Z",
+      expiresAt: "2026-07-06T00:30:00.000Z"
+    });
+    const policySummary = buildExecutionPolicySummaryView({
+      mode: "approval_mode",
+      createdAt: "2026-07-06T00:00:00.000Z"
+    });
+
+    expect(approval.status).toBe("preview_ready");
+    expect(approval.allowedCapabilities).toContain("canApplyPatch");
+    expect(approval.readiness.canEnableAutonomousExecution).toBe(false);
+    expect(approval.readiness.canEnableArbitraryShell).toBe(false);
+    expect(approval.readiness.canEnableFullAccessExecution).toBe(false);
+    expect(approval.readiness.canRecursiveDelete).toBe(false);
+    expect(approval.readiness.canGitPush).toBe(false);
+    expect(approval.readiness.appCanExecute).toBe(false);
+    expect(missingFullConfirmation.status).toBe("blocked");
+    expect(confirmedFull.status).toBe("warning");
+    expect(confirmedFull.futureHighRiskCapabilities).toContain(
+      "canRunArbitraryShell"
+    );
+    expect(confirmedFull.readiness.canEnableFullAccessExecution).toBe(false);
+    expect(policySummary.broadDesktopActionStatus).toBe("blocked");
+    expect(policySummary.readiness.canExecuteShell).toBe(false);
+    expect(policySummary.readiness.appCanExecute).toBe(false);
+  });
+
+  it("renders the App execution mode switch as preview-only controls", async () => {
+    const appSource = await readFile(
+      path.join(repoRoot, "app/src/App.tsx"),
+      "utf8"
+    );
+
+    expect(appSource).toContain('aria-label="Execution Mode"');
+    expect(appSource).toContain("Preview Mode Policy");
+    expect(appSource).toContain("Create Preview Lease");
+    expect(appSource).toContain("Clear Preview");
+    expect(appSource).toContain("Enable Autonomous Execution (disabled)");
+    expect(appSource).toContain("Enable Arbitrary Shell (disabled)");
+    expect(appSource).toContain("Enable Full Access (disabled)");
+    expect(appSource).toContain(
+      "v0.34 only previews permission policy. It does not enable"
+    );
+    expect(appSource).toContain("raw transcript persistence");
+    expect(appSource).not.toContain("handleEnableAutonomousExecution");
+    expect(appSource).not.toContain("handleEnableArbitraryShell");
+    expect(appSource).not.toContain("handleEnableFullAccess");
+    expect(appSource).not.toContain("Enable Full Access</button>");
+    expect(appSource).not.toContain("Enable Arbitrary Shell</button>");
+    expect(appSource).not.toContain("Enable Autonomous Execution</button>");
+    expect(appSource).not.toContain("safeInvoke(");
+    expect(appSource).not.toContain("invoke(");
+    expect(appSource).not.toContain("fetch(");
+  });
+
+  it("documents the App execution mode switch boundaries", async () => {
+    const appDoc = await readFile(
+      path.join(repoRoot, "docs", "app-shell-execution-mode-switch-v0.34.md"),
+      "utf8"
+    );
+    const docsIndex = await readFile(
+      path.join(repoRoot, "docs", "README.md"),
+      "utf8"
+    );
+    const appReadme = await readFile(
+      path.join(repoRoot, "app", "README.md"),
+      "utf8"
+    );
+    const combined = `${appDoc}\n${docsIndex}\n${appReadme}`;
+
+    expect(appDoc).toContain("App Shell Execution Mode Switch v0.34");
+    expect(appDoc).toContain("Preview Mode Policy");
+    expect(appDoc).toContain("Create Preview Lease");
+    expect(appDoc).toContain("Enable Full Access (disabled)");
+    expect(appDoc).toContain("does not activate Full Access execution");
+    expect(appDoc).toContain("does not add a Tauri command");
+    expect(appDoc).toContain("does not write EventStore entries");
+    expect(appDoc).toContain("No App execution");
+    expect(appDoc).toContain("No arbitrary shell");
+    expect(appDoc).toContain("No recursive delete");
+    expect(appDoc).toContain("No Git push");
+    expect(appDoc).toContain("No raw output persistence");
+    expect(docsIndex).toContain("app-shell-execution-mode-switch-v0.34.md");
+    expect(appReadme).toContain("preview the v0.34 Execution Mode switch");
     expect(combined).not.toContain("Full Access execution is enabled");
     expect(combined).not.toContain("arbitrary shell execution is enabled");
     expect(combined).not.toContain("recursive delete execution is enabled");

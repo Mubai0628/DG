@@ -210,6 +210,11 @@ import {
   type LiveProposalEvaluationTelemetryAuditView
 } from "./live-proposal-evaluation-telemetry-audit-view.js";
 import {
+  buildExecutionModeSwitchView,
+  expectedExecutionModeConfirmation,
+  type ExecutionModeSwitchView
+} from "./execution-mode-switch-view.js";
+import {
   buildAppDataInventorySchemaView,
   summarizeAppDataInventorySchemaView,
   type AppDataInventorySchemaView
@@ -864,6 +869,13 @@ export function DesktopShell(): JSX.Element {
     useState<string | undefined>();
   const [liveProposalPreviewGatePreview, setLiveProposalPreviewGatePreview] =
     useState<LiveProposalPreviewGateView | undefined>();
+  const [executionModeDraft, setExecutionModeDraft] =
+    useState<ExecutionModeSwitchView["mode"]>("approval_mode");
+  const [executionModeConfirmation, setExecutionModeConfirmation] =
+    useState("");
+  const [executionModePreview, setExecutionModePreview] = useState<
+    ExecutionModeSwitchView | undefined
+  >();
   const [
     liveProposalTelemetryAuditPreview,
     setLiveProposalTelemetryAuditPreview
@@ -2512,6 +2524,20 @@ export function DesktopShell(): JSX.Element {
   );
   const displayedLiveProposalPreviewGate =
     liveProposalPreviewGatePreview ?? buildLiveProposalPreviewGateView();
+  const executionModeSwitchCandidate = useMemo<ExecutionModeSwitchView>(
+    () =>
+      buildExecutionModeSwitchView({
+        mode: executionModeDraft,
+        typedConfirmation: executionModeConfirmation,
+        createdAt: "2026-07-06T00:00:00.000Z",
+        expiresAt: "2026-07-06T00:30:00.000Z"
+      }),
+    [executionModeConfirmation, executionModeDraft]
+  );
+  const displayedExecutionModeSwitch =
+    executionModePreview ?? buildExecutionModeSwitchView();
+  const expectedExecutionModeConfirmationText =
+    expectedExecutionModeConfirmation(executionModeDraft);
   const liveProposalTelemetryAuditCandidate =
     useMemo<LiveProposalTelemetryAuditView>(
       () =>
@@ -4147,6 +4173,19 @@ export function DesktopShell(): JSX.Element {
     setLiveProposalPreviewGatePreview(undefined);
     setLiveProposalTelemetryAuditPreview(undefined);
     setContextAssemblyPreview(undefined);
+  }
+
+  function handlePreviewExecutionModePolicy(): void {
+    setExecutionModePreview(executionModeSwitchCandidate);
+  }
+
+  function handleCreateExecutionModePreviewLease(): void {
+    setExecutionModePreview(executionModeSwitchCandidate);
+  }
+
+  function handleClearExecutionModePreview(): void {
+    setExecutionModePreview(undefined);
+    setExecutionModeConfirmation("");
   }
 
   function handlePreviewLiveProposalTelemetryAudit(): void {
@@ -9318,6 +9357,224 @@ export function DesktopShell(): JSX.Element {
                 ).nextAction
               }{" "}
               No key value or raw response text is accepted.
+            </p>
+          </section>
+
+          <section className="eventPanel" aria-label="Execution Mode">
+            <div className="panelHeader">
+              <h2>Execution Mode</h2>
+              <span className="muted">Policy preview / no new execution</span>
+            </div>
+            <p className="fieldHelp">
+              v0.34 only previews permission policy. It does not enable
+              arbitrary shell, auto-apply, recursive delete, Git push,
+              autonomous loops, or raw transcript persistence.
+            </p>
+
+            <div className="formGrid">
+              <label>
+                Mode
+                <select
+                  value={executionModeDraft}
+                  onChange={(event: ChangeEvent<HTMLSelectElement>) => {
+                    setExecutionModeDraft(
+                      event.target.value as ExecutionModeSwitchView["mode"]
+                    );
+                    setExecutionModePreview(undefined);
+                  }}
+                >
+                  <option value="approval_mode">Approval Mode</option>
+                  <option value="autonomous_safe_mode">
+                    Autonomous Safe Mode (preview only)
+                  </option>
+                  <option value="advanced_workspace_mode">
+                    Advanced Workspace Mode (preview only)
+                  </option>
+                  <option value="full_access_mode">
+                    Full Access Mode (preview only)
+                  </option>
+                </select>
+              </label>
+              <label>
+                Preview confirmation
+                <input
+                  value={executionModeConfirmation}
+                  onChange={(event: ChangeEvent<HTMLInputElement>) => {
+                    setExecutionModeConfirmation(event.target.value);
+                    setExecutionModePreview(undefined);
+                  }}
+                  placeholder={
+                    expectedExecutionModeConfirmationText ??
+                    "No confirmation required for Approval Mode"
+                  }
+                />
+              </label>
+            </div>
+
+            {expectedExecutionModeConfirmationText !== undefined ? (
+              <p className="fieldHelp">
+                Required exact preview confirmation:{" "}
+                {expectedExecutionModeConfirmationText}
+              </p>
+            ) : null}
+
+            <div className="buttonRow">
+              <button
+                type="button"
+                className="secondary"
+                onClick={(event) => {
+                  event.preventDefault();
+                  event.stopPropagation();
+                  handlePreviewExecutionModePolicy();
+                }}
+              >
+                Preview Mode Policy
+              </button>
+              <button
+                type="button"
+                className="secondary"
+                onClick={(event) => {
+                  event.preventDefault();
+                  event.stopPropagation();
+                  handleCreateExecutionModePreviewLease();
+                }}
+              >
+                Create Preview Lease
+              </button>
+              <button
+                type="button"
+                className="secondary"
+                onClick={(event) => {
+                  event.preventDefault();
+                  event.stopPropagation();
+                  handleClearExecutionModePreview();
+                }}
+              >
+                Clear Preview
+              </button>
+              <button type="button" className="secondary" disabled>
+                Enable Autonomous Execution (disabled)
+              </button>
+              <button type="button" className="secondary" disabled>
+                Enable Arbitrary Shell (disabled)
+              </button>
+              <button type="button" className="secondary" disabled>
+                Enable Full Access (disabled)
+              </button>
+            </div>
+
+            {displayedExecutionModeSwitch.status === "blocked" ? (
+              <div className="errorBox">
+                <strong>Execution mode preview blocked</strong>
+                <p>{displayedExecutionModeSwitch.nextAction}</p>
+              </div>
+            ) : null}
+
+            <dl className="summaryGrid compact">
+              <div>
+                <dt>Status</dt>
+                <dd>{displayedExecutionModeSwitch.status}</dd>
+              </div>
+              <div>
+                <dt>Current mode</dt>
+                <dd>{displayedExecutionModeSwitch.displayName}</dd>
+              </div>
+              <div>
+                <dt>Policy / lease</dt>
+                <dd>
+                  {displayedExecutionModeSwitch.policyId} /{" "}
+                  {displayedExecutionModeSwitch.leaseId}
+                </dd>
+              </div>
+              <div>
+                <dt>Allowed / blocked</dt>
+                <dd>
+                  {displayedExecutionModeSwitch.allowedCapabilities.length} /{" "}
+                  {displayedExecutionModeSwitch.blockedCapabilities.length}
+                </dd>
+              </div>
+              <div>
+                <dt>Future high-risk</dt>
+                <dd>
+                  {
+                    displayedExecutionModeSwitch.futureHighRiskCapabilities
+                      .length
+                  }
+                </dd>
+              </div>
+              <div>
+                <dt>Risk budget</dt>
+                <dd>
+                  {displayedExecutionModeSwitch.riskBudget.status} ·{" "}
+                  {displayedExecutionModeSwitch.riskBudget.hashPrefix}
+                </dd>
+              </div>
+              <div>
+                <dt>Kill switch</dt>
+                <dd>
+                  {displayedExecutionModeSwitch.sessionControl.killSwitchVisible
+                    ? "visible"
+                    : "hidden"}{" "}
+                  /{" "}
+                  {displayedExecutionModeSwitch.sessionControl.canKill
+                    ? "kill available"
+                    : "kill unavailable"}
+                </dd>
+              </div>
+              <div>
+                <dt>Pause / resume</dt>
+                <dd>
+                  {displayedExecutionModeSwitch.sessionControl.canPause
+                    ? "pause"
+                    : "pause disabled"}{" "}
+                  /{" "}
+                  {displayedExecutionModeSwitch.sessionControl.canResume
+                    ? "metadata resume"
+                    : "resume disabled"}
+                </dd>
+              </div>
+              <div>
+                <dt>Blockers / warnings</dt>
+                <dd>
+                  {displayedExecutionModeSwitch.blockerCount} /{" "}
+                  {displayedExecutionModeSwitch.warningCount}
+                </dd>
+              </div>
+              <div>
+                <dt>Disabled readiness</dt>
+                <dd>
+                  shell{" "}
+                  {displayedExecutionModeSwitch.readiness
+                    .canEnableArbitraryShell
+                    ? "yes"
+                    : "no"}{" "}
+                  · Git push{" "}
+                  {displayedExecutionModeSwitch.readiness.canGitPush
+                    ? "yes"
+                    : "no"}{" "}
+                  · app{" "}
+                  {displayedExecutionModeSwitch.readiness.appCanExecute
+                    ? "yes"
+                    : "no"}
+                </dd>
+              </div>
+            </dl>
+
+            <p className="muted">
+              allowed{" "}
+              {displayedExecutionModeSwitch.allowedCapabilities.join(", ") ||
+                "none"}
+            </p>
+            <p className="muted">
+              future high-risk{" "}
+              {displayedExecutionModeSwitch.futureHighRiskCapabilities.join(
+                ", "
+              ) || "none"}
+            </p>
+            <p className="fieldHelp">
+              {displayedExecutionModeSwitch.policySummary}{" "}
+              {displayedExecutionModeSwitch.leaseSummary}{" "}
+              {displayedExecutionModeSwitch.nextAction}
             </p>
           </section>
 
