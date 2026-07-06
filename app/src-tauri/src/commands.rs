@@ -52,6 +52,10 @@ const PROJECT_KNOWLEDGE_ENTRY_REVOKED_TYPE: &str = "project_knowledge.entry_revo
 const PROJECT_KNOWLEDGE_ENTRY_EXPIRED_TYPE: &str = "project_knowledge.entry_expired";
 const PROJECT_KNOWLEDGE_RECALL_USED_TYPE: &str = "project_knowledge.recall_used";
 const PROJECT_KNOWLEDGE_AUDIT_WARNING_TYPE: &str = "project_knowledge.audit_warning";
+const TRANSCRIPT_SCHEMA_VERSION: &str = "transcript_record.v1";
+const TRANSCRIPT_STORE_SOURCE: &str = "runtime_transcript_store_schema";
+const TRANSCRIPT_STORE_DIR: &str = "transcripts";
+const TRANSCRIPT_MAX_CHUNK_SUMMARY_CHARS: usize = 5_000;
 const APPROVED_DESKTOP_ACTION_FOCUS_CONFIRMATION: &str = "FOCUS OBSERVED WINDOW";
 const APPROVED_DESKTOP_ACTION_RAISE_CONFIRMATION: &str = "RAISE OBSERVED WINDOW";
 const APPROVED_DESKTOP_ACTION_ACTIVATE_CONFIRMATION: &str = "ACTIVATE OBSERVED WINDOW";
@@ -952,6 +956,99 @@ pub struct ProjectKnowledgeLifecycleResult {
     warnings: Vec<String>,
 }
 
+#[derive(Debug, Serialize, Deserialize, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct TranscriptRecordSummary {
+    transcript_id: String,
+    schema_version: String,
+    session_id: String,
+    source_kind: String,
+    visibility: String,
+    mode: String,
+    chunk_count: usize,
+    raw_available_chunk_count: usize,
+    byte_count: u64,
+    line_count: u64,
+    redacted_field_count: u64,
+    secret_marker_count: u64,
+    warning_codes: Vec<String>,
+    transcript_hash: String,
+    summary_only: bool,
+    raw_content_included: bool,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct TranscriptStoreListResult {
+    ok: bool,
+    status: String,
+    store_path: String,
+    record_count: usize,
+    records: Vec<TranscriptRecordSummary>,
+    warnings: Vec<String>,
+    snapshot_hash: String,
+    summary_only: bool,
+    raw_content_included: bool,
+    safe_message: String,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct TranscriptWriteResult {
+    ok: bool,
+    transcript_id: String,
+    file_path: String,
+    store_path: String,
+    record_count: usize,
+    summary: TranscriptRecordSummary,
+    transcript_hash: String,
+    summary_only: bool,
+    raw_content_included: bool,
+    safe_message: String,
+    warnings: Vec<String>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct TranscriptReadSummaryResult {
+    ok: bool,
+    transcript_id: String,
+    store_path: String,
+    summary: TranscriptRecordSummary,
+    transcript_hash: String,
+    summary_only: bool,
+    raw_content_included: bool,
+    safe_message: String,
+    warnings: Vec<String>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct TranscriptDeleteResult {
+    ok: bool,
+    transcript_id: String,
+    deleted: bool,
+    store_path: String,
+    summary_only: bool,
+    raw_content_included: bool,
+    safe_message: String,
+    warnings: Vec<String>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct TranscriptExportSummaryResult {
+    ok: bool,
+    transcript_id: String,
+    export_json: String,
+    export_hash: String,
+    summary: TranscriptRecordSummary,
+    summary_only: bool,
+    raw_content_included: bool,
+    safe_message: String,
+    warnings: Vec<String>,
+}
+
 #[derive(Debug, Clone)]
 struct LiveDeepSeekTransportResponse {
     status_code: u16,
@@ -1776,6 +1873,172 @@ pub fn project_knowledge_expire(
         PROJECT_KNOWLEDGE_ENTRY_EXPIRED_TYPE,
         Some(reason_summary),
     )
+}
+
+#[tauri::command(rename_all = "camelCase")]
+pub fn write_transcript_record(
+    workspace_root: String,
+    record: Value,
+) -> Result<TranscriptWriteResult, DesktopFlowError> {
+    let workspace_root = validate_transcript_workspace_root(&workspace_root)?;
+    let store = resolve_transcript_store(&workspace_root, true)?;
+    let summary = validate_transcript_record_value(&record)?;
+    let transcript_id = summary.transcript_id.clone();
+    let file_path = transcript_record_path(&store.store_dir, &transcript_id)?;
+    validate_transcript_file_path(&file_path, &store.store_dir)?;
+    let serialized = serde_json::to_string_pretty(&record).map_err(|_| {
+        DesktopFlowError::new(
+            "TRANSCRIPT_STORE_WRITE_FAILED",
+            "Transcript record could not be serialized",
+            "transcript_store",
+        )
+    })?;
+    if contains_approved_apply_sensitive_marker(&serialized) {
+        return Err(transcript_store_invalid(
+            "Transcript record failed final redaction validation",
+        ));
+    }
+    fs::write(&file_path, serialized).map_err(|_| {
+        DesktopFlowError::new(
+            "TRANSCRIPT_STORE_WRITE_FAILED",
+            "Transcript record could not be written",
+            "transcript_store",
+        )
+    })?;
+    validate_transcript_file_path(&file_path, &store.store_dir)?;
+    let list = load_transcript_store_snapshot(&store)?;
+
+    Ok(TranscriptWriteResult {
+        ok: true,
+        transcript_id,
+        file_path: file_path.to_string_lossy().to_string(),
+        store_path: store.store_dir.to_string_lossy().to_string(),
+        record_count: list.record_count,
+        transcript_hash: summary.transcript_hash.clone(),
+        summary,
+        summary_only: true,
+        raw_content_included: false,
+        safe_message: "Transcript record stored locally as redacted summary metadata.".to_string(),
+        warnings: list.warnings,
+    })
+}
+
+#[tauri::command(rename_all = "camelCase")]
+pub fn list_transcript_records(
+    workspace_root: String,
+) -> Result<TranscriptStoreListResult, DesktopFlowError> {
+    let workspace_root = validate_transcript_workspace_root(&workspace_root)?;
+    let store = resolve_transcript_store(&workspace_root, false)?;
+    load_transcript_store_snapshot(&store)
+}
+
+#[tauri::command(rename_all = "camelCase")]
+pub fn read_transcript_record_summary(
+    workspace_root: String,
+    transcript_id: String,
+) -> Result<TranscriptReadSummaryResult, DesktopFlowError> {
+    let workspace_root = validate_transcript_workspace_root(&workspace_root)?;
+    let store = resolve_transcript_store(&workspace_root, false)?;
+    let file_path = transcript_record_path(&store.store_dir, &transcript_id)?;
+    validate_transcript_file_path(&file_path, &store.store_dir)?;
+    let summary = read_transcript_summary_from_path(&file_path)?;
+
+    Ok(TranscriptReadSummaryResult {
+        ok: true,
+        transcript_id: summary.transcript_id.clone(),
+        store_path: store.store_dir.to_string_lossy().to_string(),
+        transcript_hash: summary.transcript_hash.clone(),
+        summary,
+        summary_only: true,
+        raw_content_included: false,
+        safe_message: "Transcript record summary loaded without raw output.".to_string(),
+        warnings: Vec::new(),
+    })
+}
+
+#[tauri::command(rename_all = "camelCase")]
+pub fn delete_transcript_record(
+    workspace_root: String,
+    transcript_id: String,
+) -> Result<TranscriptDeleteResult, DesktopFlowError> {
+    let workspace_root = validate_transcript_workspace_root(&workspace_root)?;
+    let store = resolve_transcript_store(&workspace_root, false)?;
+    let file_path = transcript_record_path(&store.store_dir, &transcript_id)?;
+    validate_transcript_file_path(&file_path, &store.store_dir)?;
+    let deleted = if file_path.exists() {
+        let metadata = fs::symlink_metadata(&file_path).map_err(|_| {
+            DesktopFlowError::new(
+                "TRANSCRIPT_STORE_PATH_INVALID",
+                "Transcript record metadata could not be read",
+                "transcript_store",
+            )
+        })?;
+        if metadata.file_type().is_symlink() || !metadata.is_file() {
+            return Err(DesktopFlowError::new(
+                "TRANSCRIPT_STORE_PATH_ESCAPE",
+                "Transcript delete target must be a single file inside the store",
+                "transcript_store",
+            ));
+        }
+        fs::remove_file(&file_path).map_err(|_| {
+            DesktopFlowError::new(
+                "TRANSCRIPT_STORE_DELETE_FAILED",
+                "Transcript record could not be deleted",
+                "transcript_store",
+            )
+        })?;
+        true
+    } else {
+        false
+    };
+
+    Ok(TranscriptDeleteResult {
+        ok: true,
+        transcript_id,
+        deleted,
+        store_path: store.store_dir.to_string_lossy().to_string(),
+        summary_only: true,
+        raw_content_included: false,
+        safe_message: "Transcript record delete only targets the derived transcript file."
+            .to_string(),
+        warnings: Vec::new(),
+    })
+}
+
+#[tauri::command(rename_all = "camelCase")]
+pub fn export_transcript_summary(
+    workspace_root: String,
+    transcript_id: String,
+) -> Result<TranscriptExportSummaryResult, DesktopFlowError> {
+    let workspace_root = validate_transcript_workspace_root(&workspace_root)?;
+    let store = resolve_transcript_store(&workspace_root, false)?;
+    let file_path = transcript_record_path(&store.store_dir, &transcript_id)?;
+    validate_transcript_file_path(&file_path, &store.store_dir)?;
+    let summary = read_transcript_summary_from_path(&file_path)?;
+    let export_json = serde_json::to_string_pretty(&summary).map_err(|_| {
+        DesktopFlowError::new(
+            "TRANSCRIPT_STORE_EXPORT_FAILED",
+            "Transcript summary could not be exported",
+            "transcript_store",
+        )
+    })?;
+    if contains_approved_apply_sensitive_marker(&export_json) {
+        return Err(transcript_store_invalid(
+            "Transcript summary export failed redaction validation",
+        ));
+    }
+
+    Ok(TranscriptExportSummaryResult {
+        ok: true,
+        transcript_id: summary.transcript_id.clone(),
+        export_hash: short_hash(&export_json),
+        export_json,
+        summary,
+        summary_only: true,
+        raw_content_included: false,
+        safe_message: "Transcript summary export contains no raw transcript output.".to_string(),
+        warnings: Vec::new(),
+    })
 }
 
 #[tauri::command(rename_all = "camelCase")]
@@ -7003,6 +7266,446 @@ fn short_hash_bytes(bytes: &[u8]) -> String {
     format!("{:016x}", hasher.finish())
 }
 
+struct TranscriptStorePaths {
+    store_dir: PathBuf,
+}
+
+fn validate_transcript_workspace_root(workspace_root: &str) -> Result<PathBuf, DesktopFlowError> {
+    validate_approved_apply_workspace_root(workspace_root).map_err(|message| {
+        DesktopFlowError::new(
+            "TRANSCRIPT_WORKSPACE_INVALID",
+            message,
+            "transcript_store",
+        )
+    })
+}
+
+fn resolve_transcript_store(
+    workspace_root: &Path,
+    create: bool,
+) -> Result<TranscriptStorePaths, DesktopFlowError> {
+    let workbench_dir = workspace_root.join(".deepseek-workbench");
+    reject_transcript_symlink(&workbench_dir)?;
+    let store_dir = workbench_dir.join(TRANSCRIPT_STORE_DIR);
+    reject_transcript_symlink(&store_dir)?;
+    if create {
+        fs::create_dir_all(&store_dir).map_err(|_| {
+            DesktopFlowError::new(
+                "TRANSCRIPT_STORE_WRITE_FAILED",
+                "Transcript store directory could not be created",
+                "transcript_store",
+            )
+        })?;
+    }
+    if store_dir.exists() {
+        let canonical_store = store_dir.canonicalize().map_err(|_| {
+            DesktopFlowError::new(
+                "TRANSCRIPT_STORE_PATH_INVALID",
+                "Transcript store path could not be resolved",
+                "transcript_store",
+            )
+        })?;
+        if !canonical_store.starts_with(workspace_root) || !canonical_store.is_dir() {
+            return Err(DesktopFlowError::new(
+                "TRANSCRIPT_STORE_PATH_ESCAPE",
+                "Transcript store path escapes the workspace",
+                "transcript_store",
+            ));
+        }
+    } else if create {
+        return Err(DesktopFlowError::new(
+            "TRANSCRIPT_STORE_WRITE_FAILED",
+            "Transcript store directory is missing",
+            "transcript_store",
+        ));
+    }
+    Ok(TranscriptStorePaths { store_dir })
+}
+
+fn reject_transcript_symlink(path: &Path) -> Result<(), DesktopFlowError> {
+    if path.exists() {
+        let metadata = fs::symlink_metadata(path).map_err(|_| {
+            DesktopFlowError::new(
+                "TRANSCRIPT_STORE_PATH_INVALID",
+                "Transcript store metadata could not be read",
+                "transcript_store",
+            )
+        })?;
+        if metadata.file_type().is_symlink() {
+            return Err(DesktopFlowError::new(
+                "TRANSCRIPT_STORE_PATH_ESCAPE",
+                "Transcript store path cannot be a symlink",
+                "transcript_store",
+            ));
+        }
+    }
+    Ok(())
+}
+
+fn transcript_record_path(
+    store_dir: &Path,
+    transcript_id: &str,
+) -> Result<PathBuf, DesktopFlowError> {
+    validate_transcript_id(transcript_id)?;
+    Ok(store_dir.join(format!("{transcript_id}.json")))
+}
+
+fn validate_transcript_file_path(
+    path: &Path,
+    store_dir: &Path,
+) -> Result<(), DesktopFlowError> {
+    reject_transcript_symlink(path)?;
+    if path.exists() {
+        let canonical = path.canonicalize().map_err(|_| {
+            DesktopFlowError::new(
+                "TRANSCRIPT_STORE_PATH_INVALID",
+                "Transcript file path could not be resolved",
+                "transcript_store",
+            )
+        })?;
+        let canonical_store = store_dir.canonicalize().map_err(|_| {
+            DesktopFlowError::new(
+                "TRANSCRIPT_STORE_PATH_INVALID",
+                "Transcript store path could not be resolved",
+                "transcript_store",
+            )
+        })?;
+        if !canonical.starts_with(canonical_store) || !canonical.is_file() {
+            return Err(DesktopFlowError::new(
+                "TRANSCRIPT_STORE_PATH_ESCAPE",
+                "Transcript file path escapes the store",
+                "transcript_store",
+            ));
+        }
+    } else if store_dir.exists() {
+        let canonical_store = store_dir.canonicalize().map_err(|_| {
+            DesktopFlowError::new(
+                "TRANSCRIPT_STORE_PATH_INVALID",
+                "Transcript store path could not be resolved",
+                "transcript_store",
+            )
+        })?;
+        let parent = path.parent().ok_or_else(|| {
+            DesktopFlowError::new(
+                "TRANSCRIPT_STORE_PATH_ESCAPE",
+                "Transcript file path has no store parent",
+                "transcript_store",
+            )
+        })?;
+        let existing_parent = nearest_existing_parent(parent);
+        let canonical_parent = existing_parent.canonicalize().map_err(|_| {
+            DesktopFlowError::new(
+                "TRANSCRIPT_STORE_PATH_INVALID",
+                "Transcript file parent could not be resolved",
+                "transcript_store",
+            )
+        })?;
+        if !canonical_parent.starts_with(canonical_store) {
+            return Err(DesktopFlowError::new(
+                "TRANSCRIPT_STORE_PATH_ESCAPE",
+                "Transcript file path escapes the store",
+                "transcript_store",
+            ));
+        }
+    }
+    Ok(())
+}
+
+fn validate_transcript_id(transcript_id: &str) -> Result<(), DesktopFlowError> {
+    let trimmed = transcript_id.trim();
+    if trimmed.is_empty()
+        || trimmed.len() > 128
+        || trimmed == "."
+        || trimmed == ".."
+        || trimmed.contains("..")
+        || !trimmed
+            .chars()
+            .all(|ch| ch.is_ascii_alphanumeric() || matches!(ch, '-' | '_' | '.'))
+    {
+        return Err(transcript_store_invalid("Transcript id is invalid"));
+    }
+    Ok(())
+}
+
+fn validate_transcript_record_value(
+    record: &Value,
+) -> Result<TranscriptRecordSummary, DesktopFlowError> {
+    if let Some(_key) = find_forbidden_approved_apply_key(record) {
+        return Err(transcript_store_invalid(
+            "Transcript record contains forbidden fields",
+        ));
+    }
+    let serialized = serde_json::to_string(record).map_err(|_| {
+        DesktopFlowError::new(
+            "TRANSCRIPT_STORE_INVALID",
+            "Transcript record could not be serialized safely",
+            "transcript_store",
+        )
+    })?;
+    if contains_approved_apply_sensitive_marker(&serialized) {
+        return Err(transcript_store_invalid(
+            "Transcript record contains unsafe markers",
+        ));
+    }
+    let object = record.as_object().ok_or_else(|| {
+        transcript_store_invalid("Transcript record must be a structured object")
+    })?;
+    if transcript_string(object, "schemaVersion") != Some(TRANSCRIPT_SCHEMA_VERSION) {
+        return Err(transcript_store_invalid(
+            "Transcript record schema version is unsupported",
+        ));
+    }
+    let transcript_id = transcript_required_string(object, "transcriptId")?;
+    validate_transcript_id(transcript_id)?;
+    let session_id = transcript_required_string(object, "sessionId")?;
+    let source_kind = transcript_required_string(object, "sourceKind")?;
+    let visibility = transcript_required_string(object, "visibility")?;
+    let mode = transcript_required_string(object, "mode")?;
+    let raw_opt_in = transcript_bool(object, "rawOptIn").unwrap_or(false);
+    let chunks = object
+        .get("chunks")
+        .and_then(Value::as_array)
+        .ok_or_else(|| transcript_store_invalid("Transcript chunks are required"))?;
+    if chunks.is_empty() {
+        return Err(transcript_store_invalid("Transcript chunks are required"));
+    }
+    let redaction = object
+        .get("redactionSummary")
+        .and_then(Value::as_object)
+        .ok_or_else(|| transcript_store_invalid("Transcript redaction summary is required"))?;
+    let retention = object
+        .get("retentionPolicy")
+        .and_then(Value::as_object)
+        .ok_or_else(|| transcript_store_invalid("Transcript retention policy is required"))?;
+    if object
+        .get("source")
+        .and_then(Value::as_str)
+        .map(|source| source != TRANSCRIPT_STORE_SOURCE)
+        .unwrap_or(false)
+    {
+        return Err(transcript_store_invalid("Transcript source is unsupported"));
+    }
+    let redaction_scanned = transcript_bool(redaction, "scanned").unwrap_or(false);
+    let redacted_field_count = transcript_u64(redaction, "redactedFieldCount").unwrap_or(0);
+    let secret_marker_count = transcript_u64(redaction, "secretMarkerCount").unwrap_or(0);
+    let mut byte_count = 0_u64;
+    let mut line_count = 0_u64;
+    let mut raw_available_chunk_count = 0_usize;
+    let mut warning_codes = transcript_string_array(redaction.get("warningCodes"));
+
+    for chunk in chunks {
+        let chunk = chunk
+            .as_object()
+            .ok_or_else(|| transcript_store_invalid("Transcript chunk must be an object"))?;
+        let chunk_id = transcript_required_string(chunk, "chunkId")?;
+        validate_transcript_id(chunk_id)?;
+        let summary = transcript_required_string(chunk, "summary")?;
+        if summary.chars().count() > TRANSCRIPT_MAX_CHUNK_SUMMARY_CHARS {
+            return Err(transcript_store_invalid("Transcript chunk summary is too large"));
+        }
+        if !matches!(
+            transcript_required_string(chunk, "kind")?,
+            "stdout"
+                | "stderr"
+                | "command_summary"
+                | "model_summary"
+                | "tool_summary"
+                | "file_operation_summary"
+                | "redaction_notice"
+        ) {
+            return Err(transcript_store_invalid("Transcript chunk kind is unsupported"));
+        }
+        let chunk_bytes = transcript_u64(chunk, "byteCount")
+            .ok_or_else(|| transcript_store_invalid("Transcript chunk byte count is required"))?;
+        let chunk_lines = transcript_u64(chunk, "lineCount")
+            .ok_or_else(|| transcript_store_invalid("Transcript chunk line count is required"))?;
+        let raw_available = transcript_bool(chunk, "rawAvailable").unwrap_or(false);
+        let redacted = transcript_bool(chunk, "redacted").unwrap_or(false);
+        if raw_available || !redacted {
+            raw_available_chunk_count += 1;
+            if visibility != "raw_available_gated" || !raw_opt_in {
+                return Err(transcript_store_invalid(
+                    "Raw transcript chunks require gated raw opt-in metadata",
+                ));
+            }
+        }
+        byte_count = byte_count.saturating_add(chunk_bytes);
+        line_count = line_count.saturating_add(chunk_lines);
+        warning_codes.extend(transcript_string_array(chunk.get("warningCodes")));
+    }
+
+    if visibility == "raw_available_gated" {
+        if !raw_opt_in || !redaction_scanned || transcript_u64(retention, "rawRetentionDays").is_none()
+        {
+            return Err(transcript_store_invalid(
+                "Raw transcript availability requires opt-in, scan, and raw retention metadata",
+            ));
+        }
+    }
+    if transcript_u64(retention, "retainDays").is_none()
+        || transcript_bool(retention, "exportAllowed").is_none()
+        || transcript_bool(retention, "deleteAllowed").is_none()
+        || transcript_bool(retention, "tombstoneOnDelete").is_none()
+    {
+        return Err(transcript_store_invalid(
+            "Transcript retention policy is incomplete",
+        ));
+    }
+    warning_codes.sort();
+    warning_codes.dedup();
+    let transcript_hash = object
+        .get("hashes")
+        .and_then(Value::as_object)
+        .and_then(|hashes| transcript_string(hashes, "recordHash"))
+        .filter(|hash| !hash.trim().is_empty())
+        .map(ToString::to_string)
+        .unwrap_or_else(|| short_hash(&serialized));
+
+    Ok(TranscriptRecordSummary {
+        transcript_id: transcript_id.to_string(),
+        schema_version: TRANSCRIPT_SCHEMA_VERSION.to_string(),
+        session_id: sanitize_safe_message(session_id),
+        source_kind: sanitize_safe_message(source_kind),
+        visibility: sanitize_safe_message(visibility),
+        mode: sanitize_safe_message(mode),
+        chunk_count: chunks.len(),
+        raw_available_chunk_count,
+        byte_count,
+        line_count,
+        redacted_field_count,
+        secret_marker_count,
+        warning_codes,
+        transcript_hash,
+        summary_only: true,
+        raw_content_included: false,
+    })
+}
+
+fn load_transcript_store_snapshot(
+    store: &TranscriptStorePaths,
+) -> Result<TranscriptStoreListResult, DesktopFlowError> {
+    let mut records = Vec::new();
+    let mut warnings = Vec::new();
+    if store.store_dir.exists() {
+        for entry in fs::read_dir(&store.store_dir).map_err(|_| {
+            DesktopFlowError::new(
+                "TRANSCRIPT_STORE_READ_FAILED",
+                "Transcript store directory could not be read",
+                "transcript_store",
+            )
+        })? {
+            let entry = match entry {
+                Ok(entry) => entry,
+                Err(_) => {
+                    warnings.push("READ_DIR_ENTRY_SKIPPED".to_string());
+                    continue;
+                }
+            };
+            let path = entry.path();
+            if path.extension().and_then(OsStr::to_str) != Some("json") {
+                continue;
+            }
+            match validate_transcript_file_path(&path, &store.store_dir)
+                .and_then(|_| read_transcript_summary_from_path(&path))
+            {
+                Ok(summary) => records.push(summary),
+                Err(_) => warnings.push("TRANSCRIPT_RECORD_SKIPPED".to_string()),
+            }
+        }
+    }
+    records.sort_by(|left, right| left.transcript_id.cmp(&right.transcript_id));
+    let snapshot_hash = short_hash(&serde_json::to_string(&records).unwrap_or_default());
+    let status = if records.is_empty() {
+        "empty"
+    } else if warnings.is_empty() {
+        "ready"
+    } else {
+        "warning"
+    };
+    Ok(TranscriptStoreListResult {
+        ok: true,
+        status: status.to_string(),
+        store_path: store.store_dir.to_string_lossy().to_string(),
+        record_count: records.len(),
+        records,
+        warnings,
+        snapshot_hash,
+        summary_only: true,
+        raw_content_included: false,
+        safe_message: "Transcript store loaded as summary-only metadata.".to_string(),
+    })
+}
+
+fn read_transcript_summary_from_path(
+    path: &Path,
+) -> Result<TranscriptRecordSummary, DesktopFlowError> {
+    let text = fs::read_to_string(path).map_err(|_| {
+        DesktopFlowError::new(
+            "TRANSCRIPT_STORE_READ_FAILED",
+            "Transcript record could not be read",
+            "transcript_store",
+        )
+    })?;
+    if contains_approved_apply_sensitive_marker(&text) {
+        return Err(transcript_store_invalid(
+            "Transcript record contains unsafe markers",
+        ));
+    }
+    let value: Value = serde_json::from_str(&text).map_err(|_| {
+        DesktopFlowError::new(
+            "TRANSCRIPT_STORE_READ_FAILED",
+            "Transcript record was not valid JSON",
+            "transcript_store",
+        )
+    })?;
+    validate_transcript_record_value(&value)
+}
+
+fn transcript_required_string<'a>(
+    object: &'a serde_json::Map<String, Value>,
+    key: &str,
+) -> Result<&'a str, DesktopFlowError> {
+    transcript_string(object, key)
+        .filter(|value| !value.trim().is_empty())
+        .ok_or_else(|| transcript_store_invalid(format!("Transcript {key} is required")))
+}
+
+fn transcript_string<'a>(
+    object: &'a serde_json::Map<String, Value>,
+    key: &str,
+) -> Option<&'a str> {
+    object.get(key).and_then(Value::as_str)
+}
+
+fn transcript_bool(object: &serde_json::Map<String, Value>, key: &str) -> Option<bool> {
+    object.get(key).and_then(Value::as_bool)
+}
+
+fn transcript_u64(object: &serde_json::Map<String, Value>, key: &str) -> Option<u64> {
+    object.get(key).and_then(Value::as_u64)
+}
+
+fn transcript_string_array(value: Option<&Value>) -> Vec<String> {
+    value
+        .and_then(Value::as_array)
+        .map(|items| {
+            items
+                .iter()
+                .filter_map(Value::as_str)
+                .map(sanitize_safe_message)
+                .collect()
+        })
+        .unwrap_or_default()
+}
+
+fn transcript_store_invalid(message: impl Into<String>) -> DesktopFlowError {
+    DesktopFlowError::new(
+        "TRANSCRIPT_STORE_BLOCKED",
+        message.into(),
+        "transcript_store",
+    )
+}
+
 struct ProjectKnowledgeStorePaths {
     store_dir: PathBuf,
     entries_path: PathBuf,
@@ -8873,6 +9576,25 @@ mod tests {
         #[cfg(windows)]
         {
             std::os::windows::fs::symlink_file(target, link)
+        }
+        #[cfg(unix)]
+        {
+            std::os::unix::fs::symlink(target, link)
+        }
+        #[cfg(not(any(windows, unix)))]
+        {
+            let _ = (target, link);
+            Err(std::io::Error::new(
+                std::io::ErrorKind::Unsupported,
+                "symlink unsupported",
+            ))
+        }
+    }
+
+    fn try_create_dir_symlink(target: &Path, link: &Path) -> std::io::Result<()> {
+        #[cfg(windows)]
+        {
+            std::os::windows::fs::symlink_dir(target, link)
         }
         #[cfg(unix)]
         {
@@ -12469,6 +13191,179 @@ mod tests {
         assert!(!serialized.contains(&csv_content_key));
         assert!(!serialized.contains(&raw_dom_key));
         assert!(!serialized.contains("<table>"));
+
+        let _ = fs::remove_dir_all(workspace);
+    }
+
+    fn safe_transcript_record(transcript_id: &str) -> Value {
+        serde_json::json!({
+            "schemaVersion": TRANSCRIPT_SCHEMA_VERSION,
+            "transcriptId": transcript_id,
+            "sessionId": "session-transcript-store-test",
+            "sessionRef": {
+                "sessionId": "session-transcript-store-test",
+                "mode": "approval_mode",
+                "workspaceRootRef": "workspace:test"
+            },
+            "workspaceRootRef": "workspace:test",
+            "mode": "approval_mode",
+            "sourceKind": "shell_safe_lane",
+            "visibility": "summary_only",
+            "rawOptIn": false,
+            "chunks": [
+                {
+                    "chunkId": "chunk-summary-1",
+                    "kind": "command_summary",
+                    "summary": "Fixed transcript store command completed with safe summary.",
+                    "byteCount": 128,
+                    "lineCount": 2,
+                    "redacted": true,
+                    "rawAvailable": false,
+                    "hashPrefix": "abc12345",
+                    "warningCodes": []
+                }
+            ],
+            "redactionSummary": {
+                "scanned": true,
+                "redactedFieldCount": 1,
+                "secretMarkerCount": 0,
+                "controlCharCount": 0,
+                "binaryChunkCount": 0,
+                "warningCodes": []
+            },
+            "retentionPolicy": {
+                "retainDays": 14,
+                "exportAllowed": true,
+                "deleteAllowed": true,
+                "tombstoneOnDelete": true
+            },
+            "hashes": {
+                "recordHash": format!("hash-{transcript_id}"),
+                "redactedOutputHash": "redacted-hash-test"
+            },
+            "createdAt": "2026-07-06T00:00:00.000Z",
+            "source": TRANSCRIPT_STORE_SOURCE
+        })
+    }
+
+    #[test]
+    fn transcript_store_write_list_read_export_and_delete_are_summary_only() {
+        let workspace = temp_workspace("transcript-store-safe");
+        let record = safe_transcript_record("transcript-store-safe");
+
+        let written = write_transcript_record(workspace.to_string_lossy().to_string(), record)
+            .expect("write transcript record");
+        let listed =
+            list_transcript_records(workspace.to_string_lossy().to_string()).expect("list");
+        let read = read_transcript_record_summary(
+            workspace.to_string_lossy().to_string(),
+            "transcript-store-safe".to_string(),
+        )
+        .expect("read summary");
+        let exported = export_transcript_summary(
+            workspace.to_string_lossy().to_string(),
+            "transcript-store-safe".to_string(),
+        )
+        .expect("export summary");
+        let serialized = serde_json::to_string(&(&written, &listed, &read, &exported))
+            .expect("summary serialization");
+
+        assert!(written.ok);
+        assert_eq!(written.summary.chunk_count, 1);
+        assert_eq!(listed.record_count, 1);
+        assert_eq!(read.summary.transcript_id, "transcript-store-safe");
+        assert!(exported.export_json.contains("transcript-store-safe"));
+        assert!(written.summary_only);
+        assert!(!written.raw_content_included);
+        assert!(!serialized.contains("Fixed transcript store command completed"));
+        assert!(!serialized.contains("chunk-summary-1"));
+        assert!(!workspace.join(".deepseek-workbench").join("events.jsonl").exists());
+
+        let deleted = delete_transcript_record(
+            workspace.to_string_lossy().to_string(),
+            "transcript-store-safe".to_string(),
+        )
+        .expect("delete transcript");
+        let after_delete =
+            list_transcript_records(workspace.to_string_lossy().to_string()).expect("list");
+
+        assert!(deleted.deleted);
+        assert_eq!(after_delete.record_count, 0);
+
+        let _ = fs::remove_dir_all(workspace);
+    }
+
+    #[test]
+    fn transcript_store_rejects_unsafe_transcript_records() {
+        let workspace = temp_workspace("transcript-store-unsafe");
+        let mut raw_record = safe_transcript_record("transcript-store-raw");
+        raw_record.as_object_mut().expect("record").insert(
+            ["raw", "Prompt"].concat(),
+            Value::String("Synthetic raw prompt should be blocked.".to_string()),
+        );
+        let raw_error =
+            write_transcript_record(workspace.to_string_lossy().to_string(), raw_record)
+                .expect_err("raw prompt field should block");
+
+        let mut secret_record = safe_transcript_record("transcript-store-secret");
+        secret_record["chunks"][0]["summary"] = Value::String(format!(
+            "Synthetic key {} must be blocked.",
+            ["s", "k-transcript-store-secret"].concat()
+        ));
+        let secret_error =
+            write_transcript_record(workspace.to_string_lossy().to_string(), secret_record)
+                .expect_err("secret marker should block");
+
+        assert_eq!(raw_error.error_code, "TRANSCRIPT_STORE_BLOCKED");
+        assert_eq!(secret_error.error_code, "TRANSCRIPT_STORE_BLOCKED");
+
+        let _ = fs::remove_dir_all(workspace);
+    }
+
+    #[test]
+    fn transcript_store_blocks_traversal_and_symlink_escape() {
+        let workspace = temp_workspace("transcript-store-path");
+        let mut traversal = safe_transcript_record("transcript-store-traversal");
+        traversal["transcriptId"] = Value::String("../escape".to_string());
+        let traversal_error =
+            write_transcript_record(workspace.to_string_lossy().to_string(), traversal)
+                .expect_err("traversal id should block");
+        assert_eq!(traversal_error.error_code, "TRANSCRIPT_STORE_BLOCKED");
+
+        let outside = temp_workspace("transcript-store-outside");
+        let workbench = workspace.join(".deepseek-workbench");
+        fs::create_dir_all(&workbench).expect("workbench dir");
+        let transcript_link = workbench.join(TRANSCRIPT_STORE_DIR);
+        if try_create_dir_symlink(&outside, &transcript_link).is_ok() {
+            let symlink_error = list_transcript_records(workspace.to_string_lossy().to_string())
+                .expect_err("symlink store should block");
+            assert_eq!(symlink_error.error_code, "TRANSCRIPT_STORE_PATH_ESCAPE");
+        }
+
+        let _ = fs::remove_dir_all(outside);
+        let _ = fs::remove_dir_all(workspace);
+    }
+
+    #[test]
+    fn transcript_store_export_blocks_raw_or_secret_summary_output() {
+        let workspace = temp_workspace("transcript-store-export");
+        write_transcript_record(
+            workspace.to_string_lossy().to_string(),
+            safe_transcript_record("transcript-store-export"),
+        )
+        .expect("write transcript");
+
+        let exported = export_transcript_summary(
+            workspace.to_string_lossy().to_string(),
+            "transcript-store-export".to_string(),
+        )
+        .expect("export summary");
+
+        assert!(exported.summary_only);
+        assert!(!exported.raw_content_included);
+        assert!(!exported.export_json.contains("Fixed transcript store command"));
+        assert!(!exported.export_json.contains("Authorization"));
+        assert!(!exported.export_json.contains("sk-"));
 
         let _ = fs::remove_dir_all(workspace);
     }

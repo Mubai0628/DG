@@ -10,17 +10,21 @@ import {
   applyApprovedUserWorkspacePatch,
   callMcpReadonlyTool,
   commitProjectKnowledgeCandidate,
+  deleteTranscriptRecord,
   executeApprovedDesktopAction,
   executeApprovedExpandedDesktopAction,
+  exportTranscriptSummary,
   expireProjectKnowledgeEntry,
   generateLiveDeepSeekPatchProposal,
   invokeAllowedCommand,
   isAllowedDesktopCommand,
+  listTranscriptRecords,
   listProjectKnowledge,
   loadWorkspaceEventSummary,
   liveProposalAllowedKeySourceRef,
   recordLiveProposalSummaryEvent,
   observeDesktopMetadata,
+  readTranscriptRecordSummary,
   recordVerificationLaneEvent,
   recordApprovedUserWorkspaceExecutionEvent,
   recordControlRunDraftEvent,
@@ -31,6 +35,7 @@ import {
   runGitReadLane,
   runShellVerificationLane,
   safeInvoke,
+  writeTranscriptRecord,
   type ApprovedDesktopActionCommandRequest,
   type ApprovedDesktopActionCommandResult,
   type ApprovedExpandedDesktopActionCommandRequest,
@@ -4124,6 +4129,235 @@ describe("desktop command wrapper", () => {
     expect(serialized).not.toContain("rawPrompt");
     expect(serialized).not.toContain("Authorization");
     expect(serialized).not.toContain("sk-");
+  });
+
+  it("uses fixed transcript store commands and blocks unsafe records before invoke", async () => {
+    const safeRecord = {
+      schemaVersion: "transcript_record.v1",
+      transcriptId: "transcript-wrapper-safe",
+      sessionId: "session-wrapper-safe",
+      sessionRef: {
+        sessionId: "session-wrapper-safe",
+        mode: "approval_mode",
+        workspaceRootRef: "workspace:test"
+      },
+      workspaceRootRef: "workspace:test",
+      mode: "approval_mode",
+      sourceKind: "shell_safe_lane",
+      visibility: "summary_only",
+      rawOptIn: false,
+      chunks: [
+        {
+          chunkId: "chunk-1",
+          kind: "command_summary",
+          summary: "Transcript command wrapper completed with safe summary.",
+          byteCount: 64,
+          lineCount: 1,
+          redacted: true,
+          rawAvailable: false,
+          warningCodes: []
+        }
+      ],
+      redactionSummary: {
+        scanned: true,
+        redactedFieldCount: 1,
+        secretMarkerCount: 0,
+        controlCharCount: 0,
+        binaryChunkCount: 0,
+        warningCodes: []
+      },
+      retentionPolicy: {
+        retainDays: 14,
+        exportAllowed: true,
+        deleteAllowed: true,
+        tombstoneOnDelete: true
+      },
+      hashes: {
+        recordHash: "transcript-wrapper-hash",
+        redactedOutputHash: "redacted-wrapper-hash"
+      },
+      createdAt: "2026-07-06T00:00:00.000Z",
+      source: "runtime_transcript_store_schema"
+    };
+    const summary = {
+      transcriptId: "transcript-wrapper-safe",
+      schemaVersion: "transcript_record.v1",
+      sessionId: "session-wrapper-safe",
+      sourceKind: "shell_safe_lane",
+      visibility: "summary_only",
+      mode: "approval_mode",
+      chunkCount: 1,
+      rawAvailableChunkCount: 0,
+      byteCount: 64,
+      lineCount: 1,
+      redactedFieldCount: 1,
+      secretMarkerCount: 0,
+      warningCodes: [],
+      transcriptHash: "transcript-wrapper-hash",
+      summaryOnly: true,
+      rawContentIncluded: false
+    };
+    const calls: Array<{
+      command: string;
+      args: Record<string, unknown> | undefined;
+    }> = [];
+    const invoke: TauriInvoke = async <T>(
+      command: string,
+      args?: Record<string, unknown>
+    ): Promise<T> => {
+      calls.push({ command, args });
+      if (command === "write_transcript_record") {
+        return {
+          ok: true,
+          transcriptId: "transcript-wrapper-safe",
+          filePath:
+            "workspace/.deepseek-workbench/transcripts/transcript-wrapper-safe.json",
+          storePath: "workspace/.deepseek-workbench/transcripts",
+          recordCount: 1,
+          summary,
+          transcriptHash: "transcript-wrapper-hash",
+          summaryOnly: true,
+          rawContentIncluded: false,
+          safeMessage: "Transcript record stored.",
+          warnings: []
+        } as T;
+      }
+      if (command === "list_transcript_records") {
+        return {
+          ok: true,
+          status: "ready",
+          storePath: "workspace/.deepseek-workbench/transcripts",
+          recordCount: 1,
+          records: [summary],
+          warnings: [],
+          snapshotHash: "snapshot-hash",
+          summaryOnly: true,
+          rawContentIncluded: false,
+          safeMessage: "Transcript store listed."
+        } as T;
+      }
+      if (command === "read_transcript_record_summary") {
+        return {
+          ok: true,
+          transcriptId: "transcript-wrapper-safe",
+          storePath: "workspace/.deepseek-workbench/transcripts",
+          summary,
+          transcriptHash: "transcript-wrapper-hash",
+          summaryOnly: true,
+          rawContentIncluded: false,
+          safeMessage: "Transcript summary read.",
+          warnings: []
+        } as T;
+      }
+      if (command === "export_transcript_summary") {
+        return {
+          ok: true,
+          transcriptId: "transcript-wrapper-safe",
+          exportJson: JSON.stringify(summary),
+          exportHash: "export-hash",
+          summary,
+          summaryOnly: true,
+          rawContentIncluded: false,
+          safeMessage: "Transcript summary exported.",
+          warnings: []
+        } as T;
+      }
+      if (command === "delete_transcript_record") {
+        return {
+          ok: true,
+          transcriptId: "transcript-wrapper-safe",
+          deleted: true,
+          storePath: "workspace/.deepseek-workbench/transcripts",
+          summaryOnly: true,
+          rawContentIncluded: false,
+          safeMessage: "Transcript record deleted.",
+          warnings: []
+        } as T;
+      }
+      throw new Error(`unexpected command ${command}`);
+    };
+
+    const written = await writeTranscriptRecord(
+      { workspaceRoot: "D:/workspace", record: safeRecord },
+      invoke
+    );
+    const listed = await listTranscriptRecords("D:/workspace", invoke);
+    const read = await readTranscriptRecordSummary(
+      {
+        workspaceRoot: "D:/workspace",
+        transcriptId: "transcript-wrapper-safe"
+      },
+      invoke
+    );
+    const exported = await exportTranscriptSummary(
+      {
+        workspaceRoot: "D:/workspace",
+        transcriptId: "transcript-wrapper-safe"
+      },
+      invoke
+    );
+    const deleted = await deleteTranscriptRecord(
+      {
+        workspaceRoot: "D:/workspace",
+        transcriptId: "transcript-wrapper-safe"
+      },
+      invoke
+    );
+    const serialized = JSON.stringify({
+      written,
+      listed,
+      read,
+      exported,
+      deleted
+    });
+
+    expect(calls.map((call) => call.command)).toEqual([
+      "write_transcript_record",
+      "list_transcript_records",
+      "read_transcript_record_summary",
+      "export_transcript_summary",
+      "delete_transcript_record"
+    ]);
+    expect(isAllowedDesktopCommand("write_transcript_record")).toBe(true);
+    expect(written.summaryOnly).toBe(true);
+    expect(listed.records[0]?.summaryOnly).toBe(true);
+    expect(read.rawContentIncluded).toBe(false);
+    expect(exported.rawContentIncluded).toBe(false);
+    expect(deleted.deleted).toBe(true);
+    expect(serialized).not.toContain("Transcript command wrapper completed");
+    expect(serialized).not.toContain("Authorization");
+    expect(serialized).not.toContain("sk-");
+
+    const rawPromptKey = ["raw", "Prompt"].join("");
+    const unsafeCalls: string[] = [];
+    await expect(
+      writeTranscriptRecord(
+        {
+          workspaceRoot: "D:/workspace",
+          record: {
+            ...safeRecord,
+            [rawPromptKey]: "Synthetic raw prompt must be blocked."
+          }
+        },
+        async (command) => {
+          unsafeCalls.push(command);
+          throw new Error("unsafe transcript should not invoke Tauri");
+        }
+      )
+    ).rejects.toThrow("Transcript record contains unsafe fields");
+    expect(unsafeCalls).toEqual([]);
+
+    const desktopFlowSource = await readFile(
+      path.join(appRoot, "src", "desktop-flow.ts"),
+      "utf8"
+    );
+    expect(desktopFlowSource).toContain("write_transcript_record");
+    expect(desktopFlowSource).toContain("list_transcript_records");
+    expect(desktopFlowSource).toContain("read_transcript_record_summary");
+    expect(desktopFlowSource).toContain("delete_transcript_record");
+    expect(desktopFlowSource).toContain("export_transcript_summary");
+    expect(desktopFlowSource).not.toContain("runTranscriptCommand");
+    expect(desktopFlowSource).not.toContain("invokeTranscriptCommand");
   });
 
   function safeLiveProposalCommandRequest(): LiveDeepSeekPatchProposalCommandRequest {

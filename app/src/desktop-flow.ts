@@ -557,6 +557,89 @@ export type ProjectKnowledgeLifecycleResult = {
   warnings: string[];
 };
 
+export type TranscriptRecordInput = Record<string, unknown>;
+
+export type TranscriptRecordSummary = {
+  transcriptId: string;
+  schemaVersion: "transcript_record.v1";
+  sessionId: string;
+  sourceKind: string;
+  visibility: "summary_only" | "redacted_preview" | "raw_available_gated";
+  mode: string;
+  chunkCount: number;
+  rawAvailableChunkCount: number;
+  byteCount: number;
+  lineCount: number;
+  redactedFieldCount: number;
+  secretMarkerCount: number;
+  warningCodes: string[];
+  transcriptHash: string;
+  summaryOnly: true;
+  rawContentIncluded: false;
+};
+
+export type TranscriptStoreListResult = {
+  ok: true;
+  status: "empty" | "ready" | "warning";
+  storePath: string;
+  recordCount: number;
+  records: TranscriptRecordSummary[];
+  warnings: string[];
+  snapshotHash: string;
+  summaryOnly: true;
+  rawContentIncluded: false;
+  safeMessage: string;
+};
+
+export type TranscriptWriteResult = {
+  ok: true;
+  transcriptId: string;
+  filePath: string;
+  storePath: string;
+  recordCount: number;
+  summary: TranscriptRecordSummary;
+  transcriptHash: string;
+  summaryOnly: true;
+  rawContentIncluded: false;
+  safeMessage: string;
+  warnings: string[];
+};
+
+export type TranscriptReadSummaryResult = {
+  ok: true;
+  transcriptId: string;
+  storePath: string;
+  summary: TranscriptRecordSummary;
+  transcriptHash: string;
+  summaryOnly: true;
+  rawContentIncluded: false;
+  safeMessage: string;
+  warnings: string[];
+};
+
+export type TranscriptDeleteResult = {
+  ok: true;
+  transcriptId: string;
+  deleted: boolean;
+  storePath: string;
+  summaryOnly: true;
+  rawContentIncluded: false;
+  safeMessage: string;
+  warnings: string[];
+};
+
+export type TranscriptExportSummaryResult = {
+  ok: true;
+  transcriptId: string;
+  exportJson: string;
+  exportHash: string;
+  summary: TranscriptRecordSummary;
+  summaryOnly: true;
+  rawContentIncluded: false;
+  safeMessage: string;
+  warnings: string[];
+};
+
 export type DesktopObservationCommandRequest = {
   profile: Record<string, unknown>;
   requestId: string;
@@ -770,6 +853,11 @@ export const allowedDesktopCommands = [
   "record_control_run_draft_event",
   "record_verification_lane_event",
   "record_live_proposal_summary_event",
+  "write_transcript_record",
+  "list_transcript_records",
+  "read_transcript_record_summary",
+  "delete_transcript_record",
+  "export_transcript_summary",
   "mcp_readonly_discover",
   "call_mcp_readonly_tool",
   "generate_live_deepseek_patch_proposal",
@@ -943,6 +1031,82 @@ export async function recordLiveProposalSummaryEvent(
     {
       workspaceRoot: request.workspaceRoot,
       eventPreview: request.eventPreview
+    },
+    invokeImpl
+  );
+}
+
+export async function writeTranscriptRecord(
+  request: { workspaceRoot: string; record: TranscriptRecordInput },
+  invokeImpl?: TauriInvoke
+): Promise<TranscriptWriteResult> {
+  validateTranscriptWorkspace(request.workspaceRoot);
+  validateTranscriptRecordForStore(request.record);
+  return invokeAllowedCommand<TranscriptWriteResult>(
+    "write_transcript_record",
+    {
+      workspaceRoot: request.workspaceRoot,
+      record: request.record
+    },
+    invokeImpl
+  );
+}
+
+export async function listTranscriptRecords(
+  workspaceRoot: string,
+  invokeImpl?: TauriInvoke
+): Promise<TranscriptStoreListResult> {
+  validateTranscriptWorkspace(workspaceRoot);
+  return invokeAllowedCommand<TranscriptStoreListResult>(
+    "list_transcript_records",
+    { workspaceRoot },
+    invokeImpl
+  );
+}
+
+export async function readTranscriptRecordSummary(
+  request: { workspaceRoot: string; transcriptId: string },
+  invokeImpl?: TauriInvoke
+): Promise<TranscriptReadSummaryResult> {
+  validateTranscriptWorkspace(request.workspaceRoot);
+  validateTranscriptId(request.transcriptId);
+  return invokeAllowedCommand<TranscriptReadSummaryResult>(
+    "read_transcript_record_summary",
+    {
+      workspaceRoot: request.workspaceRoot,
+      transcriptId: request.transcriptId
+    },
+    invokeImpl
+  );
+}
+
+export async function deleteTranscriptRecord(
+  request: { workspaceRoot: string; transcriptId: string },
+  invokeImpl?: TauriInvoke
+): Promise<TranscriptDeleteResult> {
+  validateTranscriptWorkspace(request.workspaceRoot);
+  validateTranscriptId(request.transcriptId);
+  return invokeAllowedCommand<TranscriptDeleteResult>(
+    "delete_transcript_record",
+    {
+      workspaceRoot: request.workspaceRoot,
+      transcriptId: request.transcriptId
+    },
+    invokeImpl
+  );
+}
+
+export async function exportTranscriptSummary(
+  request: { workspaceRoot: string; transcriptId: string },
+  invokeImpl?: TauriInvoke
+): Promise<TranscriptExportSummaryResult> {
+  validateTranscriptWorkspace(request.workspaceRoot);
+  validateTranscriptId(request.transcriptId);
+  return invokeAllowedCommand<TranscriptExportSummaryResult>(
+    "export_transcript_summary",
+    {
+      workspaceRoot: request.workspaceRoot,
+      transcriptId: request.transcriptId
     },
     invokeImpl
   );
@@ -1179,6 +1343,16 @@ function normalizeAllowedCommandResponse(
       return normalizeVerificationLaneEventRecordResult(raw);
     case "record_live_proposal_summary_event":
       return normalizeLiveProposalSummaryEventRecordResult(raw);
+    case "write_transcript_record":
+      return normalizeTranscriptWriteResult(raw);
+    case "list_transcript_records":
+      return normalizeTranscriptStoreListResult(raw);
+    case "read_transcript_record_summary":
+      return normalizeTranscriptReadSummaryResult(raw);
+    case "delete_transcript_record":
+      return normalizeTranscriptDeleteResult(raw);
+    case "export_transcript_summary":
+      return normalizeTranscriptExportSummaryResult(raw);
     case "mcp_readonly_discover":
       return normalizeMcpReadonlyDiscoverResult(raw);
     case "call_mcp_readonly_tool":
@@ -1382,6 +1556,52 @@ function validateLiveProposalSummaryEventRequest(
     throw new Error(
       "Live proposal summary event preview contains unsafe fields"
     );
+  }
+}
+
+function validateTranscriptWorkspace(workspaceRoot: string): void {
+  if (workspaceRoot.trim().length === 0) {
+    throw new Error("Transcript workspace root is required");
+  }
+  if (containsUnsafeLiveProposalText(workspaceRoot)) {
+    throw new Error("Transcript workspace root is unsafe");
+  }
+}
+
+function validateTranscriptId(transcriptId: string): void {
+  const trimmed = transcriptId.trim();
+  if (
+    trimmed.length === 0 ||
+    trimmed.length > 128 ||
+    trimmed === "." ||
+    trimmed === ".." ||
+    trimmed.includes("..") ||
+    /[\\/:?#[\]&|;<>*`$]/.test(trimmed) ||
+    !/^[A-Za-z0-9._-]+$/.test(trimmed)
+  ) {
+    throw new Error("Transcript id is invalid");
+  }
+}
+
+function validateTranscriptRecordForStore(record: TranscriptRecordInput): void {
+  if (!isRecord(record)) {
+    throw new Error("Transcript record is required");
+  }
+  if (record.schemaVersion !== "transcript_record.v1") {
+    throw new Error("Transcript schema version is unsupported");
+  }
+  if (typeof record.transcriptId !== "string") {
+    throw new Error("Transcript id is required");
+  }
+  validateTranscriptId(record.transcriptId);
+  if (!Array.isArray(record.chunks) || record.chunks.length === 0) {
+    throw new Error("Transcript chunks are required");
+  }
+  if (!isRecord(record.redactionSummary) || !isRecord(record.retentionPolicy)) {
+    throw new Error("Transcript safety summaries are required");
+  }
+  if (containsForbiddenLiveProposalValue(record)) {
+    throw new Error("Transcript record contains unsafe fields");
   }
 }
 
@@ -2253,6 +2473,275 @@ function normalizeProjectKnowledgeEntrySummary(
       (item): item is string => typeof item === "string"
     ),
     summaryOnly: true
+  };
+}
+
+function normalizeTranscriptStoreListResult(
+  raw: unknown
+): TranscriptStoreListResult {
+  const record = isRecord(raw) ? raw : {};
+  if (
+    record.ok !== true ||
+    (record.status !== "empty" &&
+      record.status !== "ready" &&
+      record.status !== "warning") ||
+    typeof record.storePath !== "string" ||
+    typeof record.recordCount !== "number" ||
+    !Array.isArray(record.records) ||
+    !Array.isArray(record.warnings) ||
+    typeof record.snapshotHash !== "string" ||
+    record.summaryOnly !== true ||
+    record.rawContentIncluded !== false ||
+    typeof record.safeMessage !== "string"
+  ) {
+    throw normalizeDesktopCommandError({
+      errorCode: "INVALID_RESPONSE",
+      safeMessage: "Transcript store list response was invalid",
+      stage: "normalize_response"
+    });
+  }
+  if (containsForbiddenLiveProposalValue(record)) {
+    throw normalizeDesktopCommandError({
+      errorCode: "INVALID_RESPONSE",
+      safeMessage: "Transcript store list response contained unsafe fields",
+      stage: "normalize_response"
+    });
+  }
+  return {
+    ok: true,
+    status: record.status,
+    storePath: safeErrorMessage(record.storePath),
+    recordCount: record.recordCount,
+    records: record.records.map(normalizeTranscriptRecordSummary),
+    warnings: record.warnings.filter(
+      (value): value is string => typeof value === "string"
+    ),
+    snapshotHash: safeErrorMessage(record.snapshotHash),
+    summaryOnly: true,
+    rawContentIncluded: false,
+    safeMessage: safeErrorMessage(record.safeMessage)
+  };
+}
+
+function normalizeTranscriptWriteResult(raw: unknown): TranscriptWriteResult {
+  const record = isRecord(raw) ? raw : {};
+  if (
+    record.ok !== true ||
+    typeof record.transcriptId !== "string" ||
+    typeof record.filePath !== "string" ||
+    typeof record.storePath !== "string" ||
+    typeof record.recordCount !== "number" ||
+    !isRecord(record.summary) ||
+    typeof record.transcriptHash !== "string" ||
+    record.summaryOnly !== true ||
+    record.rawContentIncluded !== false ||
+    typeof record.safeMessage !== "string" ||
+    !Array.isArray(record.warnings)
+  ) {
+    throw normalizeDesktopCommandError({
+      errorCode: "INVALID_RESPONSE",
+      safeMessage: "Transcript write response was invalid",
+      stage: "normalize_response"
+    });
+  }
+  if (containsForbiddenLiveProposalValue(record)) {
+    throw normalizeDesktopCommandError({
+      errorCode: "INVALID_RESPONSE",
+      safeMessage: "Transcript write response contained unsafe fields",
+      stage: "normalize_response"
+    });
+  }
+  return {
+    ok: true,
+    transcriptId: safeErrorMessage(record.transcriptId),
+    filePath: safeErrorMessage(record.filePath),
+    storePath: safeErrorMessage(record.storePath),
+    recordCount: record.recordCount,
+    summary: normalizeTranscriptRecordSummary(record.summary),
+    transcriptHash: safeErrorMessage(record.transcriptHash),
+    summaryOnly: true,
+    rawContentIncluded: false,
+    safeMessage: safeErrorMessage(record.safeMessage),
+    warnings: record.warnings.filter(
+      (value): value is string => typeof value === "string"
+    )
+  };
+}
+
+function normalizeTranscriptReadSummaryResult(
+  raw: unknown
+): TranscriptReadSummaryResult {
+  const record = isRecord(raw) ? raw : {};
+  if (
+    record.ok !== true ||
+    typeof record.transcriptId !== "string" ||
+    typeof record.storePath !== "string" ||
+    !isRecord(record.summary) ||
+    typeof record.transcriptHash !== "string" ||
+    record.summaryOnly !== true ||
+    record.rawContentIncluded !== false ||
+    typeof record.safeMessage !== "string" ||
+    !Array.isArray(record.warnings)
+  ) {
+    throw normalizeDesktopCommandError({
+      errorCode: "INVALID_RESPONSE",
+      safeMessage: "Transcript read summary response was invalid",
+      stage: "normalize_response"
+    });
+  }
+  if (containsForbiddenLiveProposalValue(record)) {
+    throw normalizeDesktopCommandError({
+      errorCode: "INVALID_RESPONSE",
+      safeMessage: "Transcript read summary response contained unsafe fields",
+      stage: "normalize_response"
+    });
+  }
+  return {
+    ok: true,
+    transcriptId: safeErrorMessage(record.transcriptId),
+    storePath: safeErrorMessage(record.storePath),
+    summary: normalizeTranscriptRecordSummary(record.summary),
+    transcriptHash: safeErrorMessage(record.transcriptHash),
+    summaryOnly: true,
+    rawContentIncluded: false,
+    safeMessage: safeErrorMessage(record.safeMessage),
+    warnings: record.warnings.filter(
+      (value): value is string => typeof value === "string"
+    )
+  };
+}
+
+function normalizeTranscriptDeleteResult(raw: unknown): TranscriptDeleteResult {
+  const record = isRecord(raw) ? raw : {};
+  if (
+    record.ok !== true ||
+    typeof record.transcriptId !== "string" ||
+    typeof record.deleted !== "boolean" ||
+    typeof record.storePath !== "string" ||
+    record.summaryOnly !== true ||
+    record.rawContentIncluded !== false ||
+    typeof record.safeMessage !== "string" ||
+    !Array.isArray(record.warnings)
+  ) {
+    throw normalizeDesktopCommandError({
+      errorCode: "INVALID_RESPONSE",
+      safeMessage: "Transcript delete response was invalid",
+      stage: "normalize_response"
+    });
+  }
+  if (containsForbiddenLiveProposalValue(record)) {
+    throw normalizeDesktopCommandError({
+      errorCode: "INVALID_RESPONSE",
+      safeMessage: "Transcript delete response contained unsafe fields",
+      stage: "normalize_response"
+    });
+  }
+  return {
+    ok: true,
+    transcriptId: safeErrorMessage(record.transcriptId),
+    deleted: record.deleted,
+    storePath: safeErrorMessage(record.storePath),
+    summaryOnly: true,
+    rawContentIncluded: false,
+    safeMessage: safeErrorMessage(record.safeMessage),
+    warnings: record.warnings.filter(
+      (value): value is string => typeof value === "string"
+    )
+  };
+}
+
+function normalizeTranscriptExportSummaryResult(
+  raw: unknown
+): TranscriptExportSummaryResult {
+  const record = isRecord(raw) ? raw : {};
+  if (
+    record.ok !== true ||
+    typeof record.transcriptId !== "string" ||
+    typeof record.exportJson !== "string" ||
+    typeof record.exportHash !== "string" ||
+    !isRecord(record.summary) ||
+    record.summaryOnly !== true ||
+    record.rawContentIncluded !== false ||
+    typeof record.safeMessage !== "string" ||
+    !Array.isArray(record.warnings)
+  ) {
+    throw normalizeDesktopCommandError({
+      errorCode: "INVALID_RESPONSE",
+      safeMessage: "Transcript export summary response was invalid",
+      stage: "normalize_response"
+    });
+  }
+  if (containsForbiddenLiveProposalValue(record)) {
+    throw normalizeDesktopCommandError({
+      errorCode: "INVALID_RESPONSE",
+      safeMessage: "Transcript export summary response contained unsafe fields",
+      stage: "normalize_response"
+    });
+  }
+  return {
+    ok: true,
+    transcriptId: safeErrorMessage(record.transcriptId),
+    exportJson: record.exportJson,
+    exportHash: safeErrorMessage(record.exportHash),
+    summary: normalizeTranscriptRecordSummary(record.summary),
+    summaryOnly: true,
+    rawContentIncluded: false,
+    safeMessage: safeErrorMessage(record.safeMessage),
+    warnings: record.warnings.filter(
+      (value): value is string => typeof value === "string"
+    )
+  };
+}
+
+function normalizeTranscriptRecordSummary(
+  value: unknown
+): TranscriptRecordSummary {
+  const record = isRecord(value) ? value : {};
+  if (
+    typeof record.transcriptId !== "string" ||
+    record.schemaVersion !== "transcript_record.v1" ||
+    typeof record.sessionId !== "string" ||
+    typeof record.sourceKind !== "string" ||
+    (record.visibility !== "summary_only" &&
+      record.visibility !== "redacted_preview" &&
+      record.visibility !== "raw_available_gated") ||
+    typeof record.mode !== "string" ||
+    typeof record.chunkCount !== "number" ||
+    typeof record.rawAvailableChunkCount !== "number" ||
+    typeof record.byteCount !== "number" ||
+    typeof record.lineCount !== "number" ||
+    typeof record.redactedFieldCount !== "number" ||
+    typeof record.secretMarkerCount !== "number" ||
+    !Array.isArray(record.warningCodes) ||
+    typeof record.transcriptHash !== "string" ||
+    record.summaryOnly !== true ||
+    record.rawContentIncluded !== false
+  ) {
+    throw normalizeDesktopCommandError({
+      errorCode: "INVALID_RESPONSE",
+      safeMessage: "Transcript record summary was invalid",
+      stage: "normalize_response"
+    });
+  }
+  return {
+    transcriptId: safeErrorMessage(record.transcriptId),
+    schemaVersion: "transcript_record.v1",
+    sessionId: safeErrorMessage(record.sessionId),
+    sourceKind: safeErrorMessage(record.sourceKind),
+    visibility: record.visibility,
+    mode: safeErrorMessage(record.mode),
+    chunkCount: record.chunkCount,
+    rawAvailableChunkCount: record.rawAvailableChunkCount,
+    byteCount: record.byteCount,
+    lineCount: record.lineCount,
+    redactedFieldCount: record.redactedFieldCount,
+    secretMarkerCount: record.secretMarkerCount,
+    warningCodes: record.warningCodes.filter(
+      (item): item is string => typeof item === "string"
+    ),
+    transcriptHash: safeErrorMessage(record.transcriptHash),
+    summaryOnly: true,
+    rawContentIncluded: false
   };
 }
 
