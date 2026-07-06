@@ -24,6 +24,11 @@ Start here:
 - [v0.33.0 v1 Candidate Polish RC release notes](docs/release-notes-v0.33.0-v1-candidate-polish-rc.1.md)
 - [v1 Candidate RC Checklist](docs/v1-candidate-rc-checklist.md)
 
+Current staged roadmap: v0.35 starts the Raw Transcript / Output Persistence
+foundation. It is redacted by default, raw opt-in only, and does not enable
+arbitrary shell, command execution, auto apply, Git push, autonomous loops, or
+full access execution.
+
 ## v0.1.0 scope
 
 The first release focuses on one vertical slice: convert a visible table from a

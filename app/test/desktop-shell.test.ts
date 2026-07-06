@@ -35156,6 +35156,80 @@ describe("expanded desktop action proposal app surface", () => {
     expect(combined).not.toContain("Git push execution is enabled");
     expect(combined).not.toContain("native bridge is enabled");
   });
+
+  it("documents the v0.34 post-release review and P1M raw transcript roadmap", async () => {
+    const review = await readFile(
+      path.join(
+        repoRoot,
+        "docs",
+        "v0.34-permission-mode-execution-policy-postrelease-review.md"
+      ),
+      "utf8"
+    );
+    const roadmap = await readFile(
+      path.join(
+        repoRoot,
+        "docs",
+        "p1m-raw-transcript-output-persistence-roadmap.md"
+      ),
+      "utf8"
+    );
+    const plan = await readFile(
+      path.join(
+        repoRoot,
+        "docs",
+        "p1m-001-raw-transcript-output-persistence-plan.md"
+      ),
+      "utf8"
+    );
+    const prompts = await readFile(
+      path.join(
+        repoRoot,
+        "docs",
+        "v0.35-raw-transcript-output-persistence-prompts.md"
+      ),
+      "utf8"
+    );
+    const docsIndex = await readFile(
+      path.join(repoRoot, "docs", "README.md"),
+      "utf8"
+    );
+    const rootReadme = await readFile(path.join(repoRoot, "README.md"), "utf8");
+    const combined = [
+      review,
+      roadmap,
+      plan,
+      prompts,
+      docsIndex,
+      rootReadme
+    ].join("\n");
+
+    expect(review).toContain("v0.34.0-permission-mode-execution-policy-rc.1");
+    expect(review).toContain(
+      "Permission mode and execution policy foundation, no full access yet"
+    );
+    expect(review).toContain("raw transcript persistence");
+    expect(roadmap).toContain("Raw Transcript / Output Persistence");
+    expect(roadmap).toContain("redacted by default");
+    expect(roadmap).toContain("raw opt-in only");
+    expect(roadmap).toContain("no new command execution");
+    expect(plan).toContain("no transcript storage implementation");
+    expect(plan).toContain("no command execution");
+    expect(plan).toContain("no arbitrary shell");
+    expect(plan).toContain("no API key read");
+    expect(plan).toContain("no fetch/network");
+    expect(plan).toContain("Redacted-by-default");
+    expect(prompts).toContain("DW-P1M-009");
+    expect(docsIndex).toContain(
+      "v0.35-raw-transcript-output-persistence-prompts.md"
+    );
+    expect(rootReadme).toContain("Raw Transcript / Output Persistence");
+    expect(combined).not.toContain("App arbitrary shell is enabled");
+    expect(combined).not.toContain("App command execution is enabled");
+    expect(combined).not.toContain("raw transcript enables auto apply");
+    expect(combined).not.toContain("raw transcript enables Git push");
+    expect(combined).not.toContain("raw transcript enables full access");
+  });
 });
 
 describe("desktop dev scripts", () => {
