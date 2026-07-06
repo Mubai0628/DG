@@ -215,6 +215,11 @@ import {
   type ExecutionModeSwitchView
 } from "./execution-mode-switch-view.js";
 import {
+  buildPermissionModeAuditView,
+  summarizePermissionModeAuditView,
+  type PermissionModeAuditView
+} from "./permission-mode-audit-view.js";
+import {
   buildAppDataInventorySchemaView,
   summarizeAppDataInventorySchemaView,
   type AppDataInventorySchemaView
@@ -875,6 +880,9 @@ export function DesktopShell(): JSX.Element {
     useState("");
   const [executionModePreview, setExecutionModePreview] = useState<
     ExecutionModeSwitchView | undefined
+  >();
+  const [permissionModeAuditPreview, setPermissionModeAuditPreview] = useState<
+    PermissionModeAuditView | undefined
   >();
   const [
     liveProposalTelemetryAuditPreview,
@@ -2536,6 +2544,16 @@ export function DesktopShell(): JSX.Element {
   );
   const displayedExecutionModeSwitch =
     executionModePreview ?? buildExecutionModeSwitchView();
+  const permissionModeAuditCandidate = useMemo<PermissionModeAuditView>(
+    () =>
+      buildPermissionModeAuditView({
+        executionModeSwitchView: executionModeSwitchCandidate,
+        createdAt: "2026-07-06T00:00:00.000Z"
+      }),
+    [executionModeSwitchCandidate]
+  );
+  const displayedPermissionModeAudit =
+    permissionModeAuditPreview ?? buildPermissionModeAuditView();
   const expectedExecutionModeConfirmationText =
     expectedExecutionModeConfirmation(executionModeDraft);
   const liveProposalTelemetryAuditCandidate =
@@ -4177,15 +4195,26 @@ export function DesktopShell(): JSX.Element {
 
   function handlePreviewExecutionModePolicy(): void {
     setExecutionModePreview(executionModeSwitchCandidate);
+    setPermissionModeAuditPreview(undefined);
   }
 
   function handleCreateExecutionModePreviewLease(): void {
     setExecutionModePreview(executionModeSwitchCandidate);
+    setPermissionModeAuditPreview(undefined);
   }
 
   function handleClearExecutionModePreview(): void {
     setExecutionModePreview(undefined);
     setExecutionModeConfirmation("");
+    setPermissionModeAuditPreview(undefined);
+  }
+
+  function handlePreviewPermissionModeAudit(): void {
+    setPermissionModeAuditPreview(permissionModeAuditCandidate);
+  }
+
+  function handleClearPermissionModeAudit(): void {
+    setPermissionModeAuditPreview(undefined);
   }
 
   function handlePreviewLiveProposalTelemetryAudit(): void {
@@ -9381,6 +9410,7 @@ export function DesktopShell(): JSX.Element {
                       event.target.value as ExecutionModeSwitchView["mode"]
                     );
                     setExecutionModePreview(undefined);
+                    setPermissionModeAuditPreview(undefined);
                   }}
                 >
                   <option value="approval_mode">Approval Mode</option>
@@ -9402,6 +9432,7 @@ export function DesktopShell(): JSX.Element {
                   onChange={(event: ChangeEvent<HTMLInputElement>) => {
                     setExecutionModeConfirmation(event.target.value);
                     setExecutionModePreview(undefined);
+                    setPermissionModeAuditPreview(undefined);
                   }}
                   placeholder={
                     expectedExecutionModeConfirmationText ??
@@ -9575,6 +9606,146 @@ export function DesktopShell(): JSX.Element {
               {displayedExecutionModeSwitch.policySummary}{" "}
               {displayedExecutionModeSwitch.leaseSummary}{" "}
               {displayedExecutionModeSwitch.nextAction}
+            </p>
+          </section>
+
+          <section className="eventPanel" aria-label="Permission Mode Audit">
+            <div className="panelHeader">
+              <h2>Permission Mode Audit</h2>
+              <span className="muted">Read-only / no EventStore write</span>
+            </div>
+            <p className="fieldHelp">
+              Previews summary-only audit and replay projection for permission
+              mode changes, session leases, policy decisions, risk budgets, and
+              kill switch state. The App Shell does not write EventStore events
+              or enable execution.
+            </p>
+
+            <div className="buttonRow">
+              <button
+                type="button"
+                className="secondary"
+                onClick={(event) => {
+                  event.preventDefault();
+                  event.stopPropagation();
+                  handlePreviewPermissionModeAudit();
+                }}
+              >
+                Preview Permission Audit
+              </button>
+              <button
+                type="button"
+                className="secondary"
+                onClick={(event) => {
+                  event.preventDefault();
+                  event.stopPropagation();
+                  handleClearPermissionModeAudit();
+                }}
+              >
+                Clear Permission Audit
+              </button>
+            </div>
+
+            <dl className="summaryGrid compact">
+              <div>
+                <dt>Status</dt>
+                <dd>{displayedPermissionModeAudit.status}</dd>
+              </div>
+              <div>
+                <dt>Latest mode</dt>
+                <dd>{displayedPermissionModeAudit.latestMode ?? "none"}</dd>
+              </div>
+              <div>
+                <dt>Latest lease</dt>
+                <dd>{displayedPermissionModeAudit.latestLeaseId ?? "none"}</dd>
+              </div>
+              <div>
+                <dt>Event previews</dt>
+                <dd>
+                  {displayedPermissionModeAudit.eventPreviewCount} / not
+                  written {displayedPermissionModeAudit.notWrittenCount}
+                </dd>
+              </div>
+              <div>
+                <dt>Blocked capabilities</dt>
+                <dd>{displayedPermissionModeAudit.blockedCapabilityCount}</dd>
+              </div>
+              <div>
+                <dt>Future high-risk</dt>
+                <dd>
+                  {displayedPermissionModeAudit.highRiskFutureCapabilityCount}
+                </dd>
+              </div>
+              <div>
+                <dt>Kill switch</dt>
+                <dd>
+                  {displayedPermissionModeAudit.killSwitchVisible
+                    ? "visible"
+                    : "missing"}{" "}
+                  /{" "}
+                  {displayedPermissionModeAudit.killSwitchTriggered
+                    ? "triggered"
+                    : "not triggered"}
+                </dd>
+              </div>
+              <div>
+                <dt>Replay status</dt>
+                <dd>{displayedPermissionModeAudit.replayStatus}</dd>
+              </div>
+              <div>
+                <dt>Blockers / warnings</dt>
+                <dd>
+                  {displayedPermissionModeAudit.blockerCount} /{" "}
+                  {displayedPermissionModeAudit.warningCount}
+                </dd>
+              </div>
+              <div>
+                <dt>Disabled readiness</dt>
+                <dd>
+                  EventStore{" "}
+                  {displayedPermissionModeAudit.readiness.canWriteEventStore
+                    ? "yes"
+                    : "no"}{" "}
+                  · shell{" "}
+                  {displayedPermissionModeAudit.readiness.canRunArbitraryShell
+                    ? "yes"
+                    : "no"}{" "}
+                  · app{" "}
+                  {displayedPermissionModeAudit.readiness.appCanExecute
+                    ? "yes"
+                    : "no"}
+                </dd>
+              </div>
+              <div>
+                <dt>Audit hash</dt>
+                <dd>{displayedPermissionModeAudit.auditHashPrefix}</dd>
+              </div>
+            </dl>
+
+            {displayedPermissionModeAudit.report.eventPreviews.length > 0 ? (
+              <ol className="timeline">
+                {displayedPermissionModeAudit.report.eventPreviews.map(
+                  (preview) => (
+                    <li key={preview.eventId}>
+                      <span className="timelineMeta">
+                        {preview.eventKind} · {preview.status}
+                      </span>
+                      <span>
+                        notWritten {preview.notWritten ? "yes" : "no"} · hash{" "}
+                        {preview.hashPrefix}
+                      </span>
+                    </li>
+                  )
+                )}
+              </ol>
+            ) : null}
+
+            <p className="fieldHelp">
+              {
+                summarizePermissionModeAuditView(displayedPermissionModeAudit)
+                  .nextAction
+              }{" "}
+              {displayedPermissionModeAudit.summary}
             </p>
           </section>
 

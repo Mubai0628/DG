@@ -114,6 +114,7 @@ import {
   buildExecutionModeSwitchView,
   expectedExecutionModeConfirmation
 } from "../src/execution-mode-switch-view.js";
+import { buildPermissionModeAuditView } from "../src/permission-mode-audit-view.js";
 import { buildExecutionPolicySummaryView } from "../src/execution-policy-summary-view.js";
 import {
   buildLiveProposalEvaluationSummaryView,
@@ -34962,6 +34963,80 @@ describe("expanded desktop action proposal app surface", () => {
     expect(combined).not.toContain("recursive delete execution is enabled");
     expect(combined).not.toContain("Git push execution is enabled");
     expect(combined).not.toContain("autonomous loop execution is enabled");
+  });
+
+  it("builds the App permission mode audit view as read-only summary", () => {
+    const switchView = buildExecutionModeSwitchView({
+      mode: "full_access_mode",
+      typedConfirmation: expectedExecutionModeConfirmation("full_access_mode"),
+      createdAt: "2026-07-06T00:00:00.000Z",
+      expiresAt: "2026-07-06T00:30:00.000Z"
+    });
+    const auditView = buildPermissionModeAuditView({
+      executionModeSwitchView: switchView,
+      idGenerator: () => "app-permission-audit"
+    });
+
+    expect(auditView.source).toBe("app_permission_mode_audit_view");
+    expect(auditView.status).toBe("blocked");
+    expect(auditView.latestMode).toBe("full_access_mode");
+    expect(auditView.eventPreviewCount).toBeGreaterThan(0);
+    expect(auditView.notWrittenCount).toBe(auditView.eventPreviewCount);
+    expect(auditView.highRiskFutureCapabilityCount).toBeGreaterThan(0);
+    expect(auditView.killSwitchVisible).toBe(true);
+    expect(auditView.readiness.canWriteEventStore).toBe(false);
+    expect(auditView.readiness.canRunArbitraryShell).toBe(false);
+    expect(auditView.readiness.canGitPush).toBe(false);
+    expect(auditView.readiness.appCanExecute).toBe(false);
+  });
+
+  it("renders the Permission Mode Audit panel without write controls", async () => {
+    const appSource = await readFile(
+      path.join(repoRoot, "app/src/App.tsx"),
+      "utf8"
+    );
+
+    expect(appSource).toContain('aria-label="Permission Mode Audit"');
+    expect(appSource).toContain("Read-only / no EventStore write");
+    expect(appSource).toContain("Preview Permission Audit");
+    expect(appSource).toContain("Clear Permission Audit");
+    expect(appSource).toContain("The App Shell does not write EventStore");
+    expect(appSource).toContain("notWritten");
+    expect(appSource).not.toContain("Write Permission Audit");
+    expect(appSource).not.toContain("handleWritePermissionModeAudit");
+    expect(appSource).not.toContain("safeInvoke(");
+    expect(appSource).not.toContain("invoke(");
+    expect(appSource).not.toContain("fetch(");
+  });
+
+  it("documents permission mode audit and replay boundaries", async () => {
+    const runtimeDoc = await readFile(
+      path.join(repoRoot, "docs", "runtime-permission-mode-audit-v0.34.md"),
+      "utf8"
+    );
+    const appDoc = await readFile(
+      path.join(repoRoot, "docs", "app-shell-permission-mode-audit-v0.34.md"),
+      "utf8"
+    );
+    const docsIndex = await readFile(
+      path.join(repoRoot, "docs", "README.md"),
+      "utf8"
+    );
+    const combined = `${runtimeDoc}\n${appDoc}\n${docsIndex}`;
+
+    expect(runtimeDoc).toContain("Runtime Permission Mode Audit v0.34");
+    expect(runtimeDoc).toContain("notWritten: true");
+    expect(runtimeDoc).toContain("summaryOnly: true");
+    expect(runtimeDoc).toContain("No EventStore writer");
+    expect(runtimeDoc).toContain("No apply or rollback");
+    expect(appDoc).toContain("App Shell Permission Mode Audit v0.34");
+    expect(appDoc).toContain("read-only");
+    expect(appDoc).toContain("does not create real audit events");
+    expect(appDoc).toContain("does not enable any high-privilege capability");
+    expect(docsIndex).toContain("runtime-permission-mode-audit-v0.34.md");
+    expect(docsIndex).toContain("app-shell-permission-mode-audit-v0.34.md");
+    expect(combined).not.toContain("EventStore write is enabled");
+    expect(combined).not.toContain("Permission audit events are written");
   });
 });
 

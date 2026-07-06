@@ -3,3 +3,4 @@ export * from "./session-lease.js";
 export * from "./execution-policy-engine.js";
 export * from "./risk-budget.js";
 export * from "./session-control.js";
+export * from "./audit-summary.js";
