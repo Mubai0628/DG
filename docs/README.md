@@ -605,6 +605,7 @@ foundation.
 - [Runtime Transcript Store Schema v0.34](runtime-transcript-store-schema-v0.34.md)
 - [Runtime Transcript Redaction Pipeline v0.34](runtime-transcript-redaction-pipeline-v0.34.md)
 - [App Shell Transcript Viewer v0.34](app-shell-transcript-viewer-v0.34.md)
+- [Runtime Transcript Retention Policy v0.34](runtime-transcript-retention-policy-v0.34.md)
 - [Runtime Memory Recall Preview v0.3](runtime-memory-recall-preview-v0.3.md)
 - [v0.4.0 Controlled Creation Preview RC release notes](release-notes-v0.4.0-controlled-creation-preview-rc.1.md)
 - [App Shell Controlled Creation manual QA](app-shell-controlled-creation-manual-qa.md)

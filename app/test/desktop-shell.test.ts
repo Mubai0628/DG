@@ -4488,6 +4488,26 @@ describe("desktop command wrapper", () => {
     expect(appReadme).toContain("P1M Transcript Viewer");
   });
 
+  it("locks Transcript Retention Policy docs as dry-run only", async () => {
+    const doc = await readFile(
+      path.join(repoRoot, "docs", "runtime-transcript-retention-policy-v0.34.md"),
+      "utf8"
+    );
+    const docsIndex = await readFile(
+      path.join(repoRoot, "docs", "README.md"),
+      "utf8"
+    );
+
+    expect(doc).toContain("Runtime Transcript Retention Policy v0.34");
+    expect(doc).toContain("summary-only retention, export");
+    expect(doc).toContain("Bulk delete execution is disabled");
+    expect(doc).toContain("Raw export is blocked by default");
+    expect(doc).toContain("No EventStore write");
+    expect(doc).toContain("No Git or shell execution");
+    expect(doc).toContain("No native bridge");
+    expect(docsIndex).toContain("runtime-transcript-retention-policy-v0.34.md");
+  });
+
   function safeLiveProposalCommandRequest(): LiveDeepSeekPatchProposalCommandRequest {
     return {
       sessionReceipt: {
