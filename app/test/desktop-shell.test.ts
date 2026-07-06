@@ -36033,6 +36033,110 @@ describe("expanded desktop action proposal app surface", () => {
     expect(combined).not.toContain("command broker enables full access");
   });
 
+  it("documents the command broker ADR threat model and implementation gate", async () => {
+    const adr = await readFile(
+      path.join(
+        repoRoot,
+        "docs",
+        "adr",
+        "0012-arbitrary-shell-command-broker.md"
+      ),
+      "utf8"
+    );
+    const threatModel = await readFile(
+      path.join(
+        repoRoot,
+        "docs",
+        "arbitrary-shell-command-broker-threat-model-v0.35.md"
+      ),
+      "utf8"
+    );
+    const implementationGate = await readFile(
+      path.join(
+        repoRoot,
+        "docs",
+        "arbitrary-shell-command-broker-implementation-gate-v0.35.md"
+      ),
+      "utf8"
+    );
+    const nextPlan = await readFile(
+      path.join(
+        repoRoot,
+        "docs",
+        "p1n-002-command-execution-policy-schema-plan.md"
+      ),
+      "utf8"
+    );
+    const docsIndex = await readFile(
+      path.join(repoRoot, "docs", "README.md"),
+      "utf8"
+    );
+    const combined = [
+      adr,
+      threatModel,
+      implementationGate,
+      nextPlan,
+      docsIndex
+    ].join("\n");
+    const threatModelLower = threatModel.toLowerCase();
+
+    expect(adr).toContain("Accepted for the P1N command broker design gate");
+    expect(adr).toContain("The Command Broker is the only entry point");
+    expect(adr).toContain("shell command.");
+    expect(adr).toContain("permission mode");
+    expect(adr).toContain("session lease");
+    expect(adr).toContain("risk budget");
+    expect(adr).toContain("dangerous command classifier");
+    expect(adr).toContain("transcript policy");
+    expect(adr).toContain("kill switch");
+    expect(adr).toContain("Approval Mode remains limited to fixed safe lanes");
+    expect(adr).toContain("Autonomous Safe Mode");
+    expect(adr).toContain("Advanced Workspace Mode");
+    expect(adr).toContain("Full Access Mode is modeled");
+    expect(adr).toContain(
+      "All command output must enter the transcript pipeline"
+    );
+    expect(threatModelLower).toContain("command injection");
+    expect(threatModelLower).toContain("shell metacharacters");
+    expect(threatModelLower).toContain("recursive delete");
+    expect(threatModelLower).toContain("credential exfiltration");
+    expect(threatModelLower).toContain("windows powershell and cmd");
+    expect(threatModelLower).toContain("quirks before execution");
+    expect(implementationGate).toContain(
+      "Do not implement Tauri command execution until P1N-002/P1N-003/P1N-004 gates"
+    );
+    expect(implementationGate).toContain("satisfied.");
+    expect(implementationGate).toContain("Permission Mode Gate");
+    expect(implementationGate).toContain("Session Lease Gate");
+    expect(implementationGate).toContain(
+      "Dangerous Command Classification Gate"
+    );
+    expect(implementationGate).toContain("Transcript Capture Gate");
+    expect(implementationGate).toContain("CI / Boundary Safety Gate");
+    expect(nextPlan).toContain("No command execution.");
+    expect(nextPlan).toContain("No arbitrary shell execution.");
+    expect(nextPlan).toContain("No Tauri command.");
+    expect(nextPlan).toContain("No process spawn.");
+    expect(nextPlan).toContain("No Git commit or push.");
+    expect(nextPlan).toContain("No API key read.");
+    expect(nextPlan).toContain("No fetch/network.");
+    expect(docsIndex).toContain("0012-arbitrary-shell-command-broker.md");
+    expect(docsIndex).toContain(
+      "arbitrary-shell-command-broker-threat-model-v0.35.md"
+    );
+    expect(docsIndex).toContain(
+      "arbitrary-shell-command-broker-implementation-gate-v0.35.md"
+    );
+    expect(docsIndex).toContain(
+      "p1n-002-command-execution-policy-schema-plan.md"
+    );
+    expect(combined).not.toContain("Tauri command execution is enabled");
+    expect(combined).not.toContain("arbitrary shell is enabled by default");
+    expect(combined).not.toContain("recursive delete is enabled");
+    expect(combined).not.toContain("Git push is enabled");
+    expect(combined).not.toContain("Full Access execution is enabled");
+  });
+
   it("documents the runtime transcript store schema boundaries", async () => {
     const runtimeDoc = await readFile(
       path.join(repoRoot, "docs", "runtime-transcript-store-schema-v0.34.md"),
