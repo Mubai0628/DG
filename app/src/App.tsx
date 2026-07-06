@@ -17,6 +17,7 @@ import {
   exportTranscriptSummary,
   executeApprovedDesktopAction,
   executeApprovedExpandedDesktopAction,
+  executeCommandBrokerRequest,
   generateLiveDeepSeekPatchProposal,
   getDesktopAppVersion,
   listTranscriptRecords,
@@ -42,6 +43,8 @@ import {
   type ApprovedDesktopActionCommandResult,
   type ApprovedExpandedDesktopActionCommandResult,
   type DesktopObservationCommandResult,
+  type CommandBrokerExecutionResult,
+  type CommandBrokerShellKind,
   type GitReadLane,
   type GitReadLaneResult,
   type LiveDeepSeekPatchProposalCommandRequest,
@@ -217,6 +220,11 @@ import {
   summarizeLiveProposalEvaluationTelemetryAuditView,
   type LiveProposalEvaluationTelemetryAuditView
 } from "./live-proposal-evaluation-telemetry-audit-view.js";
+import {
+  buildCommandBrokerView,
+  summarizeCommandBrokerView,
+  type CommandBrokerView
+} from "./command-broker-view.js";
 import {
   buildTranscriptViewerView,
   summarizeTranscriptViewerView,
@@ -535,6 +543,7 @@ type DraftEventStatus = "idle" | "recording" | "recorded" | "error";
 type TranscriptActionStatus = "idle" | "loading" | "loaded" | "error";
 type GitReadLaneStatus = "idle" | "running" | "done" | "error";
 type ShellVerificationLaneStatus = "idle" | "running" | "done" | "error";
+type CommandBrokerExecutionStatus = "idle" | "executing" | "done" | "error";
 type McpReadonlyConnectionRunStatus = "idle" | "running" | "done" | "error";
 
 const defaultMcpReadonlyProfileJson = JSON.stringify(
@@ -1257,6 +1266,30 @@ export function DesktopShell(): JSX.Element {
   >();
   const [shellVerificationEventResult, setShellVerificationEventResult] =
     useState<VerificationLaneEventRecordResult | undefined>();
+  const [commandBrokerMode, setCommandBrokerMode] =
+    useState<CommandBrokerView["mode"]>("approval");
+  const [commandBrokerSessionLeaseRef, setCommandBrokerSessionLeaseRef] =
+    useState("");
+  const [commandBrokerTranscriptPolicyRef, setCommandBrokerTranscriptPolicyRef] =
+    useState("transcript-policy-command-broker");
+  const [commandBrokerCommandText, setCommandBrokerCommandText] = useState(
+    "node --version"
+  );
+  const [commandBrokerShellKind, setCommandBrokerShellKind] =
+    useState<CommandBrokerView["shellKind"]>("powershell");
+  const [commandBrokerWorkingDirectory, setCommandBrokerWorkingDirectory] =
+    useState(".");
+  const [commandBrokerKillSwitchActive, setCommandBrokerKillSwitchActive] =
+    useState(false);
+  const [commandBrokerPreview, setCommandBrokerPreview] = useState<
+    CommandBrokerView | undefined
+  >();
+  const [commandBrokerExecutionStatus, setCommandBrokerExecutionStatus] =
+    useState<CommandBrokerExecutionStatus>("idle");
+  const [commandBrokerExecutionResult, setCommandBrokerExecutionResult] =
+    useState<CommandBrokerExecutionResult | undefined>();
+  const [commandBrokerExecutionError, setCommandBrokerExecutionError] =
+    useState<string | undefined>();
   const loadedWorkspaceIndexRef =
     workspaceIndexBridge.status === "loaded" ||
     workspaceIndexBridge.status === "warning"
@@ -1285,6 +1318,20 @@ export function DesktopShell(): JSX.Element {
     () => buildVerificationLaneProjectionView(eventSummary),
     [eventSummary]
   );
+  const commandBrokerCandidate = buildCommandBrokerView({
+    workspaceRoot,
+    workspaceRootRef: userWorkspaceRootRef || "workspace-ref-command-broker",
+    mode: commandBrokerMode,
+    sessionLeaseRef: commandBrokerSessionLeaseRef,
+    transcriptPolicyRef: commandBrokerTranscriptPolicyRef,
+    killSwitchActive: commandBrokerKillSwitchActive,
+    commandText: commandBrokerCommandText,
+    shellKind: commandBrokerShellKind,
+    workingDirectory: commandBrokerWorkingDirectory,
+    allowWorkspaceWrite: commandBrokerMode === "advanced_workspace"
+  });
+  const displayedCommandBroker =
+    commandBrokerPreview ?? buildCommandBrokerView();
   const bridgePanel = useMemo<BridgeProposalPreviewModel>(
     () => buildBridgeProposalPreviewModel(bridgePreview),
     [bridgePreview]
@@ -5006,6 +5053,83 @@ export function DesktopShell(): JSX.Element {
     }
   }
 
+  function handlePlanCommandBroker(): void {
+    setCommandBrokerPreview(commandBrokerCandidate);
+    setCommandBrokerExecutionError(undefined);
+    setCommandBrokerExecutionResult(undefined);
+    setCommandBrokerExecutionStatus("idle");
+  }
+
+  function handleCancelCommandBroker(): void {
+    setCommandBrokerKillSwitchActive(true);
+    setCommandBrokerPreview(
+      buildCommandBrokerView({
+        workspaceRoot,
+        workspaceRootRef: userWorkspaceRootRef || "workspace-ref-command-broker",
+        mode: commandBrokerMode,
+        sessionLeaseRef: commandBrokerSessionLeaseRef,
+        transcriptPolicyRef: commandBrokerTranscriptPolicyRef,
+        killSwitchActive: true,
+        commandText: commandBrokerCommandText,
+        shellKind: commandBrokerShellKind,
+        workingDirectory: commandBrokerWorkingDirectory,
+        allowWorkspaceWrite: commandBrokerMode === "advanced_workspace"
+      })
+    );
+  }
+
+  async function handleExecuteCommandBroker(): Promise<void> {
+    const view = commandBrokerPreview ?? commandBrokerCandidate;
+    if (view.executeDisabled) {
+      setCommandBrokerExecutionError(view.executeDisabledReasons.join(", "));
+      setCommandBrokerExecutionStatus("error");
+      return;
+    }
+    setCommandBrokerExecutionStatus("executing");
+    setCommandBrokerExecutionResult(undefined);
+    setCommandBrokerExecutionError(undefined);
+    try {
+      const result = await executeCommandBrokerRequest({
+        workspaceRoot,
+        brokerDecision: view.policyDecision,
+        commandRequest: {
+          requestId: "app-command-broker-request",
+          mode: String(view.mode),
+          workspaceRootRef: view.workspaceRootRef,
+          workingDirectory: view.workingDirectory,
+          commandText: commandBrokerCommandText,
+          argv: [],
+          shellKind: view.shellKind as CommandBrokerShellKind,
+          timeoutMs: view.timeoutMs,
+          maxOutputBytes: view.maxOutputBytes,
+          allowBackgroundProcess: false,
+          allowNetwork: false,
+          allowWorkspaceWrite: commandBrokerMode === "advanced_workspace",
+          allowOutsideWorkspaceWrite: false,
+          allowGitWrite: false,
+          allowDestructive: false,
+          environmentPolicy: {
+            mode: "allowlist_names",
+            allowedEnvNames: ["PATH"]
+          }
+        },
+        sessionLeaseRef: view.sessionLeaseRef,
+        transcriptPolicy: {
+          transcriptPolicyRef: view.transcriptPolicyRef,
+          rawOptIn: false
+        },
+        classifierCategories: view.classifierSummary.categories,
+        killSwitchActive: view.killSwitchActive,
+        cancellationId: null
+      });
+      setCommandBrokerExecutionResult(result);
+      setCommandBrokerExecutionStatus("done");
+    } catch (caught) {
+      setCommandBrokerExecutionError(safeErrorMessage(caught));
+      setCommandBrokerExecutionStatus("error");
+    }
+  }
+
   async function handleConvert(): Promise<void> {
     setStatus("running");
     setResult(undefined);
@@ -5594,6 +5718,258 @@ export function DesktopShell(): JSX.Element {
             {shellVerificationError !== undefined ? (
               <p className="errorText">{shellVerificationError}</p>
             ) : null}
+          </section>
+
+          <section className="bridgePreview" aria-label="Command Broker">
+            <div className="panelHeader">
+              <h2>Command Broker</h2>
+              <span className="muted">
+                Fixed Tauri command / broker gated
+              </span>
+            </div>
+            <p className="fieldHelp">
+              Plans an arbitrary-shell request through policy, classifier,
+              session lease, transcript policy, risk budget, and kill-switch
+              gates. Execute uses only the fixed command broker Tauri command;
+              no generic shell invocation, auto-run, raw output display, Git
+              write, apply, rollback, or EventStore write is exposed.
+            </p>
+            <div className="twoColumn">
+              <label>
+                <span>Permission mode</span>
+                <select
+                  value={String(commandBrokerMode)}
+                  onChange={(event) =>
+                    setCommandBrokerMode(
+                      event.target.value as CommandBrokerView["mode"]
+                    )
+                  }
+                >
+                  <option value="approval">approval</option>
+                  <option value="autonomous_safe">autonomous_safe</option>
+                  <option value="advanced_workspace">advanced_workspace</option>
+                  <option value="full_access">full_access</option>
+                </select>
+              </label>
+              <label>
+                <span>Shell kind</span>
+                <select
+                  value={String(commandBrokerShellKind)}
+                  onChange={(event) =>
+                    setCommandBrokerShellKind(
+                      event.target.value as CommandBrokerView["shellKind"]
+                    )
+                  }
+                >
+                  <option value="powershell">powershell</option>
+                  <option value="cmd">cmd</option>
+                  <option value="bash">bash</option>
+                  <option value="sh">sh</option>
+                  <option value="none">none</option>
+                </select>
+              </label>
+            </div>
+            <label>
+              <span>Session lease</span>
+              <input
+                value={commandBrokerSessionLeaseRef}
+                onChange={(event) =>
+                  setCommandBrokerSessionLeaseRef(event.target.value)
+                }
+                placeholder="session-lease-command-broker"
+              />
+            </label>
+            <label>
+              <span>Transcript policy</span>
+              <input
+                value={commandBrokerTranscriptPolicyRef}
+                onChange={(event) =>
+                  setCommandBrokerTranscriptPolicyRef(event.target.value)
+                }
+                placeholder="transcript-policy-command-broker"
+              />
+            </label>
+            <label>
+              <span>Working directory</span>
+              <input
+                value={commandBrokerWorkingDirectory}
+                onChange={(event) =>
+                  setCommandBrokerWorkingDirectory(event.target.value)
+                }
+                placeholder="."
+              />
+            </label>
+            <label>
+              <span>Command text</span>
+              <textarea
+                value={commandBrokerCommandText}
+                onChange={(event) =>
+                  setCommandBrokerCommandText(event.target.value)
+                }
+                placeholder="node --version"
+                spellCheck={false}
+              />
+            </label>
+            <div className="buttonRow">
+              <button
+                type="button"
+                className="secondary"
+                disabled={displayedCommandBroker.planButtonDisabled}
+                onClick={(event) => {
+                  event.preventDefault();
+                  event.stopPropagation();
+                  handlePlanCommandBroker();
+                }}
+              >
+                Plan Command
+              </button>
+              <button
+                type="button"
+                className="secondary"
+                disabled={
+                  workspaceRoot.trim().length === 0 ||
+                  displayedCommandBroker.executeDisabled ||
+                  commandBrokerExecutionStatus === "executing"
+                }
+                onClick={(event) => {
+                  event.preventDefault();
+                  event.stopPropagation();
+                  void handleExecuteCommandBroker();
+                }}
+              >
+                {commandBrokerExecutionStatus === "executing"
+                  ? "Executing Command..."
+                  : "Execute Command"}
+              </button>
+              <button
+                type="button"
+                className="secondary"
+                disabled={commandBrokerKillSwitchActive}
+                onClick={(event) => {
+                  event.preventDefault();
+                  event.stopPropagation();
+                  handleCancelCommandBroker();
+                }}
+              >
+                Cancel / Kill Command
+              </button>
+            </div>
+            <dl className="summaryGrid compact">
+              <div>
+                <dt>Status</dt>
+                <dd>{displayedCommandBroker.status}</dd>
+              </div>
+              <div>
+                <dt>Policy decision</dt>
+                <dd>{displayedCommandBroker.policyDecision}</dd>
+              </div>
+              <div>
+                <dt>Mode</dt>
+                <dd>{displayedCommandBroker.mode}</dd>
+              </div>
+              <div>
+                <dt>Shell kind</dt>
+                <dd>{displayedCommandBroker.shellKind}</dd>
+              </div>
+              <div>
+                <dt>Kill switch</dt>
+                <dd>
+                  {displayedCommandBroker.killSwitchActive ? "active" : "clear"}
+                </dd>
+              </div>
+              <div>
+                <dt>Risk budget</dt>
+                <dd>{displayedCommandBroker.riskBudgetStatus}</dd>
+              </div>
+              <div>
+                <dt>Classifier</dt>
+                <dd>
+                  {displayedCommandBroker.classifierSummary.riskLevel} ·{" "}
+                  {displayedCommandBroker.classifierSummary.categories.length}{" "}
+                  categories
+                </dd>
+              </div>
+              <div>
+                <dt>Timeout / output</dt>
+                <dd>
+                  {displayedCommandBroker.timeoutMs}ms /{" "}
+                  {displayedCommandBroker.maxOutputBytes} bytes
+                </dd>
+              </div>
+              <div>
+                <dt>Blockers / warnings</dt>
+                <dd>
+                  {displayedCommandBroker.blockerCount} /{" "}
+                  {displayedCommandBroker.warningCount}
+                </dd>
+              </div>
+              <div>
+                <dt>Execution state</dt>
+                <dd>
+                  {displayedCommandBroker.executeDisabled
+                    ? "disabled"
+                    : "fixed command ready"}
+                </dd>
+              </div>
+              <div>
+                <dt>View hash</dt>
+                <dd>{displayedCommandBroker.viewHash}</dd>
+              </div>
+              <div>
+                <dt>Raw output</dt>
+                <dd>absent</dd>
+              </div>
+            </dl>
+            {displayedCommandBroker.executeDisabledReasons.length > 0 ? (
+              <p className="muted">
+                disabled:{" "}
+                {displayedCommandBroker.executeDisabledReasons.join(", ")}
+              </p>
+            ) : null}
+            {displayedCommandBroker.findingCodes.length > 0 ? (
+              <p className="muted">
+                findings: {displayedCommandBroker.findingCodes.join(", ")}
+              </p>
+            ) : null}
+            {commandBrokerExecutionResult !== undefined ? (
+              <dl className="summaryGrid compact">
+                <div>
+                  <dt>Execution status</dt>
+                  <dd>{commandBrokerExecutionResult.status}</dd>
+                </div>
+                <div>
+                  <dt>Exit code</dt>
+                  <dd>{commandBrokerExecutionResult.exitCode ?? "n/a"}</dd>
+                </div>
+                <div>
+                  <dt>Transcript ref</dt>
+                  <dd>{commandBrokerExecutionResult.transcriptRef}</dd>
+                </div>
+                <div>
+                  <dt>Stdout / stderr bytes</dt>
+                  <dd>
+                    {commandBrokerExecutionResult.stdoutBytes} /{" "}
+                    {commandBrokerExecutionResult.stderrBytes}
+                  </dd>
+                </div>
+                <div>
+                  <dt>Raw output</dt>
+                  <dd>
+                    {commandBrokerExecutionResult.rawStdoutIncluded ||
+                    commandBrokerExecutionResult.rawStderrIncluded
+                      ? "blocked"
+                      : "absent"}
+                  </dd>
+                </div>
+              </dl>
+            ) : null}
+            {commandBrokerExecutionError !== undefined ? (
+              <p className="errorText">{commandBrokerExecutionError}</p>
+            ) : null}
+            <p className="muted">
+              {summarizeCommandBrokerView(displayedCommandBroker).source} ·{" "}
+              {displayedCommandBroker.nextAction}
+            </p>
           </section>
 
           <section className="bridgePreview" aria-label="Verification Summary">

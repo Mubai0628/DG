@@ -128,6 +128,7 @@ import {
   parseLiveProposalEvaluationSummaryJson
 } from "../src/live-proposal-evaluation-summary-view.js";
 import { buildLiveProposalEvaluationTelemetryAuditView } from "../src/live-proposal-evaluation-telemetry-audit-view.js";
+import { buildCommandBrokerView } from "../src/command-broker-view.js";
 import { buildTranscriptViewerView } from "../src/transcript-viewer-view.js";
 import {
   buildAppDataInventorySchemaView,
@@ -5755,6 +5756,86 @@ describe("desktop command wrapper", () => {
     expect(desktopFlowSource).not.toContain("execute_generic_command");
     expect(desktopFlowSource).not.toContain("rawStdout:");
     expect(desktopFlowSource).not.toContain("rawStderr:");
+  });
+
+  it("builds command broker view with explicit execution gating", () => {
+    const empty = buildCommandBrokerView();
+    expect(empty.status).toBe("empty");
+    expect(empty.executeDisabled).toBe(true);
+    expect(empty.readiness.canAutoRunCommand).toBe(false);
+    expect(empty.readiness.canExecuteGenericShell).toBe(false);
+
+    const approval = buildCommandBrokerView({
+      workspaceRoot: "D:\\workspace",
+      workspaceRootRef: "workspace-ref-test",
+      mode: "approval",
+      sessionLeaseRef: "lease-command-broker-test",
+      transcriptPolicyRef: "transcript-policy-command-broker",
+      commandText: "node --version",
+      shellKind: "powershell",
+      workingDirectory: "."
+    });
+    expect(approval.executeDisabled).toBe(true);
+    expect(approval.executeDisabledReasons).toContain("APPROVAL_MODE_DISABLED");
+
+    const advanced = buildCommandBrokerView({
+      workspaceRoot: "D:\\workspace",
+      workspaceRootRef: "workspace-ref-test",
+      mode: "advanced_workspace",
+      sessionLeaseRef: "lease-command-broker-test",
+      transcriptPolicyRef: "transcript-policy-command-broker",
+      commandText: "node --version",
+      shellKind: "powershell",
+      workingDirectory: ".",
+      allowWorkspaceWrite: true
+    });
+    expect(advanced.policyDecision).toBe("ready_for_tauri_execution");
+    expect(advanced.executeDisabled).toBe(false);
+    expect(advanced.readiness.canExecuteFixedBrokerCommand).toBe(true);
+
+    const dangerous = buildCommandBrokerView({
+      ...advanced,
+      commandText: "rm -rf dist"
+    });
+    expect(dangerous.executeDisabled).toBe(true);
+    expect(dangerous.executeDisabledReasons).toContain(
+      "BROKER_DECISION_NOT_READY"
+    );
+
+    const killed = buildCommandBrokerView({
+      ...advanced,
+      killSwitchActive: true
+    });
+    expect(killed.executeDisabled).toBe(true);
+    expect(killed.executeDisabledReasons).toContain("KILL_SWITCH_ACTIVE");
+  });
+
+  it("renders command broker panel without generic shell auto-run", async () => {
+    const appSource = await readFile(
+      path.join(appRoot, "src", "App.tsx"),
+      "utf8"
+    );
+    const desktopFlowSource = await readFile(
+      path.join(appRoot, "src", "desktop-flow.ts"),
+      "utf8"
+    );
+
+    expect(appSource).toContain("Command Broker");
+    expect(appSource).toContain("Plan Command");
+    expect(appSource).toContain("Execute Command");
+    expect(appSource).toContain("Cancel / Kill Command");
+    expect(appSource).toContain("Fixed Tauri command / broker gated");
+    expect(appSource).toContain("no generic shell invocation");
+    expect(appSource).toContain("no generic shell invocation");
+    expect(appSource).toContain("Raw output");
+    expect(appSource).toContain("absent");
+    expect(appSource).toContain("handlePlanCommandBroker");
+    expect(appSource).toContain("handleExecuteCommandBroker");
+    expect(appSource).not.toContain("useEffect(() => handleExecuteCommandBroker");
+    expect(appSource).not.toContain("autoRunCommand");
+    expect(desktopFlowSource).toContain('"execute_command_broker_request"');
+    expect(desktopFlowSource).not.toContain("execute_generic_command");
+    expect(desktopFlowSource).not.toContain("run_shell_command");
   });
 
   it("builds a safe no-events model", () => {
@@ -36251,6 +36332,10 @@ describe("expanded desktop action proposal app surface", () => {
       path.join(repoRoot, "docs", "app-command-broker-tauri-command-v0.35.md"),
       "utf8"
     );
+    const appSurfaceDoc = await readFile(
+      path.join(repoRoot, "docs", "app-shell-command-broker-v0.35.md"),
+      "utf8"
+    );
     const docsIndex = await readFile(
       path.join(repoRoot, "docs", "README.md"),
       "utf8"
@@ -36267,6 +36352,16 @@ describe("expanded desktop action proposal app surface", () => {
     expect(commandDoc).toContain("No native bridge");
     expect(commandDoc).toContain("No desktop action");
     expect(docsIndex).toContain("app-command-broker-tauri-command-v0.35.md");
+    expect(appSurfaceDoc).toContain("Command Broker");
+    expect(appSurfaceDoc).toContain("Plan Command");
+    expect(appSurfaceDoc).toContain("Execute Command");
+    expect(appSurfaceDoc).toContain("Cancel / Kill Command");
+    expect(appSurfaceDoc).toContain("No generic shell invocation");
+    expect(appSurfaceDoc).toContain("No auto-run command history");
+    expect(appSurfaceDoc).toContain("No EventStore write");
+    expect(appSurfaceDoc).toContain("No native bridge");
+    expect(appSurfaceDoc).toContain("No desktop action");
+    expect(docsIndex).toContain("app-shell-command-broker-v0.35.md");
   });
 
   it("documents the runtime transcript store schema boundaries", async () => {
