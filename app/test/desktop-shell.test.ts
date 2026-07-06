@@ -35230,6 +35230,90 @@ describe("expanded desktop action proposal app surface", () => {
     expect(combined).not.toContain("raw transcript enables Git push");
     expect(combined).not.toContain("raw transcript enables full access");
   });
+
+  it("documents the raw transcript persistence ADR and implementation gate", async () => {
+    const adr = await readFile(
+      path.join(
+        repoRoot,
+        "docs",
+        "adr",
+        "0011-raw-transcript-output-persistence.md"
+      ),
+      "utf8"
+    );
+    const threatModel = await readFile(
+      path.join(
+        repoRoot,
+        "docs",
+        "raw-transcript-output-persistence-threat-model-v0.34.md"
+      ),
+      "utf8"
+    );
+    const implementationGate = await readFile(
+      path.join(
+        repoRoot,
+        "docs",
+        "raw-transcript-output-persistence-implementation-gate-v0.34.md"
+      ),
+      "utf8"
+    );
+    const p1m002Plan = await readFile(
+      path.join(repoRoot, "docs", "p1m-002-transcript-store-schema-plan.md"),
+      "utf8"
+    );
+    const docsIndex = await readFile(
+      path.join(repoRoot, "docs", "README.md"),
+      "utf8"
+    );
+    const combined = [
+      adr,
+      threatModel,
+      implementationGate,
+      p1m002Plan,
+      docsIndex
+    ].join("\n");
+
+    expect(adr).toContain("Accepted for the P1M raw transcript design gate");
+    expect(adr).toContain(
+      "Transcript persistence must be redacted summary-only by default"
+    );
+    expect(adr).toContain(
+      "Raw output can be persisted only through explicit opt-in"
+    );
+    expect(adr).toContain("Raw transcript access is not Full Access");
+    expect(adr).toContain("Transcript events remain summary-only");
+    expect(threatModel).toContain("Secret leakage via stdout/stderr");
+    expect(threatModel).toContain("API key leakage");
+    expect(threatModel).toContain("reasoning_content persistence");
+    expect(threatModel).toContain("Terminal escape sequences");
+    expect(threatModel).toContain("HTML/script injection");
+    expect(threatModel).toContain("Replay accidental raw display");
+    expect(implementationGate).toContain("Schema Safety");
+    expect(implementationGate).toContain("Redaction Safety");
+    expect(implementationGate).toContain("Raw Opt-in Safety");
+    expect(implementationGate).toContain(
+      "Do not implement arbitrary shell until transcript storage and redaction gates pass"
+    );
+    expect(implementationGate).toContain(
+      "Do not implement autonomous loop until transcript replay and retention gates pass"
+    );
+    expect(p1m002Plan).toContain("Transcript Store Schema Plan");
+    expect(p1m002Plan).toContain("No command execution");
+    expect(p1m002Plan).toContain("No arbitrary shell");
+    expect(docsIndex).toContain(
+      "adr/0011-raw-transcript-output-persistence.md"
+    );
+    expect(docsIndex).toContain(
+      "raw-transcript-output-persistence-threat-model-v0.34.md"
+    );
+    expect(docsIndex).toContain(
+      "raw-transcript-output-persistence-implementation-gate-v0.34.md"
+    );
+    expect(combined).not.toContain("raw transcript enables command execution");
+    expect(combined).not.toContain("raw transcript enables shell execution");
+    expect(combined).not.toContain("raw transcript enables full access");
+    expect(combined).not.toContain("raw transcript bypasses redaction");
+  });
 });
 
 describe("desktop dev scripts", () => {
