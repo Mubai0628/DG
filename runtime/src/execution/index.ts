@@ -5,3 +5,4 @@ export * from "./app-approved-execution/index.js";
 export * from "./shell/index.js";
 export * from "./user-workspace/index.js";
 export * from "./permission-modes/index.js";
+export * from "./command-broker/index.js";
