@@ -10,12 +10,17 @@ import {
 } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
+import { setTimeout as delay } from "node:timers/promises";
 
 import { afterEach, describe, expect, it } from "vitest";
 
 import { scanEventLogForLeaks } from "../../evals/web-table-to-csv/leak-scanner.mjs";
 
 const repoRoot = path.resolve(import.meta.dirname, "../..");
+const pnpmScriptLockPath = path.join(
+  tmpdir(),
+  "deepseek-workbench-web-table-cli-build.lock"
+);
 const tempRoots = [];
 
 async function createTempRoot() {
@@ -166,22 +171,55 @@ function runPnpm(args) {
   const commandArgs =
     process.platform === "win32" ? ["/c", "pnpm.cmd", ...args] : args;
 
-  return new Promise((resolve) => {
-    execFile(
-      command,
-      commandArgs,
-      {
-        cwd: repoRoot,
-        timeout: 180_000
-      },
-      (error, stdout, stderr) => {
-        const code = error?.code;
-        resolve({
-          exitCode: error === null ? 0 : typeof code === "number" ? code : 1,
-          stdout,
-          stderr
-        });
+  return withPnpmScriptBuildLock(
+    () =>
+      new Promise((resolve) => {
+        execFile(
+          command,
+          commandArgs,
+          {
+            cwd: repoRoot,
+            timeout: 180_000
+          },
+          (error, stdout, stderr) => {
+            const code = error?.code;
+            resolve({
+              exitCode:
+                error === null ? 0 : typeof code === "number" ? code : 1,
+              stdout,
+              stderr
+            });
+          }
+        );
+      })
+  );
+}
+
+async function withPnpmScriptBuildLock(task) {
+  await acquirePnpmScriptBuildLock();
+  try {
+    return await task();
+  } finally {
+    await rm(pnpmScriptLockPath, { recursive: true, force: true });
+  }
+}
+
+async function acquirePnpmScriptBuildLock() {
+  const startedAt = Date.now();
+
+  while (true) {
+    try {
+      await mkdir(pnpmScriptLockPath);
+      return;
+    } catch (error) {
+      if (error?.code !== "EEXIST") {
+        throw error;
       }
-    );
-  });
+      if (Date.now() - startedAt > 180_000) {
+        await rm(pnpmScriptLockPath, { recursive: true, force: true });
+        continue;
+      }
+      await delay(100);
+    }
+  }
 }
