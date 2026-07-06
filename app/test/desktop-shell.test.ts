@@ -35038,6 +35038,38 @@ describe("expanded desktop action proposal app surface", () => {
     expect(combined).not.toContain("EventStore write is enabled");
     expect(combined).not.toContain("Permission audit events are written");
   });
+
+  it("documents high-privilege boundary smoke coverage", async () => {
+    const smokeDoc = await readFile(
+      path.join(repoRoot, "docs", "high-privilege-boundary-smoke-v0.34.md"),
+      "utf8"
+    );
+    const docsIndex = await readFile(
+      path.join(repoRoot, "docs", "README.md"),
+      "utf8"
+    );
+    const combined = `${smokeDoc}\n${docsIndex}`;
+
+    expect(smokeDoc).toContain("High-Privilege Boundary Smoke v0.34");
+    expect(smokeDoc).toContain("Arbitrary shell");
+    expect(smokeDoc).toContain("Custom command strings");
+    expect(smokeDoc).toContain("Recursive delete");
+    expect(smokeDoc).toContain("Git commit");
+    expect(smokeDoc).toContain("Git push");
+    expect(smokeDoc).toContain("Autonomous loop execution");
+    expect(smokeDoc).toContain("Raw output persistence");
+    expect(smokeDoc).toContain("Native bridge");
+    expect(smokeDoc).toContain("Mutating MCP");
+    expect(smokeDoc).toContain("Broad desktop automation");
+    expect(smokeDoc).toContain("Approved apply and rollback receipts");
+    expect(smokeDoc).toContain("Fixed shell verification lanes");
+    expect(smokeDoc).toContain("Git read lanes remain read-only");
+    expect(smokeDoc).toContain("Full Access remains metadata preview only");
+    expect(docsIndex).toContain("high-privilege-boundary-smoke-v0.34.md");
+    expect(combined).not.toContain("Full Access execution is enabled");
+    expect(combined).not.toContain("Git push execution is enabled");
+    expect(combined).not.toContain("arbitrary shell execution is enabled");
+  });
 });
 
 describe("desktop dev scripts", () => {
