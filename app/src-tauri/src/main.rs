@@ -9,6 +9,7 @@ fn main() {
             commands::rollback_approved_user_workspace_patch,
             commands::run_git_read_lane,
             commands::run_shell_verification_lane,
+            commands::execute_command_broker_request,
             commands::mcp_readonly_discover,
             commands::call_mcp_readonly_tool,
             commands::load_workspace_event_summary,

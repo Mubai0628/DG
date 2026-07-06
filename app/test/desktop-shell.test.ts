@@ -13,6 +13,7 @@ import {
   deleteTranscriptRecord,
   executeApprovedDesktopAction,
   executeApprovedExpandedDesktopAction,
+  executeCommandBrokerRequest,
   exportTranscriptSummary,
   expireProjectKnowledgeEntry,
   generateLiveDeepSeekPatchProposal,
@@ -42,6 +43,7 @@ import {
   type ApprovedExpandedDesktopActionCommandResult,
   type ApprovedUserWorkspaceApplyResult,
   type ApprovedUserWorkspaceRollbackResult,
+  type CommandBrokerExecutionResult,
   type DesktopObservationCommandRequest,
   type DesktopObservationCommandResult,
   type GitReadLaneResult,
@@ -476,6 +478,55 @@ function fixedShellVerificationLaneResult(
     },
     safeMessage:
       "Shell verification lane summary generated. No raw stdout/stderr returned.",
+    ...overrides
+  };
+}
+
+function fixedCommandBrokerExecutionResult(
+  overrides: Partial<CommandBrokerExecutionResult> = {}
+): CommandBrokerExecutionResult {
+  return {
+    ok: true,
+    status: "passed",
+    requestId: "command-broker-request-test",
+    workspaceRootRef: "workspace-ref-test",
+    shellKind: "powershell",
+    exitCode: 0,
+    durationMs: 18,
+    stdoutBytes: 42,
+    stderrBytes: 0,
+    stdoutLineCount: 1,
+    stderrLineCount: 0,
+    redactedStdoutLineCount: 1,
+    redactedStderrLineCount: 0,
+    commandHash: "command-broker-command-hash",
+    outputHash: "command-broker-output-hash",
+    transcriptId: "command-broker-transcript",
+    transcriptRef: "transcript:command-broker-transcript",
+    warningCodes: [],
+    truncated: false,
+    rawStdoutIncluded: false,
+    rawStderrIncluded: false,
+    summaryOnly: true,
+    eventPreview: {
+      type: "command_broker.command.executed",
+      requestId: "command-broker-request-test",
+      workspaceRootRef: "workspace-ref-test",
+      commandHash: "command-broker-command-hash",
+      outputHash: "command-broker-output-hash",
+      transcriptId: "command-broker-transcript",
+      transcriptRef: "transcript:command-broker-transcript",
+      exitCode: 0,
+      stdoutBytes: 42,
+      stderrBytes: 0,
+      warningCodes: [],
+      durationMs: 18,
+      truncated: false,
+      summaryOnly: true,
+      notWritten: true
+    },
+    safeMessage:
+      "Command broker execution summary generated. No raw stdout/stderr returned.",
     ...overrides
   };
 }
@@ -1025,6 +1076,9 @@ describe("desktop command wrapper", () => {
     expect(isAllowedDesktopCommand("project_knowledge_expire")).toBe(true);
     expect(isAllowedDesktopCommand("observe_desktop_metadata")).toBe(true);
     expect(isAllowedDesktopCommand("execute_approved_desktop_action")).toBe(
+      true
+    );
+    expect(isAllowedDesktopCommand("execute_command_broker_request")).toBe(
       true
     );
     expect(isAllowedDesktopCommand("run_web_table_to_csv_flow")).toBe(true);
@@ -5582,6 +5636,57 @@ describe("desktop command wrapper", () => {
     expect(JSON.stringify(result)).not.toContain("stderr text");
   });
 
+  it("executes command broker requests only through the fixed Tauri command", async () => {
+    const request = {
+      workspaceRoot: "D:\\workspace",
+      brokerDecision: "ready_for_tauri_execution",
+      commandRequest: {
+        requestId: "command-broker-request-test",
+        mode: "advanced_workspace",
+        workspaceRootRef: "workspace-ref-test",
+        workingDirectory: ".",
+        commandText: "Write-Output broker-safe",
+        argv: [],
+        shellKind: "powershell" as const,
+        timeoutMs: 60000,
+        maxOutputBytes: 65536,
+        allowBackgroundProcess: false,
+        allowNetwork: false,
+        allowWorkspaceWrite: true,
+        allowOutsideWorkspaceWrite: false,
+        allowGitWrite: false,
+        allowDestructive: false,
+        environmentPolicy: {
+          mode: "allowlist_names",
+          allowedEnvNames: ["PATH"]
+        }
+      },
+      sessionLeaseRef: "session-lease-command-broker-test",
+      transcriptPolicy: {
+        transcriptPolicyRef: "transcript-policy-summary-only",
+        rawOptIn: false
+      },
+      classifierCategories: ["low_risk"],
+      killSwitchActive: false,
+      cancellationId: null
+    };
+    const invoke: TauriInvoke = async (command, args) => {
+      expect(command).toBe("execute_command_broker_request");
+      expect(args).toEqual({ request });
+      return fixedCommandBrokerExecutionResult() as never;
+    };
+
+    const result = await executeCommandBrokerRequest(request, invoke);
+
+    expect(result.ok).toBe(true);
+    expect(result.status).toBe("passed");
+    expect(result.transcriptRef).toBe("transcript:command-broker-transcript");
+    expect(result.eventPreview.notWritten).toBe(true);
+    expect(result.rawStdoutIncluded).toBe(false);
+    expect(result.rawStderrIncluded).toBe(false);
+    expect(JSON.stringify(result)).not.toContain("broker-safe output");
+  });
+
   it("records verification lane summary events through the fixed event command", async () => {
     const eventPreview = fixedGitReadLaneResult().eventPreview;
     const invoke: TauriInvoke = async (command, args) => {
@@ -5642,8 +5747,12 @@ describe("desktop command wrapper", () => {
     expect(appSource).not.toMatch(/>\s*Run Shell\s*</);
     expect(appSource).not.toMatch(/>\s*Write Events\s*</);
     expect(desktopFlowSource).toContain('"run_shell_verification_lane"');
+    expect(desktopFlowSource).toContain('"execute_command_broker_request"');
+    expect(desktopFlowSource).toContain("executeCommandBrokerRequest");
     expect(desktopFlowSource).toContain('"record_verification_lane_event"');
     expect(desktopFlowSource).not.toContain("run_shell_command");
+    expect(desktopFlowSource).not.toContain("run_command_broker_request");
+    expect(desktopFlowSource).not.toContain("execute_generic_command");
     expect(desktopFlowSource).not.toContain("rawStdout:");
     expect(desktopFlowSource).not.toContain("rawStderr:");
   });
@@ -36135,6 +36244,29 @@ describe("expanded desktop action proposal app surface", () => {
     expect(combined).not.toContain("recursive delete is enabled");
     expect(combined).not.toContain("Git push is enabled");
     expect(combined).not.toContain("Full Access execution is enabled");
+  });
+
+  it("documents the command broker fixed Tauri command boundary", async () => {
+    const commandDoc = await readFile(
+      path.join(repoRoot, "docs", "app-command-broker-tauri-command-v0.35.md"),
+      "utf8"
+    );
+    const docsIndex = await readFile(
+      path.join(repoRoot, "docs", "README.md"),
+      "utf8"
+    );
+
+    expect(commandDoc).toContain("execute_command_broker_request");
+    expect(commandDoc).toContain("No generic command runner");
+    expect(commandDoc).toContain("ready_for_tauri_execution");
+    expect(commandDoc).toContain("summary-only");
+    expect(commandDoc).toContain("transcript store");
+    expect(commandDoc).toContain("No apply or rollback");
+    expect(commandDoc).toContain("No EventStore write");
+    expect(commandDoc).toContain("No Git commit/push");
+    expect(commandDoc).toContain("No native bridge");
+    expect(commandDoc).toContain("No desktop action");
+    expect(docsIndex).toContain("app-command-broker-tauri-command-v0.35.md");
   });
 
   it("documents the runtime transcript store schema boundaries", async () => {

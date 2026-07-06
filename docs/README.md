@@ -623,6 +623,7 @@ foundation.
 - [Runtime Command Execution Policy v0.35](runtime-command-execution-policy-v0.35.md)
 - [Runtime Dangerous Command Classifier v0.35](runtime-dangerous-command-classifier-v0.35.md)
 - [Runtime Command Broker Planner v0.35](runtime-command-broker-v0.35.md)
+- [App Command Broker Tauri Command v0.35](app-command-broker-tauri-command-v0.35.md)
 - [Runtime Memory Recall Preview v0.3](runtime-memory-recall-preview-v0.3.md)
 - [v0.4.0 Controlled Creation Preview RC release notes](release-notes-v0.4.0-controlled-creation-preview-rc.1.md)
 - [App Shell Controlled Creation manual QA](app-shell-controlled-creation-manual-qa.md)

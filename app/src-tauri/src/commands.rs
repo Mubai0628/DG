@@ -1358,6 +1358,117 @@ pub struct ShellVerificationLaneEventPreview {
     not_written: bool,
 }
 
+#[derive(Debug, Serialize, Deserialize, Clone, Copy, PartialEq, Eq, Hash)]
+#[serde(rename_all = "snake_case")]
+pub enum CommandBrokerShellKind {
+    None,
+    Powershell,
+    Cmd,
+    Bash,
+    Sh,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct CommandBrokerEnvironmentPolicy {
+    mode: String,
+    #[serde(default)]
+    allowed_env_names: Vec<String>,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct CommandBrokerTranscriptPolicy {
+    transcript_policy_ref: String,
+    raw_opt_in: bool,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct CommandBrokerExecutionCommandRequest {
+    request_id: String,
+    mode: String,
+    workspace_root_ref: String,
+    working_directory: String,
+    command_text: String,
+    #[serde(default)]
+    argv: Vec<String>,
+    shell_kind: CommandBrokerShellKind,
+    timeout_ms: Option<u64>,
+    max_output_bytes: Option<usize>,
+    allow_background_process: bool,
+    allow_network: bool,
+    allow_workspace_write: bool,
+    allow_outside_workspace_write: bool,
+    allow_git_write: bool,
+    allow_destructive: bool,
+    environment_policy: CommandBrokerEnvironmentPolicy,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct CommandBrokerExecutionRequest {
+    workspace_root: String,
+    broker_decision: String,
+    command_request: CommandBrokerExecutionCommandRequest,
+    session_lease_ref: String,
+    transcript_policy: CommandBrokerTranscriptPolicy,
+    #[serde(default)]
+    classifier_categories: Vec<String>,
+    kill_switch_active: bool,
+    cancellation_id: Option<String>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CommandBrokerExecutionEventPreview {
+    #[serde(rename = "type")]
+    event_type: String,
+    request_id: String,
+    workspace_root_ref: String,
+    command_hash: String,
+    output_hash: String,
+    transcript_id: String,
+    transcript_ref: String,
+    exit_code: Option<i32>,
+    stdout_bytes: usize,
+    stderr_bytes: usize,
+    warning_codes: Vec<String>,
+    duration_ms: u128,
+    truncated: bool,
+    summary_only: bool,
+    not_written: bool,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CommandBrokerExecutionResult {
+    ok: bool,
+    status: String,
+    request_id: String,
+    workspace_root_ref: String,
+    shell_kind: CommandBrokerShellKind,
+    exit_code: Option<i32>,
+    duration_ms: u128,
+    stdout_bytes: usize,
+    stderr_bytes: usize,
+    stdout_line_count: usize,
+    stderr_line_count: usize,
+    redacted_stdout_line_count: usize,
+    redacted_stderr_line_count: usize,
+    command_hash: String,
+    output_hash: String,
+    transcript_id: String,
+    transcript_ref: String,
+    warning_codes: Vec<String>,
+    truncated: bool,
+    raw_stdout_included: bool,
+    raw_stderr_included: bool,
+    summary_only: bool,
+    event_preview: CommandBrokerExecutionEventPreview,
+    safe_message: String,
+}
+
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 struct ApprovedApplyCheckpoint {
@@ -2079,6 +2190,13 @@ pub fn run_shell_verification_lane(
     request: ShellVerificationLaneRequest,
 ) -> Result<ShellVerificationLaneResult, DesktopFlowError> {
     run_shell_verification_lane_summary(request)
+}
+
+#[tauri::command(rename_all = "camelCase")]
+pub fn execute_command_broker_request(
+    request: CommandBrokerExecutionRequest,
+) -> Result<CommandBrokerExecutionResult, DesktopFlowError> {
+    execute_command_broker_request_summary(request)
 }
 
 #[tauri::command(rename_all = "camelCase")]
@@ -5052,6 +5170,506 @@ fn shell_verification_max_output_bytes(
 
 fn shell_verification_error(code: &str, message: impl Into<String>) -> DesktopFlowError {
     DesktopFlowError::new(code, message.into(), "shell_verification_lane")
+}
+
+fn execute_command_broker_request_summary(
+    request: CommandBrokerExecutionRequest,
+) -> Result<CommandBrokerExecutionResult, DesktopFlowError> {
+    execute_command_broker_request_with_executor(request, run_command_broker_fixed_command)
+}
+
+fn execute_command_broker_request_with_executor<F>(
+    request: CommandBrokerExecutionRequest,
+    executor: F,
+) -> Result<CommandBrokerExecutionResult, DesktopFlowError>
+where
+    F: Fn(&str, &[String], &Path, Duration, usize) -> Result<ShellCommandOutput, DesktopFlowError>,
+{
+    validate_command_broker_execution_request(&request)?;
+    let workspace_root = validate_workspace_root(&request.workspace_root)
+        .map_err(|message| command_broker_error("COMMAND_BROKER_WORKSPACE_INVALID", message))?;
+    let cwd = command_broker_working_directory(
+        &workspace_root,
+        &request.command_request.working_directory,
+    )?;
+    let timeout = command_broker_timeout(request.command_request.timeout_ms)?;
+    let max_output_bytes =
+        command_broker_max_output_bytes(request.command_request.max_output_bytes)?;
+    let (program, args) = command_broker_program_and_args(&request.command_request)?;
+    let command_hash = short_hash(&format!(
+        "{:?}:{}:{:?}:{}",
+        request.command_request.shell_kind,
+        program,
+        args,
+        request.command_request.request_id
+    ));
+
+    let mut command_output = executor(&program, &args, &cwd, timeout, max_output_bytes)?;
+    let mut truncated = command_output.truncated;
+    if command_output.stdout.len() > max_output_bytes {
+        command_output.stdout.truncate(max_output_bytes);
+        truncated = true;
+    }
+    if command_output.stderr.len() > max_output_bytes {
+        command_output.stderr.truncate(max_output_bytes);
+        truncated = true;
+    }
+
+    let stdout_text = String::from_utf8_lossy(&command_output.stdout).to_string();
+    let stderr_text = String::from_utf8_lossy(&command_output.stderr).to_string();
+    if contains_sensitive_marker(&stdout_text) || contains_sensitive_marker(&stderr_text) {
+        return Err(command_broker_error(
+            "COMMAND_BROKER_OUTPUT_REDACTED",
+            "Command broker output failed redaction safety validation",
+        ));
+    }
+
+    let stdout_bytes = command_output.stdout.len();
+    let stderr_bytes = command_output.stderr.len();
+    let stdout_line_count = count_output_lines(&command_output.stdout);
+    let stderr_line_count = count_output_lines(&command_output.stderr);
+    let mut warning_codes = Vec::new();
+    if truncated {
+        warning_codes.push("COMMAND_BROKER_OUTPUT_TRUNCATED".to_string());
+    }
+    if command_output.exit_code != Some(0) {
+        warning_codes.push("COMMAND_BROKER_EXIT_NONZERO".to_string());
+    }
+    if stderr_bytes > 0 {
+        warning_codes.push("COMMAND_BROKER_STDERR_PRESENT".to_string());
+    }
+    if request.cancellation_id.as_deref().is_some_and(|value| !value.trim().is_empty()) {
+        warning_codes.push("COMMAND_BROKER_CANCELLATION_ID_RECORDED".to_string());
+    }
+    warning_codes.sort();
+    warning_codes.dedup();
+
+    let output_hash = short_hash(&format!(
+        "{}:{}:{}:{}",
+        short_hash_bytes(&command_output.stdout),
+        short_hash_bytes(&command_output.stderr),
+        stdout_bytes,
+        stderr_bytes
+    ));
+    let transcript_id = format!(
+        "command-broker-{}-{}",
+        short_hash(&request.command_request.request_id),
+        short_hash(&output_hash)
+    );
+    let transcript_ref = format!("transcript:{transcript_id}");
+    let record_hash = short_hash(&format!(
+        "{transcript_id}:{command_hash}:{output_hash}:{:?}:{}:{}",
+        command_output.exit_code, stdout_bytes, stderr_bytes
+    ));
+    let transcript_record = command_broker_transcript_record(
+        &transcript_id,
+        &request,
+        &command_hash,
+        &output_hash,
+        stdout_bytes,
+        stderr_bytes,
+        stdout_line_count,
+        stderr_line_count,
+        &warning_codes,
+        &record_hash,
+    );
+    let transcript_write =
+        write_transcript_record(request.workspace_root.clone(), transcript_record)?;
+
+    let event_preview = CommandBrokerExecutionEventPreview {
+        event_type: "command_broker.command.executed".to_string(),
+        request_id: sanitize_safe_message(&request.command_request.request_id),
+        workspace_root_ref: sanitize_safe_message(&request.command_request.workspace_root_ref),
+        command_hash: command_hash.clone(),
+        output_hash: output_hash.clone(),
+        transcript_id: transcript_write.transcript_id.clone(),
+        transcript_ref: transcript_ref.clone(),
+        exit_code: command_output.exit_code,
+        stdout_bytes,
+        stderr_bytes,
+        warning_codes: warning_codes.clone(),
+        duration_ms: command_output.duration_ms,
+        truncated,
+        summary_only: true,
+        not_written: true,
+    };
+
+    Ok(CommandBrokerExecutionResult {
+        ok: true,
+        status: if command_output.exit_code == Some(0) {
+            "passed".to_string()
+        } else {
+            "failed".to_string()
+        },
+        request_id: sanitize_safe_message(&request.command_request.request_id),
+        workspace_root_ref: sanitize_safe_message(&request.command_request.workspace_root_ref),
+        shell_kind: request.command_request.shell_kind,
+        exit_code: command_output.exit_code,
+        duration_ms: command_output.duration_ms,
+        stdout_bytes,
+        stderr_bytes,
+        stdout_line_count,
+        stderr_line_count,
+        redacted_stdout_line_count: stdout_line_count,
+        redacted_stderr_line_count: stderr_line_count,
+        command_hash,
+        output_hash,
+        transcript_id: transcript_write.transcript_id,
+        transcript_ref,
+        warning_codes,
+        truncated,
+        raw_stdout_included: false,
+        raw_stderr_included: false,
+        summary_only: true,
+        event_preview,
+        safe_message:
+            "Command broker execution summary generated. No raw stdout/stderr returned."
+                .to_string(),
+    })
+}
+
+fn validate_command_broker_execution_request(
+    request: &CommandBrokerExecutionRequest,
+) -> Result<(), DesktopFlowError> {
+    if request.broker_decision != "ready_for_tauri_execution" {
+        return Err(command_broker_error(
+            "COMMAND_BROKER_DECISION_NOT_READY",
+            "Command broker decision is not ready for fixed Tauri execution",
+        ));
+    }
+    if request.kill_switch_active {
+        return Err(command_broker_error(
+            "COMMAND_BROKER_KILL_SWITCH_ACTIVE",
+            "Command broker kill switch is active",
+        ));
+    }
+    let command = &request.command_request;
+    for (value, code) in [
+        (&command.request_id, "COMMAND_BROKER_REQUEST_ID_REJECTED"),
+        (&command.workspace_root_ref, "COMMAND_BROKER_WORKSPACE_REF_REJECTED"),
+        (&request.session_lease_ref, "COMMAND_BROKER_SESSION_LEASE_REJECTED"),
+        (
+            &request.transcript_policy.transcript_policy_ref,
+            "COMMAND_BROKER_TRANSCRIPT_POLICY_REJECTED",
+        ),
+    ] {
+        if value.trim().is_empty() || contains_sensitive_marker(value) {
+            return Err(command_broker_error(
+                code,
+                "Command broker metadata failed safety validation",
+            ));
+        }
+    }
+    if request.transcript_policy.raw_opt_in {
+        return Err(command_broker_error(
+            "COMMAND_BROKER_RAW_TRANSCRIPT_REJECTED",
+            "Command broker result is summary-only in this phase",
+        ));
+    }
+    if command.allow_background_process {
+        return Err(command_broker_error(
+            "COMMAND_BROKER_BACKGROUND_REJECTED",
+            "Background command broker processes are not allowed",
+        ));
+    }
+    if command.allow_outside_workspace_write || command.allow_destructive {
+        return Err(command_broker_error(
+            "COMMAND_BROKER_DESTRUCTIVE_REJECTED",
+            "Destructive or outside-workspace command broker execution is not allowed",
+        ));
+    }
+    if command.allow_git_write {
+        return Err(command_broker_error(
+            "COMMAND_BROKER_GIT_WRITE_REJECTED",
+            "Git write command broker execution is not allowed",
+        ));
+    }
+    if !matches!(
+        command.environment_policy.mode.as_str(),
+        "empty" | "allowlist_names"
+    ) {
+        return Err(command_broker_error(
+            "COMMAND_BROKER_ENV_POLICY_REJECTED",
+            "Command broker environment policy is unsupported",
+        ));
+    }
+    for env_name in &command.environment_policy.allowed_env_names {
+        if env_name.trim().is_empty()
+            || is_sensitive_env_key(env_name)
+            || contains_sensitive_marker(env_name)
+        {
+            return Err(command_broker_error(
+                "COMMAND_BROKER_ENV_SECRET_REJECTED",
+                "Command broker environment allowlist contains unsafe names",
+            ));
+        }
+    }
+    for category in &request.classifier_categories {
+        if command_broker_blocked_category(category) {
+            return Err(command_broker_error(
+                "COMMAND_BROKER_CLASSIFIER_REJECTED",
+                "Command broker classifier category blocks execution",
+            ));
+        }
+    }
+    if contains_command_broker_forbidden_text(&command.command_text)
+        || command
+            .argv
+            .iter()
+            .any(|arg| contains_command_broker_forbidden_text(arg))
+    {
+        return Err(command_broker_error(
+            "COMMAND_BROKER_COMMAND_REJECTED",
+            "Command broker command text failed safety validation",
+        ));
+    }
+    if command.command_text.trim().is_empty() && command.argv.is_empty() {
+        return Err(command_broker_error(
+            "COMMAND_BROKER_COMMAND_REQUIRED",
+            "Command broker command text or argv is required",
+        ));
+    }
+    if command.shell_kind == CommandBrokerShellKind::None && command.argv.is_empty() {
+        return Err(command_broker_error(
+            "COMMAND_BROKER_ARGV_REQUIRED",
+            "Command broker none shell requires argv",
+        ));
+    }
+    command_broker_timeout(command.timeout_ms)?;
+    command_broker_max_output_bytes(command.max_output_bytes)?;
+    Ok(())
+}
+
+fn command_broker_working_directory(
+    workspace_root: &Path,
+    working_directory: &str,
+) -> Result<PathBuf, DesktopFlowError> {
+    let trimmed = working_directory.trim();
+    if trimmed.is_empty() || contains_sensitive_marker(trimmed) {
+        return Err(command_broker_error(
+            "COMMAND_BROKER_CWD_REJECTED",
+            "Command broker working directory is unsafe",
+        ));
+    }
+    let candidate = if Path::new(trimmed).is_absolute() {
+        PathBuf::from(trimmed)
+    } else {
+        workspace_root.join(trimmed)
+    };
+    let canonical = candidate.canonicalize().map_err(|_| {
+        command_broker_error(
+            "COMMAND_BROKER_CWD_REJECTED",
+            "Command broker working directory could not be resolved",
+        )
+    })?;
+    if !canonical.starts_with(workspace_root) || !canonical.is_dir() {
+        return Err(command_broker_error(
+            "COMMAND_BROKER_WORKSPACE_ESCAPE",
+            "Command broker working directory escapes workspace root",
+        ));
+    }
+    Ok(canonical)
+}
+
+fn command_broker_program_and_args(
+    request: &CommandBrokerExecutionCommandRequest,
+) -> Result<(String, Vec<String>), DesktopFlowError> {
+    match request.shell_kind {
+        CommandBrokerShellKind::None => {
+            let program = request.argv.first().ok_or_else(|| {
+                command_broker_error(
+                    "COMMAND_BROKER_ARGV_REQUIRED",
+                    "Command broker none shell requires argv",
+                )
+            })?;
+            Ok((program.clone(), request.argv.iter().skip(1).cloned().collect()))
+        }
+        CommandBrokerShellKind::Powershell => Ok((
+            "powershell".to_string(),
+            vec![
+                "-NoProfile".to_string(),
+                "-NonInteractive".to_string(),
+                "-Command".to_string(),
+                request.command_text.clone(),
+            ],
+        )),
+        CommandBrokerShellKind::Cmd => Ok((
+            "cmd".to_string(),
+            vec!["/C".to_string(), request.command_text.clone()],
+        )),
+        CommandBrokerShellKind::Bash => Ok((
+            "bash".to_string(),
+            vec!["-lc".to_string(), request.command_text.clone()],
+        )),
+        CommandBrokerShellKind::Sh => Ok((
+            "sh".to_string(),
+            vec!["-lc".to_string(), request.command_text.clone()],
+        )),
+    }
+}
+
+fn run_command_broker_fixed_command(
+    program: &str,
+    args: &[String],
+    cwd: &Path,
+    timeout: Duration,
+    max_output_bytes: usize,
+) -> Result<ShellCommandOutput, DesktopFlowError> {
+    run_shell_fixed_template(program, args, cwd, timeout, max_output_bytes)
+        .map_err(|error| command_broker_error(&error.error_code, error.safe_message))
+}
+
+fn command_broker_transcript_record(
+    transcript_id: &str,
+    request: &CommandBrokerExecutionRequest,
+    command_hash: &str,
+    output_hash: &str,
+    stdout_bytes: usize,
+    stderr_bytes: usize,
+    stdout_line_count: usize,
+    stderr_line_count: usize,
+    warning_codes: &[String],
+    record_hash: &str,
+) -> Value {
+    serde_json::json!({
+        "schemaVersion": TRANSCRIPT_SCHEMA_VERSION,
+        "transcriptId": transcript_id,
+        "sessionId": request.session_lease_ref,
+        "sessionRef": {
+            "sessionId": request.session_lease_ref,
+            "mode": request.command_request.mode,
+            "workspaceRootRef": request.command_request.workspace_root_ref
+        },
+        "workspaceRootRef": request.command_request.workspace_root_ref,
+        "mode": request.command_request.mode,
+        "sourceKind": "command_broker",
+        "visibility": "summary_only",
+        "rawOptIn": false,
+        "chunks": [
+            {
+                "chunkId": "command-summary",
+                "kind": "command_summary",
+                "summary": "Command broker execution completed with summary-only output.",
+                "byteCount": 0,
+                "lineCount": 0,
+                "redacted": true,
+                "rawAvailable": false,
+                "hashPrefix": command_hash,
+                "warningCodes": warning_codes
+            },
+            {
+                "chunkId": "stdout-summary",
+                "kind": "stdout",
+                "summary": "Stdout captured and summarized without raw output.",
+                "byteCount": stdout_bytes,
+                "lineCount": stdout_line_count,
+                "redacted": true,
+                "rawAvailable": false,
+                "hashPrefix": output_hash,
+                "warningCodes": warning_codes
+            },
+            {
+                "chunkId": "stderr-summary",
+                "kind": "stderr",
+                "summary": "Stderr captured and summarized without raw output.",
+                "byteCount": stderr_bytes,
+                "lineCount": stderr_line_count,
+                "redacted": true,
+                "rawAvailable": false,
+                "hashPrefix": output_hash,
+                "warningCodes": warning_codes
+            }
+        ],
+        "redactionSummary": {
+            "scanned": true,
+            "redactedFieldCount": 2,
+            "secretMarkerCount": 0,
+            "controlCharCount": 0,
+            "binaryChunkCount": 0,
+            "warningCodes": warning_codes
+        },
+        "retentionPolicy": {
+            "retainDays": 14,
+            "exportAllowed": true,
+            "deleteAllowed": true,
+            "tombstoneOnDelete": true
+        },
+        "hashes": {
+            "recordHash": record_hash,
+            "redactedOutputHash": output_hash
+        },
+        "createdAt": format!("epoch-ms-{}", unix_epoch_millis()),
+        "source": TRANSCRIPT_STORE_SOURCE
+    })
+}
+
+fn command_broker_blocked_category(category: &str) -> bool {
+    matches!(
+        category,
+        "destructive_delete"
+            | "recursive_delete"
+            | "force_delete"
+            | "format_disk"
+            | "permission_change"
+            | "ownership_change"
+            | "shell_download_execute"
+            | "credential_exfiltration"
+            | "network_exfiltration"
+            | "package_script_execution"
+            | "git_write"
+            | "git_remote_push"
+            | "git_history_rewrite"
+            | "process_kill"
+            | "background_daemon"
+            | "native_bridge_attempt"
+            | "desktop_action_attempt"
+            | "environment_secret_access"
+            | "system_path_write"
+            | "workspace_escape"
+            | "unknown_high_risk"
+    )
+}
+
+fn contains_command_broker_forbidden_text(value: &str) -> bool {
+    let lower = value.to_ascii_lowercase();
+    contains_sensitive_marker(value)
+        || lower.contains("start-process")
+        || lower.contains("start-job")
+        || lower.contains("nohup")
+        || lower.contains("native messaging")
+        || lower.contains("nativemessaging")
+        || lower.contains("desktop action")
+        || lower.contains("permissionlease")
+        || lower.contains(".git/")
+        || lower.contains(r".git\")
+}
+
+fn command_broker_timeout(timeout_ms: Option<u64>) -> Result<Duration, DesktopFlowError> {
+    let ms = timeout_ms.unwrap_or(SHELL_VERIFICATION_DEFAULT_TIMEOUT.as_millis() as u64);
+    if ms == 0 || ms > SHELL_VERIFICATION_MAX_TIMEOUT_MS {
+        return Err(command_broker_error(
+            "COMMAND_BROKER_TIMEOUT_REJECTED",
+            "Command broker timeout is outside the allowed range",
+        ));
+    }
+    Ok(Duration::from_millis(ms))
+}
+
+fn command_broker_max_output_bytes(
+    max_output_bytes: Option<usize>,
+) -> Result<usize, DesktopFlowError> {
+    let bytes = max_output_bytes.unwrap_or(SHELL_VERIFICATION_DEFAULT_MAX_OUTPUT_BYTES);
+    if bytes == 0 || bytes > SHELL_VERIFICATION_MAX_OUTPUT_BYTES {
+        return Err(command_broker_error(
+            "COMMAND_BROKER_OUTPUT_LIMIT_REJECTED",
+            "Command broker output limit is outside the allowed range",
+        ));
+    }
+    Ok(bytes)
+}
+
+fn command_broker_error(code: &str, message: impl Into<String>) -> DesktopFlowError {
+    DesktopFlowError::new(code, message.into(), "command_broker_execution")
 }
 
 fn run_runner_preflight(workspace_root: Option<&str>, mode: RunnerMode) -> RunnerPreflightSummary {
@@ -9777,6 +10395,42 @@ mod tests {
         }
     }
 
+    fn safe_command_broker_execution_request(workspace: &Path) -> CommandBrokerExecutionRequest {
+        CommandBrokerExecutionRequest {
+            workspace_root: workspace.to_string_lossy().to_string(),
+            broker_decision: "ready_for_tauri_execution".to_string(),
+            command_request: CommandBrokerExecutionCommandRequest {
+                request_id: "command-broker-request-test".to_string(),
+                mode: "advanced_workspace".to_string(),
+                workspace_root_ref: "workspace-ref-test".to_string(),
+                working_directory: ".".to_string(),
+                command_text: "Write-Output broker-safe".to_string(),
+                argv: Vec::new(),
+                shell_kind: CommandBrokerShellKind::Powershell,
+                timeout_ms: Some(5_000),
+                max_output_bytes: Some(65_536),
+                allow_background_process: false,
+                allow_network: false,
+                allow_workspace_write: true,
+                allow_outside_workspace_write: false,
+                allow_git_write: false,
+                allow_destructive: false,
+                environment_policy: CommandBrokerEnvironmentPolicy {
+                    mode: "allowlist_names".to_string(),
+                    allowed_env_names: vec!["PATH".to_string()],
+                },
+            },
+            session_lease_ref: "session-lease-command-broker-test".to_string(),
+            transcript_policy: CommandBrokerTranscriptPolicy {
+                transcript_policy_ref: "transcript-policy-summary-only".to_string(),
+                raw_opt_in: false,
+            },
+            classifier_categories: vec!["low_risk".to_string()],
+            kill_switch_active: false,
+            cancellation_id: None,
+        }
+    }
+
     fn safe_live_proposal_session_receipt() -> Value {
         serde_json::json!({
             "status": "ready",
@@ -11168,6 +11822,208 @@ mod tests {
         let serialized = serde_json::to_string(&result).expect("serialize");
         assert!(!serialized.contains("line one"));
         assert!(!serialized.contains("warning only"));
+    }
+
+    #[test]
+    fn command_broker_executes_safe_echo_and_writes_summary_transcript() {
+        let workspace = temp_workspace("command-broker-safe");
+        let canonical_workspace = workspace.canonicalize().expect("canonical workspace");
+        let request = safe_command_broker_execution_request(&workspace);
+        let seen = std::cell::RefCell::new(Vec::<String>::new());
+
+        let result = execute_command_broker_request_with_executor(
+            request,
+            |program, args, cwd, _timeout, _max_output_bytes| {
+                assert!(cwd.starts_with(&canonical_workspace));
+                seen.borrow_mut()
+                    .extend(std::iter::once(program.to_string()).chain(args.iter().cloned()));
+                Ok(ShellCommandOutput {
+                    exit_code: Some(0),
+                    stdout: b"broker safe hello\n".to_vec(),
+                    stderr: Vec::new(),
+                    duration_ms: 14,
+                    truncated: false,
+                })
+            },
+        )
+        .expect("command broker summary");
+
+        assert_eq!(
+            seen.into_inner(),
+            vec![
+                "powershell".to_string(),
+                "-NoProfile".to_string(),
+                "-NonInteractive".to_string(),
+                "-Command".to_string(),
+                "Write-Output broker-safe".to_string()
+            ]
+        );
+        assert_eq!(result.status, "passed");
+        assert_eq!(result.stdout_line_count, 1);
+        assert_eq!(result.redacted_stdout_line_count, 1);
+        assert!(result.transcript_id.starts_with("command-broker-"));
+        assert_eq!(result.event_preview.event_type, "command_broker.command.executed");
+        assert!(result.event_preview.not_written);
+        assert!(result.summary_only);
+        assert!(!result.raw_stdout_included);
+        assert!(!result.raw_stderr_included);
+
+        let serialized = serde_json::to_string(&result).expect("serialize");
+        assert!(!serialized.contains("broker safe hello"));
+        assert!(!serialized.contains("Write-Output broker-safe"));
+        let transcript_path = workspace
+            .join(".deepseek-workbench")
+            .join(TRANSCRIPT_STORE_DIR)
+            .join(format!("{}.json", result.transcript_id));
+        let transcript = fs::read_to_string(transcript_path).expect("transcript");
+        assert!(transcript.contains("Stdout captured and summarized"));
+        assert!(!transcript.contains("broker safe hello"));
+        assert!(!transcript.contains("Write-Output broker-safe"));
+
+        let _ = fs::remove_dir_all(workspace);
+    }
+
+    #[test]
+    fn command_broker_blocks_timeout_and_output_limits() {
+        let workspace = temp_workspace("command-broker-limits");
+        let mut request = safe_command_broker_execution_request(&workspace);
+        request.command_request.timeout_ms = Some(SHELL_VERIFICATION_MAX_TIMEOUT_MS + 1);
+        let error = execute_command_broker_request_with_executor(
+            request,
+            |_program, _args, _cwd, _timeout, _max_output_bytes| unreachable!(),
+        )
+        .expect_err("timeout should block");
+        assert_eq!(error.error_code, "COMMAND_BROKER_TIMEOUT_REJECTED");
+
+        let mut request = safe_command_broker_execution_request(&workspace);
+        request.command_request.max_output_bytes = Some(SHELL_VERIFICATION_MAX_OUTPUT_BYTES + 1);
+        let error = execute_command_broker_request_with_executor(
+            request,
+            |_program, _args, _cwd, _timeout, _max_output_bytes| unreachable!(),
+        )
+        .expect_err("output limit should block");
+        assert_eq!(error.error_code, "COMMAND_BROKER_OUTPUT_LIMIT_REJECTED");
+
+        let _ = fs::remove_dir_all(workspace);
+    }
+
+    #[test]
+    fn command_broker_truncates_oversized_output_without_raw_result() {
+        let workspace = temp_workspace("command-broker-truncate");
+        let mut request = safe_command_broker_execution_request(&workspace);
+        request.command_request.max_output_bytes = Some(8);
+
+        let result = execute_command_broker_request_with_executor(
+            request,
+            |_program, _args, _cwd, _timeout, _max_output_bytes| {
+                Ok(ShellCommandOutput {
+                    exit_code: Some(0),
+                    stdout: b"0123456789abcdef\n".to_vec(),
+                    stderr: Vec::new(),
+                    duration_ms: 4,
+                    truncated: false,
+                })
+            },
+        )
+        .expect("truncated command broker output");
+
+        assert!(result.truncated);
+        assert_eq!(result.stdout_bytes, 8);
+        assert!(result
+            .warning_codes
+            .contains(&"COMMAND_BROKER_OUTPUT_TRUNCATED".to_string()));
+        let serialized = serde_json::to_string(&result).expect("serialize");
+        assert!(!serialized.contains("0123456789abcdef"));
+
+        let _ = fs::remove_dir_all(workspace);
+    }
+
+    #[test]
+    fn command_broker_blocks_env_secret_dangerous_git_and_workspace_escape() {
+        let workspace = temp_workspace("command-broker-blocks");
+
+        let mut env_secret = safe_command_broker_execution_request(&workspace);
+        env_secret.command_request.environment_policy.allowed_env_names =
+            vec![["DEEPSEEK", "API", "KEY"].join("_")];
+        let error = execute_command_broker_request_with_executor(
+            env_secret,
+            |_program, _args, _cwd, _timeout, _max_output_bytes| unreachable!(),
+        )
+        .expect_err("secret env should block");
+        assert_eq!(error.error_code, "COMMAND_BROKER_ENV_SECRET_REJECTED");
+
+        let mut dangerous = safe_command_broker_execution_request(&workspace);
+        dangerous.classifier_categories = vec!["recursive_delete".to_string()];
+        let error = execute_command_broker_request_with_executor(
+            dangerous,
+            |_program, _args, _cwd, _timeout, _max_output_bytes| unreachable!(),
+        )
+        .expect_err("dangerous category should block");
+        assert_eq!(error.error_code, "COMMAND_BROKER_CLASSIFIER_REJECTED");
+
+        let mut git_write = safe_command_broker_execution_request(&workspace);
+        git_write.command_request.allow_git_write = true;
+        let error = execute_command_broker_request_with_executor(
+            git_write,
+            |_program, _args, _cwd, _timeout, _max_output_bytes| unreachable!(),
+        )
+        .expect_err("git write should block");
+        assert_eq!(error.error_code, "COMMAND_BROKER_GIT_WRITE_REJECTED");
+
+        let parent = workspace.parent().expect("parent").to_path_buf();
+        let mut escape = safe_command_broker_execution_request(&workspace);
+        escape.command_request.working_directory = parent.to_string_lossy().to_string();
+        let error = execute_command_broker_request_with_executor(
+            escape,
+            |_program, _args, _cwd, _timeout, _max_output_bytes| unreachable!(),
+        )
+        .expect_err("workspace escape should block");
+        assert_eq!(error.error_code, "COMMAND_BROKER_WORKSPACE_ESCAPE");
+
+        let _ = fs::remove_dir_all(workspace);
+    }
+
+    #[test]
+    fn command_broker_blocks_not_ready_raw_transcript_and_sensitive_output() {
+        let workspace = temp_workspace("command-broker-not-ready");
+
+        let mut not_ready = safe_command_broker_execution_request(&workspace);
+        not_ready.broker_decision = "needs_review".to_string();
+        let error = execute_command_broker_request_with_executor(
+            not_ready,
+            |_program, _args, _cwd, _timeout, _max_output_bytes| unreachable!(),
+        )
+        .expect_err("not ready should block");
+        assert_eq!(error.error_code, "COMMAND_BROKER_DECISION_NOT_READY");
+
+        let mut raw_transcript = safe_command_broker_execution_request(&workspace);
+        raw_transcript.transcript_policy.raw_opt_in = true;
+        let error = execute_command_broker_request_with_executor(
+            raw_transcript,
+            |_program, _args, _cwd, _timeout, _max_output_bytes| unreachable!(),
+        )
+        .expect_err("raw transcript opt-in should block in result phase");
+        assert_eq!(error.error_code, "COMMAND_BROKER_RAW_TRANSCRIPT_REJECTED");
+
+        let request = safe_command_broker_execution_request(&workspace);
+        let marker = ["s", "k-commandbrokerfake"].concat();
+        let error = execute_command_broker_request_with_executor(
+            request,
+            |_program, _args, _cwd, _timeout, _max_output_bytes| {
+                Ok(ShellCommandOutput {
+                    exit_code: Some(0),
+                    stdout: format!("unsafe {marker}\n").into_bytes(),
+                    stderr: Vec::new(),
+                    duration_ms: 1,
+                    truncated: false,
+                })
+            },
+        )
+        .expect_err("secret-like output should block");
+        assert_eq!(error.error_code, "COMMAND_BROKER_OUTPUT_REDACTED");
+        assert!(!error.safe_message.contains(&marker));
+
+        let _ = fs::remove_dir_all(workspace);
     }
 
     #[test]

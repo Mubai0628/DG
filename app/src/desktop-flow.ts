@@ -310,6 +310,90 @@ export type ShellVerificationLaneResult = {
   safeMessage: string;
 };
 
+export type CommandBrokerShellKind =
+  | "none"
+  | "powershell"
+  | "cmd"
+  | "bash"
+  | "sh";
+
+export type CommandBrokerExecutionRequest = {
+  workspaceRoot: string;
+  brokerDecision: "ready_for_tauri_execution" | string;
+  commandRequest: {
+    requestId: string;
+    mode: string;
+    workspaceRootRef: string;
+    workingDirectory: string;
+    commandText: string;
+    argv: string[];
+    shellKind: CommandBrokerShellKind;
+    timeoutMs?: number | undefined;
+    maxOutputBytes?: number | undefined;
+    allowBackgroundProcess: boolean;
+    allowNetwork: boolean;
+    allowWorkspaceWrite: boolean;
+    allowOutsideWorkspaceWrite: boolean;
+    allowGitWrite: boolean;
+    allowDestructive: boolean;
+    environmentPolicy: {
+      mode: "empty" | "allowlist_names" | string;
+      allowedEnvNames: string[];
+    };
+  };
+  sessionLeaseRef: string;
+  transcriptPolicy: {
+    transcriptPolicyRef: string;
+    rawOptIn: boolean;
+  };
+  classifierCategories: string[];
+  killSwitchActive: boolean;
+  cancellationId?: string | null | undefined;
+};
+
+export type CommandBrokerExecutionResult = {
+  ok: true;
+  status: "passed" | "failed";
+  requestId: string;
+  workspaceRootRef: string;
+  shellKind: CommandBrokerShellKind;
+  exitCode: number | null;
+  durationMs: number;
+  stdoutBytes: number;
+  stderrBytes: number;
+  stdoutLineCount: number;
+  stderrLineCount: number;
+  redactedStdoutLineCount: number;
+  redactedStderrLineCount: number;
+  commandHash: string;
+  outputHash: string;
+  transcriptId: string;
+  transcriptRef: string;
+  warningCodes: string[];
+  truncated: boolean;
+  rawStdoutIncluded: false;
+  rawStderrIncluded: false;
+  summaryOnly: true;
+  eventPreview: {
+    type: "command_broker.command.executed";
+    requestId: string;
+    workspaceRootRef: string;
+    commandHash: string;
+    outputHash: string;
+    transcriptId: string;
+    transcriptRef: string;
+    exitCode: number | null;
+    stdoutBytes: number;
+    stderrBytes: number;
+    warningCodes: string[];
+    durationMs: number;
+    truncated: boolean;
+    summaryOnly: true;
+    notWritten: true;
+  };
+  safeMessage: string;
+};
+
 export const liveProposalAllowedKeySourceRef = ["DEEPSEEK", "API", "KEY"].join(
   "_"
 );
@@ -873,6 +957,7 @@ export const allowedDesktopCommands = [
   "project_knowledge_expire",
   "run_git_read_lane",
   "run_shell_verification_lane",
+  "execute_command_broker_request",
   "observe_desktop_metadata",
   "execute_approved_desktop_action",
   "execute_approved_expanded_desktop_action",
@@ -1142,6 +1227,18 @@ export async function runShellVerificationLane(
   );
 }
 
+export async function executeCommandBrokerRequest(
+  request: CommandBrokerExecutionRequest,
+  invokeImpl?: TauriInvoke
+): Promise<CommandBrokerExecutionResult> {
+  validateCommandBrokerExecutionRequest(request);
+  return invokeAllowedCommand<CommandBrokerExecutionResult>(
+    "execute_command_broker_request",
+    { request },
+    invokeImpl
+  );
+}
+
 export async function runMcpReadonlyDiscovery(
   request: McpReadonlyDiscoverRequest,
   invokeImpl?: TauriInvoke
@@ -1367,6 +1464,8 @@ function normalizeAllowedCommandResponse(
       return normalizeGitReadLaneResult(raw);
     case "run_shell_verification_lane":
       return normalizeShellVerificationLaneResult(raw);
+    case "execute_command_broker_request":
+      return normalizeCommandBrokerExecutionResult(raw);
     case "observe_desktop_metadata":
       return normalizeDesktopObservationCommandResult(raw);
     case "execute_approved_desktop_action":
@@ -1672,6 +1771,67 @@ function validateShellVerificationLaneRequest(
     ) {
       throw new Error("Shell verification test file path is not allowed");
     }
+  }
+}
+
+function validateCommandBrokerExecutionRequest(
+  request: CommandBrokerExecutionRequest
+): void {
+  if (request.workspaceRoot.trim().length === 0) {
+    throw new Error("Workspace root is required");
+  }
+  if (request.brokerDecision !== "ready_for_tauri_execution") {
+    throw new Error("Command broker decision is not ready");
+  }
+  if (request.killSwitchActive) {
+    throw new Error("Command broker kill switch is active");
+  }
+  const command = request.commandRequest;
+  if (command.requestId.trim().length === 0) {
+    throw new Error("Command broker request id is required");
+  }
+  if (command.workspaceRootRef.trim().length === 0) {
+    throw new Error("Command broker workspace root ref is required");
+  }
+  if (command.workingDirectory.trim().length === 0) {
+    throw new Error("Command broker working directory is required");
+  }
+  if (!isCommandBrokerShellKind(command.shellKind)) {
+    throw new Error("Command broker shell kind is not allowed");
+  }
+  if (command.shellKind === "none" && command.argv.length === 0) {
+    throw new Error("Command broker argv is required for none shell");
+  }
+  if (command.shellKind !== "none" && command.commandText.trim().length === 0) {
+    throw new Error("Command broker command text is required");
+  }
+  if (
+    command.allowBackgroundProcess ||
+    command.allowOutsideWorkspaceWrite ||
+    command.allowGitWrite ||
+    command.allowDestructive
+  ) {
+    throw new Error("Command broker request contains blocked execution flags");
+  }
+  if (
+    command.environmentPolicy.mode !== "empty" &&
+    command.environmentPolicy.mode !== "allowlist_names"
+  ) {
+    throw new Error("Command broker environment policy is not allowed");
+  }
+  for (const envName of command.environmentPolicy.allowedEnvNames) {
+    if (
+      envName.trim().length === 0 ||
+      /API|TOKEN|AUTH|SECRET|PASSWORD|CREDENTIAL|BEARER/i.test(envName)
+    ) {
+      throw new Error("Command broker environment ref is not allowed");
+    }
+  }
+  if (request.transcriptPolicy.rawOptIn) {
+    throw new Error("Command broker raw transcript opt-in is disabled");
+  }
+  if (containsForbiddenLiveProposalValue(request)) {
+    throw new Error("Command broker request contains unsafe fields");
   }
 }
 
@@ -3315,6 +3475,114 @@ function normalizeShellVerificationLaneResult(
   };
 }
 
+function normalizeCommandBrokerExecutionResult(
+  raw: unknown
+): CommandBrokerExecutionResult {
+  const record = isRecord(raw) ? raw : {};
+  const eventPreview = isRecord(record.eventPreview) ? record.eventPreview : {};
+  if (
+    record.ok !== true ||
+    (record.status !== "passed" && record.status !== "failed") ||
+    typeof record.requestId !== "string" ||
+    typeof record.workspaceRootRef !== "string" ||
+    !isCommandBrokerShellKind(record.shellKind) ||
+    !(
+      typeof record.exitCode === "number" ||
+      record.exitCode === null ||
+      record.exitCode === undefined
+    ) ||
+    typeof record.durationMs !== "number" ||
+    typeof record.stdoutBytes !== "number" ||
+    typeof record.stderrBytes !== "number" ||
+    typeof record.stdoutLineCount !== "number" ||
+    typeof record.stderrLineCount !== "number" ||
+    typeof record.redactedStdoutLineCount !== "number" ||
+    typeof record.redactedStderrLineCount !== "number" ||
+    typeof record.commandHash !== "string" ||
+    typeof record.outputHash !== "string" ||
+    typeof record.transcriptId !== "string" ||
+    typeof record.transcriptRef !== "string" ||
+    !Array.isArray(record.warningCodes) ||
+    typeof record.truncated !== "boolean" ||
+    record.rawStdoutIncluded !== false ||
+    record.rawStderrIncluded !== false ||
+    record.summaryOnly !== true ||
+    typeof record.safeMessage !== "string" ||
+    eventPreview.type !== "command_broker.command.executed" ||
+    eventPreview.notWritten !== true ||
+    eventPreview.summaryOnly !== true ||
+    typeof eventPreview.durationMs !== "number"
+  ) {
+    throw normalizeDesktopCommandError({
+      errorCode: "INVALID_RESPONSE",
+      safeMessage: "Command broker execution response was invalid",
+      stage: "normalize_response"
+    });
+  }
+  if (containsForbiddenLiveProposalValue(record)) {
+    throw normalizeDesktopCommandError({
+      errorCode: "UNSAFE_RESPONSE",
+      safeMessage: "Command broker execution response contained unsafe fields",
+      stage: "normalize_response"
+    });
+  }
+  const warningCodes = record.warningCodes.filter(
+    (value): value is string => typeof value === "string"
+  );
+  const eventWarningCodes = Array.isArray(eventPreview.warningCodes)
+    ? eventPreview.warningCodes.filter(
+        (value): value is string => typeof value === "string"
+      )
+    : [];
+  return {
+    ok: true,
+    status: record.status,
+    requestId: safeErrorMessage(record.requestId),
+    workspaceRootRef: safeErrorMessage(record.workspaceRootRef),
+    shellKind: record.shellKind,
+    exitCode: typeof record.exitCode === "number" ? record.exitCode : null,
+    durationMs: record.durationMs,
+    stdoutBytes: record.stdoutBytes,
+    stderrBytes: record.stderrBytes,
+    stdoutLineCount: record.stdoutLineCount,
+    stderrLineCount: record.stderrLineCount,
+    redactedStdoutLineCount: record.redactedStdoutLineCount,
+    redactedStderrLineCount: record.redactedStderrLineCount,
+    commandHash: safeErrorMessage(record.commandHash),
+    outputHash: safeErrorMessage(record.outputHash),
+    transcriptId: safeErrorMessage(record.transcriptId),
+    transcriptRef: safeErrorMessage(record.transcriptRef),
+    warningCodes,
+    truncated: record.truncated,
+    rawStdoutIncluded: false,
+    rawStderrIncluded: false,
+    summaryOnly: true,
+    eventPreview: {
+      type: "command_broker.command.executed",
+      requestId: safeErrorMessage(String(eventPreview.requestId ?? "")),
+      workspaceRootRef: safeErrorMessage(
+        String(eventPreview.workspaceRootRef ?? "")
+      ),
+      commandHash: safeErrorMessage(String(eventPreview.commandHash ?? "")),
+      outputHash: safeErrorMessage(String(eventPreview.outputHash ?? "")),
+      transcriptId: safeErrorMessage(String(eventPreview.transcriptId ?? "")),
+      transcriptRef: safeErrorMessage(String(eventPreview.transcriptRef ?? "")),
+      exitCode:
+        typeof eventPreview.exitCode === "number"
+          ? eventPreview.exitCode
+          : null,
+      stdoutBytes: Number(eventPreview.stdoutBytes ?? 0),
+      stderrBytes: Number(eventPreview.stderrBytes ?? 0),
+      warningCodes: eventWarningCodes,
+      durationMs: Number(eventPreview.durationMs ?? 0),
+      truncated: Boolean(eventPreview.truncated),
+      summaryOnly: true,
+      notWritten: true
+    },
+    safeMessage: safeErrorMessage(record.safeMessage)
+  };
+}
+
 function normalizeVerificationLaneEventRecordResult(
   raw: unknown
 ): VerificationLaneEventRecordResult {
@@ -3747,6 +4015,18 @@ function containsUnsafeLiveProposalText(value: string): boolean {
     /\braw\s*response\b/i.test(value) ||
     /\braw\s*source\b/i.test(value) ||
     /\braw\s*diff\b/i.test(value)
+  );
+}
+
+function isCommandBrokerShellKind(
+  value: unknown
+): value is CommandBrokerShellKind {
+  return (
+    value === "none" ||
+    value === "powershell" ||
+    value === "cmd" ||
+    value === "bash" ||
+    value === "sh"
   );
 }
 
