@@ -37,6 +37,16 @@ v0.35 RC references:
 - [Raw Transcript / Output Persistence manual QA](docs/raw-transcript-output-persistence-manual-qa.md)
 - [Raw Transcript / Output Persistence RC checklist](docs/raw-transcript-output-persistence-rc-checklist.md)
 
+Next phase: P1N starts the `v0.36.0-arbitrary-shell-command-broker-rc.1`
+roadmap. It introduces a permission-mode-gated command broker plan while keeping
+fixed safe lanes unchanged and keeping auto apply, recursive delete, Git
+commit/push, autonomous loops, and full access disabled by default.
+
+- [v0.36 Arbitrary Shell / Command Broker prompts](docs/v0.36-arbitrary-shell-command-broker-prompts.md)
+- [v0.35 Raw Transcript / Output Persistence post-release review](docs/v0.35-raw-transcript-output-postrelease-review.md)
+- [P1N Arbitrary Shell / Command Broker roadmap](docs/p1n-arbitrary-shell-command-broker-roadmap.md)
+- [P1N-001 Command Broker ADR plan](docs/p1n-001-command-broker-adr-plan.md)
+
 ## v0.1.0 scope
 
 The first release focuses on one vertical slice: convert a visible table from a

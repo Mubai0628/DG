@@ -35948,6 +35948,91 @@ describe("expanded desktop action proposal app surface", () => {
     expect(combined).not.toContain("raw transcript bypasses redaction");
   });
 
+  it("documents the v0.35 post-release review and P1N command broker roadmap", async () => {
+    const review = await readFile(
+      path.join(
+        repoRoot,
+        "docs",
+        "v0.35-raw-transcript-output-postrelease-review.md"
+      ),
+      "utf8"
+    );
+    const roadmap = await readFile(
+      path.join(
+        repoRoot,
+        "docs",
+        "p1n-arbitrary-shell-command-broker-roadmap.md"
+      ),
+      "utf8"
+    );
+    const plan = await readFile(
+      path.join(repoRoot, "docs", "p1n-001-command-broker-adr-plan.md"),
+      "utf8"
+    );
+    const prompts = await readFile(
+      path.join(
+        repoRoot,
+        "docs",
+        "v0.36-arbitrary-shell-command-broker-prompts.md"
+      ),
+      "utf8"
+    );
+    const docsIndex = await readFile(
+      path.join(repoRoot, "docs", "README.md"),
+      "utf8"
+    );
+    const rootReadme = await readFile(path.join(repoRoot, "README.md"), "utf8");
+    const combined = [
+      review,
+      roadmap,
+      plan,
+      prompts,
+      docsIndex,
+      rootReadme
+    ].join("\n");
+    const roadmapLower = roadmap.toLowerCase();
+
+    expect(review).toContain("v0.35.0-raw-transcript-output-persistence-rc.1");
+    expect(review).toContain(
+      "Raw transcript and output persistence foundation, no arbitrary shell"
+    );
+    expect(review).toContain("Transcript replay and audit");
+    expect(roadmap).toContain("permission-mode-gated command broker");
+    expect(roadmap).toContain("Fixed safe lanes remain unchanged");
+    expect(roadmap).toContain(
+      "Command output must enter the transcript pipeline"
+    );
+    expect(roadmap).toContain("summary-only");
+    expect(roadmapLower).toContain("no auto apply");
+    expect(roadmapLower).toContain("no recursive delete");
+    expect(roadmapLower).toContain("no git commit or push");
+    expect(roadmapLower).toContain("no autonomous loop");
+    expect(roadmapLower).toContain("no full access by default");
+    expect(plan).toContain("no runtime command broker implementation");
+    expect(plan).toContain("no Tauri command");
+    expect(plan).toContain("no arbitrary shell");
+    expect(plan).toContain("no command execution");
+    expect(plan).toContain("no API key read");
+    expect(plan).toContain("no fetch/network");
+    expect(prompts).toContain("DW-P1N-009");
+    expect(docsIndex).toContain(
+      "v0.36-arbitrary-shell-command-broker-prompts.md"
+    );
+    expect(docsIndex).toContain(
+      "v0.35-raw-transcript-output-postrelease-review.md"
+    );
+    expect(docsIndex).toContain(
+      "p1n-arbitrary-shell-command-broker-roadmap.md"
+    );
+    expect(rootReadme).toContain("P1N starts");
+    expect(combined).not.toContain("App arbitrary shell is enabled");
+    expect(combined).not.toContain("App command execution is enabled");
+    expect(combined).not.toContain("command broker enables auto apply");
+    expect(combined).not.toContain("command broker enables recursive delete");
+    expect(combined).not.toContain("command broker enables Git push");
+    expect(combined).not.toContain("command broker enables full access");
+  });
+
   it("documents the runtime transcript store schema boundaries", async () => {
     const runtimeDoc = await readFile(
       path.join(repoRoot, "docs", "runtime-transcript-store-schema-v0.34.md"),
