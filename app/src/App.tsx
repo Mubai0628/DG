@@ -21217,6 +21217,10 @@ export function DesktopShell(): JSX.Element {
                     <dd>{eventPanel.projectKnowledgeEventCount}</dd>
                   </div>
                   <div>
+                    <dt>Transcript events</dt>
+                    <dd>{eventPanel.transcriptEventCount}</dd>
+                  </div>
+                  <div>
                     <dt>Project knowledge entries</dt>
                     <dd>{eventPanel.projectKnowledgeEntryCount}</dd>
                   </div>
@@ -21245,6 +21249,10 @@ export function DesktopShell(): JSX.Element {
                     </dd>
                   </div>
                   <div>
+                    <dt>Latest transcript</dt>
+                    <dd>{eventPanel.latestTranscriptSummary ?? "n/a"}</dd>
+                  </div>
+                  <div>
                     <dt>Desktop action replay preview</dt>
                     <dd>
                       {desktopActionReplayView.status === "empty"
@@ -21256,6 +21264,12 @@ export function DesktopShell(): JSX.Element {
                     <dt>Knowledge redaction audit</dt>
                     <dd>
                       {eventPanel.projectKnowledgeRedactionAuditStatus ?? "n/a"}
+                    </dd>
+                  </div>
+                  <div>
+                    <dt>Transcript redaction audit</dt>
+                    <dd>
+                      {eventPanel.transcriptRedactionAuditStatus ?? "n/a"}
                     </dd>
                   </div>
                   <div>

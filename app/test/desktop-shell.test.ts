@@ -511,6 +511,7 @@ function fixedEventSummary(
     approvedRollbackCount: 0,
     verificationEventCount: 0,
     liveProposalEventCount: 0,
+    transcriptEventCount: 0,
     projectKnowledgeEventCount: 0,
     projectKnowledgeEntryCount: 0,
     lastEventAt: "2026-06-16T00:00:01.000Z",
@@ -4508,6 +4509,38 @@ describe("desktop command wrapper", () => {
     expect(docsIndex).toContain("runtime-transcript-retention-policy-v0.34.md");
   });
 
+  it("locks transcript replay projection and redaction audit docs", async () => {
+    const replayDoc = await readFile(
+      path.join(repoRoot, "docs", "runtime-transcript-replay-projection-v0.34.md"),
+      "utf8"
+    );
+    const auditDoc = await readFile(
+      path.join(repoRoot, "docs", "runtime-transcript-redaction-audit-v0.34.md"),
+      "utf8"
+    );
+    const docsIndex = await readFile(
+      path.join(repoRoot, "docs", "README.md"),
+      "utf8"
+    );
+    const combined = `${replayDoc}\n${auditDoc}\n${docsIndex}`;
+
+    expect(replayDoc).toContain("Runtime Transcript Replay Projection v0.34");
+    expect(replayDoc).toContain("transcript.record.created");
+    expect(replayDoc).toContain("transcript.record.deleted");
+    expect(replayDoc).toContain("transcript.record.exported_summary");
+    expect(replayDoc).toContain("No command replay");
+    expect(replayDoc).toContain("No EventStore write");
+    expect(auditDoc).toContain("Runtime Transcript Redaction Audit v0.34");
+    expect(auditDoc).toContain("raw stdout/stderr");
+    expect(auditDoc).toContain("API key");
+    expect(auditDoc).toContain("reasoning_content");
+    expect(auditDoc).toContain("No command execution");
+    expect(docsIndex).toContain("runtime-transcript-replay-projection-v0.34.md");
+    expect(docsIndex).toContain("runtime-transcript-redaction-audit-v0.34.md");
+    expect(combined).not.toContain("transcript replay enables command execution");
+    expect(combined).not.toContain("transcript audit writes EventStore");
+  });
+
   function safeLiveProposalCommandRequest(): LiveDeepSeekPatchProposalCommandRequest {
     return {
       sessionReceipt: {
@@ -5678,6 +5711,88 @@ describe("desktop command wrapper", () => {
     expect(serialized).not.toContain("reasoning_content");
     expect(serialized).not.toContain("sk-");
     expect(serialized).not.toContain('canApplyPatch":true');
+  });
+
+  it("projects transcript summary events into Event Log / Replay", () => {
+    const summary = normalizeWorkspaceEventSummary(
+      fixedEventSummary({
+        eventCount: 3,
+        displayedEventCount: 3,
+        transcriptEventCount: 3,
+        latestTranscriptSummary:
+          "transcript summary exported: transcript-safe · 2 chunks · 2 redactions · hash transcripthash",
+        transcriptRedactionAuditStatus: "ok",
+        typeCounts: {
+          "transcript.record.created": 1,
+          "transcript.record.deleted": 1,
+          "transcript.record.exported_summary": 1
+        },
+        timeline: [
+          {
+            id: "transcript-event-created",
+            ts: "2026-07-06T00:00:00.000Z",
+            type: "transcript.record.created",
+            taskId: "no task",
+            summary:
+              "transcript record created: transcript-safe · shell_safe_lane · 2 chunks · 256 bytes · 2 redactions · hash transcripthash",
+            safePayloadKeys: [
+              "transcriptId",
+              "sourceKind",
+              "chunkCount",
+              "byteCount",
+              "redactedFieldCount",
+              "transcriptHash",
+              "summaryOnly",
+              "noRawOutput"
+            ]
+          },
+          {
+            id: "transcript-event-deleted",
+            ts: "2026-07-06T00:00:01.000Z",
+            type: "transcript.record.deleted",
+            taskId: "no task",
+            summary:
+              "transcript record deleted: transcript-safe · tombstone · hash transcripthash",
+            safePayloadKeys: [
+              "transcriptId",
+              "deleted",
+              "tombstoneOnDelete",
+              "summaryOnly"
+            ]
+          },
+          {
+            id: "transcript-event-exported",
+            ts: "2026-07-06T00:00:02.000Z",
+            type: "transcript.record.exported_summary",
+            taskId: "no task",
+            summary:
+              "transcript summary exported: transcript-safe · 2 chunks · 2 redactions · hash transcripthash",
+            safePayloadKeys: [
+              "transcriptId",
+              "exportHash",
+              "lineCount",
+              "summaryOnly",
+              "noRawOutput"
+            ]
+          }
+        ]
+      })
+    );
+    const model = buildEventLogPanelModel(summary);
+    const serialized = JSON.stringify(model);
+
+    expect(model?.transcriptEventCount).toBe(3);
+    expect(model?.latestTranscriptSummary).toContain(
+      "transcript summary exported: transcript-safe"
+    );
+    expect(model?.transcriptRedactionAuditStatus).toBe("ok");
+    expect(model?.timeline[0]?.type).toBe("transcript.record.created");
+    expect(serialized).not.toContain("rawOutput");
+    expect(serialized).not.toContain("rawPrompt");
+    expect(serialized).not.toContain("reasoning_content");
+    expect(serialized).not.toContain("Authorization:");
+    expect(serialized).not.toContain("sk-");
+    expect(serialized).not.toContain('canReplayCommand":true');
   });
 
   it("projects project knowledge lifecycle events into Event Log / Replay", () => {
@@ -12030,6 +12145,7 @@ describe("app controlled creation replay projection", () => {
       approvedRollbackCount: 0,
       verificationEventCount: 0,
       liveProposalEventCount: 0,
+      transcriptEventCount: 0,
       projectKnowledgeEventCount: 0,
       projectKnowledgeEntryCount: 0,
       lastEventAt: "2026-06-25T00:00:00.000Z",
@@ -23528,6 +23644,7 @@ describe("desktop source boundaries", () => {
         approvedRollbackCount: 0,
         verificationEventCount: 0,
         liveProposalEventCount: 0,
+        transcriptEventCount: 0,
         projectKnowledgeEventCount: 0,
         projectKnowledgeEntryCount: 0,
         typeCounts: { "agent.run.planned": 1 },
@@ -23710,6 +23827,7 @@ describe("desktop source boundaries", () => {
         approvedRollbackCount: 0,
         verificationEventCount: 0,
         liveProposalEventCount: 0,
+        transcriptEventCount: 0,
         projectKnowledgeEventCount: 0,
         projectKnowledgeEntryCount: 0,
         typeCounts: {

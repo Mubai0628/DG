@@ -56,6 +56,9 @@ const TRANSCRIPT_SCHEMA_VERSION: &str = "transcript_record.v1";
 const TRANSCRIPT_STORE_SOURCE: &str = "runtime_transcript_store_schema";
 const TRANSCRIPT_STORE_DIR: &str = "transcripts";
 const TRANSCRIPT_MAX_CHUNK_SUMMARY_CHARS: usize = 5_000;
+const TRANSCRIPT_RECORD_CREATED_TYPE: &str = "transcript.record.created";
+const TRANSCRIPT_RECORD_DELETED_TYPE: &str = "transcript.record.deleted";
+const TRANSCRIPT_RECORD_EXPORTED_SUMMARY_TYPE: &str = "transcript.record.exported_summary";
 const APPROVED_DESKTOP_ACTION_FOCUS_CONFIRMATION: &str = "FOCUS OBSERVED WINDOW";
 const APPROVED_DESKTOP_ACTION_RAISE_CONFIRMATION: &str = "RAISE OBSERVED WINDOW";
 const APPROVED_DESKTOP_ACTION_ACTIVATE_CONFIRMATION: &str = "ACTIVATE OBSERVED WINDOW";
@@ -267,12 +270,15 @@ pub struct WorkspaceEventSummary {
     live_proposal_event_count: usize,
     project_knowledge_event_count: usize,
     project_knowledge_entry_count: usize,
+    transcript_event_count: usize,
     latest_approved_execution_summary: Option<String>,
     latest_verification_summary: Option<String>,
     latest_live_proposal_summary: Option<String>,
     latest_project_knowledge_summary: Option<String>,
     latest_project_knowledge_recall_summary: Option<String>,
     project_knowledge_redaction_audit_status: Option<String>,
+    latest_transcript_summary: Option<String>,
+    transcript_redaction_audit_status: Option<String>,
     last_event_at: Option<String>,
     type_counts: BTreeMap<String, usize>,
     timeline: Vec<EventTimelineItem>,
@@ -6348,12 +6354,15 @@ fn summarize_workspace_events(
     let mut live_proposal_event_count = 0usize;
     let mut project_knowledge_event_count = 0usize;
     let mut project_knowledge_entry_ids: BTreeSet<String> = BTreeSet::new();
+    let mut transcript_event_count = 0usize;
     let mut latest_approved_execution_summary: Option<String> = None;
     let mut latest_verification_summary: Option<String> = None;
     let mut latest_live_proposal_summary: Option<String> = None;
     let mut latest_project_knowledge_summary: Option<String> = None;
     let mut latest_project_knowledge_recall_summary: Option<String> = None;
     let mut project_knowledge_redaction_audit_status: Option<String> = None;
+    let mut latest_transcript_summary: Option<String> = None;
+    let mut transcript_redaction_audit_status: Option<String> = None;
     let mut last_event_at: Option<String> = None;
 
     for event in &events {
@@ -6391,6 +6400,19 @@ fn summarize_workspace_events(
         if event_type == LIVE_PROPOSAL_GENERATED_TYPE {
             live_proposal_event_count += 1;
             latest_live_proposal_summary = Some(summarize_safe_event(event));
+        }
+        if matches!(
+            event_type.as_str(),
+            TRANSCRIPT_RECORD_CREATED_TYPE
+                | TRANSCRIPT_RECORD_DELETED_TYPE
+                | TRANSCRIPT_RECORD_EXPORTED_SUMMARY_TYPE
+        ) {
+            transcript_event_count += 1;
+            latest_transcript_summary = Some(summarize_safe_event(event));
+            transcript_redaction_audit_status = Some(
+                nested_string(event.get("payload"), "redactionAuditStatus")
+                    .unwrap_or_else(|| "ok".to_string()),
+            );
         }
         if event_type.starts_with("project_knowledge.") {
             project_knowledge_event_count += 1;
@@ -6438,12 +6460,15 @@ fn summarize_workspace_events(
         live_proposal_event_count,
         project_knowledge_event_count,
         project_knowledge_entry_count: project_knowledge_entry_ids.len(),
+        transcript_event_count,
         latest_approved_execution_summary,
         latest_verification_summary,
         latest_live_proposal_summary,
         latest_project_knowledge_summary,
         latest_project_knowledge_recall_summary,
         project_knowledge_redaction_audit_status,
+        latest_transcript_summary,
+        transcript_redaction_audit_status,
         last_event_at,
         type_counts,
         timeline,
@@ -6525,12 +6550,15 @@ fn empty_event_summary(
         live_proposal_event_count: 0,
         project_knowledge_event_count: 0,
         project_knowledge_entry_count: 0,
+        transcript_event_count: 0,
         latest_approved_execution_summary: None,
         latest_verification_summary: None,
         latest_live_proposal_summary: None,
         latest_project_knowledge_summary: None,
         latest_project_knowledge_recall_summary: None,
         project_knowledge_redaction_audit_status: None,
+        latest_transcript_summary: None,
+        transcript_redaction_audit_status: None,
         last_event_at: None,
         type_counts: BTreeMap::new(),
         timeline: Vec::new(),
@@ -6559,12 +6587,15 @@ fn event_summary_error(code: &str, message: String) -> WorkspaceEventSummary {
         live_proposal_event_count: 0,
         project_knowledge_event_count: 0,
         project_knowledge_entry_count: 0,
+        transcript_event_count: 0,
         latest_approved_execution_summary: None,
         latest_verification_summary: None,
         latest_live_proposal_summary: None,
         latest_project_knowledge_summary: None,
         latest_project_knowledge_recall_summary: None,
         project_knowledge_redaction_audit_status: None,
+        latest_transcript_summary: None,
+        transcript_redaction_audit_status: None,
         last_event_at: None,
         type_counts: BTreeMap::new(),
         timeline: Vec::new(),
@@ -6620,8 +6651,12 @@ fn safe_payload_keys(payload: &serde_json::Map<String, Value>) -> BTreeSet<Strin
         "addedLineCount",
         "changedFileCount",
         "deletedLineCount",
+        "deleteAllowed",
+        "deleted",
         "durationMs",
         "exitCode",
+        "exportAllowed",
+        "exportHash",
         "filesCreated",
         "filesDeleted",
         "filesRemoved",
@@ -6661,7 +6696,9 @@ fn safe_payload_keys(payload: &serde_json::Map<String, Value>) -> BTreeSet<Strin
         "auditStatus",
         "redactedTextCount",
         "redaction",
+        "redactedFieldCount",
         "relativePath",
+        "retainDays",
         "repairStatus",
         "requestId",
         "restoredSnapshotHash",
@@ -6674,9 +6711,11 @@ fn safe_payload_keys(payload: &serde_json::Map<String, Value>) -> BTreeSet<Strin
         "schemaVersion",
         "selectedTableId",
         "sha256",
+        "secretMarkerCount",
         "stderrBytes",
         "stdoutBytes",
         "sourceHost",
+        "sourceKind",
         "sourceOrigin",
         "sourcePathWithoutQuery",
         "sourceSummary",
@@ -6685,6 +6724,9 @@ fn safe_payload_keys(payload: &serde_json::Map<String, Value>) -> BTreeSet<Strin
         "templateId",
         "title",
         "toolName",
+        "tombstoneOnDelete",
+        "transcriptHash",
+        "transcriptId",
         "truncated",
         "usageSummary",
         "validationStatus",
@@ -6695,8 +6737,12 @@ fn safe_payload_keys(payload: &serde_json::Map<String, Value>) -> BTreeSet<Strin
         "workspaceRootHash",
         "workspaceSummary",
         "summaryOnly",
+        "byteCount",
+        "chunkCount",
+        "lineCount",
         "noPreimage",
         "noRawContent",
+        "rawRetentionDays",
     ];
     allowed
         .into_iter()
@@ -6829,6 +6875,47 @@ fn summarize_safe_event(event: &Value) -> String {
                 nested_string(payload, "resultHash").map(|value| {
                     let prefix = value.chars().take(12).collect::<String>();
                     format!("result {prefix}")
+                }),
+                nested_array_display(payload, "warningCodes", "warning codes"),
+            ],
+        ),
+        TRANSCRIPT_RECORD_CREATED_TYPE => format_parts(
+            "transcript record created",
+            [
+                nested_string(payload, "transcriptId"),
+                nested_string(payload, "sourceKind"),
+                nested_display(payload, "chunkCount", "chunks"),
+                nested_display(payload, "redactedFieldCount", "redactions"),
+                nested_display(payload, "retainDays", "retain days"),
+                nested_string(payload, "transcriptHash").map(|value| {
+                    let prefix = value.chars().take(12).collect::<String>();
+                    format!("hash {prefix}")
+                }),
+                nested_array_display(payload, "warningCodes", "warning codes"),
+            ],
+        ),
+        TRANSCRIPT_RECORD_DELETED_TYPE => format_parts(
+            "transcript record deleted",
+            [
+                nested_string(payload, "transcriptId"),
+                nested_display(payload, "deleted", "deleted"),
+                nested_display(payload, "tombstoneOnDelete", "tombstone"),
+                nested_string(payload, "transcriptHash").map(|value| {
+                    let prefix = value.chars().take(12).collect::<String>();
+                    format!("hash {prefix}")
+                }),
+                nested_array_display(payload, "warningCodes", "warning codes"),
+            ],
+        ),
+        TRANSCRIPT_RECORD_EXPORTED_SUMMARY_TYPE => format_parts(
+            "transcript summary exported",
+            [
+                nested_string(payload, "transcriptId"),
+                nested_display(payload, "chunkCount", "chunks"),
+                nested_display(payload, "redactedFieldCount", "redactions"),
+                nested_string(payload, "exportHash").map(|value| {
+                    let prefix = value.chars().take(12).collect::<String>();
+                    format!("export {prefix}")
                 }),
                 nested_array_display(payload, "warningCodes", "warning codes"),
             ],

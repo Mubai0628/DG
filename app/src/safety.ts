@@ -88,12 +88,15 @@ export type WorkspaceEventSummary = {
   liveProposalEventCount: number;
   projectKnowledgeEventCount: number;
   projectKnowledgeEntryCount: number;
+  transcriptEventCount: number;
   latestApprovedExecutionSummary?: string;
   latestVerificationSummary?: string;
   latestLiveProposalSummary?: string;
   latestProjectKnowledgeSummary?: string;
   latestProjectKnowledgeRecallSummary?: string;
   projectKnowledgeRedactionAuditStatus?: string;
+  latestTranscriptSummary?: string;
+  transcriptRedactionAuditStatus?: string;
   lastEventAt?: string;
   typeCounts: Record<string, number>;
   timeline: unknown[];
@@ -148,12 +151,15 @@ export type EventLogPanelModel = {
   liveProposalEventCount: number;
   projectKnowledgeEventCount: number;
   projectKnowledgeEntryCount: number;
+  transcriptEventCount: number;
   latestApprovedExecutionSummary?: string;
   latestVerificationSummary?: string;
   latestLiveProposalSummary?: string;
   latestProjectKnowledgeSummary?: string;
   latestProjectKnowledgeRecallSummary?: string;
   projectKnowledgeRedactionAuditStatus?: string;
+  latestTranscriptSummary?: string;
+  transcriptRedactionAuditStatus?: string;
   lastEventAt?: string;
   safetyOk: boolean;
   safetyFindingCount: number;
@@ -498,6 +504,16 @@ export function normalizeWorkspaceEventSummary(
     "projectKnowledgeRedactionAuditStatus",
     "project_knowledge_redaction_audit_status"
   );
+  const latestTranscriptSummary = readString(
+    value,
+    "latestTranscriptSummary",
+    "latest_transcript_summary"
+  );
+  const transcriptRedactionAuditStatus = readString(
+    value,
+    "transcriptRedactionAuditStatus",
+    "transcript_redaction_audit_status"
+  );
   const safeMessage = readString(value, "safeMessage", "safe_message");
   const warnings = Array.isArray(value.warnings)
     ? readStringArray(value, "warnings")
@@ -542,6 +558,9 @@ export function normalizeWorkspaceEventSummary(
         "project_knowledge_entry_count"
       )
     ),
+    transcriptEventCount: finiteNumber(
+      readValue(value, "transcriptEventCount", "transcript_event_count")
+    ),
     ...(latestApprovedExecutionSummary !== undefined
       ? { latestApprovedExecutionSummary }
       : {}),
@@ -559,6 +578,10 @@ export function normalizeWorkspaceEventSummary(
       : {}),
     ...(projectKnowledgeRedactionAuditStatus !== undefined
       ? { projectKnowledgeRedactionAuditStatus }
+      : {}),
+    ...(latestTranscriptSummary !== undefined ? { latestTranscriptSummary } : {}),
+    ...(transcriptRedactionAuditStatus !== undefined
+      ? { transcriptRedactionAuditStatus }
       : {}),
     ...(lastEventAt !== undefined ? { lastEventAt } : {}),
     typeCounts: isRecord(readValue(value, "typeCounts", "type_counts"))
@@ -684,6 +707,7 @@ export function buildEventLogPanelModel(
     projectKnowledgeEntryCount: finiteNumber(
       summary.projectKnowledgeEntryCount
     ),
+    transcriptEventCount: finiteNumber(summary.transcriptEventCount),
     ...(typeof summary.latestApprovedExecutionSummary === "string"
       ? {
           latestApprovedExecutionSummary: safeErrorMessage(
@@ -723,6 +747,20 @@ export function buildEventLogPanelModel(
       ? {
           projectKnowledgeRedactionAuditStatus: safeErrorMessage(
             summary.projectKnowledgeRedactionAuditStatus
+          )
+        }
+      : {}),
+    ...(typeof summary.latestTranscriptSummary === "string"
+      ? {
+          latestTranscriptSummary: safeErrorMessage(
+            summary.latestTranscriptSummary
+          )
+        }
+      : {}),
+    ...(typeof summary.transcriptRedactionAuditStatus === "string"
+      ? {
+          transcriptRedactionAuditStatus: safeErrorMessage(
+            summary.transcriptRedactionAuditStatus
           )
         }
       : {}),
@@ -1210,6 +1248,7 @@ function invalidWorkspaceEventSummary(message: string): WorkspaceEventSummary {
     liveProposalEventCount: 0,
     projectKnowledgeEventCount: 0,
     projectKnowledgeEntryCount: 0,
+    transcriptEventCount: 0,
     typeCounts: {},
     timeline: [],
     safetyScan: {
