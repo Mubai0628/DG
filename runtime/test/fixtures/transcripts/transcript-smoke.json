@@ -1,0 +1,363 @@
+{
+  "schemaVersion": "transcript_smoke.v1",
+  "safeTranscripts": [
+    {
+      "schemaVersion": "transcript_record.v1",
+      "transcriptId": "transcript-smoke-shell-safe-lane",
+      "sessionId": "session-transcript-smoke-shell",
+      "sessionRef": {
+        "sessionId": "session-transcript-smoke-shell",
+        "mode": "approval_mode",
+        "workspaceRootRef": "workspace:demo"
+      },
+      "workspaceRootRef": "workspace:demo",
+      "mode": "approval_mode",
+      "sourceKind": "shell_safe_lane",
+      "visibility": "summary_only",
+      "rawOptIn": false,
+      "chunks": [
+        {
+          "chunkId": "shell-safe-lane-summary",
+          "kind": "command_summary",
+          "summary": "Fixed shell verification lane completed with summary-only transcript output.",
+          "byteCount": 160,
+          "lineCount": 3,
+          "redacted": true,
+          "rawAvailable": false,
+          "hashPrefix": "shellsmokehash1",
+          "warningCodes": []
+        }
+      ],
+      "redactionSummary": {
+        "scanned": true,
+        "redactedFieldCount": 1,
+        "secretMarkerCount": 0,
+        "controlCharCount": 0,
+        "binaryChunkCount": 0,
+        "warningCodes": []
+      },
+      "retentionPolicy": {
+        "retainDays": 14,
+        "exportAllowed": true,
+        "deleteAllowed": true,
+        "tombstoneOnDelete": true
+      },
+      "hashes": {
+        "recordHash": "transcript-smoke-shell-hash",
+        "redactedOutputHash": "transcript-smoke-shell-redacted-hash"
+      },
+      "createdAt": "2026-07-06T00:00:00.000Z",
+      "source": "runtime_transcript_store_schema"
+    },
+    {
+      "schemaVersion": "transcript_record.v1",
+      "transcriptId": "transcript-smoke-git-safe-lane",
+      "sessionId": "session-transcript-smoke-git",
+      "sessionRef": {
+        "sessionId": "session-transcript-smoke-git",
+        "mode": "approval_mode",
+        "workspaceRootRef": "workspace:demo"
+      },
+      "workspaceRootRef": "workspace:demo",
+      "mode": "approval_mode",
+      "sourceKind": "git_safe_lane",
+      "visibility": "summary_only",
+      "rawOptIn": false,
+      "chunks": [
+        {
+          "chunkId": "git-safe-lane-summary",
+          "kind": "command_summary",
+          "summary": "Git read lane returned branch and changed-file counts only.",
+          "byteCount": 144,
+          "lineCount": 2,
+          "redacted": true,
+          "rawAvailable": false,
+          "hashPrefix": "gitsmokehash12",
+          "warningCodes": []
+        }
+      ],
+      "redactionSummary": {
+        "scanned": true,
+        "redactedFieldCount": 1,
+        "secretMarkerCount": 0,
+        "controlCharCount": 0,
+        "binaryChunkCount": 0,
+        "warningCodes": []
+      },
+      "retentionPolicy": {
+        "retainDays": 14,
+        "exportAllowed": true,
+        "deleteAllowed": true,
+        "tombstoneOnDelete": true
+      },
+      "hashes": {
+        "recordHash": "transcript-smoke-git-hash",
+        "redactedOutputHash": "transcript-smoke-git-redacted-hash"
+      },
+      "createdAt": "2026-07-06T00:01:00.000Z",
+      "source": "runtime_transcript_store_schema"
+    },
+    {
+      "schemaVersion": "transcript_record.v1",
+      "transcriptId": "transcript-smoke-approved-apply",
+      "sessionId": "session-transcript-smoke-apply",
+      "sessionRef": {
+        "sessionId": "session-transcript-smoke-apply",
+        "mode": "approval_mode",
+        "workspaceRootRef": "workspace:demo"
+      },
+      "workspaceRootRef": "workspace:demo",
+      "mode": "approval_mode",
+      "sourceKind": "approved_apply",
+      "visibility": "summary_only",
+      "rawOptIn": false,
+      "chunks": [
+        {
+          "chunkId": "approved-apply-summary",
+          "kind": "file_operation_summary",
+          "summary": "Approved apply prototype reported operation counts, checkpoint ref, and safe hashes.",
+          "byteCount": 192,
+          "lineCount": 3,
+          "redacted": true,
+          "rawAvailable": false,
+          "hashPrefix": "applysmokehash",
+          "warningCodes": []
+        }
+      ],
+      "redactionSummary": {
+        "scanned": true,
+        "redactedFieldCount": 1,
+        "secretMarkerCount": 0,
+        "controlCharCount": 0,
+        "binaryChunkCount": 0,
+        "warningCodes": []
+      },
+      "retentionPolicy": {
+        "retainDays": 14,
+        "exportAllowed": true,
+        "deleteAllowed": true,
+        "tombstoneOnDelete": true
+      },
+      "hashes": {
+        "recordHash": "transcript-smoke-apply-hash",
+        "redactedOutputHash": "transcript-smoke-apply-redacted-hash"
+      },
+      "createdAt": "2026-07-06T00:02:00.000Z",
+      "source": "runtime_transcript_store_schema"
+    },
+    {
+      "schemaVersion": "transcript_record.v1",
+      "transcriptId": "transcript-smoke-approved-rollback",
+      "sessionId": "session-transcript-smoke-rollback",
+      "sessionRef": {
+        "sessionId": "session-transcript-smoke-rollback",
+        "mode": "approval_mode",
+        "workspaceRootRef": "workspace:demo"
+      },
+      "workspaceRootRef": "workspace:demo",
+      "mode": "approval_mode",
+      "sourceKind": "approved_rollback",
+      "visibility": "summary_only",
+      "rawOptIn": false,
+      "chunks": [
+        {
+          "chunkId": "approved-rollback-summary",
+          "kind": "file_operation_summary",
+          "summary": "Approved rollback prototype reported restored counts and checkpoint hash only.",
+          "byteCount": 180,
+          "lineCount": 3,
+          "redacted": true,
+          "rawAvailable": false,
+          "hashPrefix": "rollbackhash12",
+          "warningCodes": []
+        }
+      ],
+      "redactionSummary": {
+        "scanned": true,
+        "redactedFieldCount": 1,
+        "secretMarkerCount": 0,
+        "controlCharCount": 0,
+        "binaryChunkCount": 0,
+        "warningCodes": []
+      },
+      "retentionPolicy": {
+        "retainDays": 14,
+        "exportAllowed": true,
+        "deleteAllowed": true,
+        "tombstoneOnDelete": true
+      },
+      "hashes": {
+        "recordHash": "transcript-smoke-rollback-hash",
+        "redactedOutputHash": "transcript-smoke-rollback-redacted-hash"
+      },
+      "createdAt": "2026-07-06T00:03:00.000Z",
+      "source": "runtime_transcript_store_schema"
+    },
+    {
+      "schemaVersion": "transcript_record.v1",
+      "transcriptId": "transcript-smoke-mcp-readonly-tool",
+      "sessionId": "session-transcript-smoke-mcp",
+      "sessionRef": {
+        "sessionId": "session-transcript-smoke-mcp",
+        "mode": "approval_mode",
+        "workspaceRootRef": "workspace:demo"
+      },
+      "workspaceRootRef": "workspace:demo",
+      "mode": "approval_mode",
+      "sourceKind": "mcp_readonly_tool",
+      "visibility": "summary_only",
+      "rawOptIn": false,
+      "chunks": [
+        {
+          "chunkId": "mcp-readonly-tool-summary",
+          "kind": "tool_summary",
+          "summary": "MCP read-only tool returned safe metadata counts and redaction warnings only.",
+          "byteCount": 176,
+          "lineCount": 3,
+          "redacted": true,
+          "rawAvailable": false,
+          "hashPrefix": "mcpsmokehash1",
+          "warningCodes": []
+        }
+      ],
+      "redactionSummary": {
+        "scanned": true,
+        "redactedFieldCount": 1,
+        "secretMarkerCount": 0,
+        "controlCharCount": 0,
+        "binaryChunkCount": 0,
+        "warningCodes": []
+      },
+      "retentionPolicy": {
+        "retainDays": 14,
+        "exportAllowed": true,
+        "deleteAllowed": true,
+        "tombstoneOnDelete": true
+      },
+      "hashes": {
+        "recordHash": "transcript-smoke-mcp-hash",
+        "redactedOutputHash": "transcript-smoke-mcp-redacted-hash"
+      },
+      "createdAt": "2026-07-06T00:04:00.000Z",
+      "source": "runtime_transcript_store_schema"
+    },
+    {
+      "schemaVersion": "transcript_record.v1",
+      "transcriptId": "transcript-smoke-desktop-action",
+      "sessionId": "session-transcript-smoke-desktop",
+      "sessionRef": {
+        "sessionId": "session-transcript-smoke-desktop",
+        "mode": "approval_mode",
+        "workspaceRootRef": "workspace:demo"
+      },
+      "workspaceRootRef": "workspace:demo",
+      "mode": "approval_mode",
+      "sourceKind": "desktop_action",
+      "visibility": "summary_only",
+      "rawOptIn": false,
+      "chunks": [
+        {
+          "chunkId": "desktop-action-summary",
+          "kind": "tool_summary",
+          "summary": "Desktop action proposal smoke returned summary metadata and unsupported-platform status.",
+          "byteCount": 184,
+          "lineCount": 3,
+          "redacted": true,
+          "rawAvailable": false,
+          "hashPrefix": "desktophash123",
+          "warningCodes": []
+        }
+      ],
+      "redactionSummary": {
+        "scanned": true,
+        "redactedFieldCount": 1,
+        "secretMarkerCount": 0,
+        "controlCharCount": 0,
+        "binaryChunkCount": 0,
+        "warningCodes": []
+      },
+      "retentionPolicy": {
+        "retainDays": 14,
+        "exportAllowed": true,
+        "deleteAllowed": true,
+        "tombstoneOnDelete": true
+      },
+      "hashes": {
+        "recordHash": "transcript-smoke-desktop-hash",
+        "redactedOutputHash": "transcript-smoke-desktop-redacted-hash"
+      },
+      "createdAt": "2026-07-06T00:05:00.000Z",
+      "source": "runtime_transcript_store_schema"
+    }
+  ],
+  "blockedTranscripts": [
+    {
+      "name": "raw-blocked",
+      "record": {
+        "schemaVersion": "transcript_record.v1",
+        "transcriptId": "transcript-smoke-raw-blocked",
+        "sessionId": "session-transcript-smoke-raw-blocked",
+        "mode": "approval_mode",
+        "sourceKind": "manual_test",
+        "visibility": "summary_only",
+        "rawOptIn": false,
+        "chunks": [],
+        "redactionSummary": {
+          "scanned": true,
+          "redactedFieldCount": 0,
+          "secretMarkerCount": 0,
+          "controlCharCount": 0,
+          "binaryChunkCount": 0,
+          "warningCodes": []
+        },
+        "retentionPolicy": {
+          "retainDays": 14,
+          "exportAllowed": true,
+          "deleteAllowed": true,
+          "tombstoneOnDelete": true
+        },
+        "hashes": {
+          "recordHash": "transcript-smoke-raw-blocked-hash",
+          "redactedOutputHash": "transcript-smoke-raw-blocked-redacted-hash"
+        },
+        "createdAt": "2026-07-06T00:06:00.000Z",
+        "source": "runtime_transcript_store_schema",
+        "rawPrompt": "Synthetic raw prompt fixture must be blocked."
+      }
+    },
+    {
+      "name": "secret-blocked",
+      "record": {
+        "schemaVersion": "transcript_record.v1",
+        "transcriptId": "transcript-smoke-secret-blocked",
+        "sessionId": "session-transcript-smoke-secret-blocked",
+        "mode": "approval_mode",
+        "sourceKind": "manual_test",
+        "visibility": "summary_only",
+        "rawOptIn": false,
+        "chunks": [],
+        "redactionSummary": {
+          "scanned": true,
+          "redactedFieldCount": 0,
+          "secretMarkerCount": 0,
+          "controlCharCount": 0,
+          "binaryChunkCount": 0,
+          "warningCodes": []
+        },
+        "retentionPolicy": {
+          "retainDays": 14,
+          "exportAllowed": true,
+          "deleteAllowed": true,
+          "tombstoneOnDelete": true
+        },
+        "hashes": {
+          "recordHash": "transcript-smoke-secret-blocked-hash",
+          "redactedOutputHash": "transcript-smoke-secret-blocked-redacted-hash"
+        },
+        "createdAt": "2026-07-06T00:07:00.000Z",
+        "source": "runtime_transcript_store_schema",
+        "apiKey": "obvious-fake-key-fixture"
+      }
+    }
+  ]
+}

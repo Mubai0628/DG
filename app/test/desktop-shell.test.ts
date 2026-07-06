@@ -4541,6 +4541,31 @@ describe("desktop command wrapper", () => {
     expect(combined).not.toContain("transcript audit writes EventStore");
   });
 
+  it("locks transcript output persistence smoke docs", async () => {
+    const smokeDoc = await readFile(
+      path.join(repoRoot, "docs", "transcript-output-persistence-smoke-v0.34.md"),
+      "utf8"
+    );
+    const docsIndex = await readFile(
+      path.join(repoRoot, "docs", "README.md"),
+      "utf8"
+    );
+
+    expect(smokeDoc).toContain("Transcript Output Persistence Smoke v0.34");
+    expect(smokeDoc).toContain("Safe shell lane summary transcript");
+    expect(smokeDoc).toContain("Safe Git lane summary transcript");
+    expect(smokeDoc).toContain("Approved apply summary transcript");
+    expect(smokeDoc).toContain("Approved rollback summary transcript");
+    expect(smokeDoc).toContain("MCP read-only tool summary transcript");
+    expect(smokeDoc).toContain("Desktop action summary transcript");
+    expect(smokeDoc).toContain("Raw blocked fixture");
+    expect(smokeDoc).toContain("Secret blocked fixture");
+    expect(smokeDoc).toContain("No command execution");
+    expect(smokeDoc).toContain("No EventStore write");
+    expect(smokeDoc).toContain("No raw output display");
+    expect(docsIndex).toContain("transcript-output-persistence-smoke-v0.34.md");
+  });
+
   function safeLiveProposalCommandRequest(): LiveDeepSeekPatchProposalCommandRequest {
     return {
       sessionReceipt: {
