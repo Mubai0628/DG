@@ -35070,6 +35070,92 @@ describe("expanded desktop action proposal app surface", () => {
     expect(combined).not.toContain("Git push execution is enabled");
     expect(combined).not.toContain("arbitrary shell execution is enabled");
   });
+
+  it("locks v0.34 permission mode RC docs and UI copy", async () => {
+    const releaseNotes = await readFile(
+      path.join(
+        repoRoot,
+        "docs",
+        "release-notes-v0.34.0-permission-mode-execution-policy-rc.1.md"
+      ),
+      "utf8"
+    );
+    const manualQa = await readFile(
+      path.join(
+        repoRoot,
+        "docs",
+        "permission-mode-execution-policy-manual-qa.md"
+      ),
+      "utf8"
+    );
+    const rcChecklist = await readFile(
+      path.join(
+        repoRoot,
+        "docs",
+        "permission-mode-execution-policy-rc-checklist.md"
+      ),
+      "utf8"
+    );
+    const docsIndex = await readFile(
+      path.join(repoRoot, "docs", "README.md"),
+      "utf8"
+    );
+    const rootReadme = await readFile(path.join(repoRoot, "README.md"), "utf8");
+    const appReadme = await readFile(
+      path.join(repoRoot, "app", "README.md"),
+      "utf8"
+    );
+    const appSource = await readFile(
+      path.join(repoRoot, "app/src/App.tsx"),
+      "utf8"
+    );
+    const combined = [
+      releaseNotes,
+      manualQa,
+      rcChecklist,
+      docsIndex,
+      rootReadme,
+      appReadme,
+      appSource
+    ].join("\n");
+
+    expect(releaseNotes).toContain(
+      "v0.34.0-permission-mode-execution-policy-rc.1"
+    );
+    expect(releaseNotes).toContain("Permission mode and execution policy");
+    expect(releaseNotes).toContain("No arbitrary shell is enabled");
+    expect(releaseNotes).toContain("No Git commit/push is enabled");
+    expect(releaseNotes).toContain("No raw output persistence is enabled");
+    expect(releaseNotes).toContain(
+      "docs/permission-mode-execution-policy-manual-qa.md"
+    );
+    expect(manualQa).toContain("Preview Approval Mode");
+    expect(manualQa).toContain("Preview Autonomous Safe Mode");
+    expect(manualQa).toContain("Preview Advanced Workspace Mode");
+    expect(manualQa).toContain("Preview Full Access Mode");
+    expect(manualQa).toContain("Existing Convert smoke");
+    expect(manualQa).toContain("Existing approved apply/rollback smoke");
+    expect(manualQa).toContain("Existing Git/shell safe lanes smoke");
+    expect(rcChecklist).toContain("pnpm verify:ci");
+    expect(rcChecklist).toContain("pnpm release:smoke");
+    expect(rcChecklist).toContain("pnpm app:qa:check");
+    expect(rcChecklist).toContain("GitHub Actions");
+    expect(rcChecklist).toContain("rollback guidance");
+    expect(docsIndex).toContain(
+      "release-notes-v0.34.0-permission-mode-execution-policy-rc.1.md"
+    );
+    expect(rootReadme).toContain(
+      "v0.34.0 Permission Mode / Execution Policy RC release notes"
+    );
+    expect(appReadme).toContain("permission audit/replay");
+    expect(appSource).toContain("Full Access");
+    expect(appSource).toContain("metadata-only");
+    expect(combined).not.toContain("Full Access execution is enabled");
+    expect(combined).not.toContain("arbitrary shell execution is enabled");
+    expect(combined).not.toContain("automatic apply is enabled");
+    expect(combined).not.toContain("Git push execution is enabled");
+    expect(combined).not.toContain("native bridge is enabled");
+  });
 });
 
 describe("desktop dev scripts", () => {

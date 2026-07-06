@@ -2,7 +2,7 @@ import {
   buildPermissionModeAuditReport,
   summarizePermissionModeAuditReport,
   type PermissionModeAuditReport
-} from "../../runtime/src/index.js";
+} from "../../runtime/src/execution/permission-modes/audit-summary.js";
 import type { ExecutionModeSwitchView } from "./execution-mode-switch-view.js";
 
 export type PermissionModeAuditViewStatus =

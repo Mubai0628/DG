@@ -2,9 +2,9 @@ import {
   evaluateExecutionPolicy,
   executionCapabilityKinds,
   type ExecutionCapabilityKind,
-  type ExecutionPolicyDecision,
-  type PermissionMode
-} from "../../runtime/src/index.js";
+  type ExecutionPolicyDecision
+} from "../../runtime/src/execution/permission-modes/execution-policy-engine.js";
+import type { PermissionMode } from "../../runtime/src/execution/permission-modes/mode-policy.js";
 
 export type ExecutionPolicySummaryView = {
   mode: PermissionMode;

@@ -87,7 +87,9 @@ function buildSafeAuditReport(): PermissionModeAuditReport {
   });
 }
 
-function expectExecutionReadinessFalse(report: PermissionModeAuditReport): void {
+function expectExecutionReadinessFalse(
+  report: PermissionModeAuditReport
+): void {
   expect(report.readiness).toMatchObject({
     canWriteEventStore: false,
     canApplyPatch: false,
@@ -150,9 +152,9 @@ describe("permission mode audit summary", () => {
     expect(report.status).toBe("blocked");
     expect(report.blockedCapabilityCount).toBe(1);
     expect(report.replayProjection.blockedCapabilityCount).toBe(1);
-    expect(
-      report.findings.map((finding) => finding.code)
-    ).toContain("PERMISSION_MODE_AUDIT_BLOCKED_EVENT_PREVIEW");
+    expect(report.findings.map((finding) => finding.code)).toContain(
+      "PERMISSION_MODE_AUDIT_BLOCKED_EVENT_PREVIEW"
+    );
     expectExecutionReadinessFalse(report);
   });
 

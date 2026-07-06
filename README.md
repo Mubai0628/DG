@@ -429,6 +429,9 @@ arbitrary desktop automation.
 v0.34 Permission Mode / Execution Policy references:
 
 - [v0.34 Permission Mode / Execution Policy prompts](docs/v0.34-permission-mode-execution-policy-prompts.md)
+- [v0.34.0 Permission Mode / Execution Policy RC release notes](docs/release-notes-v0.34.0-permission-mode-execution-policy-rc.1.md)
+- [Permission Mode / Execution Policy manual QA](docs/permission-mode-execution-policy-manual-qa.md)
+- [Permission Mode / Execution Policy RC checklist](docs/permission-mode-execution-policy-rc-checklist.md)
 - [v0.33 v1 Candidate Polish post-release review](docs/v0.33-v1-candidate-polish-postrelease-review.md)
 - [P1L Permission Mode / Execution Policy roadmap](docs/p1l-permission-mode-execution-policy-roadmap.md)
 - [P1L-001 Permission Mode Foundation plan](docs/p1l-001-permission-mode-foundation-plan.md)

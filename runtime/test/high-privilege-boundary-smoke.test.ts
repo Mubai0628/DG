@@ -32,7 +32,9 @@ function expectNoExecutionReadiness(decision: ExecutionPolicyDecision): void {
   });
 }
 
-function decision(capabilityKind: ExecutionCapabilityKind): ExecutionPolicyDecision {
+function decision(
+  capabilityKind: ExecutionCapabilityKind
+): ExecutionPolicyDecision {
   return evaluateExecutionPolicy({
     mode: "approval_mode",
     capabilityKind,
@@ -204,7 +206,9 @@ describe("high privilege boundary smoke", () => {
     });
 
     expect(policy.status).toBe("valid");
-    expect(policy.futureAllowedCapabilityFlags).toContain("canRunArbitraryShell");
+    expect(policy.futureAllowedCapabilityFlags).toContain(
+      "canRunArbitraryShell"
+    );
     expect(policy.readiness.canEnableFullAccessExecution).toBe(false);
     expect(policy.readiness.canRunArbitraryShell).toBe(false);
     expect(policy.readiness.canGitPush).toBe(false);

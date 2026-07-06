@@ -9397,7 +9397,8 @@ export function DesktopShell(): JSX.Element {
             <p className="fieldHelp">
               v0.34 only previews permission policy. It does not enable
               arbitrary shell, auto-apply, recursive delete, Git push,
-              autonomous loops, or raw transcript persistence.
+              autonomous loops, or raw transcript persistence. Full Access
+              remains metadata-only.
             </p>
 
             <div className="formGrid">
@@ -9662,8 +9663,8 @@ export function DesktopShell(): JSX.Element {
               <div>
                 <dt>Event previews</dt>
                 <dd>
-                  {displayedPermissionModeAudit.eventPreviewCount} / not
-                  written {displayedPermissionModeAudit.notWrittenCount}
+                  {displayedPermissionModeAudit.eventPreviewCount} / not written{" "}
+                  {displayedPermissionModeAudit.notWrittenCount}
                 </dd>
               </div>
               <div>

@@ -1,7 +1,5 @@
 import { hashPatchObject } from "../patch/hash.js";
-import type {
-  ExecutionRiskLevel,
-} from "./execution-policy-engine.js";
+import type { ExecutionRiskLevel } from "./execution-policy-engine.js";
 import type { ExecutionRiskBudget } from "./risk-budget.js";
 import type { ExecutionSessionControlState } from "./session-control.js";
 import type { PermissionSessionLease } from "./session-lease.js";
@@ -9,7 +7,7 @@ import type {
   PermissionCapabilityFlag,
   PermissionMode,
   PermissionModePolicy,
-  PermissionModeSeverity,
+  PermissionModeSeverity
 } from "./mode-policy.js";
 
 export type PermissionModeAuditEventKind =
@@ -105,17 +103,15 @@ export type PermissionModePolicyDecisionSummary = {
 export type PermissionModeAuditInput = {
   modePolicy?: PermissionModePolicy | undefined;
   sessionLease?: PermissionSessionLease | undefined;
-  policyDecisions?:
-    | readonly PermissionModePolicyDecisionSummary[]
-    | undefined;
+  policyDecisions?: readonly PermissionModePolicyDecisionSummary[] | undefined;
   riskBudget?:
-    | Pick<
+    | (Pick<
         ExecutionRiskBudget,
         "status" | "budgetId" | "mode" | "blockerCount" | "warningCount"
-      > & { budgetHash?: string | undefined; hashPrefix?: string | undefined }
+      > & { budgetHash?: string | undefined; hashPrefix?: string | undefined })
     | undefined;
   sessionControl?:
-    | Pick<
+    | (Pick<
         ExecutionSessionControlState,
         | "stateStatus"
         | "status"
@@ -125,7 +121,7 @@ export type PermissionModeAuditInput = {
         | "canKill"
         | "blockerCount"
         | "warningCount"
-      > & { sessionHash?: string | undefined; hashPrefix?: string | undefined }
+      > & { sessionHash?: string | undefined; hashPrefix?: string | undefined })
     | undefined;
   createdAt?: string | undefined;
   idGenerator?: (() => string) | undefined;
@@ -134,18 +130,22 @@ export type PermissionModeAuditInput = {
 export type PermissionModeAuditReport = {
   status: PermissionModeAuditStatus;
   auditId: string;
-  latestModePreview?: {
-    mode: PermissionMode;
-    status: PermissionModeAuditStatus;
-    policyId: string;
-    hashPrefix: string;
-  } | undefined;
-  latestLeasePreview?: {
-    mode: PermissionMode;
-    status: PermissionModeAuditStatus;
-    leaseId: string;
-    hashPrefix: string;
-  } | undefined;
+  latestModePreview?:
+    | {
+        mode: PermissionMode;
+        status: PermissionModeAuditStatus;
+        policyId: string;
+        hashPrefix: string;
+      }
+    | undefined;
+  latestLeasePreview?:
+    | {
+        mode: PermissionMode;
+        status: PermissionModeAuditStatus;
+        leaseId: string;
+        hashPrefix: string;
+      }
+    | undefined;
   blockedCapabilityCount: number;
   highRiskFutureCapabilityCount: number;
   killSwitchVisible: boolean;
@@ -226,10 +226,11 @@ export function buildPermissionModeAuditReport(
 
   scanForbidden(input, add);
 
-  const eventPreviews =
-    findings.some((finding) => finding.severity === "blocker")
-      ? []
-      : buildEventPreviews(input);
+  const eventPreviews = findings.some(
+    (finding) => finding.severity === "blocker"
+  )
+    ? []
+    : buildEventPreviews(input);
   if (eventPreviews.length === 0) {
     add(
       "event_preview",
@@ -296,7 +297,8 @@ export function buildPermissionModeAuditReport(
 
   return {
     status,
-    auditId: input.idGenerator?.() ?? `permission-audit-${auditHash.slice(0, 12)}`,
+    auditId:
+      input.idGenerator?.() ?? `permission-audit-${auditHash.slice(0, 12)}`,
     latestModePreview: input.modePolicy
       ? {
           mode: input.modePolicy.mode,
@@ -379,7 +381,11 @@ function buildEventPreviews(
     events.push({
       eventId: `${eventKind}-${hashPrefix}`,
       eventKind,
-      status: eventStatus(item.status, item.blockerCount ?? 0, item.warningCount ?? 0),
+      status: eventStatus(
+        item.status,
+        item.blockerCount ?? 0,
+        item.warningCount ?? 0
+      ),
       mode: item.mode,
       sourceRef: item.sourceRef,
       capabilityKind: item.capabilityKind,
@@ -460,8 +466,12 @@ function buildReplayProjection(
   const highRiskFutureCapabilityCount = futureAllowedCapabilityFlags.length;
   const killSwitchVisible = sessionControl?.killSwitchVisible === true;
   const killSwitchTriggered = sessionControl?.status === "killed";
-  const blockedCount = events.filter((event) => event.status === "blocked").length;
-  const warningCount = events.filter((event) => event.status === "warning").length;
+  const blockedCount = events.filter(
+    (event) => event.status === "blocked"
+  ).length;
+  const warningCount = events.filter(
+    (event) => event.status === "warning"
+  ).length;
   const status: PermissionModeReplayStatus =
     events.length === 0
       ? "empty"
@@ -482,7 +492,10 @@ function buildReplayProjection(
   return {
     status,
     modePreviewCount: countEvents(events, "permission.mode.previewed"),
-    leasePreviewCount: countEvents(events, "permission.session.lease_previewed"),
+    leasePreviewCount: countEvents(
+      events,
+      "permission.session.lease_previewed"
+    ),
     policyDecisionCount: countEvents(events, "permission.policy.evaluated"),
     riskBudgetPreviewCount: countEvents(
       events,

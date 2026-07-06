@@ -73,9 +73,10 @@ Current scope:
   Git/shell, destructive migration, telemetry upload, cloud sync, and
   auto-update without confirmation remain disabled
 - preview the v0.34 Execution Mode switch with permission policy metadata,
-  preview leases, risk budget, and kill switch summaries while arbitrary shell,
-  auto-apply, recursive delete, Git push, autonomous loops, raw output
-  persistence, Tauri calls, EventStore writes, and App execution remain disabled
+  preview leases, risk budget, kill switch summaries, permission audit/replay,
+  and high-privilege boundary smoke while arbitrary shell, auto-apply,
+  recursive delete, Git push, autonomous loops, raw output persistence, Tauri
+  calls, EventStore writes, and App execution remain disabled
 - prepare the v0.11 App-side Approved Execution MVP RC with narrow
   human-approved apply and rollback, exact typed confirmations, private
   checkpoints, summary-only approved execution events, replay counts, and E2E

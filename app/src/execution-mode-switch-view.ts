@@ -1,18 +1,20 @@
 import {
   ADVANCED_WORKSPACE_CONFIRMATION,
   FULL_ACCESS_CONFIRMATION,
-  buildExecutionRiskBudget,
-  buildExecutionSessionControlState,
-  buildPermissionModePolicy,
   buildPermissionSessionLease,
+  summarizePermissionSessionLease,
+  type PermissionSessionLease
+} from "../../runtime/src/execution/permission-modes/session-lease.js";
+import { buildExecutionRiskBudget } from "../../runtime/src/execution/permission-modes/risk-budget.js";
+import { buildExecutionSessionControlState } from "../../runtime/src/execution/permission-modes/session-control.js";
+import {
+  buildPermissionModePolicy,
   permissionCapabilityFlags,
   summarizePermissionModePolicy,
-  summarizePermissionSessionLease,
   type PermissionCapabilityFlag,
   type PermissionMode,
-  type PermissionModePolicy,
-  type PermissionSessionLease
-} from "../../runtime/src/index.js";
+  type PermissionModePolicy
+} from "../../runtime/src/execution/permission-modes/mode-policy.js";
 import {
   buildExecutionPolicySummaryView,
   type ExecutionPolicySummaryView
