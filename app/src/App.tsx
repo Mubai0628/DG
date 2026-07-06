@@ -12,11 +12,14 @@ import {
   applyApprovedUserWorkspacePatch,
   checkDesktopRunnerPreflight,
   commitProjectKnowledgeCandidate,
+  deleteTranscriptRecord,
   expireProjectKnowledgeEntry,
+  exportTranscriptSummary,
   executeApprovedDesktopAction,
   executeApprovedExpandedDesktopAction,
   generateLiveDeepSeekPatchProposal,
   getDesktopAppVersion,
+  listTranscriptRecords,
   listProjectKnowledge,
   loadWorkspaceEventSummary,
   liveProposalAllowedKeySourceRef,
@@ -25,6 +28,7 @@ import {
   recordControlRunDraftEvent,
   recordLiveProposalSummaryEvent,
   recordVerificationLaneEvent,
+  readTranscriptRecordSummary,
   revokeProjectKnowledgeEntry,
   rollbackApprovedUserWorkspacePatch,
   callMcpReadonlyTool,
@@ -51,7 +55,11 @@ import {
   type ProjectKnowledgeSnapshotResult,
   type VerificationLaneEventRecordResult,
   type ShellVerificationLaneResult,
-  type ShellVerificationTemplateId
+  type ShellVerificationTemplateId,
+  type TranscriptDeleteResult,
+  type TranscriptExportSummaryResult,
+  type TranscriptReadSummaryResult,
+  type TranscriptStoreListResult
 } from "./desktop-flow.js";
 import {
   buildControlPlaneProjectionView,
@@ -209,6 +217,11 @@ import {
   summarizeLiveProposalEvaluationTelemetryAuditView,
   type LiveProposalEvaluationTelemetryAuditView
 } from "./live-proposal-evaluation-telemetry-audit-view.js";
+import {
+  buildTranscriptViewerView,
+  summarizeTranscriptViewerView,
+  type TranscriptViewerView
+} from "./transcript-viewer-view.js";
 import {
   buildExecutionModeSwitchView,
   expectedExecutionModeConfirmation,
@@ -519,6 +532,7 @@ import {
 type RunStatus = "idle" | "running" | "done" | "error";
 type EventStatus = "idle" | "loading" | "loaded" | "error";
 type DraftEventStatus = "idle" | "recording" | "recorded" | "error";
+type TranscriptActionStatus = "idle" | "loading" | "loaded" | "error";
 type GitReadLaneStatus = "idle" | "running" | "done" | "error";
 type ShellVerificationLaneStatus = "idle" | "running" | "done" | "error";
 type McpReadonlyConnectionRunStatus = "idle" | "running" | "done" | "error";
@@ -904,6 +918,24 @@ export function DesktopShell(): JSX.Element {
     liveProposalEvaluationTelemetryAuditPreview,
     setLiveProposalEvaluationTelemetryAuditPreview
   ] = useState<LiveProposalEvaluationTelemetryAuditView | undefined>();
+  const [transcriptStoreSnapshot, setTranscriptStoreSnapshot] = useState<
+    TranscriptStoreListResult | undefined
+  >();
+  const [selectedTranscriptId, setSelectedTranscriptId] = useState("");
+  const [transcriptSummaryResult, setTranscriptSummaryResult] = useState<
+    TranscriptReadSummaryResult | undefined
+  >();
+  const [transcriptExportResult, setTranscriptExportResult] = useState<
+    TranscriptExportSummaryResult | undefined
+  >();
+  const [transcriptDeleteResult, setTranscriptDeleteResult] = useState<
+    TranscriptDeleteResult | undefined
+  >();
+  const [transcriptActionStatus, setTranscriptActionStatus] =
+    useState<TranscriptActionStatus>("idle");
+  const [transcriptActionError, setTranscriptActionError] = useState<
+    string | undefined
+  >();
   const [desktopOperatorRecoveryText, setDesktopOperatorRecoveryText] =
     useState("");
   const [desktopOperatorRecoveryPreview, setDesktopOperatorRecoveryPreview] =
@@ -2607,6 +2639,25 @@ export function DesktopShell(): JSX.Element {
   const displayedLiveProposalEvaluationTelemetryAudit =
     liveProposalEvaluationTelemetryAuditPreview ??
     buildLiveProposalEvaluationTelemetryAuditView();
+  const displayedTranscriptViewer = useMemo<TranscriptViewerView>(
+    () =>
+      buildTranscriptViewerView({
+        storeResult: transcriptStoreSnapshot,
+        selectedTranscriptId,
+        readResult: transcriptSummaryResult,
+        exportResult: transcriptExportResult,
+        deleteResult: transcriptDeleteResult,
+        actionError: transcriptActionError
+      }),
+    [
+      selectedTranscriptId,
+      transcriptActionError,
+      transcriptDeleteResult,
+      transcriptExportResult,
+      transcriptStoreSnapshot,
+      transcriptSummaryResult
+    ]
+  );
   const displayedAppDataInventorySchema = useMemo<AppDataInventorySchemaView>(
     () =>
       buildAppDataInventorySchemaView({
@@ -4504,6 +4555,95 @@ export function DesktopShell(): JSX.Element {
   function handleClearPluginSkillRedactionAudit(): void {
     setPluginSkillAuditText("");
     setPluginSkillRedactionAuditPreview(undefined);
+  }
+
+  async function handleRefreshTranscripts(): Promise<void> {
+    setTranscriptActionStatus("loading");
+    setTranscriptActionError(undefined);
+    try {
+      const snapshot = await listTranscriptRecords(workspaceRoot);
+      setTranscriptStoreSnapshot(snapshot);
+      if (
+        selectedTranscriptId.trim().length === 0 &&
+        snapshot.records[0] !== undefined
+      ) {
+        setSelectedTranscriptId(snapshot.records[0].transcriptId);
+      }
+      setTranscriptSummaryResult(undefined);
+      setTranscriptExportResult(undefined);
+      setTranscriptDeleteResult(undefined);
+      setTranscriptActionStatus("loaded");
+    } catch (caught) {
+      setTranscriptActionError(safeErrorMessage(caught));
+      setTranscriptActionStatus("error");
+    }
+  }
+
+  async function handlePreviewTranscriptSummary(): Promise<void> {
+    if (selectedTranscriptId.trim().length === 0) {
+      setTranscriptActionError("Transcript id is required.");
+      setTranscriptActionStatus("error");
+      return;
+    }
+    setTranscriptActionStatus("loading");
+    setTranscriptActionError(undefined);
+    try {
+      const result = await readTranscriptRecordSummary({
+        workspaceRoot,
+        transcriptId: selectedTranscriptId
+      });
+      setTranscriptSummaryResult(result);
+      setTranscriptActionStatus("loaded");
+    } catch (caught) {
+      setTranscriptActionError(safeErrorMessage(caught));
+      setTranscriptActionStatus("error");
+    }
+  }
+
+  async function handleDeleteTranscript(): Promise<void> {
+    if (selectedTranscriptId.trim().length === 0) {
+      setTranscriptActionError("Transcript id is required.");
+      setTranscriptActionStatus("error");
+      return;
+    }
+    setTranscriptActionStatus("loading");
+    setTranscriptActionError(undefined);
+    try {
+      const result = await deleteTranscriptRecord({
+        workspaceRoot,
+        transcriptId: selectedTranscriptId
+      });
+      setTranscriptDeleteResult(result);
+      setTranscriptSummaryResult(undefined);
+      setTranscriptExportResult(undefined);
+      const snapshot = await listTranscriptRecords(workspaceRoot);
+      setTranscriptStoreSnapshot(snapshot);
+      setTranscriptActionStatus("loaded");
+    } catch (caught) {
+      setTranscriptActionError(safeErrorMessage(caught));
+      setTranscriptActionStatus("error");
+    }
+  }
+
+  async function handleExportTranscriptSummary(): Promise<void> {
+    if (selectedTranscriptId.trim().length === 0) {
+      setTranscriptActionError("Transcript id is required.");
+      setTranscriptActionStatus("error");
+      return;
+    }
+    setTranscriptActionStatus("loading");
+    setTranscriptActionError(undefined);
+    try {
+      const result = await exportTranscriptSummary({
+        workspaceRoot,
+        transcriptId: selectedTranscriptId
+      });
+      setTranscriptExportResult(result);
+      setTranscriptActionStatus("loaded");
+    } catch (caught) {
+      setTranscriptActionError(safeErrorMessage(caught));
+      setTranscriptActionStatus("error");
+    }
   }
 
   async function handleRefreshProjectKnowledge(): Promise<void> {
@@ -19508,6 +19648,347 @@ export function DesktopShell(): JSX.Element {
                 ).source
               }{" "}
               · {displayedExternalCapabilityAuditSurface.nextAction}
+            </p>
+          </section>
+
+          <section className="eventPanel" aria-label="Transcript Viewer">
+            <div className="panelHeader">
+              <h2>Transcript Viewer</h2>
+              <span className="muted">
+                Redacted by default / no command execution
+              </span>
+            </div>
+            <p className="fieldHelp">
+              Review transcript summaries, redaction counts, retention
+              metadata, warnings, and hashes. The App Shell does not show raw
+              output by default, run commands, replay commands, execute Git or
+              shell, apply patches, rollback, or write EventStore events.
+            </p>
+
+            <div className="formGrid">
+              <label>
+                <span>Transcript id</span>
+                <input
+                  value={selectedTranscriptId}
+                  onChange={(event) => {
+                    setSelectedTranscriptId(event.target.value);
+                    setTranscriptSummaryResult(undefined);
+                    setTranscriptExportResult(undefined);
+                    setTranscriptDeleteResult(undefined);
+                  }}
+                  placeholder="transcript-id"
+                />
+              </label>
+              <label>
+                <span>Loaded transcripts</span>
+                <select
+                  value={selectedTranscriptId}
+                  onChange={(event) => {
+                    setSelectedTranscriptId(event.target.value);
+                    setTranscriptSummaryResult(undefined);
+                    setTranscriptExportResult(undefined);
+                    setTranscriptDeleteResult(undefined);
+                  }}
+                >
+                  <option value="">Select transcript</option>
+                  {displayedTranscriptViewer.summaries.map((summary) => (
+                    <option
+                      key={summary.transcriptId}
+                      value={summary.transcriptId}
+                    >
+                      {summary.transcriptId}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            </div>
+
+            <div className="buttonRow">
+              <button
+                type="button"
+                className="secondary"
+                disabled={
+                  workspaceRoot.trim().length === 0 ||
+                  transcriptActionStatus === "loading"
+                }
+                onClick={(event) => {
+                  event.preventDefault();
+                  event.stopPropagation();
+                  handleRefreshTranscripts().catch((caught) => {
+                    setTranscriptActionError(safeErrorMessage(caught));
+                    setTranscriptActionStatus("error");
+                  });
+                }}
+              >
+                Refresh Transcripts
+              </button>
+              <button
+                type="button"
+                className="secondary"
+                disabled={
+                  selectedTranscriptId.trim().length === 0 ||
+                  transcriptActionStatus === "loading"
+                }
+                onClick={(event) => {
+                  event.preventDefault();
+                  event.stopPropagation();
+                  handlePreviewTranscriptSummary().catch((caught) => {
+                    setTranscriptActionError(safeErrorMessage(caught));
+                    setTranscriptActionStatus("error");
+                  });
+                }}
+              >
+                Preview Transcript Summary
+              </button>
+              <button
+                type="button"
+                className="secondary"
+                disabled={
+                  !displayedTranscriptViewer.readiness.canDeleteTranscript ||
+                  transcriptActionStatus === "loading"
+                }
+                onClick={(event) => {
+                  event.preventDefault();
+                  event.stopPropagation();
+                  handleDeleteTranscript().catch((caught) => {
+                    setTranscriptActionError(safeErrorMessage(caught));
+                    setTranscriptActionStatus("error");
+                  });
+                }}
+              >
+                Delete Transcript
+              </button>
+              <button
+                type="button"
+                className="secondary"
+                disabled={
+                  !displayedTranscriptViewer.readiness.canExportSummary ||
+                  transcriptActionStatus === "loading"
+                }
+                onClick={(event) => {
+                  event.preventDefault();
+                  event.stopPropagation();
+                  handleExportTranscriptSummary().catch((caught) => {
+                    setTranscriptActionError(safeErrorMessage(caught));
+                    setTranscriptActionStatus("error");
+                  });
+                }}
+              >
+                Export Summary
+              </button>
+              <button type="button" className="secondary" disabled>
+                View Raw Output (disabled unless gated)
+              </button>
+              <button type="button" className="secondary" disabled>
+                Run Command (disabled)
+              </button>
+              <button type="button" className="secondary" disabled>
+                Replay Command (disabled)
+              </button>
+            </div>
+
+            {transcriptActionError !== undefined ? (
+              <div className="errorBox">
+                <strong>Transcript action warning</strong>
+                <p>{transcriptActionError}</p>
+              </div>
+            ) : null}
+
+            {displayedTranscriptViewer.status === "empty" ? (
+              <p className="empty">
+                No transcript summaries loaded. Refresh transcripts after a
+                validated transcript record has been stored.
+              </p>
+            ) : null}
+
+            {displayedTranscriptViewer.status === "blocked" ? (
+              <div className="errorBox">
+                <strong>Transcript viewer blocked</strong>
+                <p>{displayedTranscriptViewer.nextAction}</p>
+              </div>
+            ) : null}
+
+            <dl className="summaryGrid compact">
+              <div>
+                <dt>Status</dt>
+                <dd>{displayedTranscriptViewer.status}</dd>
+              </div>
+              <div>
+                <dt>Transcript count</dt>
+                <dd>{displayedTranscriptViewer.transcriptCount}</dd>
+              </div>
+              <div>
+                <dt>Selected transcript</dt>
+                <dd>{displayedTranscriptViewer.selectedTranscriptId ?? "n/a"}</dd>
+              </div>
+              <div>
+                <dt>Source kind</dt>
+                <dd>
+                  {displayedTranscriptViewer.selectedSummary?.sourceKind ??
+                    "n/a"}
+                </dd>
+              </div>
+              <div>
+                <dt>Session</dt>
+                <dd>
+                  {displayedTranscriptViewer.selectedSummary?.sessionId ??
+                    "n/a"}
+                </dd>
+              </div>
+              <div>
+                <dt>Workspace ref</dt>
+                <dd>
+                  {displayedTranscriptViewer.selectedSummary
+                    ?.workspaceRootRef ?? "n/a"}
+                </dd>
+              </div>
+              <div>
+                <dt>Chunks / redactions</dt>
+                <dd>
+                  {displayedTranscriptViewer.selectedSummary?.chunkCount ??
+                    displayedTranscriptViewer.totalChunkCount}{" "}
+                  / {displayedTranscriptViewer.redactedFieldCount}
+                </dd>
+              </div>
+              <div>
+                <dt>Bytes / lines</dt>
+                <dd>
+                  {displayedTranscriptViewer.selectedSummary?.byteCount ??
+                    displayedTranscriptViewer.totalByteCount}{" "}
+                  /{" "}
+                  {displayedTranscriptViewer.selectedSummary?.lineCount ??
+                    displayedTranscriptViewer.totalLineCount}
+                </dd>
+              </div>
+              <div>
+                <dt>Raw available chunks</dt>
+                <dd>
+                  {displayedTranscriptViewer.selectedSummary
+                    ?.rawAvailableChunkCount ?? 0}
+                </dd>
+              </div>
+              <div>
+                <dt>Retention</dt>
+                <dd>
+                  {displayedTranscriptViewer.selectedSummary === undefined
+                    ? "n/a"
+                    : `${displayedTranscriptViewer.selectedSummary.retainDays} day(s)`}
+                </dd>
+              </div>
+              <div>
+                <dt>Raw retention</dt>
+                <dd>
+                  {displayedTranscriptViewer.selectedSummary
+                    ?.rawRetentionDays ?? "n/a"}
+                </dd>
+              </div>
+              <div>
+                <dt>Export / delete</dt>
+                <dd>
+                  {displayedTranscriptViewer.selectedSummary?.exportAllowed
+                    ? "yes"
+                    : "no"}{" "}
+                  /{" "}
+                  {displayedTranscriptViewer.selectedSummary?.deleteAllowed
+                    ? "yes"
+                    : "no"}
+                </dd>
+              </div>
+              <div>
+                <dt>Tombstone</dt>
+                <dd>
+                  {displayedTranscriptViewer.selectedSummary?.tombstoneOnDelete
+                    ? "yes"
+                    : "no"}
+                </dd>
+              </div>
+              <div>
+                <dt>Warnings</dt>
+                <dd>{displayedTranscriptViewer.warningCodes.length}</dd>
+              </div>
+              <div>
+                <dt>Hash</dt>
+                <dd>
+                  {displayedTranscriptViewer.selectedSummary?.transcriptHash ??
+                    displayedTranscriptViewer.hashPrefix}
+                </dd>
+              </div>
+              <div>
+                <dt>Latest export</dt>
+                <dd>{displayedTranscriptViewer.latestExportHash ?? "n/a"}</dd>
+              </div>
+              <div>
+                <dt>Latest delete</dt>
+                <dd>{displayedTranscriptViewer.latestDeleteStatus ?? "n/a"}</dd>
+              </div>
+              <div>
+                <dt>Raw view / run</dt>
+                <dd>
+                  {displayedTranscriptViewer.readiness.canViewRawOutput
+                    ? "yes"
+                    : "no"}{" "}
+                  /{" "}
+                  {displayedTranscriptViewer.readiness.canRunCommand
+                    ? "yes"
+                    : "no"}
+                </dd>
+              </div>
+              <div>
+                <dt>Replay / EventStore</dt>
+                <dd>
+                  {displayedTranscriptViewer.readiness.canReplayCommand
+                    ? "yes"
+                    : "no"}{" "}
+                  /{" "}
+                  {displayedTranscriptViewer.readiness.canWriteEventStore
+                    ? "yes"
+                    : "no"}
+                </dd>
+              </div>
+              <div>
+                <dt>Git / shell</dt>
+                <dd>
+                  {displayedTranscriptViewer.readiness.canExecuteGit
+                    ? "yes"
+                    : "no"}{" "}
+                  /{" "}
+                  {displayedTranscriptViewer.readiness.canExecuteShell
+                    ? "yes"
+                    : "no"}
+                </dd>
+              </div>
+              <div>
+                <dt>Apply / rollback</dt>
+                <dd>
+                  {displayedTranscriptViewer.readiness.canApplyPatch
+                    ? "yes"
+                    : "no"}{" "}
+                  /{" "}
+                  {displayedTranscriptViewer.readiness.canRollback
+                    ? "yes"
+                    : "no"}
+                </dd>
+              </div>
+            </dl>
+
+            {displayedTranscriptViewer.warningCodes.length > 0 ? (
+              <p className="muted">
+                warnings {displayedTranscriptViewer.warningCodes.join(", ")}
+              </p>
+            ) : null}
+
+            {displayedTranscriptViewer.findings.length > 0 ? (
+              <p className="muted">
+                findings{" "}
+                {displayedTranscriptViewer.findings
+                  .map((finding) => finding.code)
+                  .join(", ")}
+              </p>
+            ) : null}
+
+            <p className="fieldHelp">
+              {summarizeTranscriptViewerView(displayedTranscriptViewer).source} ·{" "}
+              {displayedTranscriptViewer.nextAction}
             </p>
           </section>
 

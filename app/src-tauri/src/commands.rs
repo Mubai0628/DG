@@ -962,6 +962,7 @@ pub struct TranscriptRecordSummary {
     transcript_id: String,
     schema_version: String,
     session_id: String,
+    workspace_root_ref: String,
     source_kind: String,
     visibility: String,
     mode: String,
@@ -971,6 +972,11 @@ pub struct TranscriptRecordSummary {
     line_count: u64,
     redacted_field_count: u64,
     secret_marker_count: u64,
+    retain_days: u64,
+    raw_retention_days: Option<u64>,
+    export_allowed: bool,
+    delete_allowed: bool,
+    tombstone_on_delete: bool,
     warning_codes: Vec<String>,
     transcript_hash: String,
     summary_only: bool,
@@ -7458,6 +7464,7 @@ fn validate_transcript_record_value(
     let transcript_id = transcript_required_string(object, "transcriptId")?;
     validate_transcript_id(transcript_id)?;
     let session_id = transcript_required_string(object, "sessionId")?;
+    let workspace_root_ref = transcript_required_string(object, "workspaceRootRef")?;
     let source_kind = transcript_required_string(object, "sourceKind")?;
     let visibility = transcript_required_string(object, "visibility")?;
     let mode = transcript_required_string(object, "mode")?;
@@ -7542,15 +7549,24 @@ fn validate_transcript_record_value(
             ));
         }
     }
-    if transcript_u64(retention, "retainDays").is_none()
-        || transcript_bool(retention, "exportAllowed").is_none()
-        || transcript_bool(retention, "deleteAllowed").is_none()
-        || transcript_bool(retention, "tombstoneOnDelete").is_none()
-    {
+    let retain_days = transcript_u64(retention, "retainDays").ok_or_else(|| {
+        transcript_store_invalid("Transcript retention policy is incomplete")
+    })?;
+    let export_allowed = transcript_bool(retention, "exportAllowed").ok_or_else(|| {
+        transcript_store_invalid("Transcript retention policy is incomplete")
+    })?;
+    let delete_allowed = transcript_bool(retention, "deleteAllowed").ok_or_else(|| {
+        transcript_store_invalid("Transcript retention policy is incomplete")
+    })?;
+    let tombstone_on_delete = transcript_bool(retention, "tombstoneOnDelete").ok_or_else(|| {
+        transcript_store_invalid("Transcript retention policy is incomplete")
+    })?;
+    if retain_days > 3650 {
         return Err(transcript_store_invalid(
-            "Transcript retention policy is incomplete",
+            "Transcript retention policy is outside the allowed range",
         ));
     }
+    let raw_retention_days = transcript_u64(retention, "rawRetentionDays");
     warning_codes.sort();
     warning_codes.dedup();
     let transcript_hash = object
@@ -7565,6 +7581,7 @@ fn validate_transcript_record_value(
         transcript_id: transcript_id.to_string(),
         schema_version: TRANSCRIPT_SCHEMA_VERSION.to_string(),
         session_id: sanitize_safe_message(session_id),
+        workspace_root_ref: sanitize_safe_message(workspace_root_ref),
         source_kind: sanitize_safe_message(source_kind),
         visibility: sanitize_safe_message(visibility),
         mode: sanitize_safe_message(mode),
@@ -7574,6 +7591,11 @@ fn validate_transcript_record_value(
         line_count,
         redacted_field_count,
         secret_marker_count,
+        retain_days,
+        raw_retention_days,
+        export_allowed,
+        delete_allowed,
+        tombstone_on_delete,
         warning_codes,
         transcript_hash,
         summary_only: true,

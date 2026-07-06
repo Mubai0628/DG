@@ -77,6 +77,10 @@ Current scope:
   and high-privilege boundary smoke while arbitrary shell, auto-apply,
   recursive delete, Git push, autonomous loops, raw output persistence, Tauri
   calls, EventStore writes, and App execution remain disabled
+- preview the P1M Transcript Viewer as a redacted-by-default summary surface
+  for transcript counts, retention metadata, warnings, and hashes while raw
+  output viewing, command replay, Git/shell execution, apply/rollback, and
+  EventStore writes remain disabled
 - prepare the v0.11 App-side Approved Execution MVP RC with narrow
   human-approved apply and rollback, exact typed confirmations, private
   checkpoints, summary-only approved execution events, replay counts, and E2E

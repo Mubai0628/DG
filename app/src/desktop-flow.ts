@@ -563,6 +563,7 @@ export type TranscriptRecordSummary = {
   transcriptId: string;
   schemaVersion: "transcript_record.v1";
   sessionId: string;
+  workspaceRootRef: string;
   sourceKind: string;
   visibility: "summary_only" | "redacted_preview" | "raw_available_gated";
   mode: string;
@@ -572,6 +573,11 @@ export type TranscriptRecordSummary = {
   lineCount: number;
   redactedFieldCount: number;
   secretMarkerCount: number;
+  retainDays: number;
+  rawRetentionDays?: number | undefined;
+  exportAllowed: boolean;
+  deleteAllowed: boolean;
+  tombstoneOnDelete: boolean;
   warningCodes: string[];
   transcriptHash: string;
   summaryOnly: true;
@@ -2701,6 +2707,7 @@ function normalizeTranscriptRecordSummary(
     typeof record.transcriptId !== "string" ||
     record.schemaVersion !== "transcript_record.v1" ||
     typeof record.sessionId !== "string" ||
+    typeof record.workspaceRootRef !== "string" ||
     typeof record.sourceKind !== "string" ||
     (record.visibility !== "summary_only" &&
       record.visibility !== "redacted_preview" &&
@@ -2712,6 +2719,12 @@ function normalizeTranscriptRecordSummary(
     typeof record.lineCount !== "number" ||
     typeof record.redactedFieldCount !== "number" ||
     typeof record.secretMarkerCount !== "number" ||
+    typeof record.retainDays !== "number" ||
+    (record.rawRetentionDays !== undefined &&
+      typeof record.rawRetentionDays !== "number") ||
+    typeof record.exportAllowed !== "boolean" ||
+    typeof record.deleteAllowed !== "boolean" ||
+    typeof record.tombstoneOnDelete !== "boolean" ||
     !Array.isArray(record.warningCodes) ||
     typeof record.transcriptHash !== "string" ||
     record.summaryOnly !== true ||
@@ -2727,6 +2740,7 @@ function normalizeTranscriptRecordSummary(
     transcriptId: safeErrorMessage(record.transcriptId),
     schemaVersion: "transcript_record.v1",
     sessionId: safeErrorMessage(record.sessionId),
+    workspaceRootRef: safeErrorMessage(record.workspaceRootRef),
     sourceKind: safeErrorMessage(record.sourceKind),
     visibility: record.visibility,
     mode: safeErrorMessage(record.mode),
@@ -2736,6 +2750,13 @@ function normalizeTranscriptRecordSummary(
     lineCount: record.lineCount,
     redactedFieldCount: record.redactedFieldCount,
     secretMarkerCount: record.secretMarkerCount,
+    retainDays: record.retainDays,
+    ...(record.rawRetentionDays !== undefined
+      ? { rawRetentionDays: record.rawRetentionDays }
+      : {}),
+    exportAllowed: record.exportAllowed,
+    deleteAllowed: record.deleteAllowed,
+    tombstoneOnDelete: record.tombstoneOnDelete,
     warningCodes: record.warningCodes.filter(
       (item): item is string => typeof item === "string"
     ),

@@ -126,6 +126,7 @@ import {
   parseLiveProposalEvaluationSummaryJson
 } from "../src/live-proposal-evaluation-summary-view.js";
 import { buildLiveProposalEvaluationTelemetryAuditView } from "../src/live-proposal-evaluation-telemetry-audit-view.js";
+import { buildTranscriptViewerView } from "../src/transcript-viewer-view.js";
 import {
   buildAppDataInventorySchemaView,
   summarizeAppDataInventorySchemaView
@@ -4183,6 +4184,7 @@ describe("desktop command wrapper", () => {
       transcriptId: "transcript-wrapper-safe",
       schemaVersion: "transcript_record.v1",
       sessionId: "session-wrapper-safe",
+      workspaceRootRef: "workspace:test",
       sourceKind: "shell_safe_lane",
       visibility: "summary_only",
       mode: "approval_mode",
@@ -4192,6 +4194,10 @@ describe("desktop command wrapper", () => {
       lineCount: 1,
       redactedFieldCount: 1,
       secretMarkerCount: 0,
+      retainDays: 14,
+      exportAllowed: true,
+      deleteAllowed: true,
+      tombstoneOnDelete: true,
       warningCodes: [],
       transcriptHash: "transcript-wrapper-hash",
       summaryOnly: true,
@@ -4358,6 +4364,128 @@ describe("desktop command wrapper", () => {
     expect(desktopFlowSource).toContain("export_transcript_summary");
     expect(desktopFlowSource).not.toContain("runTranscriptCommand");
     expect(desktopFlowSource).not.toContain("invokeTranscriptCommand");
+  });
+
+  it("builds a redacted transcript viewer from summary-only records", () => {
+    const summary = {
+      transcriptId: "transcript-viewer-safe",
+      schemaVersion: "transcript_record.v1" as const,
+      sessionId: "session-viewer-safe",
+      workspaceRootRef: "workspace:test",
+      sourceKind: "shell_safe_lane",
+      visibility: "summary_only" as const,
+      mode: "approval_mode",
+      chunkCount: 2,
+      rawAvailableChunkCount: 0,
+      byteCount: 256,
+      lineCount: 4,
+      redactedFieldCount: 2,
+      secretMarkerCount: 0,
+      retainDays: 14,
+      exportAllowed: true,
+      deleteAllowed: true,
+      tombstoneOnDelete: true,
+      warningCodes: ["WINDOWS_PATH_REDACTED"],
+      transcriptHash: "transcript-viewer-hash",
+      summaryOnly: true as const,
+      rawContentIncluded: false as const
+    };
+    const view = buildTranscriptViewerView({
+      storeResult: {
+        ok: true,
+        status: "ready",
+        storePath: "workspace/.deepseek-workbench/transcripts",
+        recordCount: 1,
+        records: [summary],
+        warnings: [],
+        snapshotHash: "snapshot-hash",
+        summaryOnly: true,
+        rawContentIncluded: false,
+        safeMessage: "Transcript store listed."
+      },
+      selectedTranscriptId: "transcript-viewer-safe"
+    });
+    const blocked = buildTranscriptViewerView({
+      storeResult: {
+        ok: true,
+        status: "ready",
+        storePath: "workspace/.deepseek-workbench/transcripts",
+        recordCount: 0,
+        records: [],
+        warnings: [],
+        snapshotHash: "snapshot-hash",
+        summaryOnly: true,
+        rawContentIncluded: false,
+        safeMessage: "Transcript store listed.",
+        [["raw", "Prompt"].join("")]: "Synthetic raw prompt"
+      } as never
+    });
+    const serialized = JSON.stringify(view);
+
+    expect(view.status).toBe("warning");
+    expect(view.transcriptCount).toBe(1);
+    expect(view.selectedSummary?.retainDays).toBe(14);
+    expect(view.readiness.canDeleteTranscript).toBe(true);
+    expect(view.readiness.canExportSummary).toBe(true);
+    expect(view.readiness.canViewRawOutput).toBe(false);
+    expect(view.readiness.canRunCommand).toBe(false);
+    expect(view.readiness.canReplayCommand).toBe(false);
+    expect(view.readiness.canExecuteGit).toBe(false);
+    expect(view.readiness.canExecuteShell).toBe(false);
+    expect(view.readiness.canApplyPatch).toBe(false);
+    expect(view.readiness.canRollback).toBe(false);
+    expect(view.readiness.canWriteEventStore).toBe(false);
+    expect(blocked.status).toBe("blocked");
+    expect(serialized).not.toContain("raw output body");
+    expect(serialized).not.toContain("Authorization");
+    expect(serialized).not.toContain("sk-");
+  });
+
+  it("renders the Transcript Viewer as redacted and non-executing", async () => {
+    const appSource = await readFile(path.join(appRoot, "src", "App.tsx"), "utf8");
+    const viewerSource = await readFile(
+      path.join(appRoot, "src", "transcript-viewer-view.ts"),
+      "utf8"
+    );
+    const doc = await readFile(
+      path.join(repoRoot, "docs", "app-shell-transcript-viewer-v0.34.md"),
+      "utf8"
+    );
+    const docsIndex = await readFile(
+      path.join(repoRoot, "docs", "README.md"),
+      "utf8"
+    );
+    const appReadme = await readFile(path.join(appRoot, "README.md"), "utf8");
+    const combined = `${appSource}\n${viewerSource}\n${doc}\n${docsIndex}\n${appReadme}`;
+    const sourceCombined = `${appSource}\n${viewerSource}`;
+
+    expect(appSource).toContain("Transcript Viewer");
+    expect(appSource).toContain("Redacted by default / no command execution");
+    expect(appSource).toContain("Refresh Transcripts");
+    expect(appSource).toContain("Preview Transcript Summary");
+    expect(appSource).toContain("Delete Transcript");
+    expect(appSource).toContain("Export Summary");
+    expect(appSource).toContain("Workspace ref");
+    expect(appSource).toContain("View Raw Output (disabled unless gated)");
+    expect(appSource).toContain("Run Command (disabled)");
+    expect(appSource).toContain("Replay Command (disabled)");
+    expect(appSource).toContain("listTranscriptRecords");
+    expect(appSource).toContain("readTranscriptRecordSummary");
+    expect(appSource).toContain("deleteTranscriptRecord");
+    expect(appSource).toContain("exportTranscriptSummary");
+    expect(appSource).not.toContain("runTranscriptCommand");
+    expect(appSource).not.toContain("invokeTranscriptCommand");
+    expect(sourceCombined).not.toContain("localStorage");
+    expect(sourceCombined).not.toContain("sessionStorage");
+    expect(doc).toContain("App Shell Transcript Viewer v0.34");
+    expect(doc).toContain("No shell execution");
+    expect(doc).toContain("No Git execution");
+    expect(doc).toContain("No command replay");
+    expect(doc).toContain("No apply or rollback");
+    expect(doc).toContain("No raw output by default");
+    expect(doc).toContain("transcript id, not a path");
+    expect(docsIndex).toContain("app-shell-transcript-viewer-v0.34.md");
+    expect(appReadme).toContain("P1M Transcript Viewer");
   });
 
   function safeLiveProposalCommandRequest(): LiveDeepSeekPatchProposalCommandRequest {
