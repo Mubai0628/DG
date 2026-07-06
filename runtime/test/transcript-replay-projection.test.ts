@@ -66,7 +66,9 @@ describe("transcript replay projection", () => {
     expect(projection.deletedCount).toBe(1);
     expect(projection.exportedSummaryCount).toBe(1);
     expect(projection.transcriptIds).toEqual(["transcript-1"]);
-    expect(summary.latestTranscriptSummary).toContain("transcript summary exported");
+    expect(summary.latestTranscriptSummary).toContain(
+      "transcript summary exported"
+    );
     expect(serialized).not.toContain("raw output body");
     expect(serialized).not.toContain("Authorization:");
     expect(serialized).not.toContain("sk-");
@@ -91,13 +93,17 @@ describe("transcript replay projection", () => {
     expect(projection.findings.map((finding) => finding.code)).toContain(
       "rawOutput_FIELD_REJECTED"
     );
-    expect(JSON.stringify(projection)).not.toContain("synthetic raw output body");
+    expect(JSON.stringify(projection)).not.toContain(
+      "synthetic raw output body"
+    );
     expectNoExecution(projection);
   });
 
   it("blocks unsupported transcript events", () => {
     const projection = buildTranscriptReplayProjection({
-      events: [event("transcript.record.raw_exported", "transcript-unsupported")]
+      events: [
+        event("transcript.record.raw_exported", "transcript-unsupported")
+      ]
     });
 
     expect(projection.status).toBe("blocked");

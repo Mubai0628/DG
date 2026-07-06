@@ -174,7 +174,9 @@ describe("transcript retention policy", () => {
       now: "2026-07-06T00:00:00.000Z",
       requestedTranscriptIds: ["transcript-protected"],
       protectedTranscriptIds: ["transcript-protected"],
-      transcripts: [transcript("transcript-protected", "2026-06-01T00:00:00.000Z")]
+      transcripts: [
+        transcript("transcript-protected", "2026-06-01T00:00:00.000Z")
+      ]
     });
 
     expect(plan.status).toBe("blocked");
@@ -190,7 +192,9 @@ describe("transcript retention policy", () => {
     });
     const exportPlan = buildTranscriptExportPlan({
       exportPath: "D:/outside/export.json",
-      transcripts: [transcript("transcript-export-path", "2026-06-01T00:00:00.000Z")]
+      transcripts: [
+        transcript("transcript-export-path", "2026-06-01T00:00:00.000Z")
+      ]
     });
 
     expect(deletePlan.status).toBe("blocked");
@@ -206,7 +210,9 @@ describe("transcript retention policy", () => {
     const plan = buildTranscriptDeletePlan({
       recursiveDelete: true,
       allowBulkDeleteExecution: true,
-      transcripts: [transcript("transcript-recursive", "2026-06-01T00:00:00.000Z")]
+      transcripts: [
+        transcript("transcript-recursive", "2026-06-01T00:00:00.000Z")
+      ]
     });
 
     expect(plan.status).toBe("blocked");
@@ -230,13 +236,17 @@ describe("transcript retention policy", () => {
       now: "2026-07-06T00:00:00.000Z",
       createdAt: "2026-07-06T00:00:00.000Z",
       idGenerator: () => "retention-plan-test",
-      transcripts: [transcript("transcript-deterministic", "2026-06-01T00:00:00.000Z")]
+      transcripts: [
+        transcript("transcript-deterministic", "2026-06-01T00:00:00.000Z")
+      ]
     });
     const second = buildTranscriptRetentionPlan({
       now: "2026-07-06T00:00:00.000Z",
       createdAt: "2026-07-06T00:00:00.000Z",
       idGenerator: () => "retention-plan-test",
-      transcripts: [transcript("transcript-deterministic", "2026-06-01T00:00:00.000Z")]
+      transcripts: [
+        transcript("transcript-deterministic", "2026-06-01T00:00:00.000Z")
+      ]
     });
 
     expect(first.planId).toBe("retention-plan-test");

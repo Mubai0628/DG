@@ -113,15 +113,22 @@ export type TranscriptCaptureResult = {
 const authHeader = ["Author", "ization"].join("");
 const bearerWord = ["Bear", "er"].join("");
 const privateKeyMarker = ["-----BEGIN", " PRIVATE KEY-----"].join("");
-const tokenQueryPattern = /([?&](?:token|key|api_key|access_token|secret)=)[^&\s]+/gi;
+const tokenQueryPattern =
+  /([?&](?:token|key|api_key|access_token|secret)=)[^&\s]+/gi;
 const apiKeyPattern = /\bsk-[A-Za-z0-9_-]{8,}\b/g;
-const bearerPattern = new RegExp(`\\b${bearerWord}\\s+[A-Za-z0-9._-]{12,}\\b`, "g");
+const bearerPattern = new RegExp(
+  `\\b${bearerWord}\\s+[A-Za-z0-9._-]{12,}\\b`,
+  "g"
+);
 const authPattern = new RegExp(`\\b${authHeader}\\s*[:=]\\s*[^\\r\\n]+`, "gi");
 const tokenLikePattern = /\b[A-Za-z0-9_-]{32,}\b/g;
+// eslint-disable-next-line no-control-regex
 const ansiPattern = /\u001b\[[0-?]*[ -/]*[@-~]/g;
+// eslint-disable-next-line no-control-regex
 const controlCharPattern = /[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f]/g;
 const windowsPathPattern = /\b[A-Za-z]:\\[^\r\n]+/;
-const stacktracePattern = /\bat\s+[\w.$<>]+\s*\(|Traceback \(most recent call last\):/;
+const stacktracePattern =
+  /\bat\s+[\w.$<>]+\s*\(|Traceback \(most recent call last\):/;
 const commandEchoPattern = /^(?:\$|>|PS [^>]+>)\s+/m;
 const defaultMaxSummaryLength = 4000;
 
@@ -132,7 +139,7 @@ export function redactTranscriptText(
   const maxSummaryLength =
     typeof input === "string"
       ? defaultMaxSummaryLength
-      : input.maxSummaryLength ?? defaultMaxSummaryLength;
+      : (input.maxSummaryLength ?? defaultMaxSummaryLength);
   const findings: TranscriptRedactionFinding[] = [];
   const originalByteCount = byteCount(text);
   const binaryLike = text.includes("\u0000");
@@ -153,14 +160,23 @@ export function redactTranscriptText(
     return "";
   });
 
-  redactedText = replaceAndCount(redactedText, authPattern, "[REDACTED_AUTH]", () =>
-    findings.push(warning("secret", "AUTHORIZATION_REDACTED"))
+  redactedText = replaceAndCount(
+    redactedText,
+    authPattern,
+    "[REDACTED_AUTH]",
+    () => findings.push(warning("secret", "AUTHORIZATION_REDACTED"))
   );
-  redactedText = replaceAndCount(redactedText, bearerPattern, "[REDACTED_BEARER]", () =>
-    findings.push(warning("secret", "BEARER_REDACTED"))
+  redactedText = replaceAndCount(
+    redactedText,
+    bearerPattern,
+    "[REDACTED_BEARER]",
+    () => findings.push(warning("secret", "BEARER_REDACTED"))
   );
-  redactedText = replaceAndCount(redactedText, apiKeyPattern, "[REDACTED_API_KEY]", () =>
-    findings.push(warning("secret", "API_KEY_REDACTED"))
+  redactedText = replaceAndCount(
+    redactedText,
+    apiKeyPattern,
+    "[REDACTED_API_KEY]",
+    () => findings.push(warning("secret", "API_KEY_REDACTED"))
   );
   redactedText = replaceAndCount(
     redactedText,
@@ -193,10 +209,12 @@ export function redactTranscriptText(
   }
 
   const safeFindings = withIds(uniqueFindings(findings));
-  const blockerCount = safeFindings.filter((finding) => finding.severity === "blocker")
-    .length;
-  const warningCount = safeFindings.filter((finding) => finding.severity === "warning")
-    .length;
+  const blockerCount = safeFindings.filter(
+    (finding) => finding.severity === "blocker"
+  ).length;
+  const warningCount = safeFindings.filter(
+    (finding) => finding.severity === "warning"
+  ).length;
   const warningCodes = safeFindings
     .filter((finding) => finding.severity === "warning")
     .map((finding) => finding.code);
@@ -251,8 +269,9 @@ export function validateTranscriptCaptureInput(
     findings.push(blocker("execution", "EXECUTION_READINESS_REJECTED"));
   }
   const safeFindings = withIds(findings);
-  const blockerCount = safeFindings.filter((finding) => finding.severity === "blocker")
-    .length;
+  const blockerCount = safeFindings.filter(
+    (finding) => finding.severity === "blocker"
+  ).length;
   return {
     status: blockerCount > 0 ? "blocked" : "valid",
     findings: safeFindings,
@@ -333,7 +352,10 @@ export function buildTranscriptFromOutput(
     }
   );
 
-  if (!transcriptValidation.transcript || transcriptValidation.status === "blocked") {
+  if (
+    !transcriptValidation.transcript ||
+    transcriptValidation.status === "blocked"
+  ) {
     return captureResult(undefined, redaction, [
       ...findings,
       ...transcriptValidation.findings.map((finding) => ({
@@ -354,10 +376,12 @@ export function buildTranscriptFromOutput(
     captureFindings: TranscriptRedactionFinding[]
   ): TranscriptCaptureResult {
     const safeFindings = withIds(uniqueFindings(captureFindings));
-    const blockers = safeFindings.filter((finding) => finding.severity === "blocker")
-      .length;
-    const warnings = safeFindings.filter((finding) => finding.severity === "warning")
-      .length;
+    const blockers = safeFindings.filter(
+      (finding) => finding.severity === "blocker"
+    ).length;
+    const warnings = safeFindings.filter(
+      (finding) => finding.severity === "warning"
+    ).length;
     const summary = summarizeTranscriptRedaction(redactionResult);
     return {
       status: blockers > 0 ? "blocked" : warnings > 0 ? "warning" : "captured",
@@ -397,7 +421,9 @@ export function summarizeTranscriptRedaction(
   };
 }
 
-function readiness(canPersistRedactedSummary: boolean): TranscriptRedactionReadiness {
+function readiness(
+  canPersistRedactedSummary: boolean
+): TranscriptRedactionReadiness {
   return {
     canPersistRedactedSummary,
     canPersistRawOutput: false,
@@ -503,7 +529,10 @@ function countRedactionMarkers(value: string): number {
 
 function hashPrefix(value: string, length = 16): string {
   const seeds = [0x811c9dc5, 0x9e3779b9, 0x85ebca6b, 0xc2b2ae35];
-  return seeds.map((seed) => hashChunk(value, seed)).join("").slice(0, length);
+  return seeds
+    .map((seed) => hashChunk(value, seed))
+    .join("")
+    .slice(0, length);
 }
 
 function hashChunk(value: string, seed: number): string {

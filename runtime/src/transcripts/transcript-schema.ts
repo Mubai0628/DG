@@ -256,7 +256,9 @@ const unsafeStringPatterns = [
   }
 ] satisfies Array<{ code: string; pattern: RegExp }>;
 
+// eslint-disable-next-line no-control-regex
 const controlCharPattern = /[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f]/;
+// eslint-disable-next-line no-control-regex
 const ansiPattern = /\u001b\[[0-?]*[ -/]*[@-~]/;
 
 export function parseTranscriptRecord(
@@ -362,7 +364,9 @@ function buildTranscript(
     options.idGenerator?.() ??
     `transcript-${hashPrefix(stableStringify(value), 12)}`;
   const createdAt =
-    asString(value.createdAt) ?? options.createdAt ?? "1970-01-01T00:00:00.000Z";
+    asString(value.createdAt) ??
+    options.createdAt ??
+    "1970-01-01T00:00:00.000Z";
   const workspaceRootRef = asString(value.workspaceRootRef);
   const mode = asString(value.mode) ?? "";
   const sessionId = asString(value.sessionId) ?? "";
@@ -403,7 +407,10 @@ function buildTranscript(
   };
 }
 
-function normalizeChunk(value: unknown, index: number): TranscriptChunk | undefined {
+function normalizeChunk(
+  value: unknown,
+  index: number
+): TranscriptChunk | undefined {
   if (!isRecord(value)) {
     return undefined;
   }
@@ -413,7 +420,7 @@ function normalizeChunk(value: unknown, index: number): TranscriptChunk | undefi
   if (containsControlOrAnsi(originalSummary)) {
     warningCodes.push("CONTROL_CHARS_REDACTED");
   }
-  if (Boolean(value.binary)) {
+  if (value.binary === true) {
     warningCodes.push("BINARY_OUTPUT_SUMMARY_ONLY");
   }
   return {
@@ -465,10 +472,14 @@ function validateTopLevel(value: Record<string, unknown>): TranscriptFinding[] {
   if (!asString(value.mode)) {
     findings.push(blocker("schema", "MISSING_MODE"));
   }
-  if (!allowedSourceKinds.has(asString(value.sourceKind) as TranscriptSourceKind)) {
+  if (
+    !allowedSourceKinds.has(asString(value.sourceKind) as TranscriptSourceKind)
+  ) {
     findings.push(blocker("schema", "UNKNOWN_SOURCE_KIND"));
   }
-  if (!allowedVisibilities.has(asString(value.visibility) as TranscriptVisibility)) {
+  if (
+    !allowedVisibilities.has(asString(value.visibility) as TranscriptVisibility)
+  ) {
     findings.push(blocker("schema", "UNKNOWN_VISIBILITY"));
   }
   if (!Array.isArray(value.chunks) || value.chunks.length === 0) {
@@ -565,7 +576,9 @@ function findForbiddenFields(value: unknown): TranscriptFinding[] {
   const findings: TranscriptFinding[] = [];
   walk(value, (key, _nested, path) => {
     if (forbiddenFieldKeys.has(key.toLowerCase())) {
-      findings.push(blocker("raw_field", `${toCode(key)}_FIELD_REJECTED`, path));
+      findings.push(
+        blocker("raw_field", `${toCode(key)}_FIELD_REJECTED`, path)
+      );
     }
   });
   return findings;
@@ -586,7 +599,10 @@ function findUnsafeStringMarkers(value: unknown): TranscriptFinding[] {
   return findings;
 }
 
-function parseInput(input: TranscriptInput, findings: TranscriptFinding[]): unknown {
+function parseInput(
+  input: TranscriptInput,
+  findings: TranscriptFinding[]
+): unknown {
   if (typeof input !== "string") {
     return input;
   }
@@ -603,10 +619,12 @@ function resultFrom(
   findings: TranscriptFinding[]
 ): TranscriptValidationResult {
   const safe = safeFindings(findings);
-  const blockerCount = safe.filter((finding) => finding.severity === "blocker")
-    .length;
-  const warningCount = safe.filter((finding) => finding.severity === "warning")
-    .length;
+  const blockerCount = safe.filter(
+    (finding) => finding.severity === "blocker"
+  ).length;
+  const warningCount = safe.filter(
+    (finding) => finding.severity === "warning"
+  ).length;
   const status: TranscriptValidationStatus =
     blockerCount > 0 ? "blocked" : warningCount > 0 ? "warning" : "parsed";
   const summary = transcript
@@ -759,7 +777,9 @@ function asString(value: unknown): string | undefined {
 }
 
 function asNumber(value: unknown): number | undefined {
-  return typeof value === "number" && Number.isFinite(value) ? value : undefined;
+  return typeof value === "number" && Number.isFinite(value)
+    ? value
+    : undefined;
 }
 
 function asStringArray(value: unknown): string[] {
@@ -810,7 +830,10 @@ function stableStringify(value: unknown): string {
 
 function hashPrefix(value: string, length = 16): string {
   const seeds = [0x811c9dc5, 0x9e3779b9, 0x85ebca6b, 0xc2b2ae35];
-  return seeds.map((seed) => hashChunk(value, seed)).join("").slice(0, length);
+  return seeds
+    .map((seed) => hashChunk(value, seed))
+    .join("")
+    .slice(0, length);
 }
 
 function hashChunk(value: string, seed: number): string {

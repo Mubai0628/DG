@@ -579,7 +579,9 @@ export function normalizeWorkspaceEventSummary(
     ...(projectKnowledgeRedactionAuditStatus !== undefined
       ? { projectKnowledgeRedactionAuditStatus }
       : {}),
-    ...(latestTranscriptSummary !== undefined ? { latestTranscriptSummary } : {}),
+    ...(latestTranscriptSummary !== undefined
+      ? { latestTranscriptSummary }
+      : {}),
     ...(transcriptRedactionAuditStatus !== undefined
       ? { transcriptRedactionAuditStatus }
       : {}),

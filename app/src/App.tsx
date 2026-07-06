@@ -19659,10 +19659,11 @@ export function DesktopShell(): JSX.Element {
               </span>
             </div>
             <p className="fieldHelp">
-              Review transcript summaries, redaction counts, retention
-              metadata, warnings, and hashes. The App Shell does not show raw
-              output by default, run commands, replay commands, execute Git or
-              shell, apply patches, rollback, or write EventStore events.
+              Review transcript summaries, redaction counts, retention metadata,
+              warnings, and hashes. The App Shell does not show raw output by
+              default, run commands, replay commands, execute Git or shell,
+              enable arbitrary shell or a command broker, apply patches,
+              rollback, or write EventStore events.
             </p>
 
             <div className="formGrid">
@@ -19819,7 +19820,9 @@ export function DesktopShell(): JSX.Element {
               </div>
               <div>
                 <dt>Selected transcript</dt>
-                <dd>{displayedTranscriptViewer.selectedTranscriptId ?? "n/a"}</dd>
+                <dd>
+                  {displayedTranscriptViewer.selectedTranscriptId ?? "n/a"}
+                </dd>
               </div>
               <div>
                 <dt>Source kind</dt>
@@ -19987,8 +19990,8 @@ export function DesktopShell(): JSX.Element {
             ) : null}
 
             <p className="fieldHelp">
-              {summarizeTranscriptViewerView(displayedTranscriptViewer).source} ·{" "}
-              {displayedTranscriptViewer.nextAction}
+              {summarizeTranscriptViewerView(displayedTranscriptViewer).source}{" "}
+              · {displayedTranscriptViewer.nextAction}
             </p>
           </section>
 

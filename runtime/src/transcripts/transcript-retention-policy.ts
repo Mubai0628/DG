@@ -219,10 +219,16 @@ const unsafeStringPatterns = [
   { code: "API_KEY_MARKER", pattern: /\bsk-[A-Za-z0-9_-]{8,}\b/i },
   { code: "AUTHORIZATION_MARKER", pattern: /\bAuthorization\s*[:=]/i },
   { code: "BEARER_TOKEN_MARKER", pattern: /\bBearer\s+[A-Za-z0-9._-]{12,}\b/i },
-  { code: "PRIVATE_KEY_MARKER", pattern: /-----BEGIN [A-Z ]*PRIVATE KEY-----/i },
+  {
+    code: "PRIVATE_KEY_MARKER",
+    pattern: /-----BEGIN [A-Z ]*PRIVATE KEY-----/i
+  },
   { code: "RAW_PROMPT_MARKER", pattern: /\brawPrompt\b|raw prompt/i },
   { code: "RAW_RESPONSE_MARKER", pattern: /\brawResponse\b|raw response/i },
-  { code: "REASONING_CONTENT_MARKER", pattern: /\breasoning_content\b|\breasoningContent\b|reasoning content/i }
+  {
+    code: "REASONING_CONTENT_MARKER",
+    pattern: /\breasoning_content\b|\breasoningContent\b|reasoning content/i
+  }
 ];
 
 export function buildTranscriptRetentionPlan(
@@ -285,9 +291,11 @@ function buildPlan(
     .filter((record) => record.eligibleForDelete)
     .map((record) => record.transcriptId);
   const exportSummaryIds = records
-    .filter((record) =>
-      (requestedIds.length === 0 || requestedIds.includes(record.transcriptId)) &&
-      record.eligibleForSummaryExport
+    .filter(
+      (record) =>
+        (requestedIds.length === 0 ||
+          requestedIds.includes(record.transcriptId)) &&
+        record.eligibleForSummaryExport
     )
     .map((record) => record.transcriptId);
   const protectedTranscriptIds = records
@@ -301,10 +309,12 @@ function buildPlan(
   }
 
   const safeFindings = withIds(uniqueFindings(findings));
-  const blockerCount = safeFindings.filter((finding) => finding.severity === "blocker")
-    .length;
-  const warningCount = safeFindings.filter((finding) => finding.severity === "warning")
-    .length;
+  const blockerCount = safeFindings.filter(
+    (finding) => finding.severity === "blocker"
+  ).length;
+  const warningCount = safeFindings.filter(
+    (finding) => finding.severity === "warning"
+  ).length;
   const status: TranscriptRetentionPlanStatus =
     records.length === 0 && blockerCount === 0
       ? "empty"
@@ -316,7 +326,12 @@ function buildPlan(
   const planId =
     input.idGenerator?.() ??
     `${planKind}-transcript-plan-${hashPrefix(
-      stableStringify({ planKind, records, requestedIds, createdAt: input.createdAt })
+      stableStringify({
+        planKind,
+        records,
+        requestedIds,
+        createdAt: input.createdAt
+      })
     )}`;
   const readiness = buildReadiness({
     status,
@@ -375,7 +390,9 @@ function normalizeRecords(
       continue;
     }
     if (seen.has(record.transcriptId)) {
-      context.findings.push(blocker("schema", "DUPLICATE_TRANSCRIPT_ID", record.transcriptId));
+      context.findings.push(
+        blocker("schema", "DUPLICATE_TRANSCRIPT_ID", record.transcriptId)
+      );
       continue;
     }
     seen.add(record.transcriptId);
@@ -405,9 +422,15 @@ function normalizeRecord(
   const retentionPolicy = isRecord(raw.retentionPolicy)
     ? (raw.retentionPolicy as Partial<TranscriptRetentionPolicy>)
     : undefined;
-  const retainDays = asNumber(summary.retainDays ?? retentionPolicy?.retainDays);
-  const exportAllowed = asBoolean(summary.exportAllowed ?? retentionPolicy?.exportAllowed);
-  const deleteAllowed = asBoolean(summary.deleteAllowed ?? retentionPolicy?.deleteAllowed);
+  const retainDays = asNumber(
+    summary.retainDays ?? retentionPolicy?.retainDays
+  );
+  const exportAllowed = asBoolean(
+    summary.exportAllowed ?? retentionPolicy?.exportAllowed
+  );
+  const deleteAllowed = asBoolean(
+    summary.deleteAllowed ?? retentionPolicy?.deleteAllowed
+  );
   const tombstoneOnDelete = asBoolean(
     summary.tombstoneOnDelete ?? retentionPolicy?.tombstoneOnDelete
   );
@@ -416,17 +439,32 @@ function normalizeRecord(
   );
   const redactedRetentionDays = asNumber(raw.redactedRetentionDays);
   if (retainDays === undefined || !Number.isFinite(retainDays)) {
-    context.findings.push(blocker("retention", "MISSING_RETAIN_DAYS", transcriptId));
+    context.findings.push(
+      blocker("retention", "MISSING_RETAIN_DAYS", transcriptId)
+    );
     return undefined;
   }
-  if (retainDays < 0 || (rawRetentionDays !== undefined && rawRetentionDays < 0)) {
-    context.findings.push(blocker("retention", "NEGATIVE_RETENTION_DAYS", transcriptId));
+  if (
+    retainDays < 0 ||
+    (rawRetentionDays !== undefined && rawRetentionDays < 0)
+  ) {
+    context.findings.push(
+      blocker("retention", "NEGATIVE_RETENTION_DAYS", transcriptId)
+    );
   }
   if (retainDays > context.maxRetainDays) {
-    context.findings.push(blocker("retention", "RETENTION_DAYS_TOO_LARGE", transcriptId));
+    context.findings.push(
+      blocker("retention", "RETENTION_DAYS_TOO_LARGE", transcriptId)
+    );
   }
-  if (exportAllowed === undefined || deleteAllowed === undefined || tombstoneOnDelete === undefined) {
-    context.findings.push(blocker("retention", "INCOMPLETE_RETENTION_POLICY", transcriptId));
+  if (
+    exportAllowed === undefined ||
+    deleteAllowed === undefined ||
+    tombstoneOnDelete === undefined
+  ) {
+    context.findings.push(
+      blocker("retention", "INCOMPLETE_RETENTION_POLICY", transcriptId)
+    );
   }
 
   const createdAt = isTranscriptRecord(input)
@@ -434,7 +472,9 @@ function normalizeRecord(
     : asString(raw.createdAt);
   const ageDays = computeAgeDays(createdAt, context.now);
   if (createdAt !== undefined && ageDays === undefined) {
-    context.findings.push(warning("retention", "INVALID_CREATED_AT", transcriptId));
+    context.findings.push(
+      warning("retention", "INVALID_CREATED_AT", transcriptId)
+    );
   }
   const warningCodes = unique([
     ...(summary.warningCodes ?? []),
@@ -443,7 +483,9 @@ function normalizeRecord(
   const protectedTranscript =
     Boolean(raw.protected) || context.protectedSet.has(transcriptId);
   if (protectedTranscript) {
-    context.findings.push(warning("delete", "PROTECTED_TRANSCRIPT_SKIPPED", transcriptId));
+    context.findings.push(
+      warning("delete", "PROTECTED_TRANSCRIPT_SKIPPED", transcriptId)
+    );
   }
   const eligibleForDelete =
     !protectedTranscript &&
@@ -475,7 +517,9 @@ function normalizeRecord(
     eligibleForSummaryExport: exportAllowed === true,
     warningCodes,
     hashPrefix:
-      asString(summary.hash) ?? asString(raw.transcriptHash) ?? asString(raw.hashPrefix)
+      asString(summary.hash) ??
+      asString(raw.transcriptHash) ??
+      asString(raw.hashPrefix)
   };
 }
 
@@ -602,14 +646,18 @@ function scanUnsafe(
   path: string[] = []
 ): void {
   if (Array.isArray(value)) {
-    value.forEach((item, index) => scanUnsafe(item, findings, [...path, String(index)]));
+    value.forEach((item, index) =>
+      scanUnsafe(item, findings, [...path, String(index)])
+    );
     return;
   }
   if (isRecord(value)) {
     for (const [key, nested] of Object.entries(value)) {
       const lower = key.toLowerCase();
       if (forbiddenFieldKeys.has(lower)) {
-        findings.push(blocker(classifyForbiddenKey(lower), `${key}_FIELD_REJECTED`));
+        findings.push(
+          blocker(classifyForbiddenKey(lower), `${key}_FIELD_REJECTED`)
+        );
       }
       scanUnsafe(nested, findings, [...path, key]);
     }
@@ -661,7 +709,10 @@ function isTranscriptRecord(value: unknown): value is TranscriptRecord {
   );
 }
 
-function computeAgeDays(createdAt: string | undefined, now: Date): number | undefined {
+function computeAgeDays(
+  createdAt: string | undefined,
+  now: Date
+): number | undefined {
   const created = parseDate(createdAt);
   if (!created) {
     return undefined;
@@ -688,7 +739,9 @@ function asString(value: unknown): string | undefined {
 }
 
 function asNumber(value: unknown): number | undefined {
-  return typeof value === "number" && Number.isFinite(value) ? value : undefined;
+  return typeof value === "number" && Number.isFinite(value)
+    ? value
+    : undefined;
 }
 
 function asBoolean(value: unknown): boolean | undefined {
@@ -697,7 +750,9 @@ function asBoolean(value: unknown): boolean | undefined {
 
 function stringArray(value: unknown): string[] {
   return Array.isArray(value)
-    ? value.filter((item): item is string => typeof item === "string").map(safeText)
+    ? value
+        .filter((item): item is string => typeof item === "string")
+        .map(safeText)
     : [];
 }
 
@@ -743,7 +798,9 @@ function blocker(
     severity: "blocker",
     code: safeText(code),
     safeMessage: safeMessage(code),
-    ...(transcriptId !== undefined ? { transcriptId: safeText(transcriptId) } : {})
+    ...(transcriptId !== undefined
+      ? { transcriptId: safeText(transcriptId) }
+      : {})
   };
 }
 
@@ -758,7 +815,9 @@ function warning(
     severity: "warning",
     code: safeText(code),
     safeMessage: safeMessage(code),
-    ...(transcriptId !== undefined ? { transcriptId: safeText(transcriptId) } : {})
+    ...(transcriptId !== undefined
+      ? { transcriptId: safeText(transcriptId) }
+      : {})
   };
 }
 
@@ -774,7 +833,10 @@ function safeText(value: string): string {
     .replace(/\bsk-[A-Za-z0-9_-]{8,}\b/g, "[REDACTED_API_KEY]")
     .replace(/\bAuthorization\s*[:=]\s*[^\r\n]+/gi, "Authorization: [REDACTED]")
     .replace(/\bBearer\s+[A-Za-z0-9._-]{12,}\b/gi, "Bearer [REDACTED]")
-    .replace(/-----BEGIN [A-Z ]*PRIVATE KEY-----[\s\S]*?-----END [A-Z ]*PRIVATE KEY-----/gi, "[REDACTED_PRIVATE_KEY]")
+    .replace(
+      /-----BEGIN [A-Z ]*PRIVATE KEY-----[\s\S]*?-----END [A-Z ]*PRIVATE KEY-----/gi,
+      "[REDACTED_PRIVATE_KEY]"
+    )
     .slice(0, 500);
 }
 

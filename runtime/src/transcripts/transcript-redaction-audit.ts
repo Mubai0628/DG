@@ -78,38 +78,40 @@ const rawMarker = (suffix: string) => rawPrefix + suffix;
 const reasoningMarker = (suffix: string) => reasoningPrefix + suffix;
 const binaryMarker = (suffix: string) => binaryPrefix + suffix;
 
-const forbiddenFieldKeys = new Map<string, TranscriptRedactionAuditFindingKind>([
-  [rawPrefix.toLowerCase() + "output", "raw_output"],
-  [rawPrefix.toLowerCase() + "stdout", "raw_output"],
-  [rawPrefix.toLowerCase() + "stderr", "raw_output"],
-  [rawPrefix.toLowerCase() + "prompt", "raw_output"],
-  [rawPrefix.toLowerCase() + "response", "raw_output"],
-  [rawPrefix.toLowerCase() + "source", "source"],
-  [rawPrefix.toLowerCase() + "diff", "source"],
-  [rawPrefix.toLowerCase() + "patch", "source"],
-  [reasoningMarker("content"), "reasoning"],
-  [reasoningMarker("_content"), "reasoning"],
-  ["apikey", "secret"],
-  ["apikeyvalue", "secret"],
-  ["authorization", "secret"],
-  ["bearer", "secret"],
-  ["token", "secret"],
-  ["secret", "secret"],
-  ["stdout", "raw_output"],
-  ["stderr", "raw_output"],
-  [binaryMarker("output"), "binary"],
-  [binaryMarker("chunk"), "binary"],
-  ["command", "execution"],
-  ["shellcommand", "execution"],
-  ["gitcommand", "execution"],
-  ["tauricommand", "execution"],
-  ["eventstorewrite", "execution"],
-  ["applynow", "execution"],
-  ["rollbacknow", "execution"],
-  ["permissionlease", "execution"],
-  ["desktopaction", "execution"],
-  ["nativebridge", "execution"]
-]);
+const forbiddenFieldKeys = new Map<string, TranscriptRedactionAuditFindingKind>(
+  [
+    [rawPrefix.toLowerCase() + "output", "raw_output"],
+    [rawPrefix.toLowerCase() + "stdout", "raw_output"],
+    [rawPrefix.toLowerCase() + "stderr", "raw_output"],
+    [rawPrefix.toLowerCase() + "prompt", "raw_output"],
+    [rawPrefix.toLowerCase() + "response", "raw_output"],
+    [rawPrefix.toLowerCase() + "source", "source"],
+    [rawPrefix.toLowerCase() + "diff", "source"],
+    [rawPrefix.toLowerCase() + "patch", "source"],
+    [reasoningMarker("content"), "reasoning"],
+    [reasoningMarker("_content"), "reasoning"],
+    ["apikey", "secret"],
+    ["apikeyvalue", "secret"],
+    ["authorization", "secret"],
+    ["bearer", "secret"],
+    ["token", "secret"],
+    ["secret", "secret"],
+    ["stdout", "raw_output"],
+    ["stderr", "raw_output"],
+    [binaryMarker("output"), "binary"],
+    [binaryMarker("chunk"), "binary"],
+    ["command", "execution"],
+    ["shellcommand", "execution"],
+    ["gitcommand", "execution"],
+    ["tauricommand", "execution"],
+    ["eventstorewrite", "execution"],
+    ["applynow", "execution"],
+    ["rollbacknow", "execution"],
+    ["permissionlease", "execution"],
+    ["desktopaction", "execution"],
+    ["nativebridge", "execution"]
+  ]
+);
 
 const markerChecks = [
   {
@@ -200,10 +202,12 @@ export function buildTranscriptRedactionAudit(
   }
 
   const safeFindings = withIds(uniqueFindings(findings));
-  const blockerCount = safeFindings.filter((finding) => finding.severity === "blocker")
-    .length;
-  const warningCount = safeFindings.filter((finding) => finding.severity === "warning")
-    .length;
+  const blockerCount = safeFindings.filter(
+    (finding) => finding.severity === "blocker"
+  ).length;
+  const warningCount = safeFindings.filter(
+    (finding) => finding.severity === "warning"
+  ).length;
   const status: TranscriptRedactionAuditStatus =
     scannedRecordCount === 0 && blockerCount === 0
       ? "empty"
@@ -215,7 +219,11 @@ export function buildTranscriptRedactionAudit(
   const auditId =
     input.idGenerator?.() ??
     `transcript-redaction-audit-${hashPrefix(
-      stableStringify({ projectionHash: input.projection?.projectionHash, scannedRecordCount, createdAt: input.createdAt })
+      stableStringify({
+        projectionHash: input.projection?.projectionHash,
+        scannedRecordCount,
+        createdAt: input.createdAt
+      })
     )}`;
   const base = {
     status,
@@ -224,15 +232,27 @@ export function buildTranscriptRedactionAudit(
     redactedFieldCount,
     secretMarkerCount,
     rawOutputDetected: hasKind(safeFindings, "raw_output"),
-    rawPromptDetected: hasCodeOrField(safeFindings, "RAW_PROMPT_MARKER", rawMarker("Prompt")),
+    rawPromptDetected: hasCodeOrField(
+      safeFindings,
+      "RAW_PROMPT_MARKER",
+      rawMarker("Prompt")
+    ),
     rawResponseDetected: hasCodeOrField(
       safeFindings,
       "RAW_RESPONSE_MARKER",
       rawMarker("Response")
     ),
     reasoningContentDetected: hasKind(safeFindings, "reasoning"),
-    rawSourceDetected: hasCodeOrField(safeFindings, "RAW_SOURCE_MARKER", rawMarker("Source")),
-    rawDiffDetected: hasCodeOrField(safeFindings, "RAW_DIFF_MARKER", rawMarker("Diff")),
+    rawSourceDetected: hasCodeOrField(
+      safeFindings,
+      "RAW_SOURCE_MARKER",
+      rawMarker("Source")
+    ),
+    rawDiffDetected: hasCodeOrField(
+      safeFindings,
+      "RAW_DIFF_MARKER",
+      rawMarker("Diff")
+    ),
     binaryOutputDetected: hasKind(safeFindings, "binary"),
     apiKeyDetected: hasCode(safeFindings, "API_KEY_MARKER"),
     authorizationDetected: hasCode(safeFindings, "AUTHORIZATION_MARKER"),
@@ -311,7 +331,9 @@ function scanUnsafe(
   }
 }
 
-function readiness(status: TranscriptRedactionAuditStatus): TranscriptRedactionAuditReadiness {
+function readiness(
+  status: TranscriptRedactionAuditStatus
+): TranscriptRedactionAuditReadiness {
   return {
     canDisplayAudit: status !== "blocked",
     canPersistRawOutput: false,
@@ -343,7 +365,10 @@ function hasKind(
   return findings.some((finding) => finding.kind === kind);
 }
 
-function hasCode(findings: TranscriptRedactionAuditFinding[], code: string): boolean {
+function hasCode(
+  findings: TranscriptRedactionAuditFinding[],
+  code: string
+): boolean {
   return findings.some((finding) => finding.code === code);
 }
 

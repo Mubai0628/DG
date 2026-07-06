@@ -85,7 +85,9 @@ describe("transcript redaction pipeline", () => {
     expect(serialized).not.toContain("sk-test1234567890");
     expect(serialized).not.toContain("super-secret-header");
     expect(serialized).not.toContain("secret-query-value");
-    expect(serialized).not.toContain("abcdefghijklmnopqrstuvwxyz1234567890TOKEN");
+    expect(serialized).not.toContain(
+      "abcdefghijklmnopqrstuvwxyz1234567890TOKEN"
+    );
     expectNoExecution(result);
   });
 

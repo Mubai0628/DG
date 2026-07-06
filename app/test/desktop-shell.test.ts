@@ -4443,7 +4443,10 @@ describe("desktop command wrapper", () => {
   });
 
   it("renders the Transcript Viewer as redacted and non-executing", async () => {
-    const appSource = await readFile(path.join(appRoot, "src", "App.tsx"), "utf8");
+    const appSource = await readFile(
+      path.join(appRoot, "src", "App.tsx"),
+      "utf8"
+    );
     const viewerSource = await readFile(
       path.join(appRoot, "src", "transcript-viewer-view.ts"),
       "utf8"
@@ -4457,7 +4460,6 @@ describe("desktop command wrapper", () => {
       "utf8"
     );
     const appReadme = await readFile(path.join(appRoot, "README.md"), "utf8");
-    const combined = `${appSource}\n${viewerSource}\n${doc}\n${docsIndex}\n${appReadme}`;
     const sourceCombined = `${appSource}\n${viewerSource}`;
 
     expect(appSource).toContain("Transcript Viewer");
@@ -4467,6 +4469,7 @@ describe("desktop command wrapper", () => {
     expect(appSource).toContain("Delete Transcript");
     expect(appSource).toContain("Export Summary");
     expect(appSource).toContain("Workspace ref");
+    expect(appSource).toContain("enable arbitrary shell or a command broker");
     expect(appSource).toContain("View Raw Output (disabled unless gated)");
     expect(appSource).toContain("Run Command (disabled)");
     expect(appSource).toContain("Replay Command (disabled)");
@@ -4491,7 +4494,11 @@ describe("desktop command wrapper", () => {
 
   it("locks Transcript Retention Policy docs as dry-run only", async () => {
     const doc = await readFile(
-      path.join(repoRoot, "docs", "runtime-transcript-retention-policy-v0.34.md"),
+      path.join(
+        repoRoot,
+        "docs",
+        "runtime-transcript-retention-policy-v0.34.md"
+      ),
       "utf8"
     );
     const docsIndex = await readFile(
@@ -4511,11 +4518,19 @@ describe("desktop command wrapper", () => {
 
   it("locks transcript replay projection and redaction audit docs", async () => {
     const replayDoc = await readFile(
-      path.join(repoRoot, "docs", "runtime-transcript-replay-projection-v0.34.md"),
+      path.join(
+        repoRoot,
+        "docs",
+        "runtime-transcript-replay-projection-v0.34.md"
+      ),
       "utf8"
     );
     const auditDoc = await readFile(
-      path.join(repoRoot, "docs", "runtime-transcript-redaction-audit-v0.34.md"),
+      path.join(
+        repoRoot,
+        "docs",
+        "runtime-transcript-redaction-audit-v0.34.md"
+      ),
       "utf8"
     );
     const docsIndex = await readFile(
@@ -4535,15 +4550,23 @@ describe("desktop command wrapper", () => {
     expect(auditDoc).toContain("API key");
     expect(auditDoc).toContain("reasoning_content");
     expect(auditDoc).toContain("No command execution");
-    expect(docsIndex).toContain("runtime-transcript-replay-projection-v0.34.md");
+    expect(docsIndex).toContain(
+      "runtime-transcript-replay-projection-v0.34.md"
+    );
     expect(docsIndex).toContain("runtime-transcript-redaction-audit-v0.34.md");
-    expect(combined).not.toContain("transcript replay enables command execution");
+    expect(combined).not.toContain(
+      "transcript replay enables command execution"
+    );
     expect(combined).not.toContain("transcript audit writes EventStore");
   });
 
   it("locks transcript output persistence smoke docs", async () => {
     const smokeDoc = await readFile(
-      path.join(repoRoot, "docs", "transcript-output-persistence-smoke-v0.34.md"),
+      path.join(
+        repoRoot,
+        "docs",
+        "transcript-output-persistence-smoke-v0.34.md"
+      ),
       "utf8"
     );
     const docsIndex = await readFile(
@@ -4564,6 +4587,91 @@ describe("desktop command wrapper", () => {
     expect(smokeDoc).toContain("No EventStore write");
     expect(smokeDoc).toContain("No raw output display");
     expect(docsIndex).toContain("transcript-output-persistence-smoke-v0.34.md");
+  });
+
+  it("locks v0.35 raw transcript output persistence RC docs and UI copy", async () => {
+    const releaseNotes = await readFile(
+      path.join(
+        repoRoot,
+        "docs",
+        "release-notes-v0.35.0-raw-transcript-output-persistence-rc.1.md"
+      ),
+      "utf8"
+    );
+    const manualQa = await readFile(
+      path.join(
+        repoRoot,
+        "docs",
+        "raw-transcript-output-persistence-manual-qa.md"
+      ),
+      "utf8"
+    );
+    const rcChecklist = await readFile(
+      path.join(
+        repoRoot,
+        "docs",
+        "raw-transcript-output-persistence-rc-checklist.md"
+      ),
+      "utf8"
+    );
+    const docsIndex = await readFile(
+      path.join(repoRoot, "docs", "README.md"),
+      "utf8"
+    );
+    const rootReadme = await readFile(path.join(repoRoot, "README.md"), "utf8");
+    const appReadme = await readFile(path.join(appRoot, "README.md"), "utf8");
+    const appSource = await readFile(
+      path.join(appRoot, "src", "App.tsx"),
+      "utf8"
+    );
+    const combined = [
+      releaseNotes,
+      manualQa,
+      rcChecklist,
+      docsIndex,
+      rootReadme,
+      appReadme,
+      appSource
+    ].join("\n");
+
+    expect(releaseNotes).toContain(
+      "v0.35.0-raw-transcript-output-persistence-rc.1"
+    );
+    expect(releaseNotes).toContain(
+      "Raw transcript and output persistence foundation, no arbitrary shell"
+    );
+    expect(releaseNotes).toContain("Transcript records can be validated");
+    expect(releaseNotes).toContain("Redaction pipeline can summarize");
+    expect(releaseNotes).toContain("App Transcript Viewer displays");
+    expect(releaseNotes).toContain("No command broker is enabled");
+    expect(releaseNotes).toContain("No command replay");
+    expect(manualQa).toContain("Convert Smoke");
+    expect(manualQa).toContain("Transcript Viewer Empty State");
+    expect(manualQa).toContain("Safe Transcript Summary");
+    expect(manualQa).toContain("Raw / Secret Blocked Fixtures");
+    expect(manualQa).toContain("Run Command (disabled)");
+    expect(manualQa).toContain("Replay Command (disabled)");
+    expect(manualQa).toContain("Full Access remains metadata preview only");
+    expect(rcChecklist).toContain("pnpm verify:ci");
+    expect(rcChecklist).toContain("pnpm release:smoke");
+    expect(rcChecklist).toContain("pnpm app:qa:check");
+    expect(rcChecklist).toContain(
+      "git tag v0.35.0-raw-transcript-output-persistence-rc.1"
+    );
+    expect(rcChecklist).toContain("gh release create");
+    expect(docsIndex).toContain(
+      "release-notes-v0.35.0-raw-transcript-output-persistence-rc.1.md"
+    );
+    expect(rootReadme).toContain("v0.35 Raw Transcript / Output Persistence");
+    expect(appReadme).toContain("v0.35 Raw Transcript / Output Persistence RC");
+    expect(appSource).toContain("Redacted by default / no command execution");
+    expect(appSource).toContain("enable arbitrary shell or a command broker");
+    expect(combined).not.toContain("arbitrary shell execution is enabled");
+    expect(combined).not.toContain("command broker is enabled by default");
+    expect(combined).not.toContain("raw output is shown by default");
+    expect(combined).not.toContain("Full Access execution is enabled");
+    expect(combined).not.toContain("auto apply is enabled");
+    expect(combined).not.toContain("Git push execution is enabled");
   });
 
   function safeLiveProposalCommandRequest(): LiveDeepSeekPatchProposalCommandRequest {

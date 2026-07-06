@@ -81,6 +81,12 @@ Current scope:
   for transcript counts, retention metadata, warnings, and hashes while raw
   output viewing, command replay, Git/shell execution, apply/rollback, and
   EventStore writes remain disabled
+- prepare the v0.35 Raw Transcript / Output Persistence RC with transcript
+  schema validation, redaction, summary store commands, Transcript Viewer,
+  retention/export/delete policy, replay projection, redaction audit, and
+  smoke coverage while arbitrary shell, command broker, auto apply, recursive
+  delete, Git push, autonomous loops, Full Access execution, cloud upload, and
+  telemetry upload remain disabled
 - prepare the v0.11 App-side Approved Execution MVP RC with narrow
   human-approved apply and rollback, exact typed confirmations, private
   checkpoints, summary-only approved execution events, replay counts, and E2E

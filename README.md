@@ -24,10 +24,18 @@ Start here:
 - [v0.33.0 v1 Candidate Polish RC release notes](docs/release-notes-v0.33.0-v1-candidate-polish-rc.1.md)
 - [v1 Candidate RC Checklist](docs/v1-candidate-rc-checklist.md)
 
-Current staged roadmap: v0.35 starts the Raw Transcript / Output Persistence
-foundation. It is redacted by default, raw opt-in only, and does not enable
+Current RC line: v0.35 Raw Transcript / Output Persistence adds validated
+transcript records, redaction, summary store commands, the Transcript Viewer,
+retention/export/delete policy, replay projection, redaction audit, and smoke
+coverage. It is redacted by default, raw opt-in only, and does not enable
 arbitrary shell, command execution, auto apply, Git push, autonomous loops, or
-full access execution.
+Full Access execution.
+
+v0.35 RC references:
+
+- [v0.35 Raw Transcript / Output Persistence RC release notes](docs/release-notes-v0.35.0-raw-transcript-output-persistence-rc.1.md)
+- [Raw Transcript / Output Persistence manual QA](docs/raw-transcript-output-persistence-manual-qa.md)
+- [Raw Transcript / Output Persistence RC checklist](docs/raw-transcript-output-persistence-rc-checklist.md)
 
 ## v0.1.0 scope
 

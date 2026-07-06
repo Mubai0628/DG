@@ -61,7 +61,10 @@ function expectNoExecution(readiness: Record<string, unknown>): void {
   }
 }
 
-function replayEvent(record: TranscriptRecord, type: string): Record<string, unknown> {
+function replayEvent(
+  record: TranscriptRecord,
+  type: string
+): Record<string, unknown> {
   const summary = summarizeTranscriptRecord(record);
   return {
     id: `${summary.transcriptId}-${type}`,
@@ -92,7 +95,9 @@ function replayEvent(record: TranscriptRecord, type: string): Record<string, unk
 describe("transcript persistence smoke", () => {
   it("parses all safe smoke fixtures", async () => {
     const fixture = await loadFixture();
-    const parsed = fixture.safeTranscripts.map((record) => parseTranscriptRecord(record));
+    const parsed = fixture.safeTranscripts.map((record) =>
+      parseTranscriptRecord(record)
+    );
 
     expect(fixture.schemaVersion).toBe("transcript_smoke.v1");
     expect(parsed).toHaveLength(6);
@@ -156,7 +161,10 @@ describe("transcript persistence smoke", () => {
     );
     const serialized = JSON.stringify(results);
 
-    expect(results.map((result) => result.status)).toEqual(["blocked", "blocked"]);
+    expect(results.map((result) => result.status)).toEqual([
+      "blocked",
+      "blocked"
+    ]);
     expect(results[0]?.findings.map((finding) => finding.code)).toContain(
       "RAW_PROMPT_FIELD_REJECTED"
     );

@@ -4,7 +4,8 @@ export const transcriptReplayEventTypes = [
   "transcript.record.exported_summary"
 ] as const;
 
-export type TranscriptReplayEventType = (typeof transcriptReplayEventTypes)[number];
+export type TranscriptReplayEventType =
+  (typeof transcriptReplayEventTypes)[number];
 
 export type TranscriptReplayProjectionStatus =
   | "empty"
@@ -134,7 +135,10 @@ const unsafeStringPatterns = [
   { code: "API_KEY_MARKER", pattern: /\bsk-[A-Za-z0-9_-]{8,}\b/i },
   { code: "AUTHORIZATION_MARKER", pattern: /\bAuthorization\s*[:=]/i },
   { code: "BEARER_TOKEN_MARKER", pattern: /\bBearer\s+[A-Za-z0-9._-]{12,}\b/i },
-  { code: "PRIVATE_KEY_MARKER", pattern: /-----BEGIN [A-Z ]*PRIVATE KEY-----/i },
+  {
+    code: "PRIVATE_KEY_MARKER",
+    pattern: /-----BEGIN [A-Z ]*PRIVATE KEY-----/i
+  },
   {
     code: "RAW_OUTPUT_MARKER",
     pattern: markerPattern(["raw output", rawMarker("Output")])
@@ -175,10 +179,12 @@ export function buildTranscriptReplayProjection(
     (event) => event.eventType === "transcript.record.exported_summary"
   ).length;
   const safeFindings = withIds(uniqueFindings(findings));
-  const blockerCount = safeFindings.filter((finding) => finding.severity === "blocker")
-    .length;
-  const warningCount = safeFindings.filter((finding) => finding.severity === "warning")
-    .length;
+  const blockerCount = safeFindings.filter(
+    (finding) => finding.severity === "blocker"
+  ).length;
+  const warningCount = safeFindings.filter(
+    (finding) => finding.severity === "warning"
+  ).length;
   const status: TranscriptReplayProjectionStatus =
     (input.events?.length ?? 0) === 0 && blockerCount === 0
       ? "empty"
@@ -202,7 +208,11 @@ export function buildTranscriptReplayProjection(
     exportedSummaryCount: status === "blocked" ? 0 : exportedSummaryCount,
     transcriptIds: status === "blocked" ? [] : transcriptIds,
     ...(status !== "blocked" && events.length > 0
-      ? { latestTranscriptSummary: summarizeTranscriptEvent(events.at(-1) as TranscriptReplayEventSummary) }
+      ? {
+          latestTranscriptSummary: summarizeTranscriptEvent(
+            events.at(-1) as TranscriptReplayEventSummary
+          )
+        }
       : {}),
     events: status === "blocked" ? [] : events,
     findings: safeFindings,
@@ -283,7 +293,9 @@ function normalizeEvent(
     findings.push(warning("event", "TRANSCRIPT_EVENT_WARNINGS_PRESENT"));
   }
   return {
-    eventId: asString(value.id ?? payload.eventId) ?? `event-${hashPrefix(transcriptId, 8)}`,
+    eventId:
+      asString(value.id ?? payload.eventId) ??
+      `event-${hashPrefix(transcriptId, 8)}`,
     eventType: eventType as TranscriptReplayEventType,
     transcriptId,
     sourceKind: asString(payload.sourceKind),
@@ -297,7 +309,9 @@ function normalizeEvent(
     exportAllowed: asBoolean(payload.exportAllowed),
     deleteAllowed: asBoolean(payload.deleteAllowed),
     tombstoneOnDelete: asBoolean(payload.tombstoneOnDelete),
-    hashPrefix: asString(payload.transcriptHash ?? payload.hashPrefix ?? payload.exportHash),
+    hashPrefix: asString(
+      payload.transcriptHash ?? payload.hashPrefix ?? payload.exportHash
+    ),
     warningCodes,
     summaryOnly: true,
     rawContentIncluded: false
@@ -315,13 +329,17 @@ function summarizeTranscriptEvent(event: TranscriptReplayEventSummary): string {
     `${label}: ${event.transcriptId}`,
     `${event.chunkCount} chunks`,
     `${event.redactedFieldCount} redactions`,
-    event.hashPrefix !== undefined ? `hash ${event.hashPrefix.slice(0, 12)}` : undefined
+    event.hashPrefix !== undefined
+      ? `hash ${event.hashPrefix.slice(0, 12)}`
+      : undefined
   ]
     .filter((part): part is string => typeof part === "string")
     .join(" · ");
 }
 
-function readiness(status: TranscriptReplayProjectionStatus): TranscriptReplayReadiness {
+function readiness(
+  status: TranscriptReplayProjectionStatus
+): TranscriptReplayReadiness {
   return {
     canProjectTranscriptReplay: status !== "blocked",
     canReplayCommand: false,
@@ -346,10 +364,7 @@ function nextAction(status: TranscriptReplayProjectionStatus): string {
   return "Review transcript summary replay; command replay remains disabled.";
 }
 
-function scanUnsafe(
-  value: unknown,
-  findings: TranscriptReplayFinding[]
-): void {
+function scanUnsafe(value: unknown, findings: TranscriptReplayFinding[]): void {
   if (Array.isArray(value)) {
     value.forEach((item) => scanUnsafe(item, findings));
     return;
@@ -358,7 +373,9 @@ function scanUnsafe(
     for (const [key, nested] of Object.entries(value)) {
       const lower = key.toLowerCase();
       if (forbiddenFieldKeys.has(lower)) {
-        findings.push(blocker(classifyForbiddenKey(lower), `${key}_FIELD_REJECTED`));
+        findings.push(
+          blocker(classifyForbiddenKey(lower), `${key}_FIELD_REJECTED`)
+        );
       }
       scanUnsafe(nested, findings);
     }
@@ -412,7 +429,9 @@ function asString(value: unknown): string | undefined {
 }
 
 function asNumber(value: unknown): number | undefined {
-  return typeof value === "number" && Number.isFinite(value) ? value : undefined;
+  return typeof value === "number" && Number.isFinite(value)
+    ? value
+    : undefined;
 }
 
 function asBoolean(value: unknown): boolean | undefined {
@@ -421,7 +440,9 @@ function asBoolean(value: unknown): boolean | undefined {
 
 function stringArray(value: unknown): string[] {
   return Array.isArray(value)
-    ? value.filter((item): item is string => typeof item === "string").map(safeText)
+    ? value
+        .filter((item): item is string => typeof item === "string")
+        .map(safeText)
     : [];
 }
 
@@ -429,7 +450,9 @@ function unique(values: string[]): string[] {
   return Array.from(new Set(values)).sort();
 }
 
-function uniqueFindings(findings: TranscriptReplayFinding[]): TranscriptReplayFinding[] {
+function uniqueFindings(
+  findings: TranscriptReplayFinding[]
+): TranscriptReplayFinding[] {
   const seen = new Set<string>();
   const out: TranscriptReplayFinding[] = [];
   for (const finding of findings) {
@@ -442,7 +465,9 @@ function uniqueFindings(findings: TranscriptReplayFinding[]): TranscriptReplayFi
   return out;
 }
 
-function withIds(findings: TranscriptReplayFinding[]): TranscriptReplayFinding[] {
+function withIds(
+  findings: TranscriptReplayFinding[]
+): TranscriptReplayFinding[] {
   return findings.map((finding, index) => ({
     ...finding,
     findingId: `transcript-replay-finding-${index + 1}`

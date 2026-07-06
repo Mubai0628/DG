@@ -258,9 +258,7 @@ export function buildTranscriptViewerView(
     source: "app_transcript_viewer",
     viewerId: input.idGenerator?.() ?? `transcript-viewer-${hash.slice(0, 12)}`,
     transcriptCount: summaries.length,
-    ...(selectedTranscriptId !== ""
-      ? { selectedTranscriptId }
-      : {}),
+    ...(selectedTranscriptId !== "" ? { selectedTranscriptId } : {}),
     summaries,
     ...(selectedSummary !== undefined ? { selectedSummary } : {}),
     totalChunkCount: totals.totalChunkCount,
@@ -328,9 +326,13 @@ function readinessFor(
     canRefreshTranscripts: status !== "blocked",
     canPreviewTranscriptSummary: canDisplay && selectedSummary !== undefined,
     canDeleteTranscript:
-      canDisplay && selectedSummary !== undefined && selectedSummary.deleteAllowed,
+      canDisplay &&
+      selectedSummary !== undefined &&
+      selectedSummary.deleteAllowed,
     canExportSummary:
-      canDisplay && selectedSummary !== undefined && selectedSummary.exportAllowed,
+      canDisplay &&
+      selectedSummary !== undefined &&
+      selectedSummary.exportAllowed,
     canViewRawOutput: false,
     canRunCommand: false,
     canReplayCommand: false,
@@ -378,7 +380,11 @@ function scanForUnsafeInput(
     for (const { code, pattern } of unsafeTextPatterns) {
       if (pattern.test(value)) {
         findings.push(
-          finding(code, "blocker", "Transcript viewer input contains unsafe text markers.")
+          finding(
+            code,
+            "blocker",
+            "Transcript viewer input contains unsafe text markers."
+          )
         );
       }
     }
@@ -397,7 +403,9 @@ function scanForUnsafeInput(
     return;
   }
   seen.add(value);
-  for (const [key, nested] of Object.entries(value as Record<string, unknown>)) {
+  for (const [key, nested] of Object.entries(
+    value as Record<string, unknown>
+  )) {
     const lowerKey = key.toLowerCase();
     if (forbiddenFieldNames.has(lowerKey)) {
       findings.push(
@@ -445,7 +453,9 @@ function stableStringify(value: unknown): string {
   if (value !== null && typeof value === "object") {
     return `{${Object.entries(value as Record<string, unknown>)
       .sort(([left], [right]) => left.localeCompare(right))
-      .map(([key, nested]) => `${JSON.stringify(key)}:${stableStringify(nested)}`)
+      .map(
+        ([key, nested]) => `${JSON.stringify(key)}:${stableStringify(nested)}`
+      )
       .join(",")}}`;
   }
   return JSON.stringify(value);

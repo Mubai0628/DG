@@ -72,7 +72,9 @@ describe("transcript redaction audit", () => {
 
   it("blocks raw stdout and stderr fields", () => {
     const audit = buildTranscriptRedactionAudit({
-      artifacts: [{ stdout: "synthetic raw stdout", stderr: "synthetic raw stderr" }]
+      artifacts: [
+        { stdout: "synthetic raw stdout", stderr: "synthetic raw stderr" }
+      ]
     });
 
     expect(audit.status).toBe("blocked");

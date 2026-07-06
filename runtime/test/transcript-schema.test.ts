@@ -205,9 +205,9 @@ describe("transcript store schema", () => {
     expect(rawResponseResult.status).toBe("blocked");
     expect(codes(rawPromptResult)).toContain("RAW_PROMPT_FIELD_REJECTED");
     expect(codes(rawResponseResult)).toContain("RAW_RESPONSE_FIELD_REJECTED");
-    expect(JSON.stringify({ rawPromptResult, rawResponseResult })).not.toContain(
-      "Synthetic raw"
-    );
+    expect(
+      JSON.stringify({ rawPromptResult, rawResponseResult })
+    ).not.toContain("Synthetic raw");
     expectNoExecution(rawPromptResult);
     expectNoExecution(rawResponseResult);
   });
