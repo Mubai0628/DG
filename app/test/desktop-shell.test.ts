@@ -35314,6 +35314,29 @@ describe("expanded desktop action proposal app surface", () => {
     expect(combined).not.toContain("raw transcript enables full access");
     expect(combined).not.toContain("raw transcript bypasses redaction");
   });
+
+  it("documents the runtime transcript store schema boundaries", async () => {
+    const runtimeDoc = await readFile(
+      path.join(repoRoot, "docs", "runtime-transcript-store-schema-v0.34.md"),
+      "utf8"
+    );
+    const docsIndex = await readFile(
+      path.join(repoRoot, "docs", "README.md"),
+      "utf8"
+    );
+
+    expect(runtimeDoc).toContain("Runtime Transcript Store Schema v0.34");
+    expect(runtimeDoc).toContain("Redacted by Default");
+    expect(runtimeDoc).toContain("raw_available_gated");
+    expect(runtimeDoc).toContain("rawOptIn: true");
+    expect(runtimeDoc).toContain("No transcript capture pipeline");
+    expect(runtimeDoc).toContain("No Tauri command");
+    expect(runtimeDoc).toContain("No App viewer");
+    expect(runtimeDoc).toContain("No command execution");
+    expect(runtimeDoc).toContain("No arbitrary shell");
+    expect(runtimeDoc).toContain("No API key read");
+    expect(docsIndex).toContain("runtime-transcript-store-schema-v0.34.md");
+  });
 });
 
 describe("desktop dev scripts", () => {

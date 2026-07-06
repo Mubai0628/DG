@@ -432,4 +432,5 @@ export type {
   ToolPermissionPolicy,
   ToolRiskLevel
 } from "./tools/types.js";
+export * from "./transcripts/index.js";
 export * from "./workspace/index.js";
