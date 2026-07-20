@@ -37,7 +37,6 @@ describe("sidebar project grouping", () => {
     const html = renderToString(
       <LanguageProvider language="zh">
         <Sidebar
-          workspaceRoot="C:\\ws"
           permissionTierLabel="Read Auto-Approved"
           collapsed={false}
           projects={[{ id: "p1", name: "demo", root: "C:\\ws" }]}

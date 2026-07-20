@@ -205,7 +205,6 @@ export function AppShell() {
     <LanguageProvider language={language}>
       <div className={`shell${sidebarCollapsed ? " sidebarCollapsed" : ""}`}>
         <Sidebar
-          workspaceRoot={workspaceRoot}
           permissionTierLabel={permissionTierLabel}
           collapsed={sidebarCollapsed}
           projects={projects}

@@ -8,7 +8,6 @@ import type {
 } from "./types.js";
 
 export type SidebarProps = {
-  workspaceRoot: string;
   permissionTierLabel: string;
   collapsed: boolean;
   projects: ShellProject[];
@@ -22,7 +21,6 @@ export type SidebarProps = {
 };
 
 export function Sidebar({
-  workspaceRoot,
   permissionTierLabel,
   collapsed,
   projects,
