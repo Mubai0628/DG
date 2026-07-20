@@ -93,13 +93,15 @@ function expectNoProcessExecution(readiness: CommandBrokerReadiness): void {
 }
 
 describe("runtime command broker planner", () => {
-  it("blocks arbitrary shell in approval mode", () => {
+  it("lets approval mode shell reach the receipt-gated execution phase", () => {
     const plan = buildCommandBrokerPlan(
       brokerInput("approval", "node --version")
     );
 
-    expect(plan.decision).toBe("blocked");
-    expect(codes(plan)).toContain("APPROVAL_MODE_ARBITRARY_SHELL_BLOCKED");
+    // Approval mode no longer blocks the shell kind: execution is gated by
+    // the bound approval receipt at the Tauri command, not by the planner.
+    expect(plan.decision).toBe("ready_for_tauri_execution");
+    expect(codes(plan)).not.toContain("APPROVAL_MODE_ARBITRARY_SHELL_BLOCKED");
     expectNoProcessExecution(plan.readiness);
   });
 
@@ -198,7 +200,9 @@ describe("runtime command broker planner", () => {
     );
 
     expect(missingLease.decision).toBe("blocked");
-    expect(codes(missingLease)).toContain("FULL_ACCESS_REQUIRES_EXPLICIT_LEASE");
+    expect(codes(missingLease)).toContain(
+      "FULL_ACCESS_REQUIRES_EXPLICIT_LEASE"
+    );
     expect(explicitLease.decision).toBe("ready_for_tauri_execution");
     expectNoProcessExecution(missingLease.readiness);
     expectNoProcessExecution(explicitLease.readiness);

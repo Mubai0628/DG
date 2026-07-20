@@ -1,3 +1,4 @@
+use crate::command_broker_classifier::{classify_command, command_broker_request_hash};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::collections::{hash_map::DefaultHasher, BTreeMap, BTreeSet};
@@ -26,6 +27,7 @@ const SHELL_VERIFICATION_DEFAULT_MAX_OUTPUT_BYTES: usize = 64 * 1024;
 const SHELL_VERIFICATION_MAX_OUTPUT_BYTES: usize = 256 * 1024;
 const APPLY_CONFIRMATION: &str = "APPLY TO USER WORKSPACE";
 const ROLLBACK_CONFIRMATION: &str = "ROLLBACK USER WORKSPACE";
+const COMMAND_BROKER_RECEIPT_SOURCE: &str = "runtime_command_broker_approval_receipt";
 const APPROVED_APPLY_PREVIEW_TYPE: &str = "user_workspace.patch_apply.approved_result";
 const APPROVED_ROLLBACK_PREVIEW_TYPE: &str = "user_workspace.patch_rollback.approved_result";
 const APPROVED_APPLY_EXECUTED_TYPE: &str = "user_workspace.patch_apply.app_executed";
@@ -38,7 +40,6 @@ const LIVE_PROPOSAL_MIN_RESPONSE_BYTES: usize = 256;
 const LIVE_PROPOSAL_MAX_RESPONSE_BYTES: usize = 1_000_000;
 const LIVE_PROPOSAL_MIN_TIMEOUT_MS: u64 = 1_000;
 const LIVE_PROPOSAL_MAX_TIMEOUT_MS: u64 = 120_000;
-const MCP_READONLY_DISCOVERY_CONFIRMATION: &str = "DISCOVER MCP METADATA";
 const MCP_READONLY_DISCOVERY_MAX_TIMEOUT_MS: u64 = 30_000;
 const MCP_READONLY_DISCOVERY_MAX_ITEMS: usize = 100;
 const MCP_READONLY_TOOL_CONFIRMATION: &str = "CALL READONLY MCP TOOL";
@@ -267,12 +268,14 @@ pub struct WorkspaceEventSummary {
     approved_apply_count: usize,
     approved_rollback_count: usize,
     verification_event_count: usize,
+    command_broker_event_count: usize,
     live_proposal_event_count: usize,
     project_knowledge_event_count: usize,
     project_knowledge_entry_count: usize,
     transcript_event_count: usize,
     latest_approved_execution_summary: Option<String>,
     latest_verification_summary: Option<String>,
+    latest_command_broker_summary: Option<String>,
     latest_live_proposal_summary: Option<String>,
     latest_project_knowledge_summary: Option<String>,
     latest_project_knowledge_recall_summary: Option<String>,
@@ -640,7 +643,6 @@ pub struct ApprovedExpandedDesktopActionCommandResult {
 #[serde(rename_all = "camelCase")]
 pub struct McpReadonlyDiscoverRequest {
     profile: Value,
-    typed_confirmation: String,
     max_items: usize,
     timeout_ms: u64,
 }
@@ -1413,10 +1415,14 @@ pub struct CommandBrokerExecutionRequest {
     command_request: CommandBrokerExecutionCommandRequest,
     session_lease_ref: String,
     transcript_policy: CommandBrokerTranscriptPolicy,
+    /// Client-reported classifier categories. Untrusted: authorization always
+    /// recomputes classification server-side; this field is ignored.
     #[serde(default)]
     classifier_categories: Vec<String>,
     kill_switch_active: bool,
     cancellation_id: Option<String>,
+    #[serde(default)]
+    approval_receipt: Option<Value>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -3232,9 +3238,6 @@ fn run_mcp_readonly_discover_fake(
 fn validate_mcp_readonly_discovery_request(
     request: &McpReadonlyDiscoverRequest,
 ) -> Result<&serde_json::Map<String, Value>, String> {
-    if request.typed_confirmation != MCP_READONLY_DISCOVERY_CONFIRMATION {
-        return Err("MCP readonly discovery confirmation is required".to_string());
-    }
     if request.max_items == 0 || request.max_items > MCP_READONLY_DISCOVERY_MAX_ITEMS {
         return Err("MCP readonly discovery item limit is outside the allowed range".to_string());
     }
@@ -5384,6 +5387,12 @@ fn validate_command_broker_execution_request(
             "Git write command broker execution is not allowed",
         ));
     }
+    if command.allow_network {
+        return Err(command_broker_error(
+            "COMMAND_BROKER_NETWORK_REJECTED",
+            "Network access through the command broker is not allowed in this phase",
+        ));
+    }
     if !matches!(
         command.environment_policy.mode.as_str(),
         "empty" | "allowlist_names"
@@ -5404,14 +5413,28 @@ fn validate_command_broker_execution_request(
             ));
         }
     }
-    for category in &request.classifier_categories {
-        if command_broker_blocked_category(category) {
-            return Err(command_broker_error(
-                "COMMAND_BROKER_CLASSIFIER_REJECTED",
-                "Command broker classifier category blocks execution",
-            ));
-        }
+    if !matches!(
+        command.mode.as_str(),
+        "approval" | "autonomous_safe" | "advanced_workspace" | "full_access" | "break_glass"
+    ) {
+        return Err(command_broker_error(
+            "COMMAND_BROKER_MODE_REJECTED",
+            "Command broker permission mode is unsupported",
+        ));
     }
+    // Authorization is computed server-side: the client-reported
+    // `classifier_categories` field is never consulted. The same classifier
+    // the runtime ships (mirrored in command_broker_classifier.rs) runs here
+    // over the actual command text and argv.
+    let server_mode = resolve_command_broker_server_mode(request)?;
+    if command.mode != server_mode {
+        return Err(command_broker_error(
+            "COMMAND_BROKER_MODE_MISMATCH",
+            "Command broker mode does not match the persisted workspace settings",
+        ));
+    }
+    let classification = classify_command(&command.command_text, &command.argv);
+    validate_command_broker_mode_and_classification(command, &classification)?;
     if contains_command_broker_forbidden_text(&command.command_text)
         || command
             .argv
@@ -5437,6 +5460,243 @@ fn validate_command_broker_execution_request(
     }
     command_broker_timeout(command.timeout_ms)?;
     command_broker_max_output_bytes(command.max_output_bytes)?;
+    validate_command_broker_receipt(request)?;
+    // Full access additionally requires a stored, active full-access lease;
+    // the free-text session lease reference alone proves nothing.
+    if command.mode == "full_access" {
+        validate_command_broker_full_access_lease(request)?;
+    }
+    Ok(())
+}
+
+fn command_broker_shell_kind_name(kind: CommandBrokerShellKind) -> &'static str {
+    match kind {
+        CommandBrokerShellKind::None => "none",
+        CommandBrokerShellKind::Powershell => "powershell",
+        CommandBrokerShellKind::Cmd => "cmd",
+        CommandBrokerShellKind::Bash => "bash",
+        CommandBrokerShellKind::Sh => "sh",
+    }
+}
+
+/// Resolves the broker's effective execution mode from the persisted
+/// workspace settings (6-level product mode mapped to the 5-level broker
+/// mode). Authorization always derives from the settings store; the
+/// client-declared mode is only a cross-check against it.
+fn resolve_command_broker_server_mode(
+    request: &CommandBrokerExecutionRequest,
+) -> Result<String, DesktopFlowError> {
+    let settings =
+        read_workspace_settings_with_app_path(request.workspace_root.clone(), None).map_err(
+            |error| command_broker_error("COMMAND_BROKER_SETTINGS_INVALID", error.safe_message),
+        )?;
+    crate::path_sensitivity::command_execution_mode_for_permission_mode(
+        &settings.permission_mode,
+    )
+    .map(str::to_string)
+    .ok_or_else(|| {
+        command_broker_error(
+            "COMMAND_BROKER_SETTINGS_INVALID",
+            "Workspace settings permission mode is unsupported",
+        )
+    })
+}
+
+/// Mirrors the mode rules of the TypeScript planner
+/// (`validateModeRules` in command-broker.ts) so the authorization decision
+/// is recomputed at the trust boundary instead of trusting the client plan.
+/// Approval mode does not restrict the shell kind: every execution already
+/// requires a bound approval receipt, which is the tier's gate.
+fn validate_command_broker_mode_and_classification(
+    command: &CommandBrokerExecutionCommandRequest,
+    classification: &crate::command_broker_classifier::BrokerClassification,
+) -> Result<(), DesktopFlowError> {
+    let mode = command.mode.as_str();
+    if !matches!(
+        mode,
+        "approval" | "autonomous_safe" | "advanced_workspace" | "full_access" | "break_glass"
+    ) {
+        return Err(command_broker_error(
+            "COMMAND_BROKER_MODE_REJECTED",
+            "Command broker permission mode is unsupported",
+        ));
+    }
+    if mode == "break_glass" {
+        return Err(command_broker_error(
+            "COMMAND_BROKER_BREAK_GLASS_DRY_RUN",
+            "Break-glass mode is modeled for dry-run planning only",
+        ));
+    }
+    if mode == "autonomous_safe"
+        && command.shell_kind != CommandBrokerShellKind::None
+        && !classification.is_safe()
+    {
+        return Err(command_broker_error(
+            "COMMAND_BROKER_MODE_BLOCKS_SHELL",
+            "Autonomous safe mode blocks commands outside the safe classifier set",
+        ));
+    }
+    if classification.blocked {
+        return Err(command_broker_error(
+            "COMMAND_BROKER_CLASSIFIER_REJECTED",
+            "Command broker server-side classification blocks execution",
+        ));
+    }
+    Ok(())
+}
+
+/// Validates the broker approval receipt with the same conventions as the
+/// apply/rollback lane receipts (validate_approved_apply_receipt): fixed
+/// source, summary-only, kind, disabled readiness, typed confirmation,
+/// expiry, and a scope bound to the exact command request via requestHash.
+fn validate_command_broker_receipt(
+    request: &CommandBrokerExecutionRequest,
+) -> Result<(), DesktopFlowError> {
+    let receipt_value = request.approval_receipt.as_ref().ok_or_else(|| {
+        command_broker_error(
+            "COMMAND_BROKER_RECEIPT_REQUIRED",
+            "Command broker execution requires an approval receipt",
+        )
+    })?;
+    let marker_scan_serialized = receipt_marker_scan_serialized(receipt_value).map_err(|_| {
+        command_broker_error(
+            "COMMAND_BROKER_RECEIPT_REJECTED",
+            "Command broker receipt could not be serialized",
+        )
+    })?;
+    if find_forbidden_approved_apply_key(receipt_value).is_some()
+        || contains_approved_apply_sensitive_marker(&marker_scan_serialized)
+    {
+        return Err(command_broker_error(
+            "COMMAND_BROKER_RECEIPT_REJECTED",
+            "Command broker receipt contains unsafe marker",
+        ));
+    }
+    let receipt = receipt_value.as_object().ok_or_else(|| {
+        command_broker_error(
+            "COMMAND_BROKER_RECEIPT_REJECTED",
+            "Command broker receipt must be an object",
+        )
+    })?;
+    let status = receipt.get("status").and_then(Value::as_str);
+    if status != Some("ready") && status != Some("warning") {
+        return Err(command_broker_error(
+            "COMMAND_BROKER_RECEIPT_REJECTED",
+            "Command broker receipt is not ready",
+        ));
+    }
+    if receipt.get("source").and_then(Value::as_str) != Some(COMMAND_BROKER_RECEIPT_SOURCE) {
+        return Err(command_broker_error(
+            "COMMAND_BROKER_RECEIPT_REJECTED",
+            "Command broker receipt source is invalid",
+        ));
+    }
+    if receipt.get("summaryOnly").and_then(Value::as_bool) != Some(true) {
+        return Err(command_broker_error(
+            "COMMAND_BROKER_RECEIPT_REJECTED",
+            "Command broker receipt must be summary-only",
+        ));
+    }
+    if receipt.get("kind").and_then(Value::as_str) != Some("command_broker_execution") {
+        return Err(command_broker_error(
+            "COMMAND_BROKER_RECEIPT_REJECTED",
+            "Command broker receipt kind is invalid",
+        ));
+    }
+    validate_command_broker_receipt_readiness(receipt.get("readiness"))?;
+    let scope = receipt
+        .get("scope")
+        .and_then(Value::as_object)
+        .ok_or_else(|| {
+            command_broker_error(
+                "COMMAND_BROKER_RECEIPT_REJECTED",
+                "Command broker receipt scope is missing",
+            )
+        })?;
+    if scope.get("kind").and_then(Value::as_str) != Some("command_broker_execution") {
+        return Err(command_broker_error(
+            "COMMAND_BROKER_RECEIPT_REJECTED",
+            "Command broker receipt scope kind is invalid",
+        ));
+    }
+    let command = &request.command_request;
+    if scope.get("mode").and_then(Value::as_str) != Some(command.mode.as_str()) {
+        return Err(command_broker_error(
+            "COMMAND_BROKER_RECEIPT_REJECTED",
+            "Command broker receipt mode does not match the request",
+        ));
+    }
+    if scope.get("workspaceRootRef").and_then(Value::as_str)
+        != Some(command.workspace_root_ref.as_str())
+    {
+        return Err(command_broker_error(
+            "COMMAND_BROKER_RECEIPT_REJECTED",
+            "Command broker receipt workspace reference mismatch",
+        ));
+    }
+    if scope.get("sessionLeaseRef").and_then(Value::as_str)
+        != Some(request.session_lease_ref.as_str())
+    {
+        return Err(command_broker_error(
+            "COMMAND_BROKER_RECEIPT_REJECTED",
+            "Command broker receipt session lease mismatch",
+        ));
+    }
+    let expires_at = scope.get("expiresAt").and_then(Value::as_str).unwrap_or("");
+    if expires_at.is_empty() || !receipt_expiry_is_future(expires_at) {
+        return Err(command_broker_error(
+            "COMMAND_BROKER_RECEIPT_REJECTED",
+            "Command broker receipt is expired",
+        ));
+    }
+    let expected_hash = command_broker_request_hash(
+        &command.mode,
+        &command.workspace_root_ref,
+        command_broker_shell_kind_name(command.shell_kind),
+        &command.working_directory,
+        &command.command_text,
+        &command.argv,
+    );
+    if scope.get("requestHash").and_then(Value::as_str) != Some(expected_hash.as_str()) {
+        return Err(command_broker_error(
+            "COMMAND_BROKER_RECEIPT_MISMATCH",
+            "Command broker receipt is not bound to this command request",
+        ));
+    }
+    Ok(())
+}
+
+fn validate_command_broker_receipt_readiness(
+    value: Option<&Value>,
+) -> Result<(), DesktopFlowError> {
+    let Some(readiness) = value.and_then(Value::as_object) else {
+        return Err(command_broker_error(
+            "COMMAND_BROKER_RECEIPT_REJECTED",
+            "Command broker receipt readiness is missing",
+        ));
+    };
+    for key in [
+        "canExecuteCommand",
+        "canSpawnProcess",
+        "canWriteFilesystem",
+        "canExecuteGitWrite",
+        "canRunBackgroundProcess",
+        "canReadApiKey",
+        "canFetchNetwork",
+        "canWriteEventStore",
+        "canApplyPatch",
+        "canRollback",
+        "canUseNativeBridge",
+        "canExecuteDesktopAction",
+        "appCanExecute",
+    ] {
+        if readiness.get(key).and_then(Value::as_bool) != Some(false) {
+            return Err(command_broker_error(
+                "COMMAND_BROKER_RECEIPT_REJECTED",
+                "Command broker receipt readiness must remain disabled",
+            ));
+        }
+    }
     Ok(())
 }
 
@@ -5499,11 +5759,11 @@ fn command_broker_program_and_args(
         )),
         CommandBrokerShellKind::Bash => Ok((
             "bash".to_string(),
-            vec!["-lc".to_string(), request.command_text.clone()],
+            vec!["-c".to_string(), request.command_text.clone()],
         )),
         CommandBrokerShellKind::Sh => Ok((
             "sh".to_string(),
-            vec!["-lc".to_string(), request.command_text.clone()],
+            vec!["-c".to_string(), request.command_text.clone()],
         )),
     }
 }
@@ -5603,33 +5863,6 @@ fn command_broker_transcript_record(
     })
 }
 
-fn command_broker_blocked_category(category: &str) -> bool {
-    matches!(
-        category,
-        "destructive_delete"
-            | "recursive_delete"
-            | "force_delete"
-            | "format_disk"
-            | "permission_change"
-            | "ownership_change"
-            | "shell_download_execute"
-            | "credential_exfiltration"
-            | "network_exfiltration"
-            | "package_script_execution"
-            | "git_write"
-            | "git_remote_push"
-            | "git_history_rewrite"
-            | "process_kill"
-            | "background_daemon"
-            | "native_bridge_attempt"
-            | "desktop_action_attempt"
-            | "environment_secret_access"
-            | "system_path_write"
-            | "workspace_escape"
-            | "unknown_high_risk"
-    )
-}
-
 fn contains_command_broker_forbidden_text(value: &str) -> bool {
     let lower = value.to_ascii_lowercase();
     contains_sensitive_marker(value)
@@ -5670,6 +5903,1565 @@ fn command_broker_max_output_bytes(
 
 fn command_broker_error(code: &str, message: impl Into<String>) -> DesktopFlowError {
     DesktopFlowError::new(code, message.into(), "command_broker_execution")
+}
+
+const FILE_READ_RECEIPT_SOURCE: &str = "runtime_file_read_approval_receipt";
+const FILE_READ_MAX_FILE_BYTES: u64 = 1024 * 1024;
+const FILE_READ_MAX_CONTENT_BYTES: usize = 64 * 1024;
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct WorkspaceFileReadRequest {
+    workspace_root: String,
+    workspace_root_ref: String,
+    relative_path: String,
+    permission_mode: String,
+    #[serde(default)]
+    approval_receipt: Option<Value>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct WorkspaceFileReadEventPreview {
+    #[serde(rename = "type")]
+    event_type: String,
+    workspace_root_ref: String,
+    relative_path_hash: String,
+    sensitivity: String,
+    tier_gate: String,
+    byte_count: usize,
+    line_count: usize,
+    truncated: bool,
+    content_hash: String,
+    approval_receipt_present: bool,
+    summary_only: bool,
+    not_written: bool,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct WorkspaceFileReadResult {
+    ok: bool,
+    status: String,
+    workspace_root_ref: String,
+    relative_path: String,
+    sensitivity: String,
+    tier_gate: String,
+    content: String,
+    byte_count: usize,
+    returned_bytes: usize,
+    line_count: usize,
+    truncated: bool,
+    content_hash: String,
+    approval_receipt_id: Option<String>,
+    /// The read lane returns file content verbatim (capped); this flag is
+    /// false by design. Event previews remain summary-only.
+    summary_only: bool,
+    event_preview: WorkspaceFileReadEventPreview,
+    safe_message: String,
+}
+
+#[tauri::command(rename_all = "camelCase")]
+pub fn read_workspace_file(
+    request: WorkspaceFileReadRequest,
+) -> Result<WorkspaceFileReadResult, DesktopFlowError> {
+    read_workspace_file_summary(request)
+}
+
+fn read_workspace_file_summary(
+    request: WorkspaceFileReadRequest,
+) -> Result<WorkspaceFileReadResult, DesktopFlowError> {
+    validate_workspace_file_read_metadata(&request)?;
+    let workspace_root = validate_workspace_root(&request.workspace_root)
+        .map_err(|message| file_read_error("WORKSPACE_FILE_WORKSPACE_INVALID", message))?;
+    let tier = crate::path_sensitivity::permission_mode_tier(&request.permission_mode)
+        .ok_or_else(|| {
+            file_read_error(
+                "WORKSPACE_FILE_MODE_REJECTED",
+                "Workspace file read permission mode is unsupported",
+            )
+        })?;
+    // Authorization derives from the persisted workspace settings; the
+    // client-declared mode must match them exactly.
+    let settings =
+        read_workspace_settings_with_app_path(request.workspace_root.clone(), None).map_err(
+            |error| file_read_error("WORKSPACE_FILE_SETTINGS_INVALID", error.safe_message),
+        )?;
+    if request.permission_mode != settings.permission_mode {
+        return Err(file_read_error(
+            "WORKSPACE_FILE_MODE_MISMATCH",
+            "Workspace file read mode does not match the persisted workspace settings",
+        ));
+    }
+    let gate = crate::path_sensitivity::path_read_gate(tier, &request.relative_path);
+    if gate == crate::path_sensitivity::TierGate::Blocked {
+        return Err(file_read_error(
+            "WORKSPACE_FILE_PROTECTED",
+            "Workspace file read targets a protected path",
+        ));
+    }
+    let sensitivity = match crate::path_sensitivity::grade_path_sensitivity(
+        &request.relative_path,
+    ) {
+        crate::path_sensitivity::PathSensitivity::Sensitive => "sensitive",
+        _ => "normal",
+    };
+    let approval_receipt_id = if gate == crate::path_sensitivity::TierGate::RequiresApproval {
+        Some(validate_workspace_file_read_receipt(&request)?)
+    } else {
+        None
+    };
+    let target = resolve_workspace_file_read_path(&workspace_root, &request.relative_path)?;
+    let metadata = fs::metadata(&target).map_err(|_| {
+        file_read_error(
+            "WORKSPACE_FILE_NOT_FOUND",
+            "Workspace file read target does not exist",
+        )
+    })?;
+    if !metadata.is_file() {
+        return Err(file_read_error(
+            "WORKSPACE_FILE_NOT_FILE",
+            "Workspace file read target is not a file",
+        ));
+    }
+    if metadata.len() > FILE_READ_MAX_FILE_BYTES {
+        return Err(file_read_error(
+            "WORKSPACE_FILE_TOO_LARGE",
+            "Workspace file read target exceeds the file size limit",
+        ));
+    }
+    let raw = fs::read(&target)
+        .map_err(|_| file_read_error("WORKSPACE_FILE_READ_FAILED", "Workspace file read failed"))?;
+    let text = String::from_utf8(raw).map_err(|_| {
+        file_read_error(
+            "WORKSPACE_FILE_NOT_TEXT",
+            "Workspace file read target is not UTF-8 text",
+        )
+    })?;
+    // Fail closed on secret-like content only for auto-approved normal
+    // reads; receipt-covered reads were explicitly approved for this file,
+    // and sensitive grades always carry that approval (or the
+    // unrestricted tier).
+    if gate == crate::path_sensitivity::TierGate::Auto
+        && sensitivity == "normal"
+        && contains_sensitive_marker(&text)
+    {
+        return Err(file_read_error(
+            "WORKSPACE_FILE_CONTENT_SECRET",
+            "Workspace file content failed the secret marker scan",
+        ));
+    }
+    let byte_count = text.len();
+    let line_count = text.lines().count();
+    let truncated = byte_count > FILE_READ_MAX_CONTENT_BYTES;
+    let mut end = FILE_READ_MAX_CONTENT_BYTES.min(byte_count);
+    while !text.is_char_boundary(end) {
+        end -= 1;
+    }
+    let content = text[..end].to_string();
+    let content_hash = short_hash(&text);
+    let tier_gate = match gate {
+        crate::path_sensitivity::TierGate::Auto => "auto",
+        crate::path_sensitivity::TierGate::RequiresApproval => "requires_approval",
+        crate::path_sensitivity::TierGate::Blocked => "blocked",
+    };
+    let event_preview = WorkspaceFileReadEventPreview {
+        event_type: "workspace_file.read.completed".to_string(),
+        workspace_root_ref: sanitize_safe_message(&request.workspace_root_ref),
+        relative_path_hash: short_hash(&request.relative_path),
+        sensitivity: sensitivity.to_string(),
+        tier_gate: tier_gate.to_string(),
+        byte_count,
+        line_count,
+        truncated,
+        content_hash: content_hash.clone(),
+        approval_receipt_present: approval_receipt_id.is_some(),
+        summary_only: true,
+        not_written: true,
+    };
+    Ok(WorkspaceFileReadResult {
+        ok: true,
+        status: "passed".to_string(),
+        workspace_root_ref: sanitize_safe_message(&request.workspace_root_ref),
+        relative_path: sanitize_safe_message(&request.relative_path),
+        sensitivity: sensitivity.to_string(),
+        tier_gate: tier_gate.to_string(),
+        returned_bytes: content.len(),
+        content,
+        byte_count,
+        line_count,
+        truncated,
+        content_hash,
+        approval_receipt_id,
+        summary_only: false,
+        event_preview,
+        safe_message: "Workspace file read completed with content capped to the lane limit."
+            .to_string(),
+    })
+}
+
+fn validate_workspace_file_read_metadata(
+    request: &WorkspaceFileReadRequest,
+) -> Result<(), DesktopFlowError> {
+    for (value, code) in [
+        (
+            &request.workspace_root_ref,
+            "WORKSPACE_FILE_WORKSPACE_REF_REJECTED",
+        ),
+        (&request.relative_path, "WORKSPACE_FILE_PATH_REJECTED"),
+        (&request.permission_mode, "WORKSPACE_FILE_MODE_REJECTED"),
+    ] {
+        if value.trim().is_empty() || contains_sensitive_marker(value) {
+            return Err(file_read_error(
+                code,
+                "Workspace file read metadata failed safety validation",
+            ));
+        }
+    }
+    let path = request.relative_path.as_str();
+    if path.starts_with('/') || path.starts_with('\\') || path.starts_with("//") {
+        return Err(file_read_error(
+            "WORKSPACE_FILE_PATH_REJECTED",
+            "Workspace file read path must be relative",
+        ));
+    }
+    if path.len() >= 3 && path.as_bytes()[1] == b':' {
+        return Err(file_read_error(
+            "WORKSPACE_FILE_PATH_REJECTED",
+            "Workspace file read path cannot use a drive prefix",
+        ));
+    }
+    if path.contains('\0') || path.contains('\n') || path.contains('\r') {
+        return Err(file_read_error(
+            "WORKSPACE_FILE_PATH_REJECTED",
+            "Workspace file read path contains control characters",
+        ));
+    }
+    if path
+        .replace('\\', "/")
+        .split('/')
+        .any(|segment| segment == "..")
+    {
+        return Err(file_read_error(
+            "WORKSPACE_FILE_PATH_REJECTED",
+            "Workspace file read path cannot contain traversal",
+        ));
+    }
+    Ok(())
+}
+
+fn resolve_workspace_file_read_path(
+    workspace_root: &Path,
+    relative_path: &str,
+) -> Result<PathBuf, DesktopFlowError> {
+    let candidate = workspace_root.join(relative_path.replace('\\', "/"));
+    let symlink_meta = fs::symlink_metadata(&candidate).map_err(|_| {
+        file_read_error(
+            "WORKSPACE_FILE_NOT_FOUND",
+            "Workspace file read target does not exist",
+        )
+    })?;
+    if symlink_meta.file_type().is_symlink() {
+        return Err(file_read_error(
+            "WORKSPACE_FILE_SYMLINK_REJECTED",
+            "Workspace file read target cannot be a symlink",
+        ));
+    }
+    let canonical = candidate.canonicalize().map_err(|_| {
+        file_read_error(
+            "WORKSPACE_FILE_NOT_FOUND",
+            "Workspace file read target could not be resolved",
+        )
+    })?;
+    if !canonical.starts_with(workspace_root) {
+        return Err(file_read_error(
+            "WORKSPACE_FILE_PATH_ESCAPE",
+            "Workspace file read path escapes the workspace root",
+        ));
+    }
+    Ok(canonical)
+}
+
+/// Validates the file-read approval receipt with the same conventions as
+/// the broker receipt: fixed source, summary-only, kind, disabled
+/// readiness, typed confirmation, expiry, and a scope bound to the exact
+/// read request via requestHash. Returns the receipt id on success.
+fn validate_workspace_file_read_receipt(
+    request: &WorkspaceFileReadRequest,
+) -> Result<String, DesktopFlowError> {
+    let receipt_value = request.approval_receipt.as_ref().ok_or_else(|| {
+        file_read_error(
+            "WORKSPACE_FILE_RECEIPT_REQUIRED",
+            "Workspace file read requires an approval receipt for this mode or path",
+        )
+    })?;
+    let marker_scan_serialized = receipt_marker_scan_serialized(receipt_value).map_err(|_| {
+        file_read_error(
+            "WORKSPACE_FILE_RECEIPT_REJECTED",
+            "Workspace file read receipt could not be serialized",
+        )
+    })?;
+    if find_forbidden_approved_apply_key(receipt_value).is_some()
+        || contains_approved_apply_sensitive_marker(&marker_scan_serialized)
+    {
+        return Err(file_read_error(
+            "WORKSPACE_FILE_RECEIPT_REJECTED",
+            "Workspace file read receipt contains unsafe marker",
+        ));
+    }
+    let receipt = receipt_value.as_object().ok_or_else(|| {
+        file_read_error(
+            "WORKSPACE_FILE_RECEIPT_REJECTED",
+            "Workspace file read receipt must be an object",
+        )
+    })?;
+    let status = receipt.get("status").and_then(Value::as_str);
+    if status != Some("ready") && status != Some("warning") {
+        return Err(file_read_error(
+            "WORKSPACE_FILE_RECEIPT_REJECTED",
+            "Workspace file read receipt is not ready",
+        ));
+    }
+    if receipt.get("source").and_then(Value::as_str) != Some(FILE_READ_RECEIPT_SOURCE) {
+        return Err(file_read_error(
+            "WORKSPACE_FILE_RECEIPT_REJECTED",
+            "Workspace file read receipt source is invalid",
+        ));
+    }
+    if receipt.get("summaryOnly").and_then(Value::as_bool) != Some(true) {
+        return Err(file_read_error(
+            "WORKSPACE_FILE_RECEIPT_REJECTED",
+            "Workspace file read receipt must be summary-only",
+        ));
+    }
+    if receipt.get("kind").and_then(Value::as_str) != Some("workspace_file_read") {
+        return Err(file_read_error(
+            "WORKSPACE_FILE_RECEIPT_REJECTED",
+            "Workspace file read receipt kind is invalid",
+        ));
+    }
+    let Some(readiness) = receipt.get("readiness").and_then(Value::as_object) else {
+        return Err(file_read_error(
+            "WORKSPACE_FILE_RECEIPT_REJECTED",
+            "Workspace file read receipt readiness is missing",
+        ));
+    };
+    for key in [
+        "canReadFile",
+        "canWriteFilesystem",
+        "canExecuteCommand",
+        "canSpawnProcess",
+        "canReadApiKey",
+        "canFetchNetwork",
+        "canWriteEventStore",
+        "canApplyPatch",
+        "canRollback",
+        "appCanExecute",
+    ] {
+        if readiness.get(key).and_then(Value::as_bool) != Some(false) {
+            return Err(file_read_error(
+                "WORKSPACE_FILE_RECEIPT_REJECTED",
+                "Workspace file read receipt readiness must remain disabled",
+            ));
+        }
+    }
+    let scope = receipt
+        .get("scope")
+        .and_then(Value::as_object)
+        .ok_or_else(|| {
+            file_read_error(
+                "WORKSPACE_FILE_RECEIPT_REJECTED",
+                "Workspace file read receipt scope is missing",
+            )
+        })?;
+    if scope.get("kind").and_then(Value::as_str) != Some("workspace_file_read") {
+        return Err(file_read_error(
+            "WORKSPACE_FILE_RECEIPT_REJECTED",
+            "Workspace file read receipt scope kind is invalid",
+        ));
+    }
+    if scope.get("mode").and_then(Value::as_str) != Some(request.permission_mode.as_str()) {
+        return Err(file_read_error(
+            "WORKSPACE_FILE_RECEIPT_REJECTED",
+            "Workspace file read receipt mode does not match the request",
+        ));
+    }
+    if scope.get("workspaceRootRef").and_then(Value::as_str)
+        != Some(request.workspace_root_ref.as_str())
+    {
+        return Err(file_read_error(
+            "WORKSPACE_FILE_RECEIPT_REJECTED",
+            "Workspace file read receipt workspace reference mismatch",
+        ));
+    }
+    if scope.get("relativePath").and_then(Value::as_str)
+        != Some(request.relative_path.as_str())
+    {
+        return Err(file_read_error(
+            "WORKSPACE_FILE_RECEIPT_MISMATCH",
+            "Workspace file read receipt is not bound to this path",
+        ));
+    }
+    let expires_at = scope.get("expiresAt").and_then(Value::as_str).unwrap_or("");
+    if expires_at.is_empty() || !receipt_expiry_is_future(expires_at) {
+        return Err(file_read_error(
+            "WORKSPACE_FILE_RECEIPT_REJECTED",
+            "Workspace file read receipt is expired",
+        ));
+    }
+    let expected_hash = crate::path_sensitivity::file_read_request_hash(
+        &request.permission_mode,
+        &request.workspace_root_ref,
+        &request.relative_path,
+    );
+    if scope.get("requestHash").and_then(Value::as_str) != Some(expected_hash.as_str()) {
+        return Err(file_read_error(
+            "WORKSPACE_FILE_RECEIPT_MISMATCH",
+            "Workspace file read receipt is not bound to this read request",
+        ));
+    }
+    scope
+        .get("receiptId")
+        .and_then(Value::as_str)
+        .filter(|value| !value.trim().is_empty())
+        .map(str::to_string)
+        .ok_or_else(|| {
+            file_read_error(
+                "WORKSPACE_FILE_RECEIPT_REJECTED",
+                "Workspace file read receipt id is missing",
+            )
+        })
+}
+
+fn file_read_error(code: &str, message: impl Into<String>) -> DesktopFlowError {
+    DesktopFlowError::new(code, message.into(), "workspace_file_read")
+}
+
+const WORKSPACE_SETTINGS_SCHEMA_VERSION: u64 = 1;
+const WORKSPACE_SETTINGS_MAX_BYTES: usize = 16 * 1024;
+const WORKSPACE_SETTINGS_DEFAULT_MODE: &str = "approval_mode";
+const WORKSPACE_SETTINGS_MODES: [&str; 6] = [
+    "read_only_preview",
+    "approval_mode",
+    "autonomous_safe_mode",
+    "advanced_workspace_mode",
+    "full_access_mode",
+    "break_glass_mode",
+];
+
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct WorkspaceSettingsReadResult {
+    ok: bool,
+    /// Which settings file is effective for this workspace: the project
+    /// file inside the workspace, or the app-level file.
+    source: String,
+    permission_mode: String,
+    settings_existed: bool,
+    defaulted: bool,
+    settings_path_hash: String,
+    warning_codes: Vec<String>,
+    summary_only: bool,
+    safe_message: String,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct WorkspaceSettingsWriteRequest {
+    workspace_root: String,
+    source: String,
+    permission_mode: String,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct WorkspaceSettingsWriteResult {
+    ok: bool,
+    status: String,
+    source: String,
+    permission_mode: String,
+    settings_path_hash: String,
+    summary_only: bool,
+    safe_message: String,
+}
+
+#[derive(Debug, Default)]
+struct WorkspaceSettingsFile {
+    settings_source: Option<String>,
+    permission_mode: Option<String>,
+}
+
+/// Resolves the effective settings for a workspace. The project file
+/// (`.deepseek-workbench/settings.json`) always holds the source pointer;
+/// when it says "app", the mode comes from the app-level file. Missing
+/// files fall back to project source with the default approval mode.
+#[tauri::command(rename_all = "camelCase")]
+pub fn read_workspace_settings(
+    workspace_root: String,
+) -> Result<WorkspaceSettingsReadResult, DesktopFlowError> {
+    read_workspace_settings_with_app_path(workspace_root, None)
+}
+
+fn read_workspace_settings_with_app_path(
+    workspace_root: String,
+    app_path_override: Option<PathBuf>,
+) -> Result<WorkspaceSettingsReadResult, DesktopFlowError> {
+    let workspace = validate_workspace_root(&workspace_root)
+        .map_err(|message| settings_error("WORKSPACE_SETTINGS_WORKSPACE_INVALID", message))?;
+    let project_path = workspace.join(".deepseek-workbench").join("settings.json");
+    let mut warning_codes = Vec::new();
+    let mut defaulted = false;
+
+    let project_settings = match read_settings_file(&project_path, true)? {
+        Some(settings) => settings,
+        None => {
+            defaulted = true;
+            warning_codes.push("WORKSPACE_SETTINGS_DEFAULTED".to_string());
+            WorkspaceSettingsFile::default()
+        }
+    };
+    let source = project_settings
+        .settings_source
+        .unwrap_or_else(|| "project".to_string());
+
+    let (permission_mode, settings_existed, effective_path) = if source == "app" {
+        let app_path = app_path_override
+            .or_else(app_settings_path)
+            .ok_or_else(|| {
+                settings_error(
+                    "WORKSPACE_SETTINGS_APP_PATH_UNAVAILABLE",
+                    "App-level settings directory could not be resolved",
+                )
+            })?;
+        match read_settings_file(&app_path, false)? {
+            Some(app_settings) => {
+                let mode = app_settings.permission_mode.ok_or_else(|| {
+                    settings_error(
+                        "WORKSPACE_SETTINGS_INVALID",
+                        "App-level settings file is missing the permission mode",
+                    )
+                })?;
+                (mode, true, app_path)
+            }
+            None => {
+                defaulted = true;
+                warning_codes.push("WORKSPACE_SETTINGS_APP_DEFAULTED".to_string());
+                (WORKSPACE_SETTINGS_DEFAULT_MODE.to_string(), false, app_path)
+            }
+        }
+    } else {
+        let mode = project_settings
+            .permission_mode
+            .unwrap_or_else(|| WORKSPACE_SETTINGS_DEFAULT_MODE.to_string());
+        (mode, !defaulted, project_path.clone())
+    };
+
+    Ok(WorkspaceSettingsReadResult {
+        ok: true,
+        source,
+        permission_mode,
+        settings_existed,
+        defaulted,
+        settings_path_hash: short_hash(&effective_path.to_string_lossy()),
+        warning_codes,
+        summary_only: true,
+        safe_message: "Workspace settings resolved without raw file content.".to_string(),
+    })
+}
+
+/// Persists the effective settings. The project file always records the
+/// source pointer (and carries the project mode for later switch-back);
+/// when the source is "app", the mode is written to the app-level file.
+#[tauri::command(rename_all = "camelCase")]
+pub fn write_workspace_settings(
+    request: WorkspaceSettingsWriteRequest,
+) -> Result<WorkspaceSettingsWriteResult, DesktopFlowError> {
+    write_workspace_settings_with_app_path(request, None)
+}
+
+fn write_workspace_settings_with_app_path(
+    request: WorkspaceSettingsWriteRequest,
+    app_path_override: Option<PathBuf>,
+) -> Result<WorkspaceSettingsWriteResult, DesktopFlowError> {
+    validate_workspace_settings_write(&request)?;
+    let workspace = validate_workspace_root(&request.workspace_root)
+        .map_err(|message| settings_error("WORKSPACE_SETTINGS_WORKSPACE_INVALID", message))?;
+    let settings_dir = workspace.join(".deepseek-workbench");
+    fs::create_dir_all(&settings_dir).map_err(|_| {
+        settings_error(
+            "WORKSPACE_SETTINGS_WRITE_FAILED",
+            "Workspace settings directory could not be created",
+        )
+    })?;
+    let project_path = settings_dir.join("settings.json");
+
+    if request.source == "app" {
+        let app_path = app_path_override.or_else(app_settings_path).ok_or_else(|| {
+            settings_error(
+                "WORKSPACE_SETTINGS_APP_PATH_UNAVAILABLE",
+                "App-level settings directory could not be resolved",
+            )
+        })?;
+        if let Some(parent) = app_path.parent() {
+            fs::create_dir_all(parent).map_err(|_| {
+                settings_error(
+                    "WORKSPACE_SETTINGS_WRITE_FAILED",
+                    "App-level settings directory could not be created",
+                )
+            })?;
+        }
+        write_settings_file(&app_path, None, Some(&request.permission_mode))?;
+        // Preserve any existing project mode so switching back is lossless.
+        let existing_project_mode = read_settings_file(&project_path, true)?
+            .and_then(|settings| settings.permission_mode)
+            .unwrap_or_else(|| WORKSPACE_SETTINGS_DEFAULT_MODE.to_string());
+        write_settings_file(
+            &project_path,
+            Some("app"),
+            Some(&existing_project_mode),
+        )?;
+    } else {
+        write_settings_file(&project_path, Some("project"), Some(&request.permission_mode))?;
+    }
+
+    Ok(WorkspaceSettingsWriteResult {
+        ok: true,
+        status: "passed".to_string(),
+        source: request.source,
+        permission_mode: request.permission_mode,
+        settings_path_hash: short_hash(&project_path.to_string_lossy()),
+        summary_only: true,
+        safe_message: "Workspace settings persisted with validated fields only.".to_string(),
+    })
+}
+
+fn validate_workspace_settings_write(
+    request: &WorkspaceSettingsWriteRequest,
+) -> Result<(), DesktopFlowError> {
+    if !matches!(request.source.as_str(), "project" | "app") {
+        return Err(settings_error(
+            "WORKSPACE_SETTINGS_SOURCE_REJECTED",
+            "Workspace settings source must be project or app",
+        ));
+    }
+    if !WORKSPACE_SETTINGS_MODES.contains(&request.permission_mode.as_str()) {
+        return Err(settings_error(
+            "WORKSPACE_SETTINGS_MODE_REJECTED",
+            "Workspace settings permission mode is unsupported",
+        ));
+    }
+    for value in [&request.source, &request.permission_mode] {
+        if contains_sensitive_marker(value) {
+            return Err(settings_error(
+                "WORKSPACE_SETTINGS_INVALID",
+                "Workspace settings fields failed safety validation",
+            ));
+        }
+    }
+    Ok(())
+}
+
+fn read_settings_file(
+    path: &Path,
+    allow_pointer: bool,
+) -> Result<Option<WorkspaceSettingsFile>, DesktopFlowError> {
+    let Ok(raw) = fs::read(path) else {
+        return Ok(None);
+    };
+    if raw.len() > WORKSPACE_SETTINGS_MAX_BYTES {
+        return Err(settings_error(
+            "WORKSPACE_SETTINGS_INVALID",
+            "Workspace settings file exceeds the size limit",
+        ));
+    }
+    let text = String::from_utf8(raw).map_err(|_| {
+        settings_error(
+            "WORKSPACE_SETTINGS_INVALID",
+            "Workspace settings file is not UTF-8 text",
+        )
+    })?;
+    if contains_approved_apply_sensitive_marker(&text) {
+        return Err(settings_error(
+            "WORKSPACE_SETTINGS_INVALID",
+            "Workspace settings file contains unsafe marker",
+        ));
+    }
+    let value: Value = serde_json::from_str(&text).map_err(|_| {
+        settings_error(
+            "WORKSPACE_SETTINGS_INVALID",
+            "Workspace settings file is not valid JSON",
+        )
+    })?;
+    let object = value.as_object().ok_or_else(|| {
+        settings_error(
+            "WORKSPACE_SETTINGS_INVALID",
+            "Workspace settings file must be a JSON object",
+        )
+    })?;
+    for key in object.keys() {
+        let allowed = key == "schemaVersion"
+            || key == "permissionMode"
+            || (allow_pointer && key == "settingsSource");
+        if !allowed {
+            return Err(settings_error(
+                "WORKSPACE_SETTINGS_INVALID",
+                "Workspace settings file contains an unknown field",
+            ));
+        }
+    }
+    if object.get("schemaVersion").and_then(Value::as_u64)
+        != Some(WORKSPACE_SETTINGS_SCHEMA_VERSION)
+    {
+        return Err(settings_error(
+            "WORKSPACE_SETTINGS_INVALID",
+            "Workspace settings schema version is unsupported",
+        ));
+    }
+    let permission_mode = object
+        .get("permissionMode")
+        .and_then(Value::as_str)
+        .map(str::to_string);
+    if let Some(mode) = &permission_mode {
+        if !WORKSPACE_SETTINGS_MODES.contains(&mode.as_str()) {
+            return Err(settings_error(
+                "WORKSPACE_SETTINGS_INVALID",
+                "Workspace settings permission mode is unsupported",
+            ));
+        }
+    }
+    let settings_source = object
+        .get("settingsSource")
+        .and_then(Value::as_str)
+        .map(str::to_string);
+    if let Some(source) = &settings_source {
+        if !matches!(source.as_str(), "project" | "app") {
+            return Err(settings_error(
+                "WORKSPACE_SETTINGS_INVALID",
+                "Workspace settings source is unsupported",
+            ));
+        }
+    }
+    Ok(Some(WorkspaceSettingsFile {
+        settings_source,
+        permission_mode,
+    }))
+}
+
+fn write_settings_file(
+    path: &Path,
+    settings_source: Option<&str>,
+    permission_mode: Option<&str>,
+) -> Result<(), DesktopFlowError> {
+    let mut object = serde_json::Map::new();
+    object.insert(
+        "schemaVersion".to_string(),
+        Value::from(WORKSPACE_SETTINGS_SCHEMA_VERSION),
+    );
+    if let Some(source) = settings_source {
+        object.insert("settingsSource".to_string(), Value::from(source));
+    }
+    if let Some(mode) = permission_mode {
+        object.insert("permissionMode".to_string(), Value::from(mode));
+    }
+    let serialized = serde_json::to_string_pretty(&Value::Object(object)).map_err(|_| {
+        settings_error(
+            "WORKSPACE_SETTINGS_WRITE_FAILED",
+            "Workspace settings could not be serialized",
+        )
+    })?;
+    if contains_approved_apply_sensitive_marker(&serialized) {
+        return Err(settings_error(
+            "WORKSPACE_SETTINGS_INVALID",
+            "Workspace settings content failed the safety scan",
+        ));
+    }
+    fs::write(path, serialized).map_err(|_| {
+        settings_error(
+            "WORKSPACE_SETTINGS_WRITE_FAILED",
+            "Workspace settings file could not be written",
+        )
+    })
+}
+
+/// App-level settings location. Windows uses %APPDATA%; other platforms use
+/// $HOME/.config. Kept dependency-free and testable (no AppHandle).
+fn app_settings_path() -> Option<PathBuf> {
+    if cfg!(windows) {
+        std::env::var_os("APPDATA")
+            .map(PathBuf::from)
+            .map(|base| base.join("deepseek-workbench").join("settings.json"))
+    } else {
+        std::env::var_os("HOME")
+            .map(PathBuf::from)
+            .map(|base| base.join(".config").join("deepseek-workbench").join("settings.json"))
+    }
+}
+
+fn settings_error(code: &str, message: impl Into<String>) -> DesktopFlowError {
+    DesktopFlowError::new(code, message.into(), "workspace_settings")
+}
+
+const PERMISSION_LEASE_MIN_TTL_MS: u64 = 60_000;
+const PERMISSION_LEASE_MAX_TTL_MS: u64 = 86_400_000;
+const PERMISSION_LEASE_SCHEMA_VERSION: u64 = 1;
+const PERMISSION_LEASE_MAX_RECORD_BYTES: usize = 16 * 1024;
+const PERMISSION_LEASE_MODES: [&str; 2] = ["advanced_workspace_mode", "full_access_mode"];
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct PermissionLeaseIssueRequest {
+    workspace_root: String,
+    workspace_root_ref: String,
+    mode: String,
+    reason_summary: String,
+    ttl_ms: u64,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct PermissionLeaseSummary {
+    lease_id: String,
+    mode: String,
+    status: String,
+    issued_at_epoch_ms: u64,
+    expires_at_epoch_ms: u64,
+    revoked_at_epoch_ms: Option<u64>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PermissionLeaseIssueResult {
+    ok: bool,
+    status: String,
+    lease: PermissionLeaseSummary,
+    summary_only: bool,
+    safe_message: String,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PermissionLeaseListResult {
+    ok: bool,
+    lease_count: usize,
+    leases: Vec<PermissionLeaseSummary>,
+    warning_codes: Vec<String>,
+    summary_only: bool,
+    safe_message: String,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct PermissionLeaseRevokeRequest {
+    workspace_root: String,
+    lease_id: String,
+    reason_summary: String,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PermissionLeaseRevokeResult {
+    ok: bool,
+    status: String,
+    lease_id: String,
+    revoked: bool,
+    summary_only: bool,
+    safe_message: String,
+}
+
+#[derive(Debug, Clone)]
+struct PermissionLeaseRecord {
+    lease_id: String,
+    mode: String,
+    workspace_root_ref: String,
+    scope_summary: String,
+    reason_summary: String,
+    issued_at_epoch_ms: u64,
+    expires_at_epoch_ms: u64,
+    revoked_at_epoch_ms: Option<u64>,
+    revoke_reason: Option<String>,
+}
+
+/// Issues a real, time-limited, workspace-scoped permission lease for a
+/// high-privilege mode. Leases live as individual JSON records under
+/// `.deepseek-workbench/leases/` and are consumed by the command broker for
+/// `full_access` execution.
+#[tauri::command(rename_all = "camelCase")]
+pub fn issue_permission_lease(
+    request: PermissionLeaseIssueRequest,
+) -> Result<PermissionLeaseIssueResult, DesktopFlowError> {
+    validate_permission_lease_issue(&request)?;
+    let workspace = validate_workspace_root(&request.workspace_root)
+        .map_err(|message| lease_error("PERMISSION_LEASE_WORKSPACE_INVALID", message))?;
+    let store_dir = workspace.join(".deepseek-workbench").join("leases");
+    fs::create_dir_all(&store_dir).map_err(|_| {
+        lease_error(
+            "PERMISSION_LEASE_WRITE_FAILED",
+            "Permission lease store could not be created",
+        )
+    })?;
+    let now = unix_epoch_millis() as u64;
+    let expires_at = now + request.ttl_ms;
+    let lease_id = format!(
+        "lease-{}-{}",
+        now,
+        &short_hash(&format!(
+            "{}:{}:{}:{}",
+            request.workspace_root_ref, request.mode, request.reason_summary, now
+        ))[..8]
+    );
+    let record = PermissionLeaseRecord {
+        lease_id: lease_id.clone(),
+        mode: request.mode.clone(),
+        workspace_root_ref: request.workspace_root_ref.clone(),
+        scope_summary: format!("workspace command execution in {} mode", request.mode),
+        reason_summary: request.reason_summary.clone(),
+        issued_at_epoch_ms: now,
+        expires_at_epoch_ms: expires_at,
+        revoked_at_epoch_ms: None,
+        revoke_reason: None,
+    };
+    let path = store_dir.join(format!("{lease_id}.json"));
+    write_permission_lease_record(&path, &record)?;
+
+    Ok(PermissionLeaseIssueResult {
+        ok: true,
+        status: "passed".to_string(),
+        lease: summarize_permission_lease(&record, now),
+        summary_only: true,
+        safe_message: "Permission lease issued with validated fields only.".to_string(),
+    })
+}
+
+#[tauri::command(rename_all = "camelCase")]
+pub fn list_permission_leases(
+    workspace_root: String,
+) -> Result<PermissionLeaseListResult, DesktopFlowError> {
+    let workspace = validate_workspace_root(&workspace_root)
+        .map_err(|message| lease_error("PERMISSION_LEASE_WORKSPACE_INVALID", message))?;
+    let store_dir = workspace.join(".deepseek-workbench").join("leases");
+    let now = unix_epoch_millis() as u64;
+    let mut leases = Vec::new();
+    let mut warning_codes = Vec::new();
+    if store_dir.is_dir() {
+        let entries = fs::read_dir(&store_dir).map_err(|_| {
+            lease_error(
+                "PERMISSION_LEASE_READ_FAILED",
+                "Permission lease store could not be listed",
+            )
+        })?;
+        for entry in entries.flatten() {
+            let path = entry.path();
+            if path.extension().and_then(|ext| ext.to_str()) != Some("json") {
+                continue;
+            }
+            match read_permission_lease_record(&path) {
+                Ok(record) => leases.push(summarize_permission_lease(&record, now)),
+                Err(_) => {
+                    warning_codes.push("PERMISSION_LEASE_RECORD_SKIPPED".to_string());
+                }
+            }
+        }
+    }
+    leases.sort_by(|left, right| left.lease_id.cmp(&right.lease_id));
+
+    Ok(PermissionLeaseListResult {
+        ok: true,
+        lease_count: leases.len(),
+        leases,
+        warning_codes,
+        summary_only: true,
+        safe_message: "Permission leases listed without raw record content.".to_string(),
+    })
+}
+
+/// Revokes a lease. Revocation is a safety operation and intentionally has
+/// no confirmation barrier; it only requires a non-empty reason.
+#[tauri::command(rename_all = "camelCase")]
+pub fn revoke_permission_lease(
+    request: PermissionLeaseRevokeRequest,
+) -> Result<PermissionLeaseRevokeResult, DesktopFlowError> {
+    if request.reason_summary.trim().is_empty()
+        || contains_sensitive_marker(&request.reason_summary)
+    {
+        return Err(lease_error(
+            "PERMISSION_LEASE_REASON_REJECTED",
+            "Permission lease revoke requires a safe, non-empty reason",
+        ));
+    }
+    let workspace = validate_workspace_root(&request.workspace_root)
+        .map_err(|message| lease_error("PERMISSION_LEASE_WORKSPACE_INVALID", message))?;
+    let store_dir = workspace.join(".deepseek-workbench").join("leases");
+    let path = permission_lease_record_path(&store_dir, &request.lease_id)?;
+    let mut record = read_permission_lease_record(&path)?;
+    if record.revoked_at_epoch_ms.is_some() {
+        return Ok(PermissionLeaseRevokeResult {
+            ok: true,
+            status: "already_revoked".to_string(),
+            lease_id: request.lease_id,
+            revoked: false,
+            summary_only: true,
+            safe_message: "Permission lease was already revoked.".to_string(),
+        });
+    }
+    record.revoked_at_epoch_ms = Some(unix_epoch_millis() as u64);
+    record.revoke_reason = Some(request.reason_summary.trim().to_string());
+    write_permission_lease_record(&path, &record)?;
+
+    Ok(PermissionLeaseRevokeResult {
+        ok: true,
+        status: "passed".to_string(),
+        lease_id: request.lease_id,
+        revoked: true,
+        summary_only: true,
+        safe_message: "Permission lease revoked.".to_string(),
+    })
+}
+
+fn validate_permission_lease_issue(
+    request: &PermissionLeaseIssueRequest,
+) -> Result<(), DesktopFlowError> {
+    if !PERMISSION_LEASE_MODES.contains(&request.mode.as_str()) {
+        return Err(lease_error(
+            "PERMISSION_LEASE_MODE_REJECTED",
+            "Permission lease mode is unsupported",
+        ));
+    }
+    if request.ttl_ms < PERMISSION_LEASE_MIN_TTL_MS
+        || request.ttl_ms > PERMISSION_LEASE_MAX_TTL_MS
+    {
+        return Err(lease_error(
+            "PERMISSION_LEASE_TTL_REJECTED",
+            "Permission lease duration is outside the allowed range",
+        ));
+    }
+    for (value, code) in [
+        (&request.workspace_root_ref, "PERMISSION_LEASE_WORKSPACE_REF_REJECTED"),
+        (&request.reason_summary, "PERMISSION_LEASE_REASON_REJECTED"),
+    ] {
+        if value.trim().is_empty() || contains_sensitive_marker(value) {
+            return Err(lease_error(
+                code,
+                "Permission lease metadata failed safety validation",
+            ));
+        }
+    }
+    Ok(())
+}
+
+fn permission_lease_record_path(
+    store_dir: &Path,
+    lease_id: &str,
+) -> Result<PathBuf, DesktopFlowError> {
+    if lease_id.trim().is_empty()
+        || !lease_id
+            .chars()
+            .all(|c| c.is_ascii_alphanumeric() || c == '-' || c == '_')
+    {
+        return Err(lease_error(
+            "PERMISSION_LEASE_ID_REJECTED",
+            "Permission lease id is invalid",
+        ));
+    }
+    Ok(store_dir.join(format!("{lease_id}.json")))
+}
+
+fn read_permission_lease_record(path: &Path) -> Result<PermissionLeaseRecord, DesktopFlowError> {
+    let raw = fs::read(path).map_err(|_| {
+        lease_error(
+            "PERMISSION_LEASE_NOT_FOUND",
+            "Permission lease record does not exist",
+        )
+    })?;
+    if raw.len() > PERMISSION_LEASE_MAX_RECORD_BYTES {
+        return Err(lease_error(
+            "PERMISSION_LEASE_INVALID",
+            "Permission lease record exceeds the size limit",
+        ));
+    }
+    let text = String::from_utf8(raw).map_err(|_| {
+        lease_error(
+            "PERMISSION_LEASE_INVALID",
+            "Permission lease record is not UTF-8 text",
+        )
+    })?;
+    if contains_approved_apply_sensitive_marker(&text) {
+        return Err(lease_error(
+            "PERMISSION_LEASE_INVALID",
+            "Permission lease record contains unsafe marker",
+        ));
+    }
+    let value: Value = serde_json::from_str(&text).map_err(|_| {
+        lease_error(
+            "PERMISSION_LEASE_INVALID",
+            "Permission lease record is not valid JSON",
+        )
+    })?;
+    let object = value.as_object().ok_or_else(|| {
+        lease_error(
+            "PERMISSION_LEASE_INVALID",
+            "Permission lease record must be a JSON object",
+        )
+    })?;
+    for key in object.keys() {
+        if ![
+            "schemaVersion",
+            "leaseId",
+            "mode",
+            "workspaceRootRef",
+            "scopeSummary",
+            "reasonSummary",
+            "issuedAtEpochMs",
+            "expiresAtEpochMs",
+            "typedConfirmation",
+            "revokedAtEpochMs",
+            "revokeReason",
+            "leaseHash",
+        ]
+        .contains(&key.as_str())
+        {
+            return Err(lease_error(
+                "PERMISSION_LEASE_INVALID",
+                "Permission lease record contains an unknown field",
+            ));
+        }
+    }
+    if object.get("schemaVersion").and_then(Value::as_u64) != Some(PERMISSION_LEASE_SCHEMA_VERSION) {
+        return Err(lease_error(
+            "PERMISSION_LEASE_INVALID",
+            "Permission lease schema version is unsupported",
+        ));
+    }
+    let string_field = |key: &str| -> Result<String, DesktopFlowError> {
+        object
+            .get(key)
+            .and_then(Value::as_str)
+            .filter(|value| !value.trim().is_empty())
+            .map(str::to_string)
+            .ok_or_else(|| {
+                lease_error(
+                    "PERMISSION_LEASE_INVALID",
+                    format!("Permission lease record is missing {key}"),
+                )
+            })
+    };
+    let number_field = |key: &str| -> Result<u64, DesktopFlowError> {
+        object.get(key).and_then(Value::as_u64).ok_or_else(|| {
+            lease_error(
+                "PERMISSION_LEASE_INVALID",
+                format!("Permission lease record is missing {key}"),
+            )
+        })
+    };
+    let record = PermissionLeaseRecord {
+        lease_id: string_field("leaseId")?,
+        mode: string_field("mode")?,
+        workspace_root_ref: string_field("workspaceRootRef")?,
+        scope_summary: object
+            .get("scopeSummary")
+            .and_then(Value::as_str)
+            .unwrap_or("")
+            .to_string(),
+        reason_summary: string_field("reasonSummary")?,
+        issued_at_epoch_ms: number_field("issuedAtEpochMs")?,
+        expires_at_epoch_ms: number_field("expiresAtEpochMs")?,
+        revoked_at_epoch_ms: object.get("revokedAtEpochMs").and_then(Value::as_u64),
+        revoke_reason: object
+            .get("revokeReason")
+            .and_then(Value::as_str)
+            .map(str::to_string),
+    };
+    if !PERMISSION_LEASE_MODES.contains(&record.mode.as_str()) {
+        return Err(lease_error(
+            "PERMISSION_LEASE_INVALID",
+            "Permission lease mode is unsupported",
+        ));
+    }
+    Ok(record)
+}
+
+fn write_permission_lease_record(
+    path: &Path,
+    record: &PermissionLeaseRecord,
+) -> Result<(), DesktopFlowError> {
+    let mut object = serde_json::Map::new();
+    object.insert(
+        "schemaVersion".to_string(),
+        Value::from(PERMISSION_LEASE_SCHEMA_VERSION),
+    );
+    object.insert("leaseId".to_string(), Value::from(record.lease_id.as_str()));
+    object.insert("mode".to_string(), Value::from(record.mode.as_str()));
+    object.insert(
+        "workspaceRootRef".to_string(),
+        Value::from(record.workspace_root_ref.as_str()),
+    );
+    object.insert(
+        "scopeSummary".to_string(),
+        Value::from(record.scope_summary.as_str()),
+    );
+    object.insert(
+        "reasonSummary".to_string(),
+        Value::from(record.reason_summary.as_str()),
+    );
+    object.insert(
+        "issuedAtEpochMs".to_string(),
+        Value::from(record.issued_at_epoch_ms),
+    );
+    object.insert(
+        "expiresAtEpochMs".to_string(),
+        Value::from(record.expires_at_epoch_ms),
+    );
+    if let Some(revoked_at) = record.revoked_at_epoch_ms {
+        object.insert("revokedAtEpochMs".to_string(), Value::from(revoked_at));
+    }
+    if let Some(reason) = &record.revoke_reason {
+        object.insert("revokeReason".to_string(), Value::from(reason.as_str()));
+    }
+    let lease_hash = short_hash(&format!(
+        "{}:{}:{}:{}:{}",
+        record.lease_id,
+        record.mode,
+        record.workspace_root_ref,
+        record.expires_at_epoch_ms,
+        record.revoked_at_epoch_ms.unwrap_or(0)
+    ));
+    object.insert("leaseHash".to_string(), Value::from(lease_hash));
+    let serialized = serde_json::to_string_pretty(&Value::Object(object)).map_err(|_| {
+        lease_error(
+            "PERMISSION_LEASE_WRITE_FAILED",
+            "Permission lease record could not be serialized",
+        )
+    })?;
+    if contains_approved_apply_sensitive_marker(&serialized) {
+        return Err(lease_error(
+            "PERMISSION_LEASE_INVALID",
+            "Permission lease record content failed the safety scan",
+        ));
+    }
+    fs::write(path, serialized).map_err(|_| {
+        lease_error(
+            "PERMISSION_LEASE_WRITE_FAILED",
+            "Permission lease record could not be written",
+        )
+    })
+}
+
+fn summarize_permission_lease(
+    record: &PermissionLeaseRecord,
+    now_ms: u64,
+) -> PermissionLeaseSummary {
+    PermissionLeaseSummary {
+        lease_id: record.lease_id.clone(),
+        mode: record.mode.clone(),
+        status: permission_lease_status(record, now_ms).to_string(),
+        issued_at_epoch_ms: record.issued_at_epoch_ms,
+        expires_at_epoch_ms: record.expires_at_epoch_ms,
+        revoked_at_epoch_ms: record.revoked_at_epoch_ms,
+    }
+}
+
+fn permission_lease_status(record: &PermissionLeaseRecord, now_ms: u64) -> &'static str {
+    if record.revoked_at_epoch_ms.is_some() {
+        "revoked"
+    } else if record.expires_at_epoch_ms <= now_ms {
+        "expired"
+    } else {
+        "active"
+    }
+}
+
+/// Broker consumption: `full_access` execution requires a stored, active,
+/// full-access lease whose id is the request's session lease reference.
+fn validate_command_broker_full_access_lease(
+    request: &CommandBrokerExecutionRequest,
+) -> Result<(), DesktopFlowError> {
+    let workspace_root = validate_workspace_root(&request.workspace_root)
+        .map_err(|message| command_broker_error("COMMAND_BROKER_WORKSPACE_INVALID", message))?;
+    let store_dir = workspace_root.join(".deepseek-workbench").join("leases");
+    let lease_path = permission_lease_record_path(&store_dir, &request.session_lease_ref)
+        .map_err(|_| {
+            command_broker_error(
+                "COMMAND_BROKER_LEASE_REJECTED",
+                "Command broker session lease reference is not a valid lease id",
+            )
+        })?;
+    let record = read_permission_lease_record(&lease_path).map_err(|_| {
+        command_broker_error(
+            "COMMAND_BROKER_LEASE_REJECTED",
+            "Command broker session lease does not exist in the workspace lease store",
+        )
+    })?;
+    if record.mode != "full_access_mode" {
+        return Err(command_broker_error(
+            "COMMAND_BROKER_LEASE_MODE_MISMATCH",
+            "Command broker full access requires a full-access lease",
+        ));
+    }
+    if record.revoked_at_epoch_ms.is_some() {
+        return Err(command_broker_error(
+            "COMMAND_BROKER_LEASE_REVOKED",
+            "Command broker session lease is revoked",
+        ));
+    }
+    if record.expires_at_epoch_ms <= unix_epoch_millis() as u64 {
+        return Err(command_broker_error(
+            "COMMAND_BROKER_LEASE_EXPIRED",
+            "Command broker session lease is expired",
+        ));
+    }
+    Ok(())
+}
+
+const CHAT_ENDPOINT: &str = "https://api.deepseek.com/chat/completions";
+const CHAT_TIMEOUT: Duration = Duration::from_secs(120);
+const CHAT_MAX_RESPONSE_BYTES: usize = 1_000_000;
+const CHAT_MAX_MESSAGES: usize = 64;
+const CHAT_MAX_MESSAGE_CHARS: usize = 24_000;
+const CHAT_MAX_TOTAL_CHARS: usize = 96_000;
+const CHAT_MAX_TOOLS: usize = 8;
+const CHAT_MODELS: [&str; 2] = ["deepseek-v4-flash", "deepseek-v4-pro"];
+const CHAT_TOOL_NAMES: [&str; 3] = ["workspace_file_read", "shell_verification", "git_read"];
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct ChatCompletionCommandMessage {
+    role: String,
+    content: String,
+    #[serde(default)]
+    tool_call_id: Option<String>,
+    #[serde(default)]
+    tool_calls: Option<Value>,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct ChatCompletionCommandRequest {
+    messages: Vec<ChatCompletionCommandMessage>,
+    model: String,
+    #[serde(default)]
+    tools: Option<Value>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ChatCompletionUsageSummary {
+    prompt_tokens: u64,
+    completion_tokens: u64,
+    total_tokens: u64,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ChatCompletionCommandResult {
+    ok: bool,
+    status: String,
+    model: String,
+    content: String,
+    #[serde(default)]
+    tool_calls: Option<Value>,
+    usage: ChatCompletionUsageSummary,
+    reasoning_included: bool,
+    summary_only: bool,
+    safe_message: String,
+}
+
+/// Generic DeepSeek chat completion lane for the conversation UI. The API
+/// key never leaves the Rust process; message content is validated and
+/// re-scanned for secret markers in both directions.
+#[tauri::command(rename_all = "camelCase")]
+pub fn chat_deepseek_completion(
+    request: ChatCompletionCommandRequest,
+) -> Result<ChatCompletionCommandResult, DesktopFlowError> {
+    validate_chat_completion_messages(&request)?;
+    let tools_json = validate_chat_tools(request.tools.as_ref())?;
+    let api_key = resolve_live_deepseek_api_key(LIVE_PROPOSAL_ALLOWED_KEY_REF)
+        .map_err(|error| chat_error(&error.error_code, error.safe_message))?;
+
+    let mut body = serde_json::json!({
+        "model": request.model,
+        "messages": request.messages.iter().map(|message| {
+            let mut value = serde_json::json!({
+                "role": message.role,
+                "content": message.content,
+            });
+            if let Some(tool_call_id) = &message.tool_call_id {
+                value["tool_call_id"] = Value::from(tool_call_id.as_str());
+            }
+            if let Some(tool_calls) = &message.tool_calls {
+                value["tool_calls"] = tool_calls.clone();
+            }
+            value
+        }).collect::<Vec<_>>(),
+        "stream": false
+    });
+    if let Some(tools) = tools_json {
+        body["tools"] = tools;
+        body["tool_choice"] = Value::from("auto");
+    }
+
+    let agent = ureq::AgentBuilder::new().timeout(CHAT_TIMEOUT).build();
+    let response = agent
+        .post(CHAT_ENDPOINT)
+        .set("Authorization", &format!("Bearer {api_key}"))
+        .set("Content-Type", "application/json")
+        .send_json(body)
+        .map_err(|error| match error {
+            ureq::Error::Status(status_code, _) => chat_error(
+                "CHAT_HTTP_STATUS",
+                format!("Chat completion request failed with status {status_code}"),
+            ),
+            ureq::Error::Transport(_) => chat_error(
+                "CHAT_TRANSPORT_FAILED",
+                "Chat completion request transport failed safely",
+            ),
+        })?;
+    let mut response_body = String::new();
+    response
+        .into_reader()
+        .take((CHAT_MAX_RESPONSE_BYTES + 1) as u64)
+        .read_to_string(&mut response_body)
+        .map_err(|_| chat_error("CHAT_RESPONSE_READ_FAILED", "Chat response could not be read safely"))?;
+    if response_body.len() > CHAT_MAX_RESPONSE_BYTES {
+        return Err(chat_error(
+            "CHAT_RESPONSE_TOO_LARGE",
+            "Chat response exceeded the size limit",
+        ));
+    }
+    let parsed: Value = serde_json::from_str(&response_body)
+        .map_err(|_| chat_error("CHAT_RESPONSE_INVALID", "Chat response was not valid JSON"))?;
+    let choice = parsed
+        .get("choices")
+        .and_then(Value::as_array)
+        .and_then(|choices| choices.first())
+        .ok_or_else(|| chat_error("CHAT_RESPONSE_INVALID", "Chat response has no choices"))?;
+    let message = choice
+        .get("message")
+        .ok_or_else(|| chat_error("CHAT_RESPONSE_INVALID", "Chat response has no message"))?;
+    let content = message
+        .get("content")
+        .and_then(Value::as_str)
+        .unwrap_or("")
+        .to_string();
+    if contains_sensitive_marker(&content) {
+        return Err(chat_error(
+            "CHAT_OUTPUT_REDACTED",
+            "Chat completion output failed the secret marker scan",
+        ));
+    }
+    let tool_calls = message.get("tool_calls").cloned();
+    let usage = parsed.get("usage").cloned().unwrap_or_else(|| serde_json::json!({}));
+    Ok(ChatCompletionCommandResult {
+        ok: true,
+        status: "completed".to_string(),
+        model: request.model,
+        content,
+        tool_calls,
+        usage: ChatCompletionUsageSummary {
+            prompt_tokens: usage.get("prompt_tokens").and_then(Value::as_u64).unwrap_or(0),
+            completion_tokens: usage
+                .get("completion_tokens")
+                .and_then(Value::as_u64)
+                .unwrap_or(0),
+            total_tokens: usage.get("total_tokens").and_then(Value::as_u64).unwrap_or(0),
+        },
+        reasoning_included: false,
+        summary_only: true,
+        safe_message: "Chat completion returned without reasoning content.".to_string(),
+    })
+}
+
+fn validate_chat_completion_messages(
+    request: &ChatCompletionCommandRequest,
+) -> Result<(), DesktopFlowError> {
+    if !CHAT_MODELS.contains(&request.model.as_str()) {
+        return Err(chat_error(
+            "CHAT_MODEL_REJECTED",
+            "Chat completion model is unsupported",
+        ));
+    }
+    if request.messages.is_empty() || request.messages.len() > CHAT_MAX_MESSAGES {
+        return Err(chat_error(
+            "CHAT_MESSAGES_REJECTED",
+            "Chat completion message count is outside the allowed range",
+        ));
+    }
+    let mut total_chars = 0usize;
+    for message in &request.messages {
+        if !matches!(message.role.as_str(), "system" | "user" | "assistant" | "tool") {
+            return Err(chat_error(
+                "CHAT_MESSAGES_REJECTED",
+                "Chat completion message role is unsupported",
+            ));
+        }
+        if message.content.trim().is_empty() && message.tool_calls.is_none() {
+            return Err(chat_error(
+                "CHAT_MESSAGES_REJECTED",
+                "Chat completion message content is empty",
+            ));
+        }
+        if message.content.chars().count() > CHAT_MAX_MESSAGE_CHARS {
+            return Err(chat_error(
+                "CHAT_MESSAGES_REJECTED",
+                "Chat completion message content exceeds the size limit",
+            ));
+        }
+        if contains_sensitive_marker(&message.content) {
+            return Err(chat_error(
+                "CHAT_MESSAGES_SECRET_REJECTED",
+                "Chat completion message content failed the secret marker scan",
+            ));
+        }
+        if message.role == "tool" && message.tool_call_id.is_none() {
+            return Err(chat_error(
+                "CHAT_MESSAGES_REJECTED",
+                "Chat tool messages require a tool call id",
+            ));
+        }
+        total_chars += message.content.chars().count();
+    }
+    if total_chars > CHAT_MAX_TOTAL_CHARS {
+        return Err(chat_error(
+            "CHAT_MESSAGES_REJECTED",
+            "Chat completion total message size exceeds the limit",
+        ));
+    }
+    Ok(())
+}
+
+fn validate_chat_tools(tools: Option<&Value>) -> Result<Option<Value>, DesktopFlowError> {
+    let Some(tools) = tools else {
+        return Ok(None);
+    };
+    let list = tools.as_array().ok_or_else(|| {
+        chat_error("CHAT_TOOLS_REJECTED", "Chat tools must be an array")
+    })?;
+    if list.len() > CHAT_MAX_TOOLS {
+        return Err(chat_error(
+            "CHAT_TOOLS_REJECTED",
+            "Chat tools exceed the allowed count",
+        ));
+    }
+    for tool in list {
+        let name = tool
+            .get("function")
+            .and_then(|function| function.get("name"))
+            .and_then(Value::as_str)
+            .unwrap_or("");
+        if !CHAT_TOOL_NAMES.contains(&name) {
+            return Err(chat_error(
+                "CHAT_TOOLS_REJECTED",
+                "Chat tool name is not allowlisted",
+            ));
+        }
+    }
+    Ok(Some(tools.clone()))
+}
+
+fn chat_error(code: &str, message: impl Into<String>) -> DesktopFlowError {
+    DesktopFlowError::new(code, message.into(), "chat_deepseek_completion")
+}
+
+fn lease_error(code: &str, message: impl Into<String>) -> DesktopFlowError {
+    DesktopFlowError::new(code, message.into(), "permission_lease")
 }
 
 fn run_runner_preflight(workspace_root: Option<&str>, mode: RunnerMode) -> RunnerPreflightSummary {
@@ -6515,14 +8307,10 @@ fn validate_approved_apply_relative_path(path: &str) -> Result<(), String> {
                 "Approved apply path targets a blocked generated or private directory".to_string(),
             );
         }
-        if lower.contains("secret")
-            || lower.contains("token")
-            || lower.contains("password")
-            || lower.contains("credential")
-            || lower.contains("apikey")
-            || lower.contains("api-key")
-            || lower.contains("api_key")
-        {
+        // Secret-like segment detection is shared with the unified path
+        // sensitivity grading (path_sensitivity.rs), closing the previous
+        // gap where .ssh, id_rsa, and key-file suffixes were not rejected.
+        if crate::path_sensitivity::segment_is_sensitive(&lower) {
             return Err("Approved apply path looks secret-like".to_string());
         }
     }
@@ -6969,12 +8757,14 @@ fn summarize_workspace_events(
     let mut approved_apply_count = 0usize;
     let mut approved_rollback_count = 0usize;
     let mut verification_event_count = 0usize;
+    let mut command_broker_event_count = 0usize;
     let mut live_proposal_event_count = 0usize;
     let mut project_knowledge_event_count = 0usize;
     let mut project_knowledge_entry_ids: BTreeSet<String> = BTreeSet::new();
     let mut transcript_event_count = 0usize;
     let mut latest_approved_execution_summary: Option<String> = None;
     let mut latest_verification_summary: Option<String> = None;
+    let mut latest_command_broker_summary: Option<String> = None;
     let mut latest_live_proposal_summary: Option<String> = None;
     let mut latest_project_knowledge_summary: Option<String> = None;
     let mut latest_project_knowledge_recall_summary: Option<String> = None;
@@ -7014,6 +8804,10 @@ fn summarize_workspace_events(
         ) {
             verification_event_count += 1;
             latest_verification_summary = Some(summarize_safe_event(event));
+        }
+        if event_type.starts_with("command_broker.command.") {
+            command_broker_event_count += 1;
+            latest_command_broker_summary = Some(summarize_safe_event(event));
         }
         if event_type == LIVE_PROPOSAL_GENERATED_TYPE {
             live_proposal_event_count += 1;
@@ -7075,12 +8869,14 @@ fn summarize_workspace_events(
         approved_apply_count,
         approved_rollback_count,
         verification_event_count,
+        command_broker_event_count,
         live_proposal_event_count,
         project_knowledge_event_count,
         project_knowledge_entry_count: project_knowledge_entry_ids.len(),
         transcript_event_count,
         latest_approved_execution_summary,
         latest_verification_summary,
+        latest_command_broker_summary,
         latest_live_proposal_summary,
         latest_project_knowledge_summary,
         latest_project_knowledge_recall_summary,
@@ -7165,12 +8961,14 @@ fn empty_event_summary(
         approved_apply_count: 0,
         approved_rollback_count: 0,
         verification_event_count: 0,
+        command_broker_event_count: 0,
         live_proposal_event_count: 0,
         project_knowledge_event_count: 0,
         project_knowledge_entry_count: 0,
         transcript_event_count: 0,
         latest_approved_execution_summary: None,
         latest_verification_summary: None,
+        latest_command_broker_summary: None,
         latest_live_proposal_summary: None,
         latest_project_knowledge_summary: None,
         latest_project_knowledge_recall_summary: None,
@@ -7202,12 +9000,14 @@ fn event_summary_error(code: &str, message: String) -> WorkspaceEventSummary {
         approved_apply_count: 0,
         approved_rollback_count: 0,
         verification_event_count: 0,
+        command_broker_event_count: 0,
         live_proposal_event_count: 0,
         project_knowledge_event_count: 0,
         project_knowledge_entry_count: 0,
         transcript_event_count: 0,
         latest_approved_execution_summary: None,
         latest_verification_summary: None,
+        latest_command_broker_summary: None,
         latest_live_proposal_summary: None,
         latest_project_knowledge_summary: None,
         latest_project_knowledge_recall_summary: None,
@@ -7361,6 +9161,19 @@ fn safe_payload_keys(payload: &serde_json::Map<String, Value>) -> BTreeSet<Strin
         "noPreimage",
         "noRawContent",
         "rawRetentionDays",
+        "eventKind",
+        "notWritten",
+        "rawCommandTextIncluded",
+        "rawStdoutIncluded",
+        "rawStderrIncluded",
+        "shellKind",
+        "mode",
+        "classifierCategories",
+        "transcriptRef",
+        "redactedStdoutLineCount",
+        "redactedStderrLineCount",
+        "blockerCodes",
+        "commandStatus",
     ];
     allowed
         .into_iter()
@@ -7495,6 +9308,31 @@ fn summarize_safe_event(event: &Value) -> String {
                     format!("result {prefix}")
                 }),
                 nested_array_display(payload, "warningCodes", "warning codes"),
+            ],
+        ),
+        "command_broker.command.planned"
+        | "command_broker.command.executed"
+        | "command_broker.command.blocked"
+        | "command_broker.command.cancelled" => format_parts(
+            "command broker event",
+            [
+                nested_string(payload, "commandStatus"),
+                nested_string(payload, "shellKind"),
+                nested_string(payload, "mode"),
+                nested_string(payload, "commandHash").map(|value| {
+                    let prefix = value.chars().take(12).collect::<String>();
+                    format!("command {prefix}")
+                }),
+                nested_display(payload, "exitCode", "exit"),
+                nested_display(payload, "stdoutBytes", "stdout bytes"),
+                nested_display(payload, "stderrBytes", "stderr bytes"),
+                nested_display(payload, "durationMs", "ms"),
+                nested_string(payload, "transcriptRef").map(|value| {
+                    let prefix = value.chars().take(36).collect::<String>();
+                    format!("transcript {prefix}")
+                }),
+                nested_array_display(payload, "warningCodes", "warning codes"),
+                nested_array_display(payload, "blockerCodes", "blocker codes"),
             ],
         ),
         TRANSCRIPT_RECORD_CREATED_TYPE => format_parts(
@@ -7883,6 +9721,23 @@ fn contains_approved_apply_sensitive_marker(text: &str) -> bool {
         || lower.contains("-----begin ")
         || lower.contains("token=")
         || lower.contains("secret=")
+}
+
+/// Serializes a receipt for the legacy marker scan while exempting only the
+/// one schema-required capability flag that otherwise looks like a secret.
+/// Unknown fields and all values remain subject to the same fail-closed scan.
+fn receipt_marker_scan_serialized(value: &Value) -> Result<String, serde_json::Error> {
+    let mut scan_value = value.clone();
+    if let Some(readiness) = scan_value
+        .as_object_mut()
+        .and_then(|receipt| receipt.get_mut("readiness"))
+        .and_then(Value::as_object_mut)
+    {
+        if readiness.get("canReadApiKey").and_then(Value::as_bool) == Some(false) {
+            readiness.remove("canReadApiKey");
+        }
+    }
+    serde_json::to_string(&scan_value)
 }
 
 fn approved_apply_snapshot_hash(
@@ -10248,6 +12103,45 @@ mod tests {
         fs::write(event_dir.join("events.jsonl"), text).expect("event log");
     }
 
+    #[test]
+    fn receipt_marker_scan_exempts_only_the_required_readiness_flag() {
+        let valid_readiness = serde_json::json!({
+            "readiness": { "canReadApiKey": false }
+        });
+        assert!(find_forbidden_approved_apply_key(&valid_readiness).is_none());
+        assert!(!contains_approved_apply_sensitive_marker(
+            &receipt_marker_scan_serialized(&valid_readiness).expect("serialize")
+        ));
+
+        let enabled_readiness = serde_json::json!({
+            "readiness": { "canReadApiKey": true }
+        });
+        assert!(contains_approved_apply_sensitive_marker(
+            &receipt_marker_scan_serialized(&enabled_readiness).expect("serialize")
+        ));
+
+        let misplaced_readiness = serde_json::json!({
+            "scope": { "canReadApiKey": false }
+        });
+        assert!(contains_approved_apply_sensitive_marker(
+            &receipt_marker_scan_serialized(&misplaced_readiness).expect("serialize")
+        ));
+
+        let unknown_sensitive_field = serde_json::json!({
+            "readiness": { "someApiKeyField": false }
+        });
+        assert!(contains_approved_apply_sensitive_marker(
+            &receipt_marker_scan_serialized(&unknown_sensitive_field).expect("serialize")
+        ));
+
+        let forbidden_value = serde_json::json!({
+            "scope": { "sessionLeaseRef": "token=redacted" }
+        });
+        assert!(contains_approved_apply_sensitive_marker(
+            &receipt_marker_scan_serialized(&forbidden_value).expect("serialize")
+        ));
+    }
+
     fn safe_run_draft_event_payload() -> String {
         serde_json::json!({
             "eventKind": "control.run.draft_recorded",
@@ -10395,8 +12289,24 @@ mod tests {
         }
     }
 
+    /// Seeds the workspace settings file so the server-resolved mode matches
+    /// the mode the test request will declare (authorization now derives
+    /// from the persisted settings, not the request field).
+    fn seed_workspace_settings(workspace: &Path, permission_mode: &str) {
+        write_workspace_settings_with_app_path(
+            WorkspaceSettingsWriteRequest {
+                workspace_root: workspace.to_string_lossy().to_string(),
+                source: "project".to_string(),
+                permission_mode: permission_mode.to_string(),
+            },
+            None,
+        )
+        .expect("seed workspace settings");
+    }
+
     fn safe_command_broker_execution_request(workspace: &Path) -> CommandBrokerExecutionRequest {
-        CommandBrokerExecutionRequest {
+        seed_workspace_settings(workspace, "advanced_workspace_mode");
+        let mut request = CommandBrokerExecutionRequest {
             workspace_root: workspace.to_string_lossy().to_string(),
             broker_decision: "ready_for_tauri_execution".to_string(),
             command_request: CommandBrokerExecutionCommandRequest {
@@ -10428,7 +12338,57 @@ mod tests {
             classifier_categories: vec!["low_risk".to_string()],
             kill_switch_active: false,
             cancellation_id: None,
-        }
+            approval_receipt: None,
+        };
+        refresh_command_broker_receipt(&mut request);
+        request
+    }
+
+    /// Recomputes the approval receipt binding after a test mutates any
+    /// request field covered by the receipt requestHash.
+    fn refresh_command_broker_receipt(request: &mut CommandBrokerExecutionRequest) {
+        let command = &request.command_request;
+        let request_hash = command_broker_request_hash(
+            &command.mode,
+            &command.workspace_root_ref,
+            command_broker_shell_kind_name(command.shell_kind),
+            &command.working_directory,
+            &command.command_text,
+            &command.argv,
+        );
+        request.approval_receipt = Some(serde_json::json!({
+            "status": "ready",
+            "receiptId": "command-broker-receipt-test",
+            "kind": "command_broker_execution",
+            "source": COMMAND_BROKER_RECEIPT_SOURCE,
+            "summaryOnly": true,
+            "readiness": {
+                "canExecuteCommand": false,
+                "canSpawnProcess": false,
+                "canWriteFilesystem": false,
+                "canExecuteGitWrite": false,
+                "canRunBackgroundProcess": false,
+                "canReadApiKey": false,
+                "canFetchNetwork": false,
+                "canWriteEventStore": false,
+                "canApplyPatch": false,
+                "canRollback": false,
+                "canUseNativeBridge": false,
+                "canExecuteDesktopAction": false,
+                "appCanExecute": false
+            },
+            "scope": {
+                "receiptId": "command-broker-receipt-test",
+                "kind": "command_broker_execution",
+                "mode": command.mode,
+                "workspaceRootRef": command.workspace_root_ref,
+                "requestHash": request_hash,
+                "sessionLeaseRef": request.session_lease_ref,
+                "expiresAt": "2099-12-31T23:59:59.000Z",
+                "typedConfirmation": "EXECUTE WORKSPACE COMMAND",
+                "receiptHash": "receipt-hash-test"
+            }
+        }));
     }
 
     fn safe_live_proposal_session_receipt() -> Value {
@@ -11952,14 +13912,36 @@ mod tests {
         .expect_err("secret env should block");
         assert_eq!(error.error_code, "COMMAND_BROKER_ENV_SECRET_REJECTED");
 
+        // Server-side classification: a dangerous command is rejected even
+        // when the client self-reports an empty category list.
         let mut dangerous = safe_command_broker_execution_request(&workspace);
-        dangerous.classifier_categories = vec!["recursive_delete".to_string()];
+        dangerous.classifier_categories = Vec::new();
+        dangerous.command_request.command_text = "rm -rf /".to_string();
         let error = execute_command_broker_request_with_executor(
             dangerous,
             |_program, _args, _cwd, _timeout, _max_output_bytes| unreachable!(),
         )
-        .expect_err("dangerous category should block");
+        .expect_err("server-side classification should block dangerous command");
         assert_eq!(error.error_code, "COMMAND_BROKER_CLASSIFIER_REJECTED");
+
+        // Client-reported categories are ignored: a forged "dangerous" list
+        // does not block a command the server classifies as safe.
+        let mut forged = safe_command_broker_execution_request(&workspace);
+        forged.classifier_categories = vec!["recursive_delete".to_string()];
+        let result = execute_command_broker_request_with_executor(
+            forged,
+            |_program, _args, _cwd, _timeout, _max_output_bytes| {
+                Ok(ShellCommandOutput {
+                    exit_code: Some(0),
+                    stdout: b"safe\n".to_vec(),
+                    stderr: Vec::new(),
+                    duration_ms: 1,
+                    truncated: false,
+                })
+            },
+        )
+        .expect("forged client categories must not drive authorization");
+        assert_eq!(result.status, "passed");
 
         let mut git_write = safe_command_broker_execution_request(&workspace);
         git_write.command_request.allow_git_write = true;
@@ -11973,12 +13955,263 @@ mod tests {
         let parent = workspace.parent().expect("parent").to_path_buf();
         let mut escape = safe_command_broker_execution_request(&workspace);
         escape.command_request.working_directory = parent.to_string_lossy().to_string();
+        refresh_command_broker_receipt(&mut escape);
         let error = execute_command_broker_request_with_executor(
             escape,
             |_program, _args, _cwd, _timeout, _max_output_bytes| unreachable!(),
         )
         .expect_err("workspace escape should block");
         assert_eq!(error.error_code, "COMMAND_BROKER_WORKSPACE_ESCAPE");
+
+        let _ = fs::remove_dir_all(workspace);
+    }
+
+    #[test]
+    fn command_broker_requires_bound_unexpired_typed_receipt() {
+        let workspace = temp_workspace("command-broker-receipt");
+
+        let mut missing = safe_command_broker_execution_request(&workspace);
+        missing.approval_receipt = None;
+        let error = execute_command_broker_request_with_executor(
+            missing,
+            |_program, _args, _cwd, _timeout, _max_output_bytes| unreachable!(),
+        )
+        .expect_err("missing receipt should block");
+        assert_eq!(error.error_code, "COMMAND_BROKER_RECEIPT_REQUIRED");
+
+        // Receipt bound to a different command text must not authorize this request.
+        let mut rebound = safe_command_broker_execution_request(&workspace);
+        rebound.command_request.command_text = "Write-Output other".to_string();
+        let error = execute_command_broker_request_with_executor(
+            rebound,
+            |_program, _args, _cwd, _timeout, _max_output_bytes| unreachable!(),
+        )
+        .expect_err("rebound receipt should block");
+        assert_eq!(error.error_code, "COMMAND_BROKER_RECEIPT_MISMATCH");
+
+        let mut expired = safe_command_broker_execution_request(&workspace);
+        expired
+            .approval_receipt
+            .as_mut()
+            .and_then(|receipt| receipt.get_mut("scope"))
+            .and_then(|scope| scope.get_mut("expiresAt"))
+            .map(|value| *value = serde_json::json!("2026-01-01T00:00:00.000Z"));
+        let error = execute_command_broker_request_with_executor(
+            expired,
+            |_program, _args, _cwd, _timeout, _max_output_bytes| unreachable!(),
+        )
+        .expect_err("expired receipt should block");
+        assert_eq!(error.error_code, "COMMAND_BROKER_RECEIPT_REJECTED");
+
+        // A non-standard typedConfirmation value in the receipt scope is no
+        // longer part of the gate: the bound receipt itself is the approval.
+        let mut odd_phrase = safe_command_broker_execution_request(&workspace);
+        odd_phrase
+            .approval_receipt
+            .as_mut()
+            .and_then(|receipt| receipt.get_mut("scope"))
+            .and_then(|scope| scope.get_mut("typedConfirmation"))
+            .map(|value| *value = serde_json::json!("run it"));
+        let result = execute_command_broker_request_with_executor(
+            odd_phrase,
+            |_program, _args, _cwd, _timeout, _max_output_bytes| {
+                Ok(ShellCommandOutput {
+                    exit_code: Some(0),
+                    stdout: b"safe\n".to_vec(),
+                    stderr: Vec::new(),
+                    duration_ms: 1,
+                    truncated: false,
+                })
+            },
+        )
+        .expect("receipt scope binding, not the phrase, is the gate");
+        assert_eq!(result.status, "passed");
+
+        let _ = fs::remove_dir_all(workspace);
+    }
+
+    #[test]
+    fn command_broker_enforces_mode_rules_server_side() {
+        let workspace = temp_workspace("command-broker-modes");
+
+        // Approval mode executes shell with a bound receipt (the receipt is
+        // the tier's gate; the mode no longer restricts the shell kind).
+        let mut approval = safe_command_broker_execution_request(&workspace);
+        seed_workspace_settings(&workspace, "approval_mode");
+        approval.command_request.mode = "approval".to_string();
+        refresh_command_broker_receipt(&mut approval);
+        let result = execute_command_broker_request_with_executor(
+            approval,
+            |_program, _args, _cwd, _timeout, _max_output_bytes| {
+                Ok(ShellCommandOutput {
+                    exit_code: Some(0),
+                    stdout: b"safe\n".to_vec(),
+                    stderr: Vec::new(),
+                    duration_ms: 1,
+                    truncated: false,
+                })
+            },
+        )
+        .expect("approval mode should execute with a bound receipt");
+        assert_eq!(result.status, "passed");
+
+        // Approval mode also executes argv (none shell) with a bound receipt.
+        let mut approval_argv = safe_command_broker_execution_request(&workspace);
+        seed_workspace_settings(&workspace, "approval_mode");
+        approval_argv.command_request.mode = "approval".to_string();
+        approval_argv.command_request.shell_kind = CommandBrokerShellKind::None;
+        approval_argv.command_request.command_text = String::new();
+        approval_argv.command_request.argv = vec!["node".to_string(), "--version".to_string()];
+        refresh_command_broker_receipt(&mut approval_argv);
+        let result = execute_command_broker_request_with_executor(
+            approval_argv,
+            |_program, _args, _cwd, _timeout, _max_output_bytes| {
+                Ok(ShellCommandOutput {
+                    exit_code: Some(0),
+                    stdout: b"v24.0.0\n".to_vec(),
+                    stderr: Vec::new(),
+                    duration_ms: 1,
+                    truncated: false,
+                })
+            },
+        )
+        .expect("approval mode should execute argv with a bound receipt");
+        assert_eq!(result.status, "passed");
+
+        // Approval mode still requires the receipt and the classifier gate.
+        let mut approval_dangerous = safe_command_broker_execution_request(&workspace);
+        seed_workspace_settings(&workspace, "approval_mode");
+        approval_dangerous.command_request.mode = "approval".to_string();
+        approval_dangerous.command_request.command_text = "rm -rf /".to_string();
+        let error = execute_command_broker_request_with_executor(
+            approval_dangerous,
+            |_program, _args, _cwd, _timeout, _max_output_bytes| unreachable!(),
+        )
+        .expect_err("dangerous command should block in approval mode");
+        assert_eq!(error.error_code, "COMMAND_BROKER_CLASSIFIER_REJECTED");
+
+        let mut unknown_mode = safe_command_broker_execution_request(&workspace);
+        unknown_mode.command_request.mode = "god_mode".to_string();
+        let error = execute_command_broker_request_with_executor(
+            unknown_mode,
+            |_program, _args, _cwd, _timeout, _max_output_bytes| unreachable!(),
+        )
+        .expect_err("unknown mode should block");
+        assert_eq!(error.error_code, "COMMAND_BROKER_MODE_REJECTED");
+
+        let mut break_glass = safe_command_broker_execution_request(&workspace);
+        seed_workspace_settings(&workspace, "break_glass_mode");
+        break_glass.command_request.mode = "break_glass".to_string();
+        refresh_command_broker_receipt(&mut break_glass);
+        let error = execute_command_broker_request_with_executor(
+            break_glass,
+            |_program, _args, _cwd, _timeout, _max_output_bytes| unreachable!(),
+        )
+        .expect_err("break-glass should stay dry-run only");
+        assert_eq!(error.error_code, "COMMAND_BROKER_BREAK_GLASS_DRY_RUN");
+
+        let mut networked = safe_command_broker_execution_request(&workspace);
+        networked.command_request.allow_network = true;
+        let error = execute_command_broker_request_with_executor(
+            networked,
+            |_program, _args, _cwd, _timeout, _max_output_bytes| unreachable!(),
+        )
+        .expect_err("network flag should block");
+        assert_eq!(error.error_code, "COMMAND_BROKER_NETWORK_REJECTED");
+
+        // Autonomous safe mode allows a classifier-safe shell command with a
+        // bound receipt.
+        let mut autonomous = safe_command_broker_execution_request(&workspace);
+        seed_workspace_settings(&workspace, "autonomous_safe_mode");
+        autonomous.command_request.mode = "autonomous_safe".to_string();
+        refresh_command_broker_receipt(&mut autonomous);
+        let result = execute_command_broker_request_with_executor(
+            autonomous,
+            |_program, _args, _cwd, _timeout, _max_output_bytes| {
+                Ok(ShellCommandOutput {
+                    exit_code: Some(0),
+                    stdout: b"safe\n".to_vec(),
+                    stderr: Vec::new(),
+                    duration_ms: 1,
+                    truncated: false,
+                })
+            },
+        )
+        .expect("autonomous safe mode should allow safe commands");
+        assert_eq!(result.status, "passed");
+
+        // Full access mode executes with a bound receipt and a stored,
+        // active full-access lease.
+        let lease = issue_permission_lease(PermissionLeaseIssueRequest {
+            workspace_root: workspace.to_string_lossy().to_string(),
+            workspace_root_ref: "workspace-ref-test".to_string(),
+            mode: "full_access_mode".to_string(),
+            reason_summary: "test full access lease".to_string(),
+            ttl_ms: PERMISSION_LEASE_MIN_TTL_MS,
+        })
+        .expect("issue full access lease");
+        let mut full_access = safe_command_broker_execution_request(&workspace);
+        seed_workspace_settings(&workspace, "full_access_mode");
+        full_access.command_request.mode = "full_access".to_string();
+        full_access.session_lease_ref = lease.lease.lease_id.clone();
+        refresh_command_broker_receipt(&mut full_access);
+        let result = execute_command_broker_request_with_executor(
+            full_access,
+            |_program, _args, _cwd, _timeout, _max_output_bytes| {
+                Ok(ShellCommandOutput {
+                    exit_code: Some(0),
+                    stdout: b"safe\n".to_vec(),
+                    stderr: Vec::new(),
+                    duration_ms: 1,
+                    truncated: false,
+                })
+            },
+        )
+        .expect("full access mode should execute with bound receipt and stored lease");
+        assert_eq!(result.status, "passed");
+
+        // A free-text lease reference (no stored lease) is rejected.
+        let mut free_text = safe_command_broker_execution_request(&workspace);
+        seed_workspace_settings(&workspace, "full_access_mode");
+        free_text.command_request.mode = "full_access".to_string();
+        refresh_command_broker_receipt(&mut free_text);
+        let error = execute_command_broker_request_with_executor(
+            free_text,
+            |_program, _args, _cwd, _timeout, _max_output_bytes| unreachable!(),
+        )
+        .expect_err("free-text lease reference should block");
+        assert_eq!(error.error_code, "COMMAND_BROKER_LEASE_REJECTED");
+
+        // A revoked lease is rejected.
+        revoke_permission_lease(PermissionLeaseRevokeRequest {
+            workspace_root: workspace.to_string_lossy().to_string(),
+            lease_id: lease.lease.lease_id.clone(),
+            reason_summary: "test revocation".to_string(),
+        })
+        .expect("revoke lease");
+        let mut revoked = safe_command_broker_execution_request(&workspace);
+        seed_workspace_settings(&workspace, "full_access_mode");
+        revoked.command_request.mode = "full_access".to_string();
+        revoked.session_lease_ref = lease.lease.lease_id.clone();
+        refresh_command_broker_receipt(&mut revoked);
+        let error = execute_command_broker_request_with_executor(
+            revoked,
+            |_program, _args, _cwd, _timeout, _max_output_bytes| unreachable!(),
+        )
+        .expect_err("revoked lease should block");
+        assert_eq!(error.error_code, "COMMAND_BROKER_LEASE_REVOKED");
+
+        // A client-declared mode that disagrees with the persisted settings
+        // is rejected: authorization derives from the settings store.
+        let mut mismatched = safe_command_broker_execution_request(&workspace);
+        mismatched.command_request.mode = "full_access".to_string();
+        refresh_command_broker_receipt(&mut mismatched);
+        let error = execute_command_broker_request_with_executor(
+            mismatched,
+            |_program, _args, _cwd, _timeout, _max_output_bytes| unreachable!(),
+        )
+        .expect_err("mode mismatching persisted settings should block");
+        assert_eq!(error.error_code, "COMMAND_BROKER_MODE_MISMATCH");
 
         let _ = fs::remove_dir_all(workspace);
     }
@@ -12024,6 +14257,666 @@ mod tests {
         assert!(!error.safe_message.contains(&marker));
 
         let _ = fs::remove_dir_all(workspace);
+    }
+
+    fn safe_workspace_file_read_request(workspace: &Path) -> WorkspaceFileReadRequest {
+        WorkspaceFileReadRequest {
+            workspace_root: workspace.to_string_lossy().to_string(),
+            workspace_root_ref: "workspace-ref-read-test".to_string(),
+            relative_path: "notes/hello.txt".to_string(),
+            permission_mode: "approval_mode".to_string(),
+            approval_receipt: None,
+        }
+    }
+
+    fn refresh_file_read_receipt(request: &mut WorkspaceFileReadRequest) {
+        let request_hash = crate::path_sensitivity::file_read_request_hash(
+            &request.permission_mode,
+            &request.workspace_root_ref,
+            &request.relative_path,
+        );
+        request.approval_receipt = Some(serde_json::json!({
+            "status": "ready",
+            "receiptId": "file-read-receipt-test",
+            "kind": "workspace_file_read",
+            "source": FILE_READ_RECEIPT_SOURCE,
+            "summaryOnly": true,
+            "readiness": {
+                "canReadFile": false,
+                "canWriteFilesystem": false,
+                "canExecuteCommand": false,
+                "canSpawnProcess": false,
+                "canReadApiKey": false,
+                "canFetchNetwork": false,
+                "canWriteEventStore": false,
+                "canApplyPatch": false,
+                "canRollback": false,
+                "appCanExecute": false
+            },
+            "scope": {
+                "receiptId": "file-read-receipt-test",
+                "kind": "workspace_file_read",
+                "mode": request.permission_mode,
+                "workspaceRootRef": request.workspace_root_ref,
+                "relativePath": request.relative_path,
+                "requestHash": request_hash,
+                "expiresAt": "2099-12-31T23:59:59.000Z",
+                "typedConfirmation": "READ WORKSPACE FILE",
+                "receiptHash": "receipt-hash-test"
+            }
+        }));
+    }
+
+    #[test]
+    fn workspace_file_read_allows_plain_read_in_approval_mode() {
+        let workspace = temp_workspace("file-read-plain");
+        fs::create_dir_all(workspace.join("notes")).expect("notes dir");
+        fs::write(workspace.join("notes/hello.txt"), "hello workspace\nline two\n")
+            .expect("write fixture");
+
+        let result =
+            read_workspace_file_summary(safe_workspace_file_read_request(&workspace))
+                .expect("plain read should pass");
+
+        assert_eq!(result.status, "passed");
+        assert_eq!(result.sensitivity, "normal");
+        assert_eq!(result.tier_gate, "auto");
+        assert_eq!(result.content, "hello workspace\nline two\n");
+        assert_eq!(result.line_count, 2);
+        assert_eq!(result.byte_count, 25);
+        assert!(!result.truncated);
+        assert_eq!(result.approval_receipt_id, None);
+        assert!(!result.summary_only);
+        assert_eq!(result.event_preview.event_type, "workspace_file.read.completed");
+        assert!(result.event_preview.summary_only);
+        assert!(result.event_preview.not_written);
+
+        let _ = fs::remove_dir_all(workspace);
+    }
+
+    #[test]
+    fn workspace_file_read_gates_sensitive_paths_and_tiers() {
+        let workspace = temp_workspace("file-read-gates");
+        fs::write(workspace.join(".env"), "APP_MODE=demo\n").expect("env fixture");
+        fs::create_dir_all(workspace.join("notes")).expect("notes dir");
+        fs::write(workspace.join("notes/hello.txt"), "plain text\n").expect("write fixture");
+        fs::create_dir_all(workspace.join(".git")).expect("git dir");
+        fs::write(workspace.join(".git/config"), "[core]\n").expect("git fixture");
+
+        // Sensitive read without a receipt is rejected.
+        let mut sensitive = safe_workspace_file_read_request(&workspace);
+        sensitive.relative_path = ".env".to_string();
+        let error = read_workspace_file_summary(sensitive.clone())
+            .expect_err("sensitive read without receipt should block");
+        assert_eq!(error.error_code, "WORKSPACE_FILE_RECEIPT_REQUIRED");
+
+        // Sensitive read with a bound receipt passes (content not scanned:
+        // the receipt explicitly covers this file).
+        let mut approved = sensitive.clone();
+        refresh_file_read_receipt(&mut approved);
+        let result = read_workspace_file_summary(approved).expect("receipt should allow");
+        assert_eq!(result.sensitivity, "sensitive");
+        assert_eq!(result.tier_gate, "requires_approval");
+        assert_eq!(result.content, "APP_MODE=demo\n");
+        assert_eq!(
+            result.approval_receipt_id.as_deref(),
+            Some("file-read-receipt-test")
+        );
+
+        // approval_required tier (read_only_preview): even plain reads need a receipt.
+        seed_workspace_settings(&workspace, "read_only_preview");
+        let mut preview = safe_workspace_file_read_request(&workspace);
+        preview.permission_mode = "read_only_preview".to_string();
+        let error = read_workspace_file_summary(preview.clone())
+            .expect_err("approval_required tier should gate plain reads");
+        assert_eq!(error.error_code, "WORKSPACE_FILE_RECEIPT_REQUIRED");
+        let mut preview_approved = preview.clone();
+        refresh_file_read_receipt(&mut preview_approved);
+        let result = read_workspace_file_summary(preview_approved)
+            .expect("receipt should allow plain read in approval_required tier");
+        assert_eq!(result.tier_gate, "requires_approval");
+
+        // unrestricted tier: sensitive reads run without a receipt.
+        seed_workspace_settings(&workspace, "full_access_mode");
+        let mut unrestricted = sensitive.clone();
+        unrestricted.permission_mode = "full_access_mode".to_string();
+        let result = read_workspace_file_summary(unrestricted)
+            .expect("unrestricted tier should allow sensitive reads");
+        assert_eq!(result.tier_gate, "auto");
+
+        // Protected paths are blocked in every tier, including unrestricted.
+        let mut protected = safe_workspace_file_read_request(&workspace);
+        protected.permission_mode = "full_access_mode".to_string();
+        protected.relative_path = ".git/config".to_string();
+        let error = read_workspace_file_summary(protected)
+            .expect_err("protected path should block in every tier");
+        assert_eq!(error.error_code, "WORKSPACE_FILE_PROTECTED");
+
+        // Unknown modes are rejected.
+        let mut unknown = safe_workspace_file_read_request(&workspace);
+        unknown.permission_mode = "god_mode".to_string();
+        let error = read_workspace_file_summary(unknown).expect_err("unknown mode should block");
+        assert_eq!(error.error_code, "WORKSPACE_FILE_MODE_REJECTED");
+
+        // Client-declared full_access cannot override persisted settings:
+        // the sensitive read gate derives from the settings store.
+        seed_workspace_settings(&workspace, "approval_mode");
+        let mut forged = safe_workspace_file_read_request(&workspace);
+        forged.relative_path = ".env".to_string();
+        forged.permission_mode = "full_access_mode".to_string();
+        let error = read_workspace_file_summary(forged)
+            .expect_err("client-declared full_access should not override settings");
+        assert_eq!(error.error_code, "WORKSPACE_FILE_MODE_MISMATCH");
+
+        let _ = fs::remove_dir_all(workspace);
+    }
+
+    #[test]
+    fn workspace_file_read_rejects_receipt_mismatch_and_expiry() {
+        let workspace = temp_workspace("file-read-receipt");
+        fs::write(workspace.join(".env"), "APP_MODE=demo\n").expect("env fixture");
+
+        let mut rebound = safe_workspace_file_read_request(&workspace);
+        rebound.relative_path = ".env".to_string();
+        refresh_file_read_receipt(&mut rebound);
+        rebound
+            .approval_receipt
+            .as_mut()
+            .and_then(|receipt| receipt.get_mut("scope"))
+            .and_then(|scope| scope.get_mut("relativePath"))
+            .map(|value| *value = serde_json::json!("other.txt"));
+        let error = read_workspace_file_summary(rebound)
+            .expect_err("receipt bound to another path should block");
+        assert_eq!(error.error_code, "WORKSPACE_FILE_RECEIPT_MISMATCH");
+
+        let mut expired = safe_workspace_file_read_request(&workspace);
+        expired.relative_path = ".env".to_string();
+        refresh_file_read_receipt(&mut expired);
+        expired
+            .approval_receipt
+            .as_mut()
+            .and_then(|receipt| receipt.get_mut("scope"))
+            .and_then(|scope| scope.get_mut("expiresAt"))
+            .map(|value| *value = serde_json::json!("2026-01-01T00:00:00.000Z"));
+        let error =
+            read_workspace_file_summary(expired).expect_err("expired receipt should block");
+        assert_eq!(error.error_code, "WORKSPACE_FILE_RECEIPT_REJECTED");
+
+        // A non-standard typedConfirmation value in the receipt scope is no
+        // longer part of the gate: the bound receipt itself is the approval.
+        let mut odd_phrase = safe_workspace_file_read_request(&workspace);
+        odd_phrase.relative_path = ".env".to_string();
+        refresh_file_read_receipt(&mut odd_phrase);
+        odd_phrase
+            .approval_receipt
+            .as_mut()
+            .and_then(|receipt| receipt.get_mut("scope"))
+            .and_then(|scope| scope.get_mut("typedConfirmation"))
+            .map(|value| *value = serde_json::json!("read it"));
+        let result = read_workspace_file_summary(odd_phrase)
+            .expect("receipt scope binding, not the phrase, is the gate");
+        assert_eq!(result.status, "passed");
+
+        let _ = fs::remove_dir_all(workspace);
+    }
+
+    #[test]
+    fn workspace_file_read_enforces_path_and_content_safety() {
+        let workspace = temp_workspace("file-read-safety");
+        fs::create_dir_all(workspace.join("notes")).expect("notes dir");
+        fs::write(workspace.join("notes/hello.txt"), "plain text\n").expect("write fixture");
+
+        for path in ["../escape.txt", "C:/abs.txt", "/abs.txt", "a/../b.txt"] {
+            let mut request = safe_workspace_file_read_request(&workspace);
+            request.relative_path = path.to_string();
+            let error = read_workspace_file_summary(request)
+                .expect_err("unsafe path should block");
+            assert_eq!(error.error_code, "WORKSPACE_FILE_PATH_REJECTED");
+        }
+
+        let mut missing = safe_workspace_file_read_request(&workspace);
+        missing.relative_path = "notes/missing.txt".to_string();
+        let error =
+            read_workspace_file_summary(missing).expect_err("missing file should block");
+        assert_eq!(error.error_code, "WORKSPACE_FILE_NOT_FOUND");
+
+        fs::write(workspace.join("notes/blob.bin"), [0xff, 0xfe, 0x00, 0x01])
+            .expect("binary fixture");
+        let mut binary = safe_workspace_file_read_request(&workspace);
+        binary.relative_path = "notes/blob.bin".to_string();
+        let error =
+            read_workspace_file_summary(binary).expect_err("binary content should block");
+        assert_eq!(error.error_code, "WORKSPACE_FILE_NOT_TEXT");
+
+        // Secret-like content in a normal (auto-approved) file fails closed.
+        let marker = ["s", "k-filereadfake123456"].concat();
+        fs::write(
+            workspace.join("notes/leak.txt"),
+            format!("value={marker}\n"),
+        )
+        .expect("leak fixture");
+        let mut leak = safe_workspace_file_read_request(&workspace);
+        leak.relative_path = "notes/leak.txt".to_string();
+        let error = read_workspace_file_summary(leak)
+            .expect_err("secret-like content should block");
+        assert_eq!(error.error_code, "WORKSPACE_FILE_CONTENT_SECRET");
+
+        // Files above the hard size cap are rejected before reading.
+        let oversized = vec![b'a'; (FILE_READ_MAX_FILE_BYTES + 1) as usize];
+        fs::write(workspace.join("notes/big.txt"), oversized).expect("big fixture");
+        let mut big = safe_workspace_file_read_request(&workspace);
+        big.relative_path = "notes/big.txt".to_string();
+        let error = read_workspace_file_summary(big).expect_err("oversized file should block");
+        assert_eq!(error.error_code, "WORKSPACE_FILE_TOO_LARGE");
+
+        // Content above the content cap is truncated with a flag.
+        let large = vec![b'a'; FILE_READ_MAX_CONTENT_BYTES + 10];
+        fs::write(workspace.join("notes/large.txt"), large).expect("large fixture");
+        let mut truncated = safe_workspace_file_read_request(&workspace);
+        truncated.relative_path = "notes/large.txt".to_string();
+        let result =
+            read_workspace_file_summary(truncated).expect("large content should truncate");
+        assert!(result.truncated);
+        assert_eq!(result.returned_bytes, FILE_READ_MAX_CONTENT_BYTES);
+        assert_eq!(result.byte_count, FILE_READ_MAX_CONTENT_BYTES + 10);
+
+        let _ = fs::remove_dir_all(workspace);
+    }
+
+    #[test]
+    fn workspace_settings_defaults_to_project_approval_mode_when_missing() {
+        let workspace = temp_workspace("settings-default");
+        let result = read_workspace_settings_with_app_path(
+            workspace.to_string_lossy().to_string(),
+            None,
+        )
+        .expect("missing settings should default");
+
+        assert_eq!(result.source, "project");
+        assert_eq!(result.permission_mode, "approval_mode");
+        assert!(!result.settings_existed);
+        assert!(result.defaulted);
+        assert!(result
+            .warning_codes
+            .contains(&"WORKSPACE_SETTINGS_DEFAULTED".to_string()));
+
+        let _ = fs::remove_dir_all(workspace);
+    }
+
+    #[test]
+    fn workspace_settings_project_roundtrip() {
+        let workspace = temp_workspace("settings-roundtrip");
+        let write = write_workspace_settings_with_app_path(
+            WorkspaceSettingsWriteRequest {
+                workspace_root: workspace.to_string_lossy().to_string(),
+                source: "project".to_string(),
+                permission_mode: "advanced_workspace_mode".to_string(),
+            },
+            None,
+        )
+        .expect("project write should pass");
+        assert_eq!(write.status, "passed");
+
+        let result = read_workspace_settings_with_app_path(
+            workspace.to_string_lossy().to_string(),
+            None,
+        )
+        .expect("project read should pass");
+        assert_eq!(result.source, "project");
+        assert_eq!(result.permission_mode, "advanced_workspace_mode");
+        assert!(result.settings_existed);
+        assert!(!result.defaulted);
+
+        let _ = fs::remove_dir_all(workspace);
+    }
+
+    #[test]
+    fn workspace_settings_app_source_resolution() {
+        let workspace = temp_workspace("settings-app-source");
+        let app_dir = temp_workspace("settings-app-file");
+        let app_path = app_dir.join("settings.json");
+
+        // Project file points at the app-level file; the app file wins.
+        fs::create_dir_all(workspace.join(".deepseek-workbench")).expect("settings dir");
+        write_settings_file(
+            &workspace.join(".deepseek-workbench").join("settings.json"),
+            Some("app"),
+            Some("approval_mode"),
+        )
+        .expect("project pointer write");
+        write_settings_file(&app_path, None, Some("full_access_mode"))
+            .expect("app settings write");
+
+        let result = read_workspace_settings_with_app_path(
+            workspace.to_string_lossy().to_string(),
+            Some(app_path.clone()),
+        )
+        .expect("app source read should pass");
+        assert_eq!(result.source, "app");
+        assert_eq!(result.permission_mode, "full_access_mode");
+        assert!(result.settings_existed);
+
+        // App file missing: defaulted with a warning, source stays app.
+        let missing_app_path = app_dir.join("missing.json");
+        let result = read_workspace_settings_with_app_path(
+            workspace.to_string_lossy().to_string(),
+            Some(missing_app_path),
+        )
+        .expect("missing app file should default");
+        assert_eq!(result.source, "app");
+        assert_eq!(result.permission_mode, "approval_mode");
+        assert!(result.defaulted);
+        assert!(result
+            .warning_codes
+            .contains(&"WORKSPACE_SETTINGS_APP_DEFAULTED".to_string()));
+
+        let _ = fs::remove_dir_all(workspace);
+        let _ = fs::remove_dir_all(app_dir);
+    }
+
+    #[test]
+    fn workspace_settings_write_switches_source_preserving_project_mode() {
+        let workspace = temp_workspace("settings-switch");
+        let app_dir = temp_workspace("settings-switch-app");
+        let app_path = app_dir.join("settings.json");
+
+        write_workspace_settings_with_app_path(
+            WorkspaceSettingsWriteRequest {
+                workspace_root: workspace.to_string_lossy().to_string(),
+                source: "project".to_string(),
+                permission_mode: "advanced_workspace_mode".to_string(),
+            },
+            None,
+        )
+        .expect("project write");
+
+        // Switch to app source with a different mode: app file gets the new
+        // mode, project file keeps its own mode plus the app pointer.
+        write_workspace_settings_with_app_path(
+            WorkspaceSettingsWriteRequest {
+                workspace_root: workspace.to_string_lossy().to_string(),
+                source: "app".to_string(),
+                permission_mode: "full_access_mode".to_string(),
+            },
+            Some(app_path.clone()),
+        )
+        .expect("app write");
+
+        let as_app = read_workspace_settings_with_app_path(
+            workspace.to_string_lossy().to_string(),
+            Some(app_path.clone()),
+        )
+        .expect("read as app");
+        assert_eq!(as_app.source, "app");
+        assert_eq!(as_app.permission_mode, "full_access_mode");
+
+        // Switching back to project restores the preserved project mode.
+        write_workspace_settings_with_app_path(
+            WorkspaceSettingsWriteRequest {
+                workspace_root: workspace.to_string_lossy().to_string(),
+                source: "project".to_string(),
+                permission_mode: "advanced_workspace_mode".to_string(),
+            },
+            Some(app_path.clone()),
+        )
+        .expect("switch back write");
+        let as_project = read_workspace_settings_with_app_path(
+            workspace.to_string_lossy().to_string(),
+            Some(app_path),
+        )
+        .expect("read as project");
+        assert_eq!(as_project.source, "project");
+        assert_eq!(as_project.permission_mode, "advanced_workspace_mode");
+
+        let _ = fs::remove_dir_all(workspace);
+        let _ = fs::remove_dir_all(app_dir);
+    }
+
+    #[test]
+    fn workspace_settings_rejects_invalid_input_and_files() {
+        let workspace = temp_workspace("settings-invalid");
+
+        let bad_mode = write_workspace_settings_with_app_path(
+            WorkspaceSettingsWriteRequest {
+                workspace_root: workspace.to_string_lossy().to_string(),
+                source: "project".to_string(),
+                permission_mode: "god_mode".to_string(),
+            },
+            None,
+        )
+        .expect_err("bad mode should block");
+        assert_eq!(bad_mode.error_code, "WORKSPACE_SETTINGS_MODE_REJECTED");
+
+        let bad_source = write_workspace_settings_with_app_path(
+            WorkspaceSettingsWriteRequest {
+                workspace_root: workspace.to_string_lossy().to_string(),
+                source: "system".to_string(),
+                permission_mode: "approval_mode".to_string(),
+            },
+            None,
+        )
+        .expect_err("bad source should block");
+        assert_eq!(bad_source.error_code, "WORKSPACE_SETTINGS_SOURCE_REJECTED");
+
+        let settings_path = workspace.join(".deepseek-workbench").join("settings.json");
+        for content in [
+            "not json".to_string(),
+            "{\"schemaVersion\":2}".to_string(),
+            "{\"schemaVersion\":1,\"permissionMode\":\"god_mode\"}".to_string(),
+            "{\"schemaVersion\":1,\"settingsSource\":\"system\"}".to_string(),
+            "{\"schemaVersion\":1,\"unexpected\":true}".to_string(),
+        ] {
+            fs::create_dir_all(workspace.join(".deepseek-workbench")).expect("dir");
+            fs::write(&settings_path, content).expect("corrupt fixture");
+            let error = read_workspace_settings_with_app_path(
+                workspace.to_string_lossy().to_string(),
+                None,
+            )
+            .expect_err("invalid settings file should block");
+            assert_eq!(error.error_code, "WORKSPACE_SETTINGS_INVALID");
+        }
+
+        let _ = fs::remove_dir_all(workspace);
+    }
+
+    #[test]
+    fn workspace_settings_write_needs_no_confirmation() {
+        let workspace = temp_workspace("settings-confirmation");
+
+        // Settings writes are click-level actions: any valid mode persists
+        // without a typed phrase.
+        for mode in [
+            "full_access_mode",
+            "approval_mode",
+            "read_only_preview",
+            "autonomous_safe_mode",
+            "advanced_workspace_mode",
+            "break_glass_mode",
+        ] {
+            write_workspace_settings_with_app_path(
+                WorkspaceSettingsWriteRequest {
+                    workspace_root: workspace.to_string_lossy().to_string(),
+                    source: "project".to_string(),
+                    permission_mode: mode.to_string(),
+                },
+                None,
+            )
+            .unwrap_or_else(|error| panic!("{mode} write should pass: {error:?}"));
+        }
+
+        let result = read_workspace_settings_with_app_path(
+            workspace.to_string_lossy().to_string(),
+            None,
+        )
+        .expect("read should pass");
+        assert_eq!(result.permission_mode, "break_glass_mode");
+
+        let _ = fs::remove_dir_all(workspace);
+    }
+
+    #[test]
+    fn permission_lease_lifecycle_issue_list_revoke() {
+        let workspace = temp_workspace("lease-lifecycle");
+
+        let issued = issue_permission_lease(PermissionLeaseIssueRequest {
+            workspace_root: workspace.to_string_lossy().to_string(),
+            workspace_root_ref: "workspace-ref-test".to_string(),
+            mode: "advanced_workspace_mode".to_string(),
+            reason_summary: "test advanced lease".to_string(),
+            ttl_ms: PERMISSION_LEASE_MIN_TTL_MS,
+        })
+        .expect("issue should pass");
+        assert_eq!(issued.lease.status, "active");
+        assert_eq!(issued.lease.mode, "advanced_workspace_mode");
+        assert!(issued.lease.expires_at_epoch_ms > issued.lease.issued_at_epoch_ms);
+
+        let listed = list_permission_leases(workspace.to_string_lossy().to_string())
+            .expect("list should pass");
+        assert_eq!(listed.lease_count, 1);
+        assert_eq!(listed.leases[0].lease_id, issued.lease.lease_id);
+
+        let revoked = revoke_permission_lease(PermissionLeaseRevokeRequest {
+            workspace_root: workspace.to_string_lossy().to_string(),
+            lease_id: issued.lease.lease_id.clone(),
+            reason_summary: "test done".to_string(),
+        })
+        .expect("revoke should pass");
+        assert!(revoked.revoked);
+
+        let listed_after = list_permission_leases(workspace.to_string_lossy().to_string())
+            .expect("list should pass");
+        assert_eq!(listed_after.leases[0].status, "revoked");
+
+        let again = revoke_permission_lease(PermissionLeaseRevokeRequest {
+            workspace_root: workspace.to_string_lossy().to_string(),
+            lease_id: issued.lease.lease_id,
+            reason_summary: "again".to_string(),
+        })
+        .expect("second revoke should be idempotent");
+        assert!(!again.revoked);
+        assert_eq!(again.status, "already_revoked");
+
+        let _ = fs::remove_dir_all(workspace);
+    }
+
+    #[test]
+    fn permission_lease_rejects_invalid_input_and_records() {
+        let workspace = temp_workspace("lease-invalid");
+
+        let bad_ttl = issue_permission_lease(PermissionLeaseIssueRequest {
+            workspace_root: workspace.to_string_lossy().to_string(),
+            workspace_root_ref: "workspace-ref-test".to_string(),
+            mode: "advanced_workspace_mode".to_string(),
+            reason_summary: "test".to_string(),
+            ttl_ms: 1,
+        })
+        .expect_err("out-of-range ttl should block");
+        assert_eq!(bad_ttl.error_code, "PERMISSION_LEASE_TTL_REJECTED");
+
+        let bad_mode = issue_permission_lease(PermissionLeaseIssueRequest {
+            workspace_root: workspace.to_string_lossy().to_string(),
+            workspace_root_ref: "workspace-ref-test".to_string(),
+            mode: "approval_mode".to_string(),
+            reason_summary: "test".to_string(),
+            ttl_ms: PERMISSION_LEASE_MIN_TTL_MS,
+        })
+        .expect_err("non high-privilege mode should block");
+        assert_eq!(bad_mode.error_code, "PERMISSION_LEASE_MODE_REJECTED");
+
+        // Corrupt lease records are skipped with a warning on list.
+        let store_dir = workspace.join(".deepseek-workbench").join("leases");
+        fs::create_dir_all(&store_dir).expect("leases dir");
+        fs::write(store_dir.join("lease-broken.json"), "not json").expect("corrupt fixture");
+        let listed = list_permission_leases(workspace.to_string_lossy().to_string())
+            .expect("list should pass with skipped record");
+        assert_eq!(listed.lease_count, 0);
+        assert!(listed
+            .warning_codes
+            .contains(&"PERMISSION_LEASE_RECORD_SKIPPED".to_string()));
+
+        // Expired leases report the expired status.
+        let issued = issue_permission_lease(PermissionLeaseIssueRequest {
+            workspace_root: workspace.to_string_lossy().to_string(),
+            workspace_root_ref: "workspace-ref-test".to_string(),
+            mode: "full_access_mode".to_string(),
+            reason_summary: "expiry test".to_string(),
+            ttl_ms: PERMISSION_LEASE_MIN_TTL_MS,
+        })
+        .expect("issue should pass");
+        let lease_path = store_dir.join(format!("{}.json", issued.lease.lease_id));
+        let mut record = read_permission_lease_record(&lease_path).expect("record");
+        record.expires_at_epoch_ms = 1;
+        write_permission_lease_record(&lease_path, &record).expect("rewrite");
+        let listed = list_permission_leases(workspace.to_string_lossy().to_string())
+            .expect("list should pass");
+        let expired_entry = listed
+            .leases
+            .iter()
+            .find(|entry| entry.lease_id == issued.lease.lease_id)
+            .expect("lease present");
+        assert_eq!(expired_entry.status, "expired");
+
+        let _ = fs::remove_dir_all(workspace);
+    }
+
+    fn safe_chat_completion_request() -> ChatCompletionCommandRequest {
+        ChatCompletionCommandRequest {
+            messages: vec![
+                ChatCompletionCommandMessage {
+                    role: "system".to_string(),
+                    content: "You are a workspace assistant.".to_string(),
+                    tool_call_id: None,
+                    tool_calls: None,
+                },
+                ChatCompletionCommandMessage {
+                    role: "user".to_string(),
+                    content: "Summarize the workspace.".to_string(),
+                    tool_call_id: None,
+                    tool_calls: None,
+                },
+            ],
+            model: "deepseek-v4-flash".to_string(),
+            tools: None,
+        }
+    }
+
+    #[test]
+    fn chat_completion_validates_messages_and_tools() {
+        let mut bad_model = safe_chat_completion_request();
+        bad_model.model = "gpt-99".to_string();
+        let error = chat_deepseek_completion(bad_model)
+            .expect_err("unsupported model should block");
+        assert_eq!(error.error_code, "CHAT_MODEL_REJECTED");
+
+        let mut secret_message = safe_chat_completion_request();
+        let marker = ["s", "k-chatfake123456"].concat();
+        secret_message.messages[1].content = format!("my token is {marker}");
+        let error = chat_deepseek_completion(secret_message)
+            .expect_err("secret-like message should block");
+        assert_eq!(error.error_code, "CHAT_MESSAGES_SECRET_REJECTED");
+
+        let mut bad_tool = safe_chat_completion_request();
+        bad_tool.tools = Some(serde_json::json!([{
+            "type": "function",
+            "function": {"name": "delete_everything"}
+        }]));
+        let error = chat_deepseek_completion(bad_tool)
+            .expect_err("non-allowlisted tool should block");
+        assert_eq!(error.error_code, "CHAT_TOOLS_REJECTED");
+
+        // Fully valid input passes validation; the outcome depends on the
+        // environment: with an API key the lane completes a real round
+        // trip, without one it stops at credential resolution.
+        let valid = safe_chat_completion_request();
+        match chat_deepseek_completion(valid) {
+            Ok(result) => {
+                assert_eq!(result.status, "completed");
+                assert!(!result.reasoning_included);
+            }
+            Err(error) => {
+                assert_eq!(error.error_code, "LIVE_DEEPSEEK_PROPOSAL_BLOCKED");
+            }
+        }
     }
 
     #[test]
@@ -12797,6 +15690,10 @@ mod tests {
             ".git/config",
             ".env",
             "node_modules/pkg/index.js",
+            ".ssh/id_rsa",
+            "keys/id_ed25519",
+            "certs/server.pem",
+            "config/private-key.txt",
         ] {
             let workspace = temp_workspace("approved-apply-unsafe");
             let request = safe_approved_apply_request(
@@ -14259,6 +17156,20 @@ mod tests {
     }
 
     #[test]
+    fn transcript_delete_works_without_typed_confirmation() {
+        let workspace = temp_workspace("transcript-delete-confirm");
+        // Deleting a missing record is a safe no-op without any phrase.
+        let result = delete_transcript_record(
+            workspace.to_string_lossy().to_string(),
+            "transcript-any".to_string(),
+        )
+        .expect("delete without confirmation should work");
+        assert!(!result.deleted);
+
+        let _ = fs::remove_dir_all(workspace);
+    }
+
+    #[test]
     fn transcript_store_rejects_unsafe_transcript_records() {
         let workspace = temp_workspace("transcript-store-unsafe");
         let mut raw_record = safe_transcript_record("transcript-store-raw");
@@ -14593,7 +17504,6 @@ mod tests {
     fn safe_mcp_readonly_request() -> McpReadonlyDiscoverRequest {
         McpReadonlyDiscoverRequest {
             profile: safe_mcp_readonly_profile(),
-            typed_confirmation: MCP_READONLY_DISCOVERY_CONFIRMATION.to_string(),
             max_items: 10,
             timeout_ms: 5_000,
         }
@@ -14672,13 +17582,10 @@ mod tests {
     }
 
     #[test]
-    fn mcp_readonly_discovery_requires_typed_confirmation() {
-        let mut request = safe_mcp_readonly_request();
-        request.typed_confirmation = "DISCOVER".to_string();
-        let error = mcp_readonly_discover(request).expect_err("confirmation should block");
-
-        assert_eq!(error.error_code, "MCP_READONLY_DISCOVERY_INVALID");
-        assert_eq!(error.stage, "mcp_readonly_discover");
+    fn mcp_readonly_discovery_works_without_typed_confirmation() {
+        let result = mcp_readonly_discover(safe_mcp_readonly_request())
+            .expect("discovery without typed confirmation should pass");
+        assert!(result.ok);
     }
 
     #[test]

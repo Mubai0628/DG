@@ -36,6 +36,8 @@ describe("execution policy engine", () => {
       ExecutionPolicyDecision["status"]
     >([
       ["workspace_read", "allowed"],
+      ["file_read", "allowed"],
+      ["sensitive_file_read", "requires_approval"],
       ["workspace_write", "requires_approval"],
       ["patch_apply", "requires_approval"],
       ["patch_rollback", "requires_approval"],

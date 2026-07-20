@@ -89,9 +89,10 @@ Current scope:
   telemetry upload remain disabled
 - preview the P1N Command Broker App surface with explicit planning,
   fixed-command execution gating, visible kill switch, classifier summaries,
-  and transcript refs while generic shell invocation, auto-run history,
-  raw output display, Git write, apply/rollback, EventStore write, native
-  bridge, and desktop action remain blocked
+  transcript refs, and summary-only replay/redaction event counts while
+  generic shell invocation, auto-run history, raw output display, replay
+  execution, Git write, apply/rollback, EventStore write, native bridge, and
+  desktop action remain blocked
 - prepare the v0.11 App-side Approved Execution MVP RC with narrow
   human-approved apply and rollback, exact typed confirmations, private
   checkpoints, summary-only approved execution events, replay counts, and E2E

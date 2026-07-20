@@ -61,6 +61,19 @@ export class ConversationEngine {
     if (options.thinking !== undefined) {
       this.state.thinking = options.thinking;
     }
+
+    // Optional system prompt: injected as the first turn so the assembler
+    // carries it into every request. Provided at construction because the
+    // engine intentionally has no public addSystemMessage API.
+    if (options.systemPrompt !== undefined && options.systemPrompt !== "") {
+      this.addTurn({
+        role: "system",
+        content: options.systemPrompt,
+        hasToolCall: false,
+        thinkingEnabled: false,
+        includeReasoningInNextRequest: false
+      });
+    }
   }
 
   getReasoningStore(): ReasoningContentStore {

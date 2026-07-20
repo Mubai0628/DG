@@ -86,9 +86,7 @@ describe("command execution policy schema", () => {
     expect(request.readiness.canEnterFutureCommandBroker).toBe(true);
     expect(request.commandSummary.argvCount).toBe(4);
     expect(request.capabilityRequests.allowWorkspaceWrite).toBe(true);
-    expect(summary.source).toBe(
-      "runtime_command_execution_request_summary"
-    );
+    expect(summary.source).toBe("runtime_command_execution_request_summary");
     expect(serialized).not.toContain("pnpm --filter runtime typecheck");
     expect(serialized).not.toContain("workspace:demo:root");
     expectNoExecution(request.readiness);

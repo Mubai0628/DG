@@ -124,10 +124,7 @@ export type CommandExecutionRequestInput = {
   shellKind?: CommandShellKind | string | undefined;
   environmentPolicy?: CommandEnvironmentPolicy | undefined;
   outputPolicy?: Partial<CommandOutputPolicy> | undefined;
-  transcriptPolicy?:
-    | Partial<CommandTranscriptPolicy>
-    | string
-    | undefined;
+  transcriptPolicy?: Partial<CommandTranscriptPolicy> | string | undefined;
   timeoutMs?: number | undefined;
   maxOutputBytes?: number | undefined;
   allowBackgroundProcess?: boolean | undefined;
@@ -408,12 +405,7 @@ export function validateCommandExecutionPolicy(
 
   if (input.mode === "full_access" || input.mode === "break_glass") {
     findings.push(
-      finding(
-        "mode",
-        "warning",
-        "HIGH_PRIVILEGE_MODE_MODELED_ONLY",
-        "mode"
-      )
+      finding("mode", "warning", "HIGH_PRIVILEGE_MODE_MODELED_ONLY", "mode")
     );
   }
 
@@ -661,9 +653,7 @@ function validateEnvironmentPolicy(
   }
 
   if (policy.rawEnvValuesPresent === true) {
-    findings.push(
-      finding("environment", "blocker", "RAW_ENV_VALUES_REJECTED")
-    );
+    findings.push(finding("environment", "blocker", "RAW_ENV_VALUES_REJECTED"));
   }
 
   for (const envName of policy.allowedEnvNames ?? []) {
@@ -786,7 +776,9 @@ function scanUnsafeInput(
       findings.push(findingForForbiddenKey(normalizedKey, keyPath));
     }
     if (readinessExecutionKeys.has(normalizedKey) && item === true) {
-      findings.push(finding("readiness", "blocker", "READINESS_EXECUTION_TRUE", keyPath));
+      findings.push(
+        finding("readiness", "blocker", "READINESS_EXECUTION_TRUE", keyPath)
+      );
     }
     scanUnsafeInput(item, findings, keyPath);
   }
@@ -796,14 +788,35 @@ function findingForForbiddenKey(
   key: string,
   path: string
 ): CommandPolicyFinding {
-  if (key.includes("authorization") || key.includes("token") || key.includes("secret") || key.includes("password") || key.includes("apikey") || key.includes("bearer")) {
+  if (
+    key.includes("authorization") ||
+    key.includes("token") ||
+    key.includes("secret") ||
+    key.includes("password") ||
+    key.includes("apikey") ||
+    key.includes("bearer")
+  ) {
     return finding("secret", "blocker", "SECRET_FIELD_REJECTED", path);
   }
-  if (key.includes("raw") || key.includes("reasoning") || key === "stdout" || key === "stderr") {
+  if (
+    key.includes("raw") ||
+    key.includes("reasoning") ||
+    key === "stdout" ||
+    key === "stderr"
+  ) {
     return finding("raw_field", "blocker", "RAW_FIELD_REJECTED", path);
   }
-  if (key.includes("native") || key.includes("desktop") || key.includes("tauri")) {
-    return finding("native_bridge", "blocker", "NATIVE_BRIDGE_FIELD_REJECTED", path);
+  if (
+    key.includes("native") ||
+    key.includes("desktop") ||
+    key.includes("tauri")
+  ) {
+    return finding(
+      "native_bridge",
+      "blocker",
+      "NATIVE_BRIDGE_FIELD_REJECTED",
+      path
+    );
   }
   return finding("capability", "blocker", "EXECUTION_FIELD_REJECTED", path);
 }
@@ -819,7 +832,11 @@ function normalizeTranscriptPolicy(
       persistRawOutput: false
     };
   }
-  if (policy && typeof policy === "object" && safeNonEmpty(policy.transcriptPolicyRef)) {
+  if (
+    policy &&
+    typeof policy === "object" &&
+    safeNonEmpty(policy.transcriptPolicyRef)
+  ) {
     return {
       transcriptPolicyRef: policy.transcriptPolicyRef,
       required: true,
@@ -939,10 +956,10 @@ function countSeverity(
   return findings.filter((finding) => finding.severity === severity).length;
 }
 
-function isCommandExecutionMode(
-  value: unknown
-): value is CommandExecutionMode {
-  return typeof value === "string" && commandModes.has(value as CommandExecutionMode);
+function isCommandExecutionMode(value: unknown): value is CommandExecutionMode {
+  return (
+    typeof value === "string" && commandModes.has(value as CommandExecutionMode)
+  );
 }
 
 function isShellKind(value: unknown): value is CommandShellKind {
@@ -1000,7 +1017,8 @@ function safeMessageFor(code: string): string {
     HIGH_PRIVILEGE_MODE_MODELED_NO_EXECUTION:
       "High-privilege request metadata is warning-only and cannot execute.",
     MISSING_SESSION_LEASE_REF: "Command policy requires a session lease ref.",
-    MISSING_WORKSPACE_ROOT_REF: "Command request requires a workspace root ref.",
+    MISSING_WORKSPACE_ROOT_REF:
+      "Command request requires a workspace root ref.",
     MISSING_WORKING_DIRECTORY_REF:
       "Command request requires a working directory ref.",
     MISSING_COMMAND_TEXT: "Command request requires command text metadata.",

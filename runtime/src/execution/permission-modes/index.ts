@@ -1,4 +1,7 @@
 export * from "./mode-policy.js";
+export * from "./permission-tier.js";
+export * from "./path-sensitivity.js";
+export * from "./file-read-approval-receipt.js";
 export * from "./session-lease.js";
 export * from "./execution-policy-engine.js";
 export * from "./risk-budget.js";

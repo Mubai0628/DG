@@ -60,13 +60,35 @@ and safe source metadata. They must not include raw prompt text, raw DOM, raw
 CSV, screenshots, clipboard data, API keys, authorization headers, or full URL
 query strings.
 
+## Command broker boundary (experimental)
+
+- The desktop shell includes an experimental command broker
+  (`execute_command_broker_request`) that can run shell commands as the
+  current user.
+- Authorization is recomputed server-side in the Tauri command: the
+  permission mode is validated, the dangerous-command classifier is re-run
+  over the actual command text/argv, and client-reported planner decisions
+  or classifier categories are never trusted.
+- Every broker execution requires a bound approval receipt: fixed source,
+  typed confirmation (`EXECUTE WORKSPACE COMMAND`), expiry, and a request
+  hash binding the receipt to the exact mode, workspace reference, shell
+  kind, working directory, command text, and argv. `approval` mode is gated
+  entirely by this receipt (it does not restrict the shell kind);
+  `autonomous_safe` mode only runs classifier-safe commands; `break_glass`
+  mode is dry-run only. Background processes, destructive flags, git
+  writes, and network access through the broker remain blocked.
+- Broker output is summary-only: raw stdout/stderr is never returned or
+  persisted, and output containing secret markers fails closed.
+
 ## Known limitations
 
 - Sanitization is defensive but cannot guarantee that every malicious table cell
   or misleading webpage phrase is harmless.
 - Users should inspect the sanitized payload preview before running the local
   CLI.
-- The project does not yet provide a native bridge, Tauri UI, desktop
-  automation, memory system, shell execution, or MCP integration.
+- The project does not yet provide a native bridge, desktop automation, memory
+  system, or real MCP integration (MCP surfaces use injected test transports).
+- The command broker's regular-expression classifiers are conservative and may
+  over-block (fail-closed); they are not a full shell parser.
 - Live DeepSeek conformance is a manual opt-in diagnostic, not a default release
   gate.

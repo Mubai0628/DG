@@ -34,10 +34,7 @@ export type DangerousCommandRiskLevel =
   | "high"
   | "critical";
 
-export type DangerousCommandClassifierStatus =
-  | "safe"
-  | "warning"
-  | "blocked";
+export type DangerousCommandClassifierStatus = "safe" | "warning" | "blocked";
 
 export type DangerousCommandClassifierSeverity = "warning" | "blocker";
 
@@ -156,6 +153,8 @@ const categoryRules: CategoryRule[] = [
     pattern: /\b(del|rmdir|rd|rm|Remove-Item)\b/i
   },
   {
+    // Known false positive (fail-closed, kept deliberately): the bare
+    // "format" token also matches "git format-patch", "clang-format", etc.
     category: "format_disk",
     severity: "blocker",
     riskLevel: "critical",
@@ -178,7 +177,7 @@ const categoryRules: CategoryRule[] = [
     severity: "blocker",
     riskLevel: "critical",
     pattern:
-      /\b(curl|wget|Invoke-WebRequest|iwr)\b(?=.*(\|\s*(sh|bash|powershell|pwsh)|Invoke-Expression|\biex\b))/i
+      /\b(curl|wget|Invoke-WebRequest|iwr)\b(?=.*(\|\s*(sh|bash|powershell|pwsh)|Invoke-Expression|\biex\b))|\bNet\.WebClient\b|\bDownloadString\b/i
   },
   {
     category: "credential_exfiltration",
@@ -244,10 +243,7 @@ const categoryRules: CategoryRule[] = [
     category: "desktop_action_attempt",
     severity: "blocker",
     riskLevel: "critical",
-    pattern: new RegExp(
-      `\\b(${desktopActionMarker}|xdotool|osascript)\\b`,
-      "i"
-    )
+    pattern: new RegExp(`\\b(${desktopActionMarker}|xdotool|osascript)\\b`, "i")
   },
   {
     category: "environment_secret_access",
@@ -270,10 +266,13 @@ const categoryRules: CategoryRule[] = [
     pattern: /(^|\s)(\.\.\/|\.\.\\)|\b[A-Za-z]:\\|\\\\[A-Za-z0-9_.-]+\\/i
   },
   {
+    // Covers privilege escalation and Windows LOLBin execution markers,
+    // including abbreviated PowerShell flags (-e/-ec/-enc/-c) and bare iex.
     category: "unknown_high_risk",
     severity: "blocker",
     riskLevel: "high",
-    pattern: /\b(sudo|doas|powershell\s+-EncodedCommand|cmd\s+\/c|bash\s+-c|sh\s+-c)\b/i
+    pattern:
+      /\b(sudo|doas|powershell\s+-(?:EncodedCommand|e|ec|enc)\b|powershell\s+-c\b|cmd\s+\/c|bash\s+-c|sh\s+-c|iex|certutil|mshta|rundll32|bitsadmin)\b/i
   }
 ];
 
@@ -585,8 +584,7 @@ function safeMessageFor(
       "Command appears to download content and execute it.",
     credential_exfiltration:
       "Command appears to access credential-bearing locations.",
-    network_exfiltration:
-      "Command appears able to send data over the network.",
+    network_exfiltration: "Command appears able to send data over the network.",
     package_script_execution:
       "Command appears to run package-defined or dynamic scripts.",
     git_write: "Command appears to mutate Git state.",
@@ -610,7 +608,9 @@ function safeMessageFor(
 }
 
 function hashMaybe(value: string | undefined): string | undefined {
-  return value && value.trim().length > 0 ? stablePreviewHash(value) : undefined;
+  return value && value.trim().length > 0
+    ? stablePreviewHash(value)
+    : undefined;
 }
 
 function stableStringify(value: unknown): string {

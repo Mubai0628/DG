@@ -12,6 +12,7 @@ export type PermissionModeLevel = "L0" | "L1" | "L2" | "L3" | "L4" | "L5";
 
 export type PermissionCapabilityFlag =
   | "canReadWorkspace"
+  | "canReadSensitiveFile"
   | "canWriteWorkspace"
   | "canApplyPatch"
   | "canRollback"
@@ -115,6 +116,7 @@ export type PermissionModeValidationResult = {
 
 export const permissionCapabilityFlags = [
   "canReadWorkspace",
+  "canReadSensitiveFile",
   "canWriteWorkspace",
   "canApplyPatch",
   "canRollback",

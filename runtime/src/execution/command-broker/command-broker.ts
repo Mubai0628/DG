@@ -3,7 +3,6 @@ import {
   type CommandExecutionMode,
   type CommandExecutionPolicy,
   type CommandExecutionRequest,
-  type CommandPolicyFinding,
   type CommandPolicySeverity
 } from "./command-policy.js";
 import {
@@ -348,10 +347,10 @@ export function validateCommandBrokerInput(
 export function summarizeCommandBrokerPlan(
   plan: CommandBrokerPlan
 ): CommandBrokerPlanSummary {
-  const { findings: _findings, source: _source, ...rest } = plan;
+  const { findings, ...rest } = plan;
   return {
     ...rest,
-    findingCodes: plan.findings.map((finding) => finding.code),
+    findingCodes: findings.map((finding) => finding.code),
     source: "runtime_command_broker_plan_summary"
   };
 }
@@ -387,12 +386,6 @@ function validateModeRules(
     );
   }
 
-  if (mode === "approval" && request?.commandSummary.shellKind !== "none") {
-    findings.push(
-      finding("mode", "blocker", "APPROVAL_MODE_ARBITRARY_SHELL_BLOCKED")
-    );
-  }
-
   if (
     mode === "autonomous_safe" &&
     request?.commandSummary.shellKind !== "none" &&
@@ -404,14 +397,13 @@ function validateModeRules(
   }
 
   if (mode === "break_glass") {
-    findings.push(
-      finding("mode", "warning", "BREAK_GLASS_MODE_MODELED_ONLY")
-    );
+    findings.push(finding("mode", "warning", "BREAK_GLASS_MODE_MODELED_ONLY"));
   }
 
   if (
     mode === "full_access" &&
-    (!input.sessionLease?.explicitLease || input.sessionLease.status !== "valid")
+    (!input.sessionLease?.explicitLease ||
+      input.sessionLease.status !== "valid")
   ) {
     findings.push(
       finding("session_lease", "blocker", "FULL_ACCESS_REQUIRES_EXPLICIT_LEASE")
@@ -501,8 +493,7 @@ function nextActionFor(decision: CommandBrokerDecision): string {
 
 function readinessFor(decision: CommandBrokerDecision): CommandBrokerReadiness {
   return {
-    canEnterFutureTauriExecutionPhase:
-      decision === "ready_for_tauri_execution",
+    canEnterFutureTauriExecutionPhase: decision === "ready_for_tauri_execution",
     canCallTauriCommand: false,
     canExecuteCommand: false,
     canSpawnProcess: false,
@@ -556,7 +547,9 @@ function scanUnsafeInput(
       findings.push(finding("raw_field", "blocker", "RAW_FIELD_REJECTED"));
     }
     if (normalizedKey.includes("readiness") && hasExecutionTrue(item)) {
-      findings.push(finding("readiness", "blocker", "READINESS_EXECUTION_TRUE"));
+      findings.push(
+        finding("readiness", "blocker", "READINESS_EXECUTION_TRUE")
+      );
     }
     scanUnsafeInput(item, findings);
   }
@@ -567,8 +560,7 @@ function hasExecutionTrue(value: unknown): boolean {
     return false;
   }
   return Object.entries(value as Record<string, unknown>).some(
-    ([key, item]) =>
-      key.toLowerCase().includes("execute") && item === true
+    ([key, item]) => key.toLowerCase().includes("execute") && item === true
   );
 }
 
@@ -589,7 +581,9 @@ function countSeverity(
   return findings.filter((finding) => finding.severity === severity).length;
 }
 
-function dedupeFindings(findings: CommandBrokerFinding[]): CommandBrokerFinding[] {
+function dedupeFindings(
+  findings: CommandBrokerFinding[]
+): CommandBrokerFinding[] {
   const seen = new Set<string>();
   const deduped: CommandBrokerFinding[] = [];
   for (const item of findings) {
@@ -641,8 +635,6 @@ function safeMessageFor(code: string): string {
       "Policy mode differs from the broker permission mode.",
     DANGEROUS_CATEGORY_BLOCKED:
       "Classifier detected categories blocked in this phase.",
-    APPROVAL_MODE_ARBITRARY_SHELL_BLOCKED:
-      "Approval mode is limited to fixed safe lanes.",
     AUTONOMOUS_SAFE_ARBITRARY_SHELL_BLOCKED:
       "Autonomous safe mode blocks arbitrary shell unless verification-only.",
     BREAK_GLASS_MODE_MODELED_ONLY:

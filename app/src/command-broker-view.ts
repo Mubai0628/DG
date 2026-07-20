@@ -1,21 +1,29 @@
 import {
+  buildCommandBrokerApprovalReceipt,
+  type CommandBrokerApprovalReceipt
+} from "../../runtime/src/execution/command-broker/command-broker-approval-receipt.js";
+import {
   buildCommandBrokerPlan,
+  summarizeCommandBrokerPlan,
+  type CommandBrokerPlan
+} from "../../runtime/src/execution/command-broker/command-broker.js";
+import {
   buildCommandExecutionPolicy,
   buildCommandExecutionRequest,
-  classifyDangerousCommand,
-  summarizeCommandBrokerPlan,
-  type CommandBrokerPlan,
   type CommandExecutionMode,
-  type CommandShellKind,
+  type CommandShellKind
+} from "../../runtime/src/execution/command-broker/command-policy.js";
+import {
+  classifyDangerousCommand,
   type DangerousCommandCategory
-} from "../../runtime/src/execution/index.js";
+} from "../../runtime/src/execution/command-broker/dangerous-command-classifier.js";
+import {
+  commandExecutionModeTier,
+  type PermissionTier
+} from "../../runtime/src/execution/permission-modes/permission-tier.js";
 import { safeText } from "./safety.js";
 
-export type CommandBrokerViewStatus =
-  | "empty"
-  | "ready"
-  | "warning"
-  | "blocked";
+export type CommandBrokerViewStatus = "empty" | "ready" | "warning" | "blocked";
 
 export type CommandBrokerViewInput = {
   workspaceRoot?: string | undefined;
@@ -32,6 +40,7 @@ export type CommandBrokerViewInput = {
   timeoutMs?: number | undefined;
   maxOutputBytes?: number | undefined;
   allowWorkspaceWrite?: boolean | undefined;
+  typedConfirmation?: string | undefined;
   createdAt?: string | undefined;
   idGenerator?: (() => string) | undefined;
 };
@@ -40,6 +49,9 @@ export type CommandBrokerView = {
   status: CommandBrokerViewStatus;
   source: "app_command_broker_view";
   mode: CommandExecutionMode | string;
+  requestId: string;
+  commandHash: string;
+  requestHash: string;
   workspaceRoot: string;
   workspaceRootRef: string;
   sessionLeaseRef: string;
@@ -54,6 +66,10 @@ export type CommandBrokerView = {
   policyDecision: CommandBrokerPlan["decision"];
   planStatus: CommandBrokerPlan["status"];
   brokerPlan: CommandBrokerPlan;
+  permissionTier?: PermissionTier | undefined;
+  approvalReceiptRequired: boolean;
+  approvalReceiptReady: boolean;
+  approvalReceipt: CommandBrokerApprovalReceipt;
   classifierSummary: {
     riskLevel: string;
     categories: DangerousCommandCategory[];
@@ -168,9 +184,9 @@ export function buildCommandBrokerView(
       : undefined,
     riskBudget: {
       budgetId: "app-command-broker-risk-budget",
-      status: input.riskBudgetAllowsCommandBroker === false ? "blocked" : "ready",
-      remainingRiskUnits:
-        input.riskBudgetAllowsCommandBroker === false ? 0 : 1,
+      status:
+        input.riskBudgetAllowsCommandBroker === false ? "blocked" : "ready",
+      remainingRiskUnits: input.riskBudgetAllowsCommandBroker === false ? 0 : 1,
       allowsCommandBroker: input.riskBudgetAllowsCommandBroker !== false
     },
     transcriptPolicyRef,
@@ -181,27 +197,42 @@ export function buildCommandBrokerView(
     createdAt: input.createdAt,
     idGenerator: input.idGenerator
   });
+  const permissionTier = isCommandExecutionMode(mode)
+    ? commandExecutionModeTier(mode)
+    : undefined;
+  const approvalReceipt = buildCommandBrokerApprovalReceipt({
+    mode,
+    workspaceRootRef,
+    sessionLeaseRef,
+    shellKind: String(shellKind),
+    workingDirectory,
+    commandText,
+    argv: [],
+    typedConfirmation: safeText(input.typedConfirmation, ""),
+    createdAt: input.createdAt,
+    idGenerator: input.idGenerator
+  });
+  // Approval is a click-level action: the receipt is always built inline
+  // when the user approves, so receipt readiness never gates execution.
+  const approvalReceiptRequired =
+    brokerPlan.decision === "ready_for_tauri_execution";
+  const approvalReceiptReady = true;
   const executeDisabledReasons = executeReasons({
     brokerPlan,
     mode,
     sessionLeaseRef,
     transcriptPolicyRef,
     killSwitchActive: Boolean(input.killSwitchActive),
-    categories: classifier.categories
+    categories: classifier.categories,
+    approvalReceiptRequired,
+    approvalReceiptReady
   });
   const canExecuteFixedBrokerCommand = executeDisabledReasons.length === 0;
   const status: CommandBrokerViewStatus =
     commandText.length === 0
       ? "empty"
       : brokerPlan.status === "blocked" || executeDisabledReasons.length > 0
-        ? canExecuteFixedBrokerCommand
-          ? "ready"
-          : brokerPlan.decision === "ready_for_tauri_execution" &&
-              executeDisabledReasons.every((reason) =>
-                ["APPROVAL_MODE_DISABLED"].includes(reason)
-              )
-            ? "blocked"
-            : "blocked"
+        ? "blocked"
         : brokerPlan.status === "warning"
           ? "warning"
           : "ready";
@@ -213,6 +244,10 @@ export function buildCommandBrokerView(
     status,
     source: "app_command_broker_view",
     mode,
+    requestId: commandRequest.requestId,
+    commandHash:
+      commandRequest.commandSummary.commandHash ?? "command-hash-missing",
+    requestHash: commandRequest.requestHash,
     workspaceRoot,
     workspaceRootRef,
     sessionLeaseRef,
@@ -228,6 +263,10 @@ export function buildCommandBrokerView(
     policyDecision: brokerPlan.decision,
     planStatus: brokerPlan.status,
     brokerPlan,
+    permissionTier,
+    approvalReceiptRequired,
+    approvalReceiptReady,
+    approvalReceipt,
     classifierSummary: {
       riskLevel: classifier.riskLevel,
       categories: classifier.categories,
@@ -260,7 +299,7 @@ export function buildCommandBrokerView(
     brokerSummary: summarizeCommandBrokerPlan(brokerPlan),
     nextAction: canExecuteFixedBrokerCommand
       ? "Fixed Tauri command may be run only from the explicit Execute Command action."
-      : executeDisabledReasons[0] ?? brokerPlan.nextAction,
+      : (executeDisabledReasons[0] ?? brokerPlan.nextAction),
     viewHash: brokerPlan.planHash.slice(0, 16)
   };
 }
@@ -298,6 +337,8 @@ function executeReasons(input: {
   transcriptPolicyRef: string;
   killSwitchActive: boolean;
   categories: DangerousCommandCategory[];
+  approvalReceiptRequired: boolean;
+  approvalReceiptReady: boolean;
 }): string[] {
   const reasons: string[] = [];
   if (input.brokerPlan.decision !== "ready_for_tauri_execution") {
@@ -306,14 +347,14 @@ function executeReasons(input: {
   if (input.killSwitchActive) {
     reasons.push("KILL_SWITCH_ACTIVE");
   }
-  if (input.mode === "approval") {
-    reasons.push("APPROVAL_MODE_DISABLED");
-  }
   if (!input.sessionLeaseRef) {
     reasons.push("SESSION_LEASE_REQUIRED");
   }
   if (!input.transcriptPolicyRef) {
     reasons.push("TRANSCRIPT_POLICY_REQUIRED");
+  }
+  if (input.approvalReceiptRequired && !input.approvalReceiptReady) {
+    reasons.push("APPROVAL_RECEIPT_REQUIRED");
   }
   if (
     input.categories.some((category) =>
@@ -333,4 +374,14 @@ function executeReasons(input: {
     reasons.push("DANGEROUS_CATEGORY_BLOCKED");
   }
   return Array.from(new Set(reasons)).sort();
+}
+
+function isCommandExecutionMode(value: unknown): value is CommandExecutionMode {
+  return (
+    value === "approval" ||
+    value === "autonomous_safe" ||
+    value === "advanced_workspace" ||
+    value === "full_access" ||
+    value === "break_glass"
+  );
 }

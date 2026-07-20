@@ -1,4 +1,6 @@
+mod command_broker_classifier;
 mod commands;
+mod path_sensitivity;
 
 fn main() {
     tauri::Builder::default()
@@ -10,6 +12,13 @@ fn main() {
             commands::run_git_read_lane,
             commands::run_shell_verification_lane,
             commands::execute_command_broker_request,
+            commands::read_workspace_file,
+            commands::read_workspace_settings,
+            commands::write_workspace_settings,
+            commands::issue_permission_lease,
+            commands::list_permission_leases,
+            commands::revoke_permission_lease,
+            commands::chat_deepseek_completion,
             commands::mcp_readonly_discover,
             commands::call_mcp_readonly_tool,
             commands::load_workspace_event_summary,
