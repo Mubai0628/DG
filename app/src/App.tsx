@@ -2,6 +2,7 @@ import {
   Component,
   useEffect,
   useMemo,
+  useRef,
   useState,
   type ChangeEvent,
   type JSX,
@@ -17,6 +18,7 @@ import {
   exportTranscriptSummary,
   executeApprovedDesktopAction,
   executeApprovedExpandedDesktopAction,
+  executeCommandBrokerRequest,
   generateLiveDeepSeekPatchProposal,
   getDesktopAppVersion,
   listTranscriptRecords,
@@ -29,6 +31,10 @@ import {
   recordLiveProposalSummaryEvent,
   recordVerificationLaneEvent,
   readTranscriptRecordSummary,
+  readWorkspaceSettings,
+  writeWorkspaceSettings,
+  issuePermissionLease,
+  revokePermissionLease,
   revokeProjectKnowledgeEntry,
   rollbackApprovedUserWorkspacePatch,
   callMcpReadonlyTool,
@@ -42,6 +48,8 @@ import {
   type ApprovedDesktopActionCommandResult,
   type ApprovedExpandedDesktopActionCommandResult,
   type DesktopObservationCommandResult,
+  type CommandBrokerExecutionResult,
+  type CommandBrokerShellKind,
   type GitReadLane,
   type GitReadLaneResult,
   type LiveDeepSeekPatchProposalCommandRequest,
@@ -218,6 +226,16 @@ import {
   type LiveProposalEvaluationTelemetryAuditView
 } from "./live-proposal-evaluation-telemetry-audit-view.js";
 import {
+  buildCommandBrokerView,
+  summarizeCommandBrokerView,
+  type CommandBrokerView
+} from "./command-broker-view.js";
+import {
+  buildCommandBrokerReplayView,
+  summarizeCommandBrokerReplayView,
+  type CommandBrokerReplayView
+} from "./command-broker-replay-view.js";
+import {
   buildTranscriptViewerView,
   summarizeTranscriptViewerView,
   type TranscriptViewerView
@@ -302,6 +320,11 @@ import {
   summarizeCrossSurfaceApprovedSequence,
   type CrossSurfaceApprovedSequence
 } from "../../runtime/src/workflows/cross-surface-approved-sequencer.js";
+import {
+  commandExecutionModeForPermissionMode,
+  commandExecutionModeTier,
+  tierDisplayName
+} from "../../runtime/src/execution/permission-modes/permission-tier.js";
 import {
   buildDesktopObserverView,
   desktopObserverEvidenceRefs,
@@ -535,6 +558,7 @@ type DraftEventStatus = "idle" | "recording" | "recorded" | "error";
 type TranscriptActionStatus = "idle" | "loading" | "loaded" | "error";
 type GitReadLaneStatus = "idle" | "running" | "done" | "error";
 type ShellVerificationLaneStatus = "idle" | "running" | "done" | "error";
+type CommandBrokerExecutionStatus = "idle" | "executing" | "done" | "error";
 type McpReadonlyConnectionRunStatus = "idle" | "running" | "done" | "error";
 
 const defaultMcpReadonlyProfileJson = JSON.stringify(
@@ -895,6 +919,15 @@ export function DesktopShell(): JSX.Element {
   const [executionModePreview, setExecutionModePreview] = useState<
     ExecutionModeSwitchView | undefined
   >();
+  const [settingsSource, setSettingsSource] = useState<"project" | "app">(
+    "project"
+  );
+  const [settingsStatus, setSettingsStatus] = useState("");
+  const [settingsConfirmation, setSettingsConfirmation] = useState("");
+  const settingsPersistRef = useRef<Promise<void> | undefined>(undefined);
+  const [commandBrokerLeaseConfirmation, setCommandBrokerLeaseConfirmation] =
+    useState("");
+  const [commandBrokerLeaseStatus, setCommandBrokerLeaseStatus] = useState("");
   const [permissionModeAuditPreview, setPermissionModeAuditPreview] = useState<
     PermissionModeAuditView | undefined
   >();
@@ -922,6 +955,8 @@ export function DesktopShell(): JSX.Element {
     TranscriptStoreListResult | undefined
   >();
   const [selectedTranscriptId, setSelectedTranscriptId] = useState("");
+  const [transcriptDeleteConfirmation, setTranscriptDeleteConfirmation] =
+    useState("");
   const [transcriptSummaryResult, setTranscriptSummaryResult] = useState<
     TranscriptReadSummaryResult | undefined
   >();
@@ -1257,6 +1292,35 @@ export function DesktopShell(): JSX.Element {
   >();
   const [shellVerificationEventResult, setShellVerificationEventResult] =
     useState<VerificationLaneEventRecordResult | undefined>();
+  // Broker mode is derived from the canonical permission mode (single source
+  // of truth); the broker panel no longer keeps an independent mode state.
+  const commandBrokerMode =
+    commandExecutionModeForPermissionMode(executionModeDraft);
+  const [commandBrokerTypedConfirmation, setCommandBrokerTypedConfirmation] =
+    useState("");
+  const [commandBrokerSessionLeaseRef, setCommandBrokerSessionLeaseRef] =
+    useState("");
+  const [
+    commandBrokerTranscriptPolicyRef,
+    setCommandBrokerTranscriptPolicyRef
+  ] = useState("transcript-policy-command-broker");
+  const [commandBrokerCommandText, setCommandBrokerCommandText] =
+    useState("node --version");
+  const [commandBrokerShellKind, setCommandBrokerShellKind] =
+    useState<CommandBrokerView["shellKind"]>("powershell");
+  const [commandBrokerWorkingDirectory, setCommandBrokerWorkingDirectory] =
+    useState(".");
+  const [commandBrokerKillSwitchActive, setCommandBrokerKillSwitchActive] =
+    useState(false);
+  const [commandBrokerPreview, setCommandBrokerPreview] = useState<
+    CommandBrokerView | undefined
+  >();
+  const [commandBrokerExecutionStatus, setCommandBrokerExecutionStatus] =
+    useState<CommandBrokerExecutionStatus>("idle");
+  const [commandBrokerExecutionResult, setCommandBrokerExecutionResult] =
+    useState<CommandBrokerExecutionResult | undefined>();
+  const [commandBrokerExecutionError, setCommandBrokerExecutionError] =
+    useState<string | undefined>();
   const loadedWorkspaceIndexRef =
     workspaceIndexBridge.status === "loaded" ||
     workspaceIndexBridge.status === "warning"
@@ -1284,6 +1348,36 @@ export function DesktopShell(): JSX.Element {
   const verificationLaneProjection = useMemo<AppVerificationLaneProjectionView>(
     () => buildVerificationLaneProjectionView(eventSummary),
     [eventSummary]
+  );
+  const commandBrokerCandidate = buildCommandBrokerView({
+    workspaceRoot,
+    workspaceRootRef: userWorkspaceRootRef || "workspace-ref-command-broker",
+    mode: commandBrokerMode,
+    sessionLeaseRef: commandBrokerSessionLeaseRef,
+    transcriptPolicyRef: commandBrokerTranscriptPolicyRef,
+    killSwitchActive: commandBrokerKillSwitchActive,
+    commandText: commandBrokerCommandText,
+    shellKind: commandBrokerShellKind,
+    workingDirectory: commandBrokerWorkingDirectory,
+    allowWorkspaceWrite: commandBrokerMode === "advanced_workspace",
+    typedConfirmation: commandBrokerTypedConfirmation
+  });
+  const displayedCommandBroker =
+    commandBrokerPreview ?? buildCommandBrokerView();
+  const commandBrokerReplayView = useMemo<CommandBrokerReplayView>(
+    () =>
+      buildCommandBrokerReplayView({
+        eventSummary,
+        commandBrokerView: commandBrokerPreview,
+        commandBrokerExecutionResult,
+        killSwitchActive: commandBrokerKillSwitchActive
+      }),
+    [
+      commandBrokerExecutionResult,
+      commandBrokerKillSwitchActive,
+      commandBrokerPreview,
+      eventSummary
+    ]
   );
   const bridgePanel = useMemo<BridgeProposalPreviewModel>(
     () => buildBridgeProposalPreviewModel(bridgePreview),
@@ -3122,6 +3216,39 @@ export function DesktopShell(): JSX.Element {
   const displayedProjectKnowledgeRecall =
     projectKnowledgeRecallPreview ?? buildProjectKnowledgeRecallView();
   useEffect(() => {
+    const root = workspaceRoot.trim();
+    if (root.length === 0) {
+      return;
+    }
+    let cancelled = false;
+    void (async () => {
+      try {
+        const result = await readWorkspaceSettings(root);
+        if (cancelled) {
+          return;
+        }
+        setExecutionModeDraft(
+          result.permissionMode as ExecutionModeSwitchView["mode"]
+        );
+        setSettingsSource(result.source);
+        setSettingsStatus(
+          result.defaulted
+            ? "Settings defaulted (no saved settings file found)."
+            : `Settings loaded from ${result.source} settings.`
+        );
+      } catch (caught) {
+        if (cancelled) {
+          return;
+        }
+        setSettingsStatus(`Settings load failed: ${safeErrorMessage(caught)}`);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [workspaceRoot]);
+
+  useEffect(() => {
     setLiveProposalTelemetryAuditPreview(undefined);
   }, [
     liveProposalOptInGatePreview,
@@ -4606,6 +4733,13 @@ export function DesktopShell(): JSX.Element {
       setTranscriptActionStatus("error");
       return;
     }
+    if (transcriptDeleteConfirmation !== "DELETE TRANSCRIPT RECORD") {
+      setTranscriptActionError(
+        'Type "DELETE TRANSCRIPT RECORD" to confirm deletion.'
+      );
+      setTranscriptActionStatus("error");
+      return;
+    }
     setTranscriptActionStatus("loading");
     setTranscriptActionError(undefined);
     try {
@@ -5003,6 +5137,194 @@ export function DesktopShell(): JSX.Element {
     } catch (caught) {
       setShellVerificationError(safeErrorMessage(caught));
       setShellVerificationStatus("error");
+    }
+  }
+
+  function handlePlanCommandBroker(): void {
+    setCommandBrokerPreview(commandBrokerCandidate);
+    setCommandBrokerExecutionError(undefined);
+    setCommandBrokerExecutionResult(undefined);
+    setCommandBrokerExecutionStatus("idle");
+  }
+
+  function handleCancelCommandBroker(): void {
+    setCommandBrokerKillSwitchActive(true);
+    setCommandBrokerPreview(
+      buildCommandBrokerView({
+        workspaceRoot,
+        workspaceRootRef:
+          userWorkspaceRootRef || "workspace-ref-command-broker",
+        mode: commandBrokerMode,
+        sessionLeaseRef: commandBrokerSessionLeaseRef,
+        transcriptPolicyRef: commandBrokerTranscriptPolicyRef,
+        killSwitchActive: true,
+        commandText: commandBrokerCommandText,
+        shellKind: commandBrokerShellKind,
+        workingDirectory: commandBrokerWorkingDirectory,
+        allowWorkspaceWrite: commandBrokerMode === "advanced_workspace",
+        typedConfirmation: commandBrokerTypedConfirmation
+      })
+    );
+  }
+
+  function settingsConfirmationPhraseForMode(
+    mode: ExecutionModeSwitchView["mode"]
+  ): string | undefined {
+    switch (mode) {
+      case "read_only_preview":
+        return "SET READ ONLY PREVIEW MODE";
+      case "approval_mode":
+        return "SET APPROVAL MODE";
+      case "autonomous_safe_mode":
+        return "SET AUTONOMOUS SAFE MODE";
+      case "advanced_workspace_mode":
+        return "SET ADVANCED WORKSPACE MODE";
+      case "break_glass_mode":
+        return "SET BREAK GLASS MODE";
+      case "full_access_mode":
+        return undefined;
+    }
+  }
+
+  function persistWorkspaceSettings(
+    mode: ExecutionModeSwitchView["mode"],
+    source: "project" | "app"
+  ): void {
+    if (workspaceRoot.trim().length === 0) {
+      setSettingsStatus("Settings not saved: workspace root is empty.");
+      return;
+    }
+    const pending = (async () => {
+      try {
+        await writeWorkspaceSettings({
+          workspaceRoot,
+          source,
+          permissionMode: String(mode)
+        });
+        setSettingsStatus(`Settings saved to ${source} settings.`);
+      } catch (caught) {
+        setSettingsStatus(`Settings save failed: ${safeErrorMessage(caught)}`);
+      }
+    })();
+    settingsPersistRef.current = pending;
+  }
+
+  async function handleIssueCommandBrokerLease(): Promise<void> {
+    const leaseMode =
+      commandBrokerMode === "full_access"
+        ? "full_access_mode"
+        : commandBrokerMode === "advanced_workspace"
+          ? "advanced_workspace_mode"
+          : undefined;
+    if (leaseMode === undefined) {
+      setCommandBrokerLeaseStatus(
+        "Session leases are only issuable for advanced_workspace or full_access modes."
+      );
+      return;
+    }
+    if (workspaceRoot.trim().length === 0) {
+      setCommandBrokerLeaseStatus(
+        "Workspace root is required to issue a lease."
+      );
+      return;
+    }
+    try {
+      const result = await issuePermissionLease({
+        workspaceRoot,
+        workspaceRootRef:
+          userWorkspaceRootRef || "workspace-ref-command-broker",
+        mode: leaseMode,
+        reasonSummary: `Command broker session lease issued from the desktop shell for ${leaseMode}.`,
+        ttlMs: 30 * 60_000
+      });
+      setCommandBrokerSessionLeaseRef(result.lease.leaseId);
+      setCommandBrokerLeaseStatus(
+        `Lease issued: ${result.lease.leaseId} (expires at epoch-ms ${result.lease.expiresAtEpochMs}).`
+      );
+    } catch (caught) {
+      setCommandBrokerLeaseStatus(
+        `Lease issue failed: ${safeErrorMessage(caught)}`
+      );
+    }
+  }
+
+  async function handleRevokeCommandBrokerLease(): Promise<void> {
+    if (commandBrokerSessionLeaseRef.trim().length === 0) {
+      setCommandBrokerLeaseStatus("No session lease reference to revoke.");
+      return;
+    }
+    try {
+      const result = await revokePermissionLease({
+        workspaceRoot,
+        leaseId: commandBrokerSessionLeaseRef,
+        reasonSummary:
+          "Command broker session lease revoked from the desktop shell."
+      });
+      setCommandBrokerLeaseStatus(
+        result.revoked
+          ? `Lease revoked: ${result.leaseId}.`
+          : `Lease was already revoked: ${result.leaseId}.`
+      );
+    } catch (caught) {
+      setCommandBrokerLeaseStatus(
+        `Lease revoke failed: ${safeErrorMessage(caught)}`
+      );
+    }
+  }
+
+  async function handleExecuteCommandBroker(): Promise<void> {
+    // The server derives the broker mode from the persisted settings, so
+    // wait for any in-flight settings write before executing.
+    await settingsPersistRef.current;
+    const view = commandBrokerPreview ?? commandBrokerCandidate;
+    if (view.executeDisabled) {
+      setCommandBrokerExecutionError(view.executeDisabledReasons.join(", "));
+      setCommandBrokerExecutionStatus("error");
+      return;
+    }
+    setCommandBrokerExecutionStatus("executing");
+    setCommandBrokerExecutionResult(undefined);
+    setCommandBrokerExecutionError(undefined);
+    try {
+      const result = await executeCommandBrokerRequest({
+        workspaceRoot,
+        brokerDecision: view.policyDecision,
+        commandRequest: {
+          requestId: "app-command-broker-request",
+          mode: String(view.mode),
+          workspaceRootRef: view.workspaceRootRef,
+          workingDirectory: view.workingDirectory,
+          commandText: commandBrokerCommandText,
+          argv: [],
+          shellKind: view.shellKind as CommandBrokerShellKind,
+          timeoutMs: view.timeoutMs,
+          maxOutputBytes: view.maxOutputBytes,
+          allowBackgroundProcess: false,
+          allowNetwork: false,
+          allowWorkspaceWrite: commandBrokerMode === "advanced_workspace",
+          allowOutsideWorkspaceWrite: false,
+          allowGitWrite: false,
+          allowDestructive: false,
+          environmentPolicy: {
+            mode: "allowlist_names",
+            allowedEnvNames: ["PATH"]
+          }
+        },
+        sessionLeaseRef: view.sessionLeaseRef,
+        transcriptPolicy: {
+          transcriptPolicyRef: view.transcriptPolicyRef,
+          rawOptIn: false
+        },
+        classifierCategories: view.classifierSummary.categories,
+        killSwitchActive: view.killSwitchActive,
+        cancellationId: null,
+        approvalReceipt: view.approvalReceipt
+      });
+      setCommandBrokerExecutionResult(result);
+      setCommandBrokerExecutionStatus("done");
+    } catch (caught) {
+      setCommandBrokerExecutionError(safeErrorMessage(caught));
+      setCommandBrokerExecutionStatus("error");
     }
   }
 
@@ -5594,6 +5916,414 @@ export function DesktopShell(): JSX.Element {
             {shellVerificationError !== undefined ? (
               <p className="errorText">{shellVerificationError}</p>
             ) : null}
+          </section>
+
+          <section className="bridgePreview" aria-label="Command Broker">
+            <div className="panelHeader">
+              <h2>Command Broker</h2>
+              <span className="muted">Fixed Tauri command / broker gated</span>
+            </div>
+            <p className="fieldHelp">
+              Plans an arbitrary-shell request through policy, classifier,
+              session lease, transcript policy, risk budget, and kill-switch
+              gates. Execute uses only the fixed command broker Tauri command;
+              no generic shell invocation, auto-run, raw output display, Git
+              write, apply, rollback, or EventStore write is exposed.
+            </p>
+            <div className="twoColumn">
+              <label>
+                <span>Permission mode</span>
+                <span aria-label="Derived broker permission mode">
+                  {String(commandBrokerMode)} (tier:{" "}
+                  {tierDisplayName(commandExecutionModeTier(commandBrokerMode))}
+                  )
+                </span>
+              </label>
+              <label>
+                <span>Shell kind</span>
+                <select
+                  value={String(commandBrokerShellKind)}
+                  onChange={(event) =>
+                    setCommandBrokerShellKind(
+                      event.target.value as CommandBrokerView["shellKind"]
+                    )
+                  }
+                >
+                  <option value="powershell">powershell</option>
+                  <option value="cmd">cmd</option>
+                  <option value="bash">bash</option>
+                  <option value="sh">sh</option>
+                  <option value="none">none</option>
+                </select>
+              </label>
+            </div>
+            <label>
+              <span>Session lease</span>
+              <input
+                value={commandBrokerSessionLeaseRef}
+                onChange={(event) =>
+                  setCommandBrokerSessionLeaseRef(event.target.value)
+                }
+                placeholder="session-lease-command-broker"
+              />
+            </label>
+            <label>
+              <span>Lease confirmation</span>
+              <input
+                value={commandBrokerLeaseConfirmation}
+                onChange={(event) =>
+                  setCommandBrokerLeaseConfirmation(event.target.value)
+                }
+                placeholder="ENABLE FULL ACCESS FOR THIS WORKSPACE"
+              />
+            </label>
+            <div>
+              <button
+                type="button"
+                className="secondary"
+                disabled={
+                  (commandBrokerMode !== "full_access" &&
+                    commandBrokerMode !== "advanced_workspace") ||
+                  workspaceRoot.trim().length === 0
+                }
+                onClick={(event) => {
+                  event.preventDefault();
+                  void handleIssueCommandBrokerLease();
+                }}
+              >
+                Issue Session Lease
+              </button>{" "}
+              <button
+                type="button"
+                className="secondary"
+                disabled={commandBrokerSessionLeaseRef.trim().length === 0}
+                onClick={(event) => {
+                  event.preventDefault();
+                  void handleRevokeCommandBrokerLease();
+                }}
+              >
+                Revoke Session Lease
+              </button>
+            </div>
+            {commandBrokerLeaseStatus !== "" && (
+              <p className="muted">{commandBrokerLeaseStatus}</p>
+            )}
+            <label>
+              <span>Transcript policy</span>
+              <input
+                value={commandBrokerTranscriptPolicyRef}
+                onChange={(event) =>
+                  setCommandBrokerTranscriptPolicyRef(event.target.value)
+                }
+                placeholder="transcript-policy-command-broker"
+              />
+            </label>
+            <label>
+              <span>Approval confirmation</span>
+              <input
+                value={commandBrokerTypedConfirmation}
+                onChange={(event) =>
+                  setCommandBrokerTypedConfirmation(event.target.value)
+                }
+                placeholder="EXECUTE WORKSPACE COMMAND"
+              />
+            </label>
+            <label>
+              <span>Working directory</span>
+              <input
+                value={commandBrokerWorkingDirectory}
+                onChange={(event) =>
+                  setCommandBrokerWorkingDirectory(event.target.value)
+                }
+                placeholder="."
+              />
+            </label>
+            <label>
+              <span>Command text</span>
+              <textarea
+                value={commandBrokerCommandText}
+                onChange={(event) =>
+                  setCommandBrokerCommandText(event.target.value)
+                }
+                placeholder="node --version"
+                spellCheck={false}
+              />
+            </label>
+            <div className="buttonRow">
+              <button
+                type="button"
+                className="secondary"
+                disabled={displayedCommandBroker.planButtonDisabled}
+                onClick={(event) => {
+                  event.preventDefault();
+                  event.stopPropagation();
+                  handlePlanCommandBroker();
+                }}
+              >
+                Plan Command
+              </button>
+              <button
+                type="button"
+                className="secondary"
+                disabled={
+                  workspaceRoot.trim().length === 0 ||
+                  displayedCommandBroker.executeDisabled ||
+                  commandBrokerExecutionStatus === "executing"
+                }
+                onClick={(event) => {
+                  event.preventDefault();
+                  event.stopPropagation();
+                  void handleExecuteCommandBroker();
+                }}
+              >
+                {commandBrokerExecutionStatus === "executing"
+                  ? "Executing Command..."
+                  : "Execute Command"}
+              </button>
+              <button
+                type="button"
+                className="secondary"
+                disabled={commandBrokerKillSwitchActive}
+                onClick={(event) => {
+                  event.preventDefault();
+                  event.stopPropagation();
+                  handleCancelCommandBroker();
+                }}
+              >
+                Cancel / Kill Command
+              </button>
+            </div>
+            <dl className="summaryGrid compact">
+              <div>
+                <dt>Status</dt>
+                <dd>{displayedCommandBroker.status}</dd>
+              </div>
+              <div>
+                <dt>Policy decision</dt>
+                <dd>{displayedCommandBroker.policyDecision}</dd>
+              </div>
+              <div>
+                <dt>Mode</dt>
+                <dd>{displayedCommandBroker.mode}</dd>
+              </div>
+              <div>
+                <dt>Shell kind</dt>
+                <dd>{displayedCommandBroker.shellKind}</dd>
+              </div>
+              <div>
+                <dt>Kill switch</dt>
+                <dd>
+                  {displayedCommandBroker.killSwitchActive ? "active" : "clear"}
+                </dd>
+              </div>
+              <div>
+                <dt>Risk budget</dt>
+                <dd>{displayedCommandBroker.riskBudgetStatus}</dd>
+              </div>
+              <div>
+                <dt>Classifier</dt>
+                <dd>
+                  {displayedCommandBroker.classifierSummary.riskLevel} ·{" "}
+                  {displayedCommandBroker.classifierSummary.categories.length}{" "}
+                  categories
+                </dd>
+              </div>
+              <div>
+                <dt>Timeout / output</dt>
+                <dd>
+                  {displayedCommandBroker.timeoutMs}ms /{" "}
+                  {displayedCommandBroker.maxOutputBytes} bytes
+                </dd>
+              </div>
+              <div>
+                <dt>Blockers / warnings</dt>
+                <dd>
+                  {displayedCommandBroker.blockerCount} /{" "}
+                  {displayedCommandBroker.warningCount}
+                </dd>
+              </div>
+              <div>
+                <dt>Execution state</dt>
+                <dd>
+                  {displayedCommandBroker.executeDisabled
+                    ? "disabled"
+                    : "fixed command ready"}
+                </dd>
+              </div>
+              <div>
+                <dt>View hash</dt>
+                <dd>{displayedCommandBroker.viewHash}</dd>
+              </div>
+              <div>
+                <dt>Raw output</dt>
+                <dd>absent</dd>
+              </div>
+            </dl>
+            {displayedCommandBroker.executeDisabledReasons.length > 0 ? (
+              <p className="muted">
+                disabled:{" "}
+                {displayedCommandBroker.executeDisabledReasons.join(", ")}
+              </p>
+            ) : null}
+            {displayedCommandBroker.findingCodes.length > 0 ? (
+              <p className="muted">
+                findings: {displayedCommandBroker.findingCodes.join(", ")}
+              </p>
+            ) : null}
+            {commandBrokerExecutionResult !== undefined ? (
+              <dl className="summaryGrid compact">
+                <div>
+                  <dt>Execution status</dt>
+                  <dd>{commandBrokerExecutionResult.status}</dd>
+                </div>
+                <div>
+                  <dt>Exit code</dt>
+                  <dd>{commandBrokerExecutionResult.exitCode ?? "n/a"}</dd>
+                </div>
+                <div>
+                  <dt>Transcript ref</dt>
+                  <dd>{commandBrokerExecutionResult.transcriptRef}</dd>
+                </div>
+                <div>
+                  <dt>Stdout / stderr bytes</dt>
+                  <dd>
+                    {commandBrokerExecutionResult.stdoutBytes} /{" "}
+                    {commandBrokerExecutionResult.stderrBytes}
+                  </dd>
+                </div>
+                <div>
+                  <dt>Raw output</dt>
+                  <dd>
+                    {commandBrokerExecutionResult.rawStdoutIncluded ||
+                    commandBrokerExecutionResult.rawStderrIncluded
+                      ? "blocked"
+                      : "absent"}
+                  </dd>
+                </div>
+              </dl>
+            ) : null}
+            {commandBrokerExecutionError !== undefined ? (
+              <p className="errorText">{commandBrokerExecutionError}</p>
+            ) : null}
+            <p className="muted">
+              {summarizeCommandBrokerView(displayedCommandBroker).source} ·{" "}
+              {displayedCommandBroker.nextAction}
+            </p>
+          </section>
+
+          <section
+            className="bridgePreview"
+            aria-label="Command Broker Replay / Redaction"
+          >
+            <div className="panelHeader">
+              <h2>Command Broker Replay / Redaction</h2>
+              <span className="muted">Summary replay / no re-execution</span>
+            </div>
+            <p className="fieldHelp">
+              Projects command_broker planned, executed, blocked, and cancelled
+              summary events into replay and redaction audit counts. Raw stdout,
+              raw stderr, raw command text, secrets, and replay execution stay
+              absent.
+            </p>
+            {commandBrokerReplayView.status === "empty" ? (
+              <p className="empty">
+                No command broker summary event is available yet. Plan or run a
+                broker-gated command, then refresh events.
+              </p>
+            ) : null}
+            <dl className="summaryGrid compact">
+              <div>
+                <dt>Status</dt>
+                <dd>{commandBrokerReplayView.status}</dd>
+              </div>
+              <div>
+                <dt>Events</dt>
+                <dd>{commandBrokerReplayView.eventCount}</dd>
+              </div>
+              <div>
+                <dt>Planned / executed</dt>
+                <dd>
+                  {commandBrokerReplayView.plannedCommandCount} /{" "}
+                  {commandBrokerReplayView.executedCommandCount}
+                </dd>
+              </div>
+              <div>
+                <dt>Blocked / failed / cancelled</dt>
+                <dd>
+                  {commandBrokerReplayView.blockedCommandCount} /{" "}
+                  {commandBrokerReplayView.failedCommandCount} /{" "}
+                  {commandBrokerReplayView.cancelledCommandCount}
+                </dd>
+              </div>
+              <div>
+                <dt>Transcript refs</dt>
+                <dd>{commandBrokerReplayView.transcriptRefCount}</dd>
+              </div>
+              <div>
+                <dt>Redaction audit</dt>
+                <dd>{commandBrokerReplayView.redactionAuditStatus}</dd>
+              </div>
+              <div>
+                <dt>Raw stdout / stderr</dt>
+                <dd>
+                  {commandBrokerReplayView.rawStdoutDetected
+                    ? "blocked"
+                    : "absent"}{" "}
+                  /{" "}
+                  {commandBrokerReplayView.rawStderrDetected
+                    ? "blocked"
+                    : "absent"}
+                </dd>
+              </div>
+              <div>
+                <dt>Raw command / secret</dt>
+                <dd>
+                  {commandBrokerReplayView.rawCommandTextDetected
+                    ? "blocked"
+                    : "absent"}{" "}
+                  /{" "}
+                  {commandBrokerReplayView.secretMarkerDetected
+                    ? "blocked"
+                    : "absent"}
+                </dd>
+              </div>
+              <div>
+                <dt>Blockers / warnings</dt>
+                <dd>
+                  {commandBrokerReplayView.blockerCount} /{" "}
+                  {commandBrokerReplayView.warningCount}
+                </dd>
+              </div>
+              <div>
+                <dt>Replay execution</dt>
+                <dd>
+                  {commandBrokerReplayView.readiness.canReplayExecuteCommand
+                    ? "unexpected"
+                    : "disabled"}
+                </dd>
+              </div>
+              <div>
+                <dt>EventStore write</dt>
+                <dd>
+                  {commandBrokerReplayView.readiness.canWriteEventStore
+                    ? "unexpected"
+                    : "disabled"}
+                </dd>
+              </div>
+              <div>
+                <dt>Replay hash</dt>
+                <dd>{commandBrokerReplayView.replayHash.substring(0, 12)}</dd>
+              </div>
+            </dl>
+            {commandBrokerReplayView.latestCommandSummary !== undefined ? (
+              <p className="muted">
+                latest: {commandBrokerReplayView.latestCommandSummary}
+              </p>
+            ) : null}
+            <p className="muted">
+              {summarizeCommandBrokerReplayView(commandBrokerReplayView)} ·{" "}
+              {commandBrokerReplayView.nextAction}
+            </p>
           </section>
 
           <section className="bridgePreview" aria-label="Verification Summary">
@@ -9547,11 +10277,12 @@ export function DesktopShell(): JSX.Element {
                 <select
                   value={executionModeDraft}
                   onChange={(event: ChangeEvent<HTMLSelectElement>) => {
-                    setExecutionModeDraft(
-                      event.target.value as ExecutionModeSwitchView["mode"]
-                    );
+                    const nextMode = event.target
+                      .value as ExecutionModeSwitchView["mode"];
+                    setExecutionModeDraft(nextMode);
                     setExecutionModePreview(undefined);
                     setPermissionModeAuditPreview(undefined);
+                    void persistWorkspaceSettings(nextMode, settingsSource);
                   }}
                 >
                   <option value="approval_mode">Approval Mode</option>
@@ -9566,6 +10297,43 @@ export function DesktopShell(): JSX.Element {
                   </option>
                 </select>
               </label>
+              <label>
+                Settings file
+                <select
+                  value={settingsSource}
+                  onChange={(event: ChangeEvent<HTMLSelectElement>) => {
+                    const nextSource = event.target.value as "project" | "app";
+                    setSettingsSource(nextSource);
+                    void persistWorkspaceSettings(
+                      executionModeDraft,
+                      nextSource
+                    );
+                  }}
+                >
+                  <option value="project">Project settings (default)</option>
+                  <option value="app">App settings (shared)</option>
+                </select>
+              </label>
+              {settingsConfirmationPhraseForMode(executionModeDraft) !==
+              undefined ? (
+                <label>
+                  Mode confirmation
+                  <input
+                    value={settingsConfirmation}
+                    onChange={(event: ChangeEvent<HTMLInputElement>) =>
+                      setSettingsConfirmation(event.target.value)
+                    }
+                    placeholder={settingsConfirmationPhraseForMode(
+                      executionModeDraft
+                    )}
+                  />
+                </label>
+              ) : (
+                <p className="muted">
+                  Switching to full access mode needs no confirmation.
+                </p>
+              )}
+              {settingsStatus !== "" && <p>{settingsStatus}</p>}
               <label>
                 Preview confirmation
                 <input
@@ -19741,12 +20509,23 @@ export function DesktopShell(): JSX.Element {
               >
                 Preview Transcript Summary
               </button>
+              <label>
+                <span>Delete confirmation</span>
+                <input
+                  value={transcriptDeleteConfirmation}
+                  onChange={(event) =>
+                    setTranscriptDeleteConfirmation(event.target.value)
+                  }
+                  placeholder="DELETE TRANSCRIPT RECORD"
+                />
+              </label>
               <button
                 type="button"
                 className="secondary"
                 disabled={
                   !displayedTranscriptViewer.readiness.canDeleteTranscript ||
-                  transcriptActionStatus === "loading"
+                  transcriptActionStatus === "loading" ||
+                  transcriptDeleteConfirmation !== "DELETE TRANSCRIPT RECORD"
                 }
                 onClick={(event) => {
                   event.preventDefault();
@@ -21212,6 +21991,10 @@ export function DesktopShell(): JSX.Element {
                     <dd>{eventPanel.verificationEventCount}</dd>
                   </div>
                   <div>
+                    <dt>Command broker events</dt>
+                    <dd>{eventPanel.commandBrokerEventCount}</dd>
+                  </div>
+                  <div>
                     <dt>Live proposal events</dt>
                     <dd>{eventPanel.liveProposalEventCount}</dd>
                   </div>
@@ -21236,6 +22019,10 @@ export function DesktopShell(): JSX.Element {
                   <div>
                     <dt>Latest verification</dt>
                     <dd>{eventPanel.latestVerificationSummary ?? "n/a"}</dd>
+                  </div>
+                  <div>
+                    <dt>Latest command broker</dt>
+                    <dd>{eventPanel.latestCommandBrokerSummary ?? "n/a"}</dd>
                   </div>
                   <div>
                     <dt>Latest live proposal</dt>

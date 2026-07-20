@@ -5,6 +5,7 @@ coverage/
 .vite/
 .tmp/
 deepseek_workbench_v0_2_1_codex_pack/
+kimi/
 
 .env
 .env.*

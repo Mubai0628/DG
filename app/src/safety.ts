@@ -85,12 +85,14 @@ export type WorkspaceEventSummary = {
   approvedApplyCount: number;
   approvedRollbackCount: number;
   verificationEventCount: number;
+  commandBrokerEventCount: number;
   liveProposalEventCount: number;
   projectKnowledgeEventCount: number;
   projectKnowledgeEntryCount: number;
   transcriptEventCount: number;
   latestApprovedExecutionSummary?: string;
   latestVerificationSummary?: string;
+  latestCommandBrokerSummary?: string;
   latestLiveProposalSummary?: string;
   latestProjectKnowledgeSummary?: string;
   latestProjectKnowledgeRecallSummary?: string;
@@ -148,12 +150,14 @@ export type EventLogPanelModel = {
   approvedApplyCount: number;
   approvedRollbackCount: number;
   verificationEventCount: number;
+  commandBrokerEventCount: number;
   liveProposalEventCount: number;
   projectKnowledgeEventCount: number;
   projectKnowledgeEntryCount: number;
   transcriptEventCount: number;
   latestApprovedExecutionSummary?: string;
   latestVerificationSummary?: string;
+  latestCommandBrokerSummary?: string;
   latestLiveProposalSummary?: string;
   latestProjectKnowledgeSummary?: string;
   latestProjectKnowledgeRecallSummary?: string;
@@ -484,6 +488,11 @@ export function normalizeWorkspaceEventSummary(
     "latestVerificationSummary",
     "latest_verification_summary"
   );
+  const latestCommandBrokerSummary = readString(
+    value,
+    "latestCommandBrokerSummary",
+    "latest_command_broker_summary"
+  );
   const latestLiveProposalSummary = readString(
     value,
     "latestLiveProposalSummary",
@@ -541,6 +550,9 @@ export function normalizeWorkspaceEventSummary(
     verificationEventCount: finiteNumber(
       readValue(value, "verificationEventCount", "verification_event_count")
     ),
+    commandBrokerEventCount: finiteNumber(
+      readValue(value, "commandBrokerEventCount", "command_broker_event_count")
+    ),
     liveProposalEventCount: finiteNumber(
       readValue(value, "liveProposalEventCount", "live_proposal_event_count")
     ),
@@ -566,6 +578,9 @@ export function normalizeWorkspaceEventSummary(
       : {}),
     ...(latestVerificationSummary !== undefined
       ? { latestVerificationSummary }
+      : {}),
+    ...(latestCommandBrokerSummary !== undefined
+      ? { latestCommandBrokerSummary }
       : {}),
     ...(latestLiveProposalSummary !== undefined
       ? { latestLiveProposalSummary }
@@ -702,6 +717,7 @@ export function buildEventLogPanelModel(
     approvedApplyCount: finiteNumber(summary.approvedApplyCount),
     approvedRollbackCount: finiteNumber(summary.approvedRollbackCount),
     verificationEventCount: finiteNumber(summary.verificationEventCount),
+    commandBrokerEventCount: finiteNumber(summary.commandBrokerEventCount),
     liveProposalEventCount: finiteNumber(summary.liveProposalEventCount),
     projectKnowledgeEventCount: finiteNumber(
       summary.projectKnowledgeEventCount
@@ -721,6 +737,13 @@ export function buildEventLogPanelModel(
       ? {
           latestVerificationSummary: safeErrorMessage(
             summary.latestVerificationSummary
+          )
+        }
+      : {}),
+    ...(typeof summary.latestCommandBrokerSummary === "string"
+      ? {
+          latestCommandBrokerSummary: safeErrorMessage(
+            summary.latestCommandBrokerSummary
           )
         }
       : {}),
@@ -1247,6 +1270,7 @@ function invalidWorkspaceEventSummary(message: string): WorkspaceEventSummary {
     approvedApplyCount: 0,
     approvedRollbackCount: 0,
     verificationEventCount: 0,
+    commandBrokerEventCount: 0,
     liveProposalEventCount: 0,
     projectKnowledgeEventCount: 0,
     projectKnowledgeEntryCount: 0,

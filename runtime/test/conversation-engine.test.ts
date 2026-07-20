@@ -46,6 +46,34 @@ function tableToolCall(
 }
 
 describe("ConversationEngine invariants", () => {
+  it("prepends the constructor system prompt to every request", async () => {
+    const client = new FakeDeepSeekClient([createFakeContentResponse("ok")]);
+    const engine = new ConversationEngine(
+      deterministicOptions(client, {
+        systemPrompt: "You are a workspace assistant."
+      })
+    );
+
+    const beforeSend = engine.assembleRequest();
+    expect(beforeSend.messages[0]).toEqual({
+      role: "system",
+      content: "You are a workspace assistant."
+    });
+
+    await engine.sendUserMessage("hello");
+
+    expect(client.calls).toHaveLength(1);
+    const afterSend = engine.assembleRequest();
+    expect(afterSend.messages[0]).toEqual({
+      role: "system",
+      content: "You are a workspace assistant."
+    });
+    expect(afterSend.messages[1]).toMatchObject({
+      role: "user",
+      content: "hello"
+    });
+  });
+
   it("sendUserMessage calls FakeDeepSeekClient, stores assistant content, usage, and events", async () => {
     const eventStore = new InMemoryEventStore({
       clock: () => new Date("2026-01-01T00:00:00.000Z"),

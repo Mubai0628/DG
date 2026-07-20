@@ -310,6 +310,237 @@ export type ShellVerificationLaneResult = {
   safeMessage: string;
 };
 
+export type CommandBrokerShellKind =
+  | "none"
+  | "powershell"
+  | "cmd"
+  | "bash"
+  | "sh";
+
+export type PermissionLeaseSummary = {
+  leaseId: string;
+  mode: string;
+  status: "active" | "expired" | "revoked";
+  issuedAtEpochMs: number;
+  expiresAtEpochMs: number;
+  revokedAtEpochMs: number | null;
+};
+
+export type PermissionLeaseIssueRequest = {
+  workspaceRoot: string;
+  workspaceRootRef: string;
+  mode: string;
+  reasonSummary: string;
+  ttlMs: number;
+};
+
+export type PermissionLeaseIssueResult = {
+  ok: true;
+  status: "passed";
+  lease: PermissionLeaseSummary;
+  summaryOnly: true;
+  safeMessage: string;
+};
+
+export type PermissionLeaseListResult = {
+  ok: true;
+  leaseCount: number;
+  leases: PermissionLeaseSummary[];
+  warningCodes: string[];
+  summaryOnly: true;
+  safeMessage: string;
+};
+
+export type PermissionLeaseRevokeRequest = {
+  workspaceRoot: string;
+  leaseId: string;
+  reasonSummary: string;
+};
+
+export type PermissionLeaseRevokeResult = {
+  ok: true;
+  status: "passed" | "already_revoked";
+  leaseId: string;
+  revoked: boolean;
+  summaryOnly: true;
+  safeMessage: string;
+};
+
+export type ChatCompletionCommandMessage = {
+  role: string;
+  content: string;
+  toolCallId?: string | undefined;
+  toolCalls?: unknown;
+};
+
+export type ChatCompletionCommandRequest = {
+  messages: ChatCompletionCommandMessage[];
+  model: string;
+  tools?: unknown;
+};
+
+export type ChatCompletionCommandResult = {
+  ok: true;
+  status: string;
+  model: string;
+  content: string;
+  toolCalls?: unknown;
+  usage: {
+    promptTokens: number;
+    completionTokens: number;
+    totalTokens: number;
+  };
+  reasoningIncluded: boolean;
+  summaryOnly: true;
+  safeMessage: string;
+};
+
+export type WorkspaceSettingsReadResult = {
+  ok: true;
+  source: "project" | "app";
+  permissionMode: string;
+  settingsExisted: boolean;
+  defaulted: boolean;
+  settingsPathHash: string;
+  warningCodes: string[];
+  summaryOnly: true;
+  safeMessage: string;
+};
+
+export type WorkspaceSettingsWriteRequest = {
+  workspaceRoot: string;
+  source: "project" | "app";
+  permissionMode: string;
+};
+
+export type WorkspaceSettingsWriteResult = {
+  ok: true;
+  status: "passed";
+  source: "project" | "app";
+  permissionMode: string;
+  settingsPathHash: string;
+  summaryOnly: true;
+  safeMessage: string;
+};
+
+export type WorkspaceFileReadRequest = {
+  workspaceRoot: string;
+  workspaceRootRef: string;
+  relativePath: string;
+  permissionMode: string;
+  approvalReceipt?: unknown;
+};
+
+export type WorkspaceFileReadResult = {
+  ok: true;
+  status: "passed";
+  workspaceRootRef: string;
+  relativePath: string;
+  sensitivity: "normal" | "sensitive";
+  tierGate: "auto" | "requires_approval" | "blocked";
+  content: string;
+  byteCount: number;
+  returnedBytes: number;
+  lineCount: number;
+  truncated: boolean;
+  contentHash: string;
+  approvalReceiptId: string | null;
+  summaryOnly: false;
+  eventPreview: {
+    type: string;
+    workspaceRootRef: string;
+    relativePathHash: string;
+    sensitivity: string;
+    tierGate: string;
+    byteCount: number;
+    lineCount: number;
+    truncated: boolean;
+    contentHash: string;
+    approvalReceiptPresent: boolean;
+    summaryOnly: true;
+    notWritten: true;
+  };
+  safeMessage: string;
+};
+
+export type CommandBrokerExecutionRequest = {
+  workspaceRoot: string;
+  brokerDecision: "ready_for_tauri_execution" | string;
+  commandRequest: {
+    requestId: string;
+    mode: string;
+    workspaceRootRef: string;
+    workingDirectory: string;
+    commandText: string;
+    argv: string[];
+    shellKind: CommandBrokerShellKind;
+    timeoutMs?: number | undefined;
+    maxOutputBytes?: number | undefined;
+    allowBackgroundProcess: boolean;
+    allowNetwork: boolean;
+    allowWorkspaceWrite: boolean;
+    allowOutsideWorkspaceWrite: boolean;
+    allowGitWrite: boolean;
+    allowDestructive: boolean;
+    environmentPolicy: {
+      mode: "empty" | "allowlist_names" | string;
+      allowedEnvNames: string[];
+    };
+  };
+  sessionLeaseRef: string;
+  transcriptPolicy: {
+    transcriptPolicyRef: string;
+    rawOptIn: boolean;
+  };
+  classifierCategories: string[];
+  killSwitchActive: boolean;
+  cancellationId?: string | null | undefined;
+  approvalReceipt?: unknown;
+};
+
+export type CommandBrokerExecutionResult = {
+  ok: true;
+  status: "passed" | "failed";
+  requestId: string;
+  workspaceRootRef: string;
+  shellKind: CommandBrokerShellKind;
+  exitCode: number | null;
+  durationMs: number;
+  stdoutBytes: number;
+  stderrBytes: number;
+  stdoutLineCount: number;
+  stderrLineCount: number;
+  redactedStdoutLineCount: number;
+  redactedStderrLineCount: number;
+  commandHash: string;
+  outputHash: string;
+  transcriptId: string;
+  transcriptRef: string;
+  warningCodes: string[];
+  truncated: boolean;
+  rawStdoutIncluded: false;
+  rawStderrIncluded: false;
+  summaryOnly: true;
+  eventPreview: {
+    type: "command_broker.command.executed";
+    requestId: string;
+    workspaceRootRef: string;
+    commandHash: string;
+    outputHash: string;
+    transcriptId: string;
+    transcriptRef: string;
+    exitCode: number | null;
+    stdoutBytes: number;
+    stderrBytes: number;
+    warningCodes: string[];
+    durationMs: number;
+    truncated: boolean;
+    summaryOnly: true;
+    notWritten: true;
+  };
+  safeMessage: string;
+};
+
 export const liveProposalAllowedKeySourceRef = ["DEEPSEEK", "API", "KEY"].join(
   "_"
 );
@@ -361,7 +592,6 @@ export type LiveDeepSeekPatchProposalCommandResult = {
 
 export type McpReadonlyDiscoverRequest = {
   profile: Record<string, unknown>;
-  typedConfirmation: "DISCOVER MCP METADATA" | string;
   maxItems: number;
   timeoutMs: number;
 };
@@ -873,6 +1103,14 @@ export const allowedDesktopCommands = [
   "project_knowledge_expire",
   "run_git_read_lane",
   "run_shell_verification_lane",
+  "execute_command_broker_request",
+  "read_workspace_file",
+  "read_workspace_settings",
+  "write_workspace_settings",
+  "issue_permission_lease",
+  "list_permission_leases",
+  "revoke_permission_lease",
+  "chat_deepseek_completion",
   "observe_desktop_metadata",
   "execute_approved_desktop_action",
   "execute_approved_expanded_desktop_action",
@@ -1087,7 +1325,10 @@ export async function readTranscriptRecordSummary(
 }
 
 export async function deleteTranscriptRecord(
-  request: { workspaceRoot: string; transcriptId: string },
+  request: {
+    workspaceRoot: string;
+    transcriptId: string;
+  },
   invokeImpl?: TauriInvoke
 ): Promise<TranscriptDeleteResult> {
   validateTranscriptWorkspace(request.workspaceRoot);
@@ -1137,6 +1378,144 @@ export async function runShellVerificationLane(
   validateShellVerificationLaneRequest(request);
   return invokeAllowedCommand<ShellVerificationLaneResult>(
     "run_shell_verification_lane",
+    { request },
+    invokeImpl
+  );
+}
+
+export async function executeCommandBrokerRequest(
+  request: CommandBrokerExecutionRequest,
+  invokeImpl?: TauriInvoke
+): Promise<CommandBrokerExecutionResult> {
+  validateCommandBrokerExecutionRequest(request);
+  return invokeAllowedCommand<CommandBrokerExecutionResult>(
+    "execute_command_broker_request",
+    { request },
+    invokeImpl
+  );
+}
+
+export async function readWorkspaceFile(
+  request: WorkspaceFileReadRequest,
+  invokeImpl?: TauriInvoke
+): Promise<WorkspaceFileReadResult> {
+  validateWorkspaceFileReadRequest(request);
+  return invokeAllowedCommand<WorkspaceFileReadResult>(
+    "read_workspace_file",
+    { request },
+    invokeImpl
+  );
+}
+
+export async function readWorkspaceSettings(
+  workspaceRoot: string,
+  invokeImpl?: TauriInvoke
+): Promise<WorkspaceSettingsReadResult> {
+  if (workspaceRoot.trim().length === 0) {
+    throw new Error("Workspace root is required");
+  }
+  return invokeAllowedCommand<WorkspaceSettingsReadResult>(
+    "read_workspace_settings",
+    { workspaceRoot },
+    invokeImpl
+  );
+}
+
+export async function writeWorkspaceSettings(
+  request: WorkspaceSettingsWriteRequest,
+  invokeImpl?: TauriInvoke
+): Promise<WorkspaceSettingsWriteResult> {
+  if (request.workspaceRoot.trim().length === 0) {
+    throw new Error("Workspace root is required");
+  }
+  if (request.source !== "project" && request.source !== "app") {
+    throw new Error("Workspace settings source must be project or app");
+  }
+  if (request.permissionMode.trim().length === 0) {
+    throw new Error("Permission mode is required");
+  }
+  return invokeAllowedCommand<WorkspaceSettingsWriteResult>(
+    "write_workspace_settings",
+    {
+      request: {
+        workspaceRoot: request.workspaceRoot,
+        source: request.source,
+        permissionMode: request.permissionMode
+      }
+    },
+    invokeImpl
+  );
+}
+
+export async function issuePermissionLease(
+  request: PermissionLeaseIssueRequest,
+  invokeImpl?: TauriInvoke
+): Promise<PermissionLeaseIssueResult> {
+  if (request.workspaceRoot.trim().length === 0) {
+    throw new Error("Workspace root is required");
+  }
+  if (
+    request.mode !== "advanced_workspace_mode" &&
+    request.mode !== "full_access_mode"
+  ) {
+    throw new Error("Permission lease mode is unsupported");
+  }
+  if (request.reasonSummary.trim().length === 0) {
+    throw new Error("Permission lease reason is required");
+  }
+  return invokeAllowedCommand<PermissionLeaseIssueResult>(
+    "issue_permission_lease",
+    { request },
+    invokeImpl
+  );
+}
+
+export async function listPermissionLeases(
+  workspaceRoot: string,
+  invokeImpl?: TauriInvoke
+): Promise<PermissionLeaseListResult> {
+  if (workspaceRoot.trim().length === 0) {
+    throw new Error("Workspace root is required");
+  }
+  return invokeAllowedCommand<PermissionLeaseListResult>(
+    "list_permission_leases",
+    { workspaceRoot },
+    invokeImpl
+  );
+}
+
+export async function revokePermissionLease(
+  request: PermissionLeaseRevokeRequest,
+  invokeImpl?: TauriInvoke
+): Promise<PermissionLeaseRevokeResult> {
+  if (request.workspaceRoot.trim().length === 0) {
+    throw new Error("Workspace root is required");
+  }
+  if (request.leaseId.trim().length === 0) {
+    throw new Error("Permission lease id is required");
+  }
+  if (request.reasonSummary.trim().length === 0) {
+    throw new Error("Permission lease revoke reason is required");
+  }
+  return invokeAllowedCommand<PermissionLeaseRevokeResult>(
+    "revoke_permission_lease",
+    { request },
+    invokeImpl
+  );
+}
+
+export async function chatDeepseekCompletion(
+  request: ChatCompletionCommandRequest,
+  invokeImpl?: TauriInvoke
+): Promise<ChatCompletionCommandResult> {
+  if (!Array.isArray(request.messages) || request.messages.length === 0) {
+    throw new Error("Chat messages are required");
+  }
+  if (request.model.trim().length === 0) {
+    throw new Error("Chat model is required");
+  }
+  return invokeAllowedCommand<ChatCompletionCommandResult>(
+    "chat_deepseek_completion",
     { request },
     invokeImpl
   );
@@ -1367,6 +1746,22 @@ function normalizeAllowedCommandResponse(
       return normalizeGitReadLaneResult(raw);
     case "run_shell_verification_lane":
       return normalizeShellVerificationLaneResult(raw);
+    case "execute_command_broker_request":
+      return normalizeCommandBrokerExecutionResult(raw);
+    case "read_workspace_file":
+      return normalizeWorkspaceFileReadResult(raw);
+    case "read_workspace_settings":
+      return normalizeWorkspaceSettingsReadResult(raw);
+    case "write_workspace_settings":
+      return normalizeWorkspaceSettingsWriteResult(raw);
+    case "issue_permission_lease":
+      return normalizePermissionLeaseIssueResult(raw);
+    case "list_permission_leases":
+      return normalizePermissionLeaseListResult(raw);
+    case "revoke_permission_lease":
+      return normalizePermissionLeaseRevokeResult(raw);
+    case "chat_deepseek_completion":
+      return normalizeChatCompletionResult(raw);
     case "observe_desktop_metadata":
       return normalizeDesktopObservationCommandResult(raw);
     case "execute_approved_desktop_action":
@@ -1398,9 +1793,6 @@ function validateMcpReadonlyDiscoverRequest(
 ): void {
   if (!isRecord(request.profile)) {
     throw new Error("MCP readonly discovery profile is required");
-  }
-  if (request.typedConfirmation !== "DISCOVER MCP METADATA") {
-    throw new Error("MCP readonly discovery confirmation is required");
   }
   if (!Number.isFinite(request.maxItems) || request.maxItems <= 0) {
     throw new Error("MCP readonly discovery maxItems must be positive");
@@ -1672,6 +2064,272 @@ function validateShellVerificationLaneRequest(
     ) {
       throw new Error("Shell verification test file path is not allowed");
     }
+  }
+}
+
+function validateCommandBrokerExecutionRequest(
+  request: CommandBrokerExecutionRequest
+): void {
+  if (request.workspaceRoot.trim().length === 0) {
+    throw new Error("Workspace root is required");
+  }
+  if (request.brokerDecision !== "ready_for_tauri_execution") {
+    throw new Error("Command broker decision is not ready");
+  }
+  if (request.killSwitchActive) {
+    throw new Error("Command broker kill switch is active");
+  }
+  const command = request.commandRequest;
+  if (command.requestId.trim().length === 0) {
+    throw new Error("Command broker request id is required");
+  }
+  if (command.workspaceRootRef.trim().length === 0) {
+    throw new Error("Command broker workspace root ref is required");
+  }
+  if (command.workingDirectory.trim().length === 0) {
+    throw new Error("Command broker working directory is required");
+  }
+  if (!isCommandBrokerShellKind(command.shellKind)) {
+    throw new Error("Command broker shell kind is not allowed");
+  }
+  if (command.shellKind === "none" && command.argv.length === 0) {
+    throw new Error("Command broker argv is required for none shell");
+  }
+  if (command.shellKind !== "none" && command.commandText.trim().length === 0) {
+    throw new Error("Command broker command text is required");
+  }
+  if (
+    command.allowBackgroundProcess ||
+    command.allowOutsideWorkspaceWrite ||
+    command.allowGitWrite ||
+    command.allowDestructive
+  ) {
+    throw new Error("Command broker request contains blocked execution flags");
+  }
+  if (
+    command.environmentPolicy.mode !== "empty" &&
+    command.environmentPolicy.mode !== "allowlist_names"
+  ) {
+    throw new Error("Command broker environment policy is not allowed");
+  }
+  for (const envName of command.environmentPolicy.allowedEnvNames) {
+    if (
+      envName.trim().length === 0 ||
+      /API|TOKEN|AUTH|SECRET|PASSWORD|CREDENTIAL|BEARER/i.test(envName)
+    ) {
+      throw new Error("Command broker environment ref is not allowed");
+    }
+  }
+  if (request.transcriptPolicy.rawOptIn) {
+    throw new Error("Command broker raw transcript opt-in is disabled");
+  }
+  if (!request.approvalReceipt) {
+    throw new Error("Command broker approval receipt is required");
+  }
+  if (containsForbiddenLiveProposalValue(request)) {
+    throw new Error("Command broker request contains unsafe fields");
+  }
+}
+
+function normalizeWorkspaceFileReadResult(
+  raw: unknown
+): WorkspaceFileReadResult {
+  const record = isRecord(raw) ? raw : {};
+  const eventPreview = isRecord(record.eventPreview) ? record.eventPreview : {};
+  if (
+    record.ok !== true ||
+    record.status !== "passed" ||
+    typeof record.workspaceRootRef !== "string" ||
+    typeof record.relativePath !== "string" ||
+    (record.sensitivity !== "normal" && record.sensitivity !== "sensitive") ||
+    typeof record.tierGate !== "string" ||
+    typeof record.content !== "string" ||
+    typeof record.byteCount !== "number" ||
+    typeof record.returnedBytes !== "number" ||
+    typeof record.lineCount !== "number" ||
+    typeof record.truncated !== "boolean" ||
+    typeof record.contentHash !== "string" ||
+    record.summaryOnly !== false ||
+    eventPreview.summaryOnly !== true ||
+    eventPreview.notWritten !== true
+  ) {
+    throw normalizeDesktopCommandError({
+      errorCode: "INVALID_RESPONSE",
+      safeMessage: "Workspace file read response was invalid",
+      stage: "normalize_response"
+    });
+  }
+  return record as unknown as WorkspaceFileReadResult;
+}
+
+function normalizeWorkspaceSettingsReadResult(
+  raw: unknown
+): WorkspaceSettingsReadResult {
+  const record = isRecord(raw) ? raw : {};
+  if (
+    record.ok !== true ||
+    (record.source !== "project" && record.source !== "app") ||
+    typeof record.permissionMode !== "string" ||
+    typeof record.settingsExisted !== "boolean" ||
+    typeof record.defaulted !== "boolean" ||
+    record.summaryOnly !== true
+  ) {
+    throw normalizeDesktopCommandError({
+      errorCode: "INVALID_RESPONSE",
+      safeMessage: "Workspace settings read response was invalid",
+      stage: "normalize_response"
+    });
+  }
+  return record as unknown as WorkspaceSettingsReadResult;
+}
+
+function normalizeWorkspaceSettingsWriteResult(
+  raw: unknown
+): WorkspaceSettingsWriteResult {
+  const record = isRecord(raw) ? raw : {};
+  if (
+    record.ok !== true ||
+    record.status !== "passed" ||
+    (record.source !== "project" && record.source !== "app") ||
+    typeof record.permissionMode !== "string" ||
+    record.summaryOnly !== true
+  ) {
+    throw normalizeDesktopCommandError({
+      errorCode: "INVALID_RESPONSE",
+      safeMessage: "Workspace settings write response was invalid",
+      stage: "normalize_response"
+    });
+  }
+  return record as unknown as WorkspaceSettingsWriteResult;
+}
+
+function normalizePermissionLeaseSummary(raw: unknown): PermissionLeaseSummary {
+  const record = isRecord(raw) ? raw : {};
+  if (
+    typeof record.leaseId !== "string" ||
+    typeof record.mode !== "string" ||
+    typeof record.status !== "string" ||
+    typeof record.issuedAtEpochMs !== "number" ||
+    typeof record.expiresAtEpochMs !== "number"
+  ) {
+    throw normalizeDesktopCommandError({
+      errorCode: "INVALID_RESPONSE",
+      safeMessage: "Permission lease summary was invalid",
+      stage: "normalize_response"
+    });
+  }
+  return record as unknown as PermissionLeaseSummary;
+}
+
+function normalizePermissionLeaseIssueResult(
+  raw: unknown
+): PermissionLeaseIssueResult {
+  const record = isRecord(raw) ? raw : {};
+  if (
+    record.ok !== true ||
+    record.status !== "passed" ||
+    record.summaryOnly !== true
+  ) {
+    throw normalizeDesktopCommandError({
+      errorCode: "INVALID_RESPONSE",
+      safeMessage: "Permission lease issue response was invalid",
+      stage: "normalize_response"
+    });
+  }
+  return {
+    ...(record as unknown as PermissionLeaseIssueResult),
+    lease: normalizePermissionLeaseSummary(record.lease)
+  };
+}
+
+function normalizePermissionLeaseListResult(
+  raw: unknown
+): PermissionLeaseListResult {
+  const record = isRecord(raw) ? raw : {};
+  if (
+    record.ok !== true ||
+    typeof record.leaseCount !== "number" ||
+    !Array.isArray(record.leases) ||
+    record.summaryOnly !== true
+  ) {
+    throw normalizeDesktopCommandError({
+      errorCode: "INVALID_RESPONSE",
+      safeMessage: "Permission lease list response was invalid",
+      stage: "normalize_response"
+    });
+  }
+  return {
+    ...(record as unknown as PermissionLeaseListResult),
+    leases: (record.leases as unknown[]).map((lease) =>
+      normalizePermissionLeaseSummary(lease)
+    )
+  };
+}
+
+function normalizePermissionLeaseRevokeResult(
+  raw: unknown
+): PermissionLeaseRevokeResult {
+  const record = isRecord(raw) ? raw : {};
+  if (
+    record.ok !== true ||
+    (record.status !== "passed" && record.status !== "already_revoked") ||
+    typeof record.leaseId !== "string" ||
+    typeof record.revoked !== "boolean" ||
+    record.summaryOnly !== true
+  ) {
+    throw normalizeDesktopCommandError({
+      errorCode: "INVALID_RESPONSE",
+      safeMessage: "Permission lease revoke response was invalid",
+      stage: "normalize_response"
+    });
+  }
+  return record as unknown as PermissionLeaseRevokeResult;
+}
+
+function normalizeChatCompletionResult(
+  raw: unknown
+): ChatCompletionCommandResult {
+  const record = isRecord(raw) ? raw : {};
+  if (
+    record.ok !== true ||
+    record.status !== "completed" ||
+    typeof record.model !== "string" ||
+    typeof record.content !== "string" ||
+    record.summaryOnly !== true ||
+    record.reasoningIncluded !== false
+  ) {
+    throw normalizeDesktopCommandError({
+      errorCode: "INVALID_RESPONSE",
+      safeMessage: "Chat completion response was invalid",
+      stage: "normalize_response"
+    });
+  }
+  return record as unknown as ChatCompletionCommandResult;
+}
+
+function validateWorkspaceFileReadRequest(
+  request: WorkspaceFileReadRequest
+): void {
+  if (request.workspaceRoot.trim().length === 0) {
+    throw new Error("Workspace root is required");
+  }
+  if (request.workspaceRootRef.trim().length === 0) {
+    throw new Error("Workspace root reference is required");
+  }
+  const path = request.relativePath.trim();
+  if (path.length === 0) {
+    throw new Error("Relative path is required");
+  }
+  if (
+    path.startsWith("/") ||
+    path.startsWith("\\") ||
+    /^[A-Za-z]:/.test(path) ||
+    path.split(/[\\/]/).some((segment) => segment === "..")
+  ) {
+    throw new Error("Relative path must stay inside the workspace");
+  }
+  if (request.permissionMode.trim().length === 0) {
+    throw new Error("Permission mode is required");
   }
 }
 
@@ -3315,6 +3973,114 @@ function normalizeShellVerificationLaneResult(
   };
 }
 
+function normalizeCommandBrokerExecutionResult(
+  raw: unknown
+): CommandBrokerExecutionResult {
+  const record = isRecord(raw) ? raw : {};
+  const eventPreview = isRecord(record.eventPreview) ? record.eventPreview : {};
+  if (
+    record.ok !== true ||
+    (record.status !== "passed" && record.status !== "failed") ||
+    typeof record.requestId !== "string" ||
+    typeof record.workspaceRootRef !== "string" ||
+    !isCommandBrokerShellKind(record.shellKind) ||
+    !(
+      typeof record.exitCode === "number" ||
+      record.exitCode === null ||
+      record.exitCode === undefined
+    ) ||
+    typeof record.durationMs !== "number" ||
+    typeof record.stdoutBytes !== "number" ||
+    typeof record.stderrBytes !== "number" ||
+    typeof record.stdoutLineCount !== "number" ||
+    typeof record.stderrLineCount !== "number" ||
+    typeof record.redactedStdoutLineCount !== "number" ||
+    typeof record.redactedStderrLineCount !== "number" ||
+    typeof record.commandHash !== "string" ||
+    typeof record.outputHash !== "string" ||
+    typeof record.transcriptId !== "string" ||
+    typeof record.transcriptRef !== "string" ||
+    !Array.isArray(record.warningCodes) ||
+    typeof record.truncated !== "boolean" ||
+    record.rawStdoutIncluded !== false ||
+    record.rawStderrIncluded !== false ||
+    record.summaryOnly !== true ||
+    typeof record.safeMessage !== "string" ||
+    eventPreview.type !== "command_broker.command.executed" ||
+    eventPreview.notWritten !== true ||
+    eventPreview.summaryOnly !== true ||
+    typeof eventPreview.durationMs !== "number"
+  ) {
+    throw normalizeDesktopCommandError({
+      errorCode: "INVALID_RESPONSE",
+      safeMessage: "Command broker execution response was invalid",
+      stage: "normalize_response"
+    });
+  }
+  if (containsForbiddenLiveProposalValue(record)) {
+    throw normalizeDesktopCommandError({
+      errorCode: "UNSAFE_RESPONSE",
+      safeMessage: "Command broker execution response contained unsafe fields",
+      stage: "normalize_response"
+    });
+  }
+  const warningCodes = record.warningCodes.filter(
+    (value): value is string => typeof value === "string"
+  );
+  const eventWarningCodes = Array.isArray(eventPreview.warningCodes)
+    ? eventPreview.warningCodes.filter(
+        (value): value is string => typeof value === "string"
+      )
+    : [];
+  return {
+    ok: true,
+    status: record.status,
+    requestId: safeErrorMessage(record.requestId),
+    workspaceRootRef: safeErrorMessage(record.workspaceRootRef),
+    shellKind: record.shellKind,
+    exitCode: typeof record.exitCode === "number" ? record.exitCode : null,
+    durationMs: record.durationMs,
+    stdoutBytes: record.stdoutBytes,
+    stderrBytes: record.stderrBytes,
+    stdoutLineCount: record.stdoutLineCount,
+    stderrLineCount: record.stderrLineCount,
+    redactedStdoutLineCount: record.redactedStdoutLineCount,
+    redactedStderrLineCount: record.redactedStderrLineCount,
+    commandHash: safeErrorMessage(record.commandHash),
+    outputHash: safeErrorMessage(record.outputHash),
+    transcriptId: safeErrorMessage(record.transcriptId),
+    transcriptRef: safeErrorMessage(record.transcriptRef),
+    warningCodes,
+    truncated: record.truncated,
+    rawStdoutIncluded: false,
+    rawStderrIncluded: false,
+    summaryOnly: true,
+    eventPreview: {
+      type: "command_broker.command.executed",
+      requestId: safeErrorMessage(String(eventPreview.requestId ?? "")),
+      workspaceRootRef: safeErrorMessage(
+        String(eventPreview.workspaceRootRef ?? "")
+      ),
+      commandHash: safeErrorMessage(String(eventPreview.commandHash ?? "")),
+      outputHash: safeErrorMessage(String(eventPreview.outputHash ?? "")),
+      transcriptId: safeErrorMessage(String(eventPreview.transcriptId ?? "")),
+      transcriptRef: safeErrorMessage(String(eventPreview.transcriptRef ?? "")),
+      exitCode:
+        typeof eventPreview.exitCode === "number"
+          ? eventPreview.exitCode
+          : null,
+      stdoutBytes: Number(eventPreview.stdoutBytes ?? 0),
+      stderrBytes: Number(eventPreview.stderrBytes ?? 0),
+      warningCodes: eventWarningCodes,
+      durationMs: Number(eventPreview.durationMs ?? 0),
+      truncated: Boolean(eventPreview.truncated),
+      summaryOnly: true,
+      notWritten: true
+    },
+    safeMessage: safeErrorMessage(record.safeMessage)
+  };
+}
+
 function normalizeVerificationLaneEventRecordResult(
   raw: unknown
 ): VerificationLaneEventRecordResult {
@@ -3747,6 +4513,18 @@ function containsUnsafeLiveProposalText(value: string): boolean {
     /\braw\s*response\b/i.test(value) ||
     /\braw\s*source\b/i.test(value) ||
     /\braw\s*diff\b/i.test(value)
+  );
+}
+
+function isCommandBrokerShellKind(
+  value: unknown
+): value is CommandBrokerShellKind {
+  return (
+    value === "none" ||
+    value === "powershell" ||
+    value === "cmd" ||
+    value === "bash" ||
+    value === "sh"
   );
 }
 

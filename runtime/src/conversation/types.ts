@@ -70,6 +70,7 @@ export type ConversationEngineOptions = {
   model: DeepSeekModelId;
   thinking?: DeepSeekThinkingConfig;
   tools?: DeepSeekToolDefinition[];
+  systemPrompt?: string;
   clock?: () => Date;
   idFactory?: () => string;
 };

@@ -13,6 +13,7 @@ import {
   deleteTranscriptRecord,
   executeApprovedDesktopAction,
   executeApprovedExpandedDesktopAction,
+  executeCommandBrokerRequest,
   exportTranscriptSummary,
   expireProjectKnowledgeEntry,
   generateLiveDeepSeekPatchProposal,
@@ -25,6 +26,11 @@ import {
   recordLiveProposalSummaryEvent,
   observeDesktopMetadata,
   readTranscriptRecordSummary,
+  readWorkspaceFile,
+  readWorkspaceSettings,
+  issuePermissionLease,
+  listPermissionLeases,
+  revokePermissionLease,
   recordVerificationLaneEvent,
   recordApprovedUserWorkspaceExecutionEvent,
   recordControlRunDraftEvent,
@@ -36,12 +42,14 @@ import {
   runShellVerificationLane,
   safeInvoke,
   writeTranscriptRecord,
+  writeWorkspaceSettings,
   type ApprovedDesktopActionCommandRequest,
   type ApprovedDesktopActionCommandResult,
   type ApprovedExpandedDesktopActionCommandRequest,
   type ApprovedExpandedDesktopActionCommandResult,
   type ApprovedUserWorkspaceApplyResult,
   type ApprovedUserWorkspaceRollbackResult,
+  type CommandBrokerExecutionResult,
   type DesktopObservationCommandRequest,
   type DesktopObservationCommandResult,
   type GitReadLaneResult,
@@ -126,6 +134,8 @@ import {
   parseLiveProposalEvaluationSummaryJson
 } from "../src/live-proposal-evaluation-summary-view.js";
 import { buildLiveProposalEvaluationTelemetryAuditView } from "../src/live-proposal-evaluation-telemetry-audit-view.js";
+import { buildCommandBrokerView } from "../src/command-broker-view.js";
+import { buildCommandBrokerReplayView } from "../src/command-broker-replay-view.js";
 import { buildTranscriptViewerView } from "../src/transcript-viewer-view.js";
 import {
   buildAppDataInventorySchemaView,
@@ -480,6 +490,55 @@ function fixedShellVerificationLaneResult(
   };
 }
 
+function fixedCommandBrokerExecutionResult(
+  overrides: Partial<CommandBrokerExecutionResult> = {}
+): CommandBrokerExecutionResult {
+  return {
+    ok: true,
+    status: "passed",
+    requestId: "command-broker-request-test",
+    workspaceRootRef: "workspace-ref-test",
+    shellKind: "powershell",
+    exitCode: 0,
+    durationMs: 18,
+    stdoutBytes: 42,
+    stderrBytes: 0,
+    stdoutLineCount: 1,
+    stderrLineCount: 0,
+    redactedStdoutLineCount: 1,
+    redactedStderrLineCount: 0,
+    commandHash: "command-broker-command-hash",
+    outputHash: "command-broker-output-hash",
+    transcriptId: "command-broker-transcript",
+    transcriptRef: "transcript:command-broker-transcript",
+    warningCodes: [],
+    truncated: false,
+    rawStdoutIncluded: false,
+    rawStderrIncluded: false,
+    summaryOnly: true,
+    eventPreview: {
+      type: "command_broker.command.executed",
+      requestId: "command-broker-request-test",
+      workspaceRootRef: "workspace-ref-test",
+      commandHash: "command-broker-command-hash",
+      outputHash: "command-broker-output-hash",
+      transcriptId: "command-broker-transcript",
+      transcriptRef: "transcript:command-broker-transcript",
+      exitCode: 0,
+      stdoutBytes: 42,
+      stderrBytes: 0,
+      warningCodes: [],
+      durationMs: 18,
+      truncated: false,
+      summaryOnly: true,
+      notWritten: true
+    },
+    safeMessage:
+      "Command broker execution summary generated. No raw stdout/stderr returned.",
+    ...overrides
+  };
+}
+
 function fixedVerificationLaneEventRecord(
   overrides: Partial<VerificationLaneEventRecordResult> = {}
 ): VerificationLaneEventRecordResult {
@@ -510,6 +569,7 @@ function fixedEventSummary(
     approvedApplyCount: 0,
     approvedRollbackCount: 0,
     verificationEventCount: 0,
+    commandBrokerEventCount: 0,
     liveProposalEventCount: 0,
     transcriptEventCount: 0,
     projectKnowledgeEventCount: 0,
@@ -1027,6 +1087,15 @@ describe("desktop command wrapper", () => {
     expect(isAllowedDesktopCommand("execute_approved_desktop_action")).toBe(
       true
     );
+    expect(isAllowedDesktopCommand("execute_command_broker_request")).toBe(
+      true
+    );
+    expect(isAllowedDesktopCommand("read_workspace_file")).toBe(true);
+    expect(isAllowedDesktopCommand("read_workspace_settings")).toBe(true);
+    expect(isAllowedDesktopCommand("write_workspace_settings")).toBe(true);
+    expect(isAllowedDesktopCommand("issue_permission_lease")).toBe(true);
+    expect(isAllowedDesktopCommand("list_permission_leases")).toBe(true);
+    expect(isAllowedDesktopCommand("revoke_permission_lease")).toBe(true);
     expect(isAllowedDesktopCommand("run_web_table_to_csv_flow")).toBe(true);
   });
 
@@ -2977,7 +3046,6 @@ describe("desktop command wrapper", () => {
       expect(command).toBe("mcp_readonly_discover");
       expect(args).toMatchObject({
         request: {
-          typedConfirmation: "DISCOVER MCP METADATA",
           maxItems: 10,
           timeoutMs: 5000
         }
@@ -3061,7 +3129,6 @@ describe("desktop command wrapper", () => {
             allowMutation: false
           }
         },
-        typedConfirmation: "DISCOVER MCP METADATA",
         maxItems: 10,
         timeoutMs: 5000
       },
@@ -3386,7 +3453,6 @@ describe("desktop command wrapper", () => {
         maxItems: 10,
         timeoutMs: 5000
       }),
-      typedConfirmation: "DISCOVER MCP METADATA",
       discoveryResult: {
         ok: true,
         discoveryId: "mcp-readonly-discovery-smoke",
@@ -3748,7 +3814,6 @@ describe("desktop command wrapper", () => {
           allowMutation: false
         }
       }),
-      typedConfirmation: "DISCOVER MCP METADATA",
       discoveryResult: {
         ok: true,
         discoveryId: "mcp-readonly-discovery-1",
@@ -3891,9 +3956,7 @@ describe("desktop command wrapper", () => {
     ): Promise<T> => {
       expect(command).toBe("mcp_readonly_discover");
       expect(args).toMatchObject({
-        request: {
-          typedConfirmation: "DISCOVER MCP METADATA"
-        }
+        request: {}
       });
       const result = {
         ok: true,
@@ -3958,7 +4021,6 @@ describe("desktop command wrapper", () => {
     const discoveryResult = await runMcpReadonlyDiscovery(
       {
         profile,
-        typedConfirmation: "DISCOVER MCP METADATA",
         maxItems: 10,
         timeoutMs: 5000
       },
@@ -3966,7 +4028,6 @@ describe("desktop command wrapper", () => {
     );
     const connectionView = buildMcpReadonlyConnectionView({
       profileJsonText: JSON.stringify(profile),
-      typedConfirmation: "DISCOVER MCP METADATA",
       discoveryResult
     });
     const auditView = buildMcpMetadataRedactionAuditView({
@@ -5582,6 +5643,279 @@ describe("desktop command wrapper", () => {
     expect(JSON.stringify(result)).not.toContain("stderr text");
   });
 
+  it("executes command broker requests only through the fixed Tauri command", async () => {
+    const request = {
+      workspaceRoot: "D:\\workspace",
+      brokerDecision: "ready_for_tauri_execution",
+      commandRequest: {
+        requestId: "command-broker-request-test",
+        mode: "advanced_workspace",
+        workspaceRootRef: "workspace-ref-test",
+        workingDirectory: ".",
+        commandText: "Write-Output broker-safe",
+        argv: [],
+        shellKind: "powershell" as const,
+        timeoutMs: 60000,
+        maxOutputBytes: 65536,
+        allowBackgroundProcess: false,
+        allowNetwork: false,
+        allowWorkspaceWrite: true,
+        allowOutsideWorkspaceWrite: false,
+        allowGitWrite: false,
+        allowDestructive: false,
+        environmentPolicy: {
+          mode: "allowlist_names",
+          allowedEnvNames: ["PATH"]
+        }
+      },
+      sessionLeaseRef: "session-lease-command-broker-test",
+      transcriptPolicy: {
+        transcriptPolicyRef: "transcript-policy-summary-only",
+        rawOptIn: false
+      },
+      classifierCategories: ["low_risk"],
+      killSwitchActive: false,
+      cancellationId: null,
+      approvalReceipt: {
+        source: "runtime_command_broker_approval_receipt",
+        summaryOnly: true,
+        kind: "command_broker_execution"
+      }
+    };
+    const invoke: TauriInvoke = async (command, args) => {
+      expect(command).toBe("execute_command_broker_request");
+      expect(args).toEqual({ request });
+      return fixedCommandBrokerExecutionResult() as never;
+    };
+
+    const result = await executeCommandBrokerRequest(request, invoke);
+
+    expect(result.ok).toBe(true);
+    expect(result.status).toBe("passed");
+    expect(result.transcriptRef).toBe("transcript:command-broker-transcript");
+    expect(result.eventPreview.notWritten).toBe(true);
+    expect(result.rawStdoutIncluded).toBe(false);
+    expect(result.rawStderrIncluded).toBe(false);
+    expect(JSON.stringify(result)).not.toContain("broker-safe output");
+  });
+
+  it("reads workspace files only through the fixed read lane command", async () => {
+    const request = {
+      workspaceRoot: "D:\\workspace",
+      workspaceRootRef: "workspace-ref-test",
+      relativePath: "notes/hello.txt",
+      permissionMode: "approval_mode"
+    };
+    const invoke: TauriInvoke = async (command, args) => {
+      expect(command).toBe("read_workspace_file");
+      expect(args).toEqual({ request });
+      return {
+        ok: true,
+        status: "passed",
+        workspaceRootRef: "workspace-ref-test",
+        relativePath: "notes/hello.txt",
+        sensitivity: "normal",
+        tierGate: "auto",
+        content: "hello\n",
+        byteCount: 6,
+        returnedBytes: 6,
+        lineCount: 1,
+        truncated: false,
+        contentHash: "hash",
+        approvalReceiptId: null,
+        summaryOnly: false,
+        eventPreview: {
+          type: "workspace_file.read.completed",
+          workspaceRootRef: "workspace-ref-test",
+          relativePathHash: "path-hash",
+          sensitivity: "normal",
+          tierGate: "auto",
+          byteCount: 6,
+          lineCount: 1,
+          truncated: false,
+          contentHash: "hash",
+          approvalReceiptPresent: false,
+          summaryOnly: true,
+          notWritten: true
+        },
+        safeMessage: "ok"
+      } as never;
+    };
+
+    const result = await readWorkspaceFile(request, invoke);
+
+    expect(result.ok).toBe(true);
+    expect(result.status).toBe("passed");
+    expect(result.content).toBe("hello\n");
+    expect(result.eventPreview.summaryOnly).toBe(true);
+    expect(result.eventPreview.notWritten).toBe(true);
+  });
+
+  it("rejects unsafe read lane paths before invoking", async () => {
+    const invoke: TauriInvoke = async () => {
+      throw new Error("invoke must not be reached");
+    };
+
+    for (const relativePath of [
+      "../escape.txt",
+      "C:/abs.txt",
+      "/abs.txt",
+      "a/../b.txt"
+    ]) {
+      await expect(
+        readWorkspaceFile(
+          {
+            workspaceRoot: "D:\\workspace",
+            workspaceRootRef: "workspace-ref-test",
+            relativePath,
+            permissionMode: "approval_mode"
+          },
+          invoke
+        )
+      ).rejects.toThrow("Relative path must stay inside the workspace");
+    }
+  });
+
+  it("resolves workspace settings only through the fixed settings commands", async () => {
+    const readInvoke: TauriInvoke = async (command, args) => {
+      expect(command).toBe("read_workspace_settings");
+      expect(args).toEqual({ workspaceRoot: "D:\\workspace" });
+      return {
+        ok: true,
+        source: "project",
+        permissionMode: "approval_mode",
+        settingsExisted: false,
+        defaulted: true,
+        settingsPathHash: "hash",
+        warningCodes: ["WORKSPACE_SETTINGS_DEFAULTED"],
+        summaryOnly: true,
+        safeMessage: "ok"
+      } as never;
+    };
+
+    const readResult = await readWorkspaceSettings("D:\\workspace", readInvoke);
+    expect(readResult.source).toBe("project");
+    expect(readResult.defaulted).toBe(true);
+
+    const writeRequest = {
+      workspaceRoot: "D:\\workspace",
+      source: "project" as const,
+      permissionMode: "advanced_workspace_mode"
+    };
+    const writeInvoke: TauriInvoke = async (command, args) => {
+      expect(command).toBe("write_workspace_settings");
+      expect(args).toEqual({ request: writeRequest });
+      return {
+        ok: true,
+        status: "passed",
+        source: "project",
+        permissionMode: "advanced_workspace_mode",
+        settingsPathHash: "hash",
+        summaryOnly: true,
+        safeMessage: "ok"
+      } as never;
+    };
+
+    const writeResult = await writeWorkspaceSettings(writeRequest, writeInvoke);
+    expect(writeResult.status).toBe("passed");
+    expect(writeResult.permissionMode).toBe("advanced_workspace_mode");
+
+    // full_access_mode writes pass without any confirmation phrase.
+    const fullAccessRequest = {
+      workspaceRoot: "D:\\workspace",
+      source: "project" as const,
+      permissionMode: "full_access_mode"
+    };
+    const fullAccessResult = await writeWorkspaceSettings(
+      fullAccessRequest,
+      async (command, args) => {
+        expect(command).toBe("write_workspace_settings");
+        expect(args).toEqual({ request: fullAccessRequest });
+        return {
+          ok: true,
+          status: "passed",
+          source: "project",
+          permissionMode: "full_access_mode",
+          settingsPathHash: "hash",
+          summaryOnly: true,
+          safeMessage: "ok"
+        } as never;
+      }
+    );
+    expect(fullAccessResult.status).toBe("passed");
+  });
+
+  it("issues, lists, and revokes permission leases through fixed commands", async () => {
+    const leaseSummary = {
+      leaseId: "lease-1-abcd1234",
+      mode: "full_access_mode",
+      status: "active",
+      issuedAtEpochMs: 1000,
+      expiresAtEpochMs: 2000,
+      revokedAtEpochMs: null
+    };
+    const issueRequest = {
+      workspaceRoot: "D:\\workspace",
+      workspaceRootRef: "workspace-ref-test",
+      mode: "full_access_mode",
+      reasonSummary: "test lease",
+      ttlMs: 1_800_000
+    };
+    const issueInvoke: TauriInvoke = async (command, args) => {
+      expect(command).toBe("issue_permission_lease");
+      expect(args).toEqual({ request: issueRequest });
+      return {
+        ok: true,
+        status: "passed",
+        lease: leaseSummary,
+        summaryOnly: true,
+        safeMessage: "ok"
+      } as never;
+    };
+
+    const issued = await issuePermissionLease(issueRequest, issueInvoke);
+    expect(issued.lease.leaseId).toBe("lease-1-abcd1234");
+    expect(issued.lease.status).toBe("active");
+
+    const listInvoke: TauriInvoke = async (command, args) => {
+      expect(command).toBe("list_permission_leases");
+      expect(args).toEqual({ workspaceRoot: "D:\\workspace" });
+      return {
+        ok: true,
+        leaseCount: 1,
+        leases: [leaseSummary],
+        warningCodes: [],
+        summaryOnly: true,
+        safeMessage: "ok"
+      } as never;
+    };
+
+    const listed = await listPermissionLeases("D:\\workspace", listInvoke);
+    expect(listed.leaseCount).toBe(1);
+    expect(listed.leases[0]?.mode).toBe("full_access_mode");
+
+    const revokeRequest = {
+      workspaceRoot: "D:\\workspace",
+      leaseId: "lease-1-abcd1234",
+      reasonSummary: "done"
+    };
+    const revokeInvoke: TauriInvoke = async (command, args) => {
+      expect(command).toBe("revoke_permission_lease");
+      expect(args).toEqual({ request: revokeRequest });
+      return {
+        ok: true,
+        status: "passed",
+        leaseId: "lease-1-abcd1234",
+        revoked: true,
+        summaryOnly: true,
+        safeMessage: "ok"
+      } as never;
+    };
+
+    const revoked = await revokePermissionLease(revokeRequest, revokeInvoke);
+    expect(revoked.revoked).toBe(true);
+  });
+
   it("records verification lane summary events through the fixed event command", async () => {
     const eventPreview = fixedGitReadLaneResult().eventPreview;
     const invoke: TauriInvoke = async (command, args) => {
@@ -5642,10 +5976,212 @@ describe("desktop command wrapper", () => {
     expect(appSource).not.toMatch(/>\s*Run Shell\s*</);
     expect(appSource).not.toMatch(/>\s*Write Events\s*</);
     expect(desktopFlowSource).toContain('"run_shell_verification_lane"');
+    expect(desktopFlowSource).toContain('"execute_command_broker_request"');
+    expect(desktopFlowSource).toContain("executeCommandBrokerRequest");
     expect(desktopFlowSource).toContain('"record_verification_lane_event"');
     expect(desktopFlowSource).not.toContain("run_shell_command");
+    expect(desktopFlowSource).not.toContain("run_command_broker_request");
+    expect(desktopFlowSource).not.toContain("execute_generic_command");
     expect(desktopFlowSource).not.toContain("rawStdout:");
     expect(desktopFlowSource).not.toContain("rawStderr:");
+  });
+
+  it("builds command broker view with explicit execution gating", () => {
+    const empty = buildCommandBrokerView();
+    expect(empty.status).toBe("empty");
+    expect(empty.executeDisabled).toBe(true);
+    expect(empty.readiness.canAutoRunCommand).toBe(false);
+    expect(empty.readiness.canExecuteGenericShell).toBe(false);
+
+    const approval = buildCommandBrokerView({
+      workspaceRoot: "D:\\workspace",
+      workspaceRootRef: "workspace-ref-test",
+      mode: "approval",
+      sessionLeaseRef: "lease-command-broker-test",
+      transcriptPolicyRef: "transcript-policy-command-broker",
+      commandText: "node --version",
+      shellKind: "powershell",
+      workingDirectory: "."
+    });
+    // Approval is a click-level action: the receipt is built inline when
+    // the user approves, so nothing receipt-shaped blocks execution.
+    expect(approval.executeDisabled).toBe(false);
+    expect(approval.executeDisabledReasons).not.toContain(
+      "APPROVAL_RECEIPT_REQUIRED"
+    );
+    expect(approval.executeDisabledReasons).not.toContain(
+      "APPROVAL_MODE_DISABLED"
+    );
+
+    const approvalConfirmed = buildCommandBrokerView({
+      workspaceRoot: "D:\\workspace",
+      workspaceRootRef: "workspace-ref-test",
+      mode: "approval",
+      sessionLeaseRef: "lease-command-broker-test",
+      transcriptPolicyRef: "transcript-policy-command-broker",
+      commandText: "node --version",
+      shellKind: "powershell",
+      workingDirectory: ".",
+      typedConfirmation: "EXECUTE WORKSPACE COMMAND"
+    });
+    expect(approvalConfirmed.executeDisabled).toBe(false);
+
+    const advanced = buildCommandBrokerView({
+      workspaceRoot: "D:\\workspace",
+      workspaceRootRef: "workspace-ref-test",
+      mode: "advanced_workspace",
+      sessionLeaseRef: "lease-command-broker-test",
+      transcriptPolicyRef: "transcript-policy-command-broker",
+      commandText: "node --version",
+      shellKind: "powershell",
+      workingDirectory: ".",
+      allowWorkspaceWrite: true
+    });
+    expect(advanced.policyDecision).toBe("ready_for_tauri_execution");
+    expect(advanced.approvalReceiptRequired).toBe(true);
+    expect(advanced.approvalReceiptReady).toBe(true);
+    expect(advanced.executeDisabled).toBe(false);
+
+    const confirmed = buildCommandBrokerView({
+      workspaceRoot: "D:\\workspace",
+      workspaceRootRef: "workspace-ref-test",
+      mode: "advanced_workspace",
+      sessionLeaseRef: "lease-command-broker-test",
+      transcriptPolicyRef: "transcript-policy-command-broker",
+      commandText: "node --version",
+      shellKind: "powershell",
+      workingDirectory: ".",
+      allowWorkspaceWrite: true,
+      typedConfirmation: "EXECUTE WORKSPACE COMMAND"
+    });
+    expect(confirmed.policyDecision).toBe("ready_for_tauri_execution");
+    expect(confirmed.approvalReceiptReady).toBe(true);
+    expect(confirmed.approvalReceipt.source).toBe(
+      "runtime_command_broker_approval_receipt"
+    );
+    expect(confirmed.approvalReceipt.scope.typedConfirmation).toBe(
+      "EXECUTE WORKSPACE COMMAND"
+    );
+    expect(confirmed.executeDisabled).toBe(false);
+    expect(confirmed.readiness.canExecuteFixedBrokerCommand).toBe(true);
+
+    const dangerous = buildCommandBrokerView({
+      ...advanced,
+      commandText: "rm -rf dist"
+    });
+    expect(dangerous.executeDisabled).toBe(true);
+    expect(dangerous.executeDisabledReasons).toContain(
+      "BROKER_DECISION_NOT_READY"
+    );
+
+    const killed = buildCommandBrokerView({
+      ...advanced,
+      killSwitchActive: true
+    });
+    expect(killed.executeDisabled).toBe(true);
+    expect(killed.executeDisabledReasons).toContain("KILL_SWITCH_ACTIVE");
+  });
+
+  it("builds command broker replay view from summary-only command events", () => {
+    const view = buildCommandBrokerView({
+      workspaceRoot: "D:\\workspace",
+      workspaceRootRef: "workspace-ref-test",
+      mode: "advanced_workspace",
+      sessionLeaseRef: "lease-command-broker-test",
+      transcriptPolicyRef: "transcript-policy-command-broker",
+      commandText: "node --version",
+      shellKind: "powershell",
+      workingDirectory: ".",
+      allowWorkspaceWrite: true
+    });
+
+    const replay = buildCommandBrokerReplayView({
+      commandBrokerView: view,
+      commandBrokerExecutionResult: fixedCommandBrokerExecutionResult()
+    });
+
+    expect(replay.status).toBe("projected");
+    expect(replay.plannedCommandCount).toBe(1);
+    expect(replay.executedCommandCount).toBe(1);
+    expect(replay.transcriptRefCount).toBe(1);
+    expect(replay.redactionAuditStatus).toBe("audit_ready");
+    expect(replay.readiness.canWriteEventStore).toBe(false);
+    expect(replay.readiness.canReplayExecuteCommand).toBe(false);
+    expect(replay.readiness.appCanExecute).toBe(false);
+    expect(JSON.stringify(replay)).not.toContain("broker-safe output");
+    expect(JSON.stringify(replay)).not.toContain("Write-Output");
+  });
+
+  it("normalizes command broker event counts into the event log panel", () => {
+    const summary = normalizeWorkspaceEventSummary(
+      fixedEventSummary({
+        commandBrokerEventCount: 1,
+        latestCommandBrokerSummary:
+          "command broker event: passed · powershell · advanced_workspace · command commandhash12 · 42 stdout bytes",
+        typeCounts: {
+          "command_broker.command.executed": 1
+        },
+        timeline: [
+          {
+            id: "command-broker-event-1",
+            ts: "2026-07-06T00:00:00.000Z",
+            type: "command_broker.command.executed",
+            taskId: "command-broker",
+            summary:
+              "command broker event: passed · powershell · advanced_workspace · command commandhash12 · 42 stdout bytes",
+            safePayloadKeys: [
+              "commandHash",
+              "shellKind",
+              "mode",
+              "stdoutBytes",
+              "stderrBytes",
+              "transcriptRef"
+            ]
+          }
+        ]
+      })
+    );
+    const panel = buildEventLogPanelModel(summary);
+
+    expect(panel?.commandBrokerEventCount).toBe(1);
+    expect(panel?.latestCommandBrokerSummary).toContain("command broker event");
+    expect(panel?.timeline[0]?.type).toBe("command_broker.command.executed");
+    expect(JSON.stringify(panel)).not.toContain("raw stdout");
+    expect(JSON.stringify(panel)).not.toContain("raw stderr");
+  });
+
+  it("renders command broker panel without generic shell auto-run", async () => {
+    const appSource = await readFile(
+      path.join(appRoot, "src", "App.tsx"),
+      "utf8"
+    );
+    const desktopFlowSource = await readFile(
+      path.join(appRoot, "src", "desktop-flow.ts"),
+      "utf8"
+    );
+
+    expect(appSource).toContain("Command Broker");
+    expect(appSource).toContain("Command Broker Replay / Redaction");
+    expect(appSource).toContain("Summary replay / no re-execution");
+    expect(appSource).toContain("Command broker events");
+    expect(appSource).toContain("Latest command broker");
+    expect(appSource).toContain("Plan Command");
+    expect(appSource).toContain("Execute Command");
+    expect(appSource).toContain("Cancel / Kill Command");
+    expect(appSource).toContain("Fixed Tauri command / broker gated");
+    expect(appSource).toContain("no generic shell invocation");
+    expect(appSource).toContain("no generic shell invocation");
+    expect(appSource).toContain("Raw output");
+    expect(appSource).toContain("absent");
+    expect(appSource).toContain("handlePlanCommandBroker");
+    expect(appSource).toContain("handleExecuteCommandBroker");
+    expect(appSource).not.toContain(
+      "useEffect(() => handleExecuteCommandBroker"
+    );
+    expect(appSource).not.toContain("autoRunCommand");
+    expect(desktopFlowSource).toContain('"execute_command_broker_request"');
+    expect(desktopFlowSource).not.toContain("execute_generic_command");
+    expect(desktopFlowSource).not.toContain("run_shell_command");
   });
 
   it("builds a safe no-events model", () => {
@@ -11574,7 +12110,9 @@ describe("app patch approval draft", () => {
     expect(combined).not.toContain("handleApplyPatch");
     expect(combined).not.toContain("approvePatch");
     expect(combined).not.toContain("rejectPatch");
-    expect(combined).not.toContain("issuePermissionLease");
+    // Lease issuance moved to the fixed broker lane in v0.36; the draft
+    // adapter itself must still not issue leases.
+    expect(adapterSource).not.toContain("issuePermissionLease");
     expect(combined).not.toContain("executePatch");
     expect(adapterSource).not.toContain("safeInvoke");
     expect(adapterSource).not.toContain("EventStore");
@@ -12277,6 +12815,7 @@ describe("app controlled creation replay projection", () => {
       approvedApplyCount: 0,
       approvedRollbackCount: 0,
       verificationEventCount: 0,
+      commandBrokerEventCount: 0,
       liveProposalEventCount: 0,
       transcriptEventCount: 0,
       projectKnowledgeEventCount: 0,
@@ -16177,7 +16716,8 @@ describe("desktop source boundaries", () => {
     expect(appSource).not.toContain("createControlPlaneTask");
     expect(appSource).not.toContain("routeAgentTask");
     expect(appSource).not.toContain("planCapabilityInvocation");
-    expect(appSource).not.toContain("issuePermissionLease");
+    // issuePermissionLease is intentionally present since v0.36: leases are
+    // issued only through the fixed Tauri lane with a typed confirmation.
     expect(appSource).not.toContain("assemblePrompt");
     expect(appSource).not.toContain("assembleContext");
     expect(appSource).not.toContain("ContextLedger");
@@ -23776,6 +24316,7 @@ describe("desktop source boundaries", () => {
         approvedApplyCount: 0,
         approvedRollbackCount: 0,
         verificationEventCount: 0,
+        commandBrokerEventCount: 0,
         liveProposalEventCount: 0,
         transcriptEventCount: 0,
         projectKnowledgeEventCount: 0,
@@ -23959,6 +24500,7 @@ describe("desktop source boundaries", () => {
         approvedApplyCount: 0,
         approvedRollbackCount: 0,
         verificationEventCount: 0,
+        commandBrokerEventCount: 0,
         liveProposalEventCount: 0,
         transcriptEventCount: 0,
         projectKnowledgeEventCount: 0,
@@ -35946,6 +36488,255 @@ describe("expanded desktop action proposal app surface", () => {
     expect(combined).not.toContain("raw transcript enables shell execution");
     expect(combined).not.toContain("raw transcript enables full access");
     expect(combined).not.toContain("raw transcript bypasses redaction");
+  });
+
+  it("documents the v0.35 post-release review and P1N command broker roadmap", async () => {
+    const review = await readFile(
+      path.join(
+        repoRoot,
+        "docs",
+        "v0.35-raw-transcript-output-postrelease-review.md"
+      ),
+      "utf8"
+    );
+    const roadmap = await readFile(
+      path.join(
+        repoRoot,
+        "docs",
+        "p1n-arbitrary-shell-command-broker-roadmap.md"
+      ),
+      "utf8"
+    );
+    const plan = await readFile(
+      path.join(repoRoot, "docs", "p1n-001-command-broker-adr-plan.md"),
+      "utf8"
+    );
+    const prompts = await readFile(
+      path.join(
+        repoRoot,
+        "docs",
+        "v0.36-arbitrary-shell-command-broker-prompts.md"
+      ),
+      "utf8"
+    );
+    const docsIndex = await readFile(
+      path.join(repoRoot, "docs", "README.md"),
+      "utf8"
+    );
+    const rootReadme = await readFile(path.join(repoRoot, "README.md"), "utf8");
+    const combined = [
+      review,
+      roadmap,
+      plan,
+      prompts,
+      docsIndex,
+      rootReadme
+    ].join("\n");
+    const roadmapLower = roadmap.toLowerCase();
+
+    expect(review).toContain("v0.35.0-raw-transcript-output-persistence-rc.1");
+    expect(review).toContain(
+      "Raw transcript and output persistence foundation, no arbitrary shell"
+    );
+    expect(review).toContain("Transcript replay and audit");
+    expect(roadmap).toContain("permission-mode-gated command broker");
+    expect(roadmap).toContain("Fixed safe lanes remain unchanged");
+    expect(roadmap).toContain(
+      "Command output must enter the transcript pipeline"
+    );
+    expect(roadmap).toContain("summary-only");
+    expect(roadmapLower).toContain("no auto apply");
+    expect(roadmapLower).toContain("no recursive delete");
+    expect(roadmapLower).toContain("no git commit or push");
+    expect(roadmapLower).toContain("no autonomous loop");
+    expect(roadmapLower).toContain("no full access by default");
+    expect(plan).toContain("no runtime command broker implementation");
+    expect(plan).toContain("no Tauri command");
+    expect(plan).toContain("no arbitrary shell");
+    expect(plan).toContain("no command execution");
+    expect(plan).toContain("no API key read");
+    expect(plan).toContain("no fetch/network");
+    expect(prompts).toContain("DW-P1N-009");
+    expect(docsIndex).toContain(
+      "v0.36-arbitrary-shell-command-broker-prompts.md"
+    );
+    expect(docsIndex).toContain(
+      "v0.35-raw-transcript-output-postrelease-review.md"
+    );
+    expect(docsIndex).toContain(
+      "p1n-arbitrary-shell-command-broker-roadmap.md"
+    );
+    expect(rootReadme).toContain("P1N starts");
+    expect(combined).not.toContain("App arbitrary shell is enabled");
+    expect(combined).not.toContain("App command execution is enabled");
+    expect(combined).not.toContain("command broker enables auto apply");
+    expect(combined).not.toContain("command broker enables recursive delete");
+    expect(combined).not.toContain("command broker enables Git push");
+    expect(combined).not.toContain("command broker enables full access");
+  });
+
+  it("documents the command broker ADR threat model and implementation gate", async () => {
+    const adr = await readFile(
+      path.join(
+        repoRoot,
+        "docs",
+        "adr",
+        "0012-arbitrary-shell-command-broker.md"
+      ),
+      "utf8"
+    );
+    const threatModel = await readFile(
+      path.join(
+        repoRoot,
+        "docs",
+        "arbitrary-shell-command-broker-threat-model-v0.35.md"
+      ),
+      "utf8"
+    );
+    const implementationGate = await readFile(
+      path.join(
+        repoRoot,
+        "docs",
+        "arbitrary-shell-command-broker-implementation-gate-v0.35.md"
+      ),
+      "utf8"
+    );
+    const nextPlan = await readFile(
+      path.join(
+        repoRoot,
+        "docs",
+        "p1n-002-command-execution-policy-schema-plan.md"
+      ),
+      "utf8"
+    );
+    const docsIndex = await readFile(
+      path.join(repoRoot, "docs", "README.md"),
+      "utf8"
+    );
+    const combined = [
+      adr,
+      threatModel,
+      implementationGate,
+      nextPlan,
+      docsIndex
+    ].join("\n");
+    const threatModelLower = threatModel.toLowerCase();
+
+    expect(adr).toContain("Accepted for the P1N command broker design gate");
+    expect(adr).toContain("The Command Broker is the only entry point");
+    expect(adr).toContain("shell command.");
+    expect(adr).toContain("permission mode");
+    expect(adr).toContain("session lease");
+    expect(adr).toContain("risk budget");
+    expect(adr).toContain("dangerous command classifier");
+    expect(adr).toContain("transcript policy");
+    expect(adr).toContain("kill switch");
+    expect(adr).toContain("Approval Mode remains limited to fixed safe lanes");
+    expect(adr).toContain("Autonomous Safe Mode");
+    expect(adr).toContain("Advanced Workspace Mode");
+    expect(adr).toContain("Full Access Mode is modeled");
+    expect(adr).toContain(
+      "All command output must enter the transcript pipeline"
+    );
+    expect(threatModelLower).toContain("command injection");
+    expect(threatModelLower).toContain("shell metacharacters");
+    expect(threatModelLower).toContain("recursive delete");
+    expect(threatModelLower).toContain("credential exfiltration");
+    expect(threatModelLower).toContain("windows powershell and cmd");
+    expect(threatModelLower).toContain("quirks before execution");
+    expect(implementationGate).toContain(
+      "Do not implement Tauri command execution until P1N-002/P1N-003/P1N-004 gates"
+    );
+    expect(implementationGate).toContain("satisfied.");
+    expect(implementationGate).toContain("Permission Mode Gate");
+    expect(implementationGate).toContain("Session Lease Gate");
+    expect(implementationGate).toContain(
+      "Dangerous Command Classification Gate"
+    );
+    expect(implementationGate).toContain("Transcript Capture Gate");
+    expect(implementationGate).toContain("CI / Boundary Safety Gate");
+    expect(nextPlan).toContain("No command execution.");
+    expect(nextPlan).toContain("No arbitrary shell execution.");
+    expect(nextPlan).toContain("No Tauri command.");
+    expect(nextPlan).toContain("No process spawn.");
+    expect(nextPlan).toContain("No Git commit or push.");
+    expect(nextPlan).toContain("No API key read.");
+    expect(nextPlan).toContain("No fetch/network.");
+    expect(docsIndex).toContain("0012-arbitrary-shell-command-broker.md");
+    expect(docsIndex).toContain(
+      "arbitrary-shell-command-broker-threat-model-v0.35.md"
+    );
+    expect(docsIndex).toContain(
+      "arbitrary-shell-command-broker-implementation-gate-v0.35.md"
+    );
+    expect(docsIndex).toContain(
+      "p1n-002-command-execution-policy-schema-plan.md"
+    );
+    expect(combined).not.toContain("Tauri command execution is enabled");
+    expect(combined).not.toContain("arbitrary shell is enabled by default");
+    expect(combined).not.toContain("recursive delete is enabled");
+    expect(combined).not.toContain("Git push is enabled");
+    expect(combined).not.toContain("Full Access execution is enabled");
+  });
+
+  it("documents the command broker fixed Tauri command boundary", async () => {
+    const commandDoc = await readFile(
+      path.join(repoRoot, "docs", "app-command-broker-tauri-command-v0.35.md"),
+      "utf8"
+    );
+    const appSurfaceDoc = await readFile(
+      path.join(repoRoot, "docs", "app-shell-command-broker-v0.35.md"),
+      "utf8"
+    );
+    const docsIndex = await readFile(
+      path.join(repoRoot, "docs", "README.md"),
+      "utf8"
+    );
+
+    expect(commandDoc).toContain("execute_command_broker_request");
+    expect(commandDoc).toContain("No generic command runner");
+    expect(commandDoc).toContain("ready_for_tauri_execution");
+    expect(commandDoc).toContain("summary-only");
+    expect(commandDoc).toContain("transcript store");
+    expect(commandDoc).toContain("No apply or rollback");
+    expect(commandDoc).toContain("No EventStore write");
+    expect(commandDoc).toContain("No Git commit/push");
+    expect(commandDoc).toContain("No native bridge");
+    expect(commandDoc).toContain("No desktop action");
+    expect(docsIndex).toContain("app-command-broker-tauri-command-v0.35.md");
+    expect(appSurfaceDoc).toContain("Command Broker");
+    expect(appSurfaceDoc).toContain("Plan Command");
+    expect(appSurfaceDoc).toContain("Execute Command");
+    expect(appSurfaceDoc).toContain("Cancel / Kill Command");
+    expect(appSurfaceDoc).toContain("No generic shell invocation");
+    expect(appSurfaceDoc).toContain("No auto-run command history");
+    expect(appSurfaceDoc).toContain("No EventStore write");
+    expect(appSurfaceDoc).toContain("No native bridge");
+    expect(appSurfaceDoc).toContain("No desktop action");
+    expect(docsIndex).toContain("app-shell-command-broker-v0.35.md");
+  });
+
+  it("documents command broker replay event redaction boundaries", async () => {
+    const replayDoc = await readFile(
+      path.join(repoRoot, "docs", "app-command-broker-replay-events-v0.35.md"),
+      "utf8"
+    );
+    const docsIndex = await readFile(
+      path.join(repoRoot, "docs", "README.md"),
+      "utf8"
+    );
+
+    expect(replayDoc).toContain("Command Broker Replay Events");
+    expect(replayDoc).toContain("command_broker.command.planned");
+    expect(replayDoc).toContain("command_broker.command.executed");
+    expect(replayDoc).toContain("summary-only");
+    expect(replayDoc).toContain("raw stdout");
+    expect(replayDoc).toContain("raw stderr");
+    expect(replayDoc).toContain("No EventStore write");
+    expect(replayDoc).toContain("no command replay execution");
+    expect(replayDoc).toContain("no native bridge");
+    expect(replayDoc).toContain("no desktop action");
+    expect(docsIndex).toContain("app-command-broker-replay-events-v0.35.md");
   });
 
   it("documents the runtime transcript store schema boundaries", async () => {

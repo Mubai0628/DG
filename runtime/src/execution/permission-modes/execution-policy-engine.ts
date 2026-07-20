@@ -7,6 +7,8 @@ import {
 
 export type ExecutionCapabilityKind =
   | "workspace_read"
+  | "file_read"
+  | "sensitive_file_read"
   | "workspace_write"
   | "patch_apply"
   | "patch_rollback"
@@ -106,6 +108,8 @@ export type ExecutionPolicyDecision = {
 
 export const executionCapabilityKinds = [
   "workspace_read",
+  "file_read",
+  "sensitive_file_read",
   "workspace_write",
   "patch_apply",
   "patch_rollback",
@@ -134,6 +138,7 @@ export const executionCapabilityKinds = [
 
 const readOnlyCapabilities = new Set<ExecutionCapabilityKind>([
   "workspace_read",
+  "file_read",
   "git_read",
   "mcp_readonly_tool",
   "desktop_observe",
@@ -145,7 +150,8 @@ const approvalRequiredCapabilities = new Set<ExecutionCapabilityKind>([
   "patch_apply",
   "patch_rollback",
   "shell_allowlisted",
-  "live_model_call"
+  "live_model_call",
+  "sensitive_file_read"
 ]);
 
 const fixedVerificationCapabilities = new Set<ExecutionCapabilityKind>([
@@ -460,6 +466,7 @@ function riskLevelForCapability(
   }
   if (
     capabilityKind === "workspace_write" ||
+    capabilityKind === "sensitive_file_read" ||
     capabilityKind === "patch_apply" ||
     capabilityKind === "patch_rollback" ||
     capabilityKind === "shell_allowlisted" ||
